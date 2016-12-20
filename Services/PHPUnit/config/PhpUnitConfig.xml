@@ -1,4 +1,13 @@
 <phpunit>
+  <filter>
+  <whitelist>
+      <directory suffix=".php">../../../</directory>
+      <exclude>
+        <directory suffix=".php">../../../libs/</directory>
+        <directory suffix=".php">../../../tests/</directory>
+      </exclude>
+    </whitelist>
+  </filter>
   <testsuites>
     <testsuite name="Global ILIAS Tests">
       <file>../test/ilGlobalSuite.php</file>
