@@ -20,4 +20,4 @@ jobs:
     # Docs: https://getcomposer.org/doc/articles/scripts.md
 
     - name: Run test suite
-      run: - ./CI/PHPUnit/run_tests_with_reporting.sh;
+      run: ./CI/PHPUnit/run_tests_with_reporting.sh;
