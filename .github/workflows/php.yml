@@ -10,6 +10,9 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
+    - name: Change dir
+      run: cd libs/composer
+
     - name: Validate composer.json and composer.lock
       run: composer validate
 
@@ -19,5 +22,8 @@ jobs:
     # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
     # Docs: https://getcomposer.org/doc/articles/scripts.md
 
+    - name: Return to root dir
+      run: cd ../../
+      
     - name: Run test suite
       run: ./CI/PHPUnit/run_tests_with_reporting.sh;
