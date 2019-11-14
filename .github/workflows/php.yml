@@ -11,10 +11,7 @@ jobs:
     - uses: actions/checkout@v1
 
     - name: Change dir
-      run: cd libs/composer
-
-    - name: Validate composer.json and composer.lock
-      run: composer validate
+      run: cd libs/composer && ls -lisah
 
     - name: Install dependencies
       run: composer install --prefer-dist --no-progress --no-suggest
