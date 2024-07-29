@@ -1,27 +1,48 @@
 <?php
 
-/* Copyright (c) 2017 Alexander Killing <killing@leifos.de> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 namespace ILIAS\UI\Implementation\Component\Dropdown;
 
+use ILIAS\UI\Component\JavaScriptBindable;
 use ILIAS\UI\Implementation\Render\AbstractComponentRenderer;
 use ILIAS\UI\Renderer as RendererInterface;
 use ILIAS\UI\Component;
 use ILIAS\UI\Implementation\Render\ResourceRegistry;
+use ILIAS\UI\Implementation\Render\Template;
 
 class Renderer extends AbstractComponentRenderer
 {
     /**
      * @inheritdoc
      */
-    public function render(Component\Component $component, RendererInterface $default_renderer)
+    public function render(Component\Component $component, RendererInterface $default_renderer): string
     {
         $this->checkComponent($component);
 
+        /**
+         * @var $component Dropdown
+         */
         return $this->renderDropdown($component, $default_renderer);
     }
 
-    protected function renderDropdown(Component\Dropdown\Dropdown $component, RendererInterface $default_renderer)
+    protected function renderDropdown(Dropdown $component, RendererInterface $default_renderer): string
     {
 
         // get template
@@ -43,16 +64,23 @@ class Renderer extends AbstractComponentRenderer
             $tpl->setVariable("LABEL", "");
         }
 
-        $this->maybeRenderId($component, $tpl, "with_id", "ID");
+        // ensure that a) a separate aria label may be provided and
+        // b) that an empty label and empty aria-label will use the "actions" fallback
+        if ($component->getLabel() == "" || $component->getAriaLabel() != "") {
+            $aria_label = ($component->getAriaLabel() != "")
+                ? $component->getAriaLabel()
+                : $this->txt("actions");
+            $tpl->setCurrentBlock("aria_label");
+            $tpl->setVariable("ARIA_LABEL", $aria_label);
+            $tpl->parseCurrentBlock();
+        }
+
+        $this->renderId($component, $tpl);
 
         return $tpl->get();
     }
 
-    /**
-     * @param array $items
-     * @param ilTemplate $tpl
-     */
-    protected function renderItems($items, $tpl, $default_renderer)
+    protected function renderItems(array $items, Template $tpl, RendererInterface $default_renderer): void
     {
         foreach ($items as $item) {
             $tpl->setCurrentBlock("item");
@@ -62,37 +90,23 @@ class Renderer extends AbstractComponentRenderer
     }
 
 
-    protected function maybeRenderId(Component\Component $component, $tpl, $block, $template_var)
-    {
+    protected function renderId(
+        JavaScriptBindable $component,
+        Template $tpl
+    ): void {
         $id = $this->bindJavaScript($component);
-        if ($id !== null) {
-            $tpl->setCurrentBlock($block);
-            $tpl->setVariable($template_var, $id);
-            $tpl->parseCurrentBlock();
+        if ($id === null) {
+            $id = $this->createId();
         }
+        $tpl->setVariable("ID", $id);
+        $tpl->setVariable("ID_MENU", $id."_menu");
+
     }
-
-
-    /**
-     * Append a block to touch during rendering and return cloned instance
-     *
-     * @param string 	$block
-     *
-     * @return Renderer
-     */
-    public function withBlocksToBeTouched($block)
-    {
-        assert(is_string($block));
-        $clone = clone $this;
-        $clone->touch_blocks[] = $block;
-        return $clone;
-    }
-
 
     /**
      * @inheritdoc
      */
-    public function registerResources(ResourceRegistry $registry)
+    public function registerResources(ResourceRegistry $registry): void
     {
         parent::registerResources($registry);
         $registry->register('./src/UI/templates/js/Dropdown/dropdown.js');
@@ -101,9 +115,8 @@ class Renderer extends AbstractComponentRenderer
     /**
      * @inheritdoc
      */
-    protected function getComponentInterfaceName()
+    protected function getComponentInterfaceName(): array
     {
-        return array(Component\Dropdown\Standard::class
-        );
+        return array(Component\Dropdown\Standard::class);
     }
 }

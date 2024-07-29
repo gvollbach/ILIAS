@@ -32,19 +32,19 @@
 	}
   }
   i.icon-refresh {
-	background: url("@{background-images-path}loading.gif") no-repeat;
+	background: url("@{il-background-images-path}loading.gif") no-repeat;
 	height:     30px;
   }
 
   .il-popover-title-container {
-	background-color: #F0F0F0;
+	background-color: @il-main-darker-bg;
 	h4.il-popover-title {
-	  font-size:        @font-size-h4;
-	  font-weight:      normal;
+	  font-size:        @il-font-size-large;
+	  font-weight:      @il-font-weight-base;
 	  padding:          8px 14px;
 	  background-color: transparent;
-	  text-transform:   @il-panel-listing-std-container-h4-text-transform;
-	  color:            @il-panel-listing-std-container-h4-color;
+	  text-transform:   none;
+	  color:            @il-panel-heading-color;
 	}
 
   }

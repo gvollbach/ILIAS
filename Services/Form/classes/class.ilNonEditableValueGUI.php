@@ -1,203 +1,169 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once 'Services/Form/interfaces/interface.ilMultiValuesItem.php';
+declare(strict_types=1);
 
 /**
-* This class represents a non editable value in a property form.
-*
-* @author Alex Killing <alex.killing@gmx.de> 
-* @version $Id$
-* @ingroup	ServicesForm
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * This class represents a non editable value in a property form.
+ *
+ * @author Alexander Killing <killing@leifos.de>
+ */
 class ilNonEditableValueGUI extends ilSubEnabledFormPropertyGUI implements ilTableFilterItem, ilMultiValuesItem
 {
-	protected $type;
-	protected $value;
-	protected $title;
-	protected $info;
-	protected $section_icon;
-	protected $disable_escaping;
-	
-	/**
-	* Constructor
-	*
-	* @param
-	*/
-	function __construct($a_title = "", $a_id = "", $a_disable_escaping = false)
-	{
-		parent::__construct($a_title, $a_id);
-		$this->setTitle($a_title);
-		$this->setType("non_editable_value");
-		$this->disable_escaping = (bool)$a_disable_escaping;
-	}
-	
-	function checkInput()
-	{
-		if(!is_array($_POST[$this->getPostVar()]))
-		{
-			$_POST[$this->getPostVar()] = ilUtil::stripSlashes($_POST[$this->getPostVar()]);
-		}
-		return $this->checkSubItemsInput();
-	}
+    /**
+     * @var string|array
+     */
+    protected $value = null;
+    protected string $section_icon = "";
+    protected bool $disable_escaping = false;
 
-	/**
-	* Set Type.
-	*
-	* @param	string	$a_type	Type
-	*/
-	function setType($a_type)
-	{
-		$this->type = $a_type;
-	}
+    public function __construct(
+        string $a_title = "",
+        string $a_id = "",
+        bool $a_disable_escaping = false
+    ) {
+        parent::__construct($a_title, $a_id);
+        $this->setTitle($a_title);
+        $this->setType("non_editable_value");
+        $this->disable_escaping = $a_disable_escaping;
+    }
 
-	/**
-	* Get Type.
-	*
-	* @return	string	Type
-	*/
-	function getType()
-	{
-		return $this->type;
-	}
-	
-	/**
-	* Set Title.
-	*
-	* @param	string	$a_title	Title
-	*/
-	function setTitle($a_title)
-	{
-		$this->title = $a_title;
-	}
+    public function checkInput(): bool
+    {
+        return $this->checkSubItemsInput();
+    }
 
-	/**
-	* Get Title.
-	*
-	* @return	string	Title
-	*/
-	function getTitle()
-	{
-		return $this->title;
-	}
+    /**
+     * @return array|string
+     */
+    public function getInput()
+    {
+        if ($this->isRequestParamArray($this->getPostVar())) {
+            return $this->strArray($this->getPostVar());
+        }
+        return $this->str($this->getPostVar());
+    }
 
-	/**
-	* Set Information Text.
-	*
-	* @param	string	$a_info	Information Text
-	*/
-	function setInfo($a_info)
-	{
-		$this->info = $a_info;
-	}
+    protected function setType(string $a_type): void
+    {
+        $this->type = $a_type;
+    }
 
-	/**
-	* Get Information Text.
-	*
-	* @return	string	Information Text
-	*/
-	function getInfo()
-	{
-		return $this->info;
-	}
+    public function getType(): string
+    {
+        return $this->type;
+    }
 
-	/**
-	* Set Value.
-	*
-	* @param	string	$a_value	Value
-	*/
-	function setValue($a_value)
-	{		
-		if($this->getMulti() && is_array($a_value))
-		{						
-			$this->setMultiValues($a_value);	
-			$a_value = array_shift($a_value);		
-		}	
-		$this->value = $a_value;
-	}
+    public function setTitle(string $a_title): void
+    {
+        $this->title = $a_title;
+    }
 
-	/**
-	* Get Value.
-	*
-	* @return	string	Value
-	*/
-	function getValue()
-	{
-		return $this->value;
-	}
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
 
-	/**
-	* render
-	*/
-	function render()
-	{
-		$tpl = new ilTemplate("tpl.non_editable_value.html", true, true, "Services/Form");
-		if ($this->getPostVar() != "")
-		{
-			$postvar = $this->getPostVar();
-			if($this->getMulti() && substr($postvar, -2) != "[]")
-			{
-				$postvar .= "[]";
-			}
-			
-			$tpl->setCurrentBlock("hidden");
-			$tpl->setVariable('NON_EDITABLE_ID', $postvar);
-			$tpl->setVariable('MULTI_HIDDEN_ID', $this->getFieldId());
-			$tpl->setVariable("HVALUE", ilUtil::prepareFormOutput($this->getValue()));
-			$tpl->parseCurrentBlock();
-		}
-		$value = $this->getValue();
-		if(!$this->disable_escaping)
-		{
-			$value = ilUtil::prepareFormOutput($value);
-		}
-		$tpl->setVariable("VALUE", $value);
-		$tpl->setVariable("ID", $this->getFieldId());
-		$tpl->parseCurrentBlock();
-		
-		if ($this->getMulti() && $postvar!= "" && !$this->getDisabled())
-		{
-			$tpl->setVariable("MULTI_ICONS", $this->getMultiIconsHTML());
-		}
+    public function setInfo(string $a_info): void
+    {
+        $this->info = $a_info;
+    }
 
-		
-		return $tpl->get();
-	}
-	
-	/**
-	* Insert property html
-	*
-	*/
-	function insert($a_tpl)
-	{
-		$a_tpl->setCurrentBlock("prop_generic");
-		$a_tpl->setVariable("PROP_GENERIC", $this->render());
-		$a_tpl->parseCurrentBlock();
-	}
-	
-	/**
-	* Set value by array
-	*
-	* @param	array	$a_values	value array
-	*/
-	function setValueByArray($a_values)
-	{
-		if ($this->getPostVar() && isset($a_values[$this->getPostVar()]))
-		{
-			$this->setValue($a_values[$this->getPostVar()]);
-		}
-		foreach($this->getSubItems() as $item)
-		{
-			$item->setValueByArray($a_values);
-		}
-	}
-	
-	/**
-	* Get HTML for table filter
-	*/
-	function getTableFilterHTML()
-	{
-		$html = $this->render();
-		return $html;
-	}
+    public function getInfo(): string
+    {
+        return $this->info;
+    }
+
+    /**
+     * @param string|array $a_value
+     */
+    public function setValue($a_value): void
+    {
+        if ($this->getMulti() && is_array($a_value)) {
+            $this->setMultiValues($a_value);
+            $a_value = array_shift($a_value);
+        }
+        $this->value = $a_value;
+    }
+
+    /**
+     * @return string|array
+     */
+    public function getValue()
+    {
+        return $this->value;
+    }
+
+    public function render(): string
+    {
+        $postvar = "";
+
+        $tpl = new ilTemplate("tpl.non_editable_value.html", true, true, "Services/Form");
+        if ($this->getPostVar() != "") {
+            $postvar = $this->getPostVar();
+            if ($this->getMulti() && substr($postvar, -2) != "[]") {
+                $postvar .= "[]";
+            }
+
+            $tpl->setCurrentBlock("hidden");
+            $tpl->setVariable('NON_EDITABLE_ID', $postvar);
+            $tpl->setVariable('MULTI_HIDDEN_ID', $this->getFieldId());
+            $tpl->setVariable("HVALUE", ilLegacyFormElementsUtil::prepareFormOutput((string) $this->getValue()));
+            $tpl->parseCurrentBlock();
+        }
+        $value = $this->getValue();
+        if (!$this->disable_escaping) {
+            $value = ilLegacyFormElementsUtil::prepareFormOutput((string) $value);
+        }
+        $tpl->setVariable("VALUE", $value);
+        if ($this->getFieldId() != "") {
+            $tpl->setVariable("ID", ' id="' . $this->getFieldId() . '" ');
+        }
+        $tpl->parseCurrentBlock();
+
+        if ($this->getMulti() && $postvar != "" && !$this->getDisabled()) {
+            $tpl->setVariable("MULTI_ICONS", $this->getMultiIconsHTML());
+        }
+
+
+        return $tpl->get();
+    }
+
+    public function insert(ilTemplate $a_tpl): void
+    {
+        $a_tpl->setCurrentBlock("prop_generic");
+        $a_tpl->setVariable("PROP_GENERIC", $this->render());
+        $a_tpl->parseCurrentBlock();
+    }
+
+    public function setValueByArray(array $a_values): void
+    {
+        if ($this->getPostVar() && isset($a_values[$this->getPostVar()])) {
+            $this->setValue($a_values[$this->getPostVar()]);
+        }
+        foreach ($this->getSubItems() as $item) {
+            $item->setValueByArray($a_values);
+        }
+    }
+
+    public function getTableFilterHTML(): string
+    {
+        $html = $this->render();
+        return $html;
+    }
 }

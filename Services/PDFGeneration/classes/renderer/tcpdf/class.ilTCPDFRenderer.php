@@ -1,187 +1,129 @@
 <?php
 
-require_once './Services/PDFGeneration/interfaces/interface.ilRendererConfig.php';
-require_once './Services/PDFGeneration/interfaces/interface.ilPDFRenderer.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
+declare(strict_types=1);
+
+/**
+ * @deprecated
+ */
 class ilTCPDFRenderer implements ilRendererConfig, ilPDFRenderer
 {
-	/** @var ilLanguage $lng */
-	protected $lng;
+    protected ilLanguage $lng;
 
-	/**
-	 * from ilPlugin
-	 *
-	 * ilDummyRendererPlugin constructor.
-	 */
-	public function __construct()
-	{
-		global $DIC;
-		$this->lng = $DIC['lng'];
-	}
+    public function __construct()
+    {
+        global $DIC;
+        $this->lng = $DIC->language();
+    }
 
-	/**
-	 * from ilRendererConfig
-	 *
-	 * @param \ilPropertyFormGUI $form
-	 * @param string             $service
-	 * @param string             $purpose
-	 *
-	 * @return \ilPropertyFormGUI|void
-	 */
-	public function addConfigElementsToForm(\ilPropertyFormGUI $form, $service, $purpose)
-	{
-		$margin_left = new ilTextInputGUI($this->lng->txt('margin_left'), 'margin_left');
-		$form->addItem($margin_left);
+    public function addConfigElementsToForm(ilPropertyFormGUI $form, string $service, string $purpose): void
+    {
+        $margin_left = new ilTextInputGUI($this->lng->txt('margin_left'), 'margin_left');
+        $form->addItem($margin_left);
 
-		$margin_top = new ilTextInputGUI($this->lng->txt('margin_top'), 'margin_top');
-		$form->addItem($margin_top);
+        $margin_top = new ilTextInputGUI($this->lng->txt('margin_top'), 'margin_top');
+        $form->addItem($margin_top);
 
-		$margin_right = new ilTextInputGUI($this->lng->txt('margin_right'), 'margin_right');
-		$form->addItem($margin_right);
+        $margin_right = new ilTextInputGUI($this->lng->txt('margin_right'), 'margin_right');
+        $form->addItem($margin_right);
 
-		$margin_bottom = new ilTextInputGUI($this->lng->txt('margin_bottom'), 'margin_bottom');
-		$form->addItem($margin_bottom);
+        $margin_bottom = new ilTextInputGUI($this->lng->txt('margin_bottom'), 'margin_bottom');
+        $form->addItem($margin_bottom);
 
-		$image_scale = new ilTextInputGUI($this->lng->txt('image_scale'), 'image_scale');
-		$form->addItem($image_scale);
-	}
+        $image_scale = new ilTextInputGUI($this->lng->txt('image_scale'), 'image_scale');
+        $form->addItem($image_scale);
+    }
 
-	/**
-	 * from ilRendererConfig
-	 *
-	 * @param \ilPropertyFormGUI $form
-	 * @param string             $service
-	 * @param string             $purpose
-	 * @param array              $config
-	 *
-	 * @return \ilPropertyFormGUI|void
-	 */
-	public function populateConfigElementsInForm(\ilPropertyFormGUI $form, $service, $purpose, $config)
-	{
-		$form->getItemByPostVar('margin_left')->setValue($config['margin_left']);
-		$form->getItemByPostVar('margin_right')->setValue($config['margin_right']);
-		$form->getItemByPostVar('margin_top')->setValue($config['margin_top']);
-		$form->getItemByPostVar('margin_bottom')->setValue($config['margin_bottom']);
-		$form->getItemByPostVar('image_scale')->setValue($config['image_scale']);
-	}
+    public function populateConfigElementsInForm(ilPropertyFormGUI $form, string $service, string $purpose, array $config): void
+    {
+        $form->getItemByPostVar('margin_left')->setValue($config['margin_left']);
+        $form->getItemByPostVar('margin_right')->setValue($config['margin_right']);
+        $form->getItemByPostVar('margin_top')->setValue($config['margin_top']);
+        $form->getItemByPostVar('margin_bottom')->setValue($config['margin_bottom']);
+        $form->getItemByPostVar('image_scale')->setValue($config['image_scale']);
+    }
 
-	/**
-	 * from ilRendererConfig
-	 *
-	 * @param \ilPropertyFormGUI $form
-	 * @param string             $service
-	 * @param string             $purpose
-	 *
-	 * @return bool
-	 */
-	public function validateConfigInForm(\ilPropertyFormGUI $form, $service, $purpose)
-	{
-		if(true)
-		{
-			return true;
-		}
-	}
+    public function validateConfigInForm(ilPropertyFormGUI $form, string $service, string $purpose): bool
+    {
+        return true;
+    }
 
-	/**
-	 * from ilRendererConfig
-	 *
-	 * @param \ilPropertyFormGUI $form
-	 * @param string             $service
-	 * @param string             $purpose
-	 *
-	 * @return array
-	 */
-	public function getConfigFromForm(\ilPropertyFormGUI $form, $service, $purpose)
-	{
-		$retval = array(
-			'margin_left'		=> $form->getItemByPostVar('margin_left')->getValue(),
-			'margin_right'		=> $form->getItemByPostVar('margin_right')->getValue(),
-			'margin_top'		=> $form->getItemByPostVar('margin_top')->getValue(),
-			'margin_bottom'		=> $form->getItemByPostVar('margin_bottom')->getValue(),
-			'image_scale'		=> $form->getItemByPostVar('image_scale')->getValue(),
-		);
+    public function getConfigFromForm(ilPropertyFormGUI $form, string $service, string $purpose): array
+    {
+        $retval = [
+            'margin_left' => $form->getItemByPostVar('margin_left')->getValue(),
+            'margin_right' => $form->getItemByPostVar('margin_right')->getValue(),
+            'margin_top' => $form->getItemByPostVar('margin_top')->getValue(),
+            'margin_bottom' => $form->getItemByPostVar('margin_bottom')->getValue(),
+            'image_scale' => $form->getItemByPostVar('image_scale')->getValue(),
+        ];
 
-		return $retval;
-	}
+        return $retval;
+    }
 
+    public function getDefaultConfig(string $service, string $purpose): array
+    {
+        $retval = [
+            'margin_left' => '10',
+            'margin_top' => '10',
+            'margin_right' => '10',
+            'margin_bottom' => '10',
+            'image_scale' => '1',
+        ];
 
-	/**
-	 * from ilRendererConfig
-	 *
-	 * @param string $service
-	 * @param string $purpose
-	 *
-	 * @return array
-	 */
-	public function getDefaultConfig($service, $purpose)
-	{
-		$retval = array(
-			'margin_left'		=> '10',
-			'margin_top'		=> '10',
-			'margin_right'		=> '10',
-			'margin_bottom'		=> '10',
-			'image_scale'		=> '1',
-		);
+        return $retval;
+    }
 
-		return $retval;
-	}
+    public function prepareGenerationRequest(string $service, string $purpose): void
+    {
+        ilMathJax::getInstance()
+            ->init(ilMathJax::PURPOSE_PDF)
+            ->setRendering(ilMathJax::RENDER_PNG_AS_IMG_EMBED)
+            ->setDpi(600)
+            ->setZoomFactor(0.17);
+    }
 
-	/**
-	 * Prepare the content processing at the beginning of a PDF generation request
-	 * Should be used to initialize the processing of latex code
-	 * The PDF renderers require different image formats generated by the MathJax service
-	 *
-	 * @param string              $service
-	 * @param string              $purpose
-	 * @return void
-	 */
-	public function prepareGenerationRequest($service, $purpose)
-	{
-		ilMathJax::getInstance()
-			->init(ilMathJax::PURPOSE_PDF)
-			->setRendering(ilMathJax::RENDER_PNG_AS_IMG_EMBED)
-			->setDpi(600)
-			->setZoomFactor(0.17);
-	}
+    public function generatePDF(string $service, string $purpose, array $config, ilPDFGenerationJob $job): void
+    {
+        // create new PDF document
+        $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
 
-	/**
-	 * from ilPDFRenderer
-	 *
-	 * @param string              $service
-	 * @param string              $purpose
-	 * @param array               $config
-	 * @param \ilPDFGenerationJob $job
-	 */
-	public function generatePDF($service, $purpose, $config, $job)
-	{
-		require_once 'libs/composer/vendor/autoload.php';
+        $pdf->SetMargins($config['margin_left'], $config['margin_top'], $config['margin_right']);
+        $pdf->SetAutoPageBreak('auto', $config['margin_bottom']);
+        $pdf->setImageScale($config['image_scale']);
 
-		// create new PDF document
-		$pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+        $pdf->setHeaderFont([PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN]);
+        $pdf->setFooterFont([PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA]);
+        $pdf->SetDefaultMonospacedFont(PDF_FONT_MONOSPACED);
+        $pdf->SetHeaderMargin(PDF_MARGIN_HEADER);
+        $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
+        $pdf->SetFont('dejavusans', '', 10);
+        $pdf->setSpacesRE('/[^\S\xa0]/'); // Fixing unicode/PCRE-mess #17547
 
-		$pdf->SetMargins($config['margin_left'], $config['margin_top'], $config['margin_right']);
-		$pdf->SetAutoPageBreak('auto', $config['margin_buttom']);
-		$pdf->setImageScale($config['image_scale']);
+        foreach ($job->getPages() as $page) {
+            $page = ' ' . $page;
+            $pdf->AddPage();
+            $pdf->writeHTML($page, true, false, true, false, '');
+        }
+        $result = $pdf->Output($job->getFilename(), $job->getOutputMode()); // (I - Inline, D - Download, F - File)
 
-		$pdf->setHeaderFont(array(PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN));
-		$pdf->setFooterFont(array(PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA));
-		$pdf->SetDefaultMonospacedFont(PDF_FONT_MONOSPACED);
-		$pdf->SetHeaderMargin(PDF_MARGIN_HEADER);
-		$pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
-		$pdf->SetFont('dejavusans', '', 10);
-		$pdf->setSpacesRE('/[^\S\xa0]/'); // Fixing unicode/PCRE-mess #17547
-
-		foreach ($job->getPages() as $page)
-		{
-			$page = ' '.$page;
-			$pdf->AddPage();
-			$pdf->writeHTML($page, true, false, true, false, '');
-		}
-		$result = $pdf->Output(basename($job->getFilename()), $job->getOutputMode() ); // (I - Inline, D - Download, F - File)
-
-		if(in_array($job->getOutputMode(), array('I', 'D')))
-		{
-			exit();
-		}
-	}
+        if (in_array($job->getOutputMode(), ['I', 'D'])) {
+            exit();
+        }
+    }
 }

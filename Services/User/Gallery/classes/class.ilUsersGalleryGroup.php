@@ -1,131 +1,100 @@
 <?php
-/* Copyright (c) 1998-2017 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/User/Gallery/interfaces/interface.ilUsersGalleryUserCollection.php';
+declare(strict_types=1);
 
 /**
- * Class ilUsersGalleryGroup
- */
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 class ilUsersGalleryGroup implements ilUsersGalleryUserCollection
 {
-	/**
-	 * @var ilUsersGalleryUser[]
-	 */
-	protected $users = [];
+    /** @var ilUsersGalleryUser[] */
+    protected array $users = [];
+    protected bool $highlighted = false;
+    protected string $label = '';
 
-	/**
-	 * @var bool
-	 */
-	protected $highlighted = false;
+    /**
+     * @param ilUsersGalleryUser[] $users
+     */
+    public function __construct(array $users)
+    {
+        $this->users = $users;
+    }
 
-	/**
-	 * @var string
-	 */
-	protected $label = '';
+    public function setHighlighted(bool $status): void
+    {
+        $this->highlighted = $status;
+    }
 
-	/**
-	 * ilUsersGalleryGroupImpl constructor.
-	 * @param ilUsersGalleryUser[] $users
-	 */
-	public function __construct(array $users)
-	{
-		$this->users = $users;
-	}
+    public function isHighlighted(): bool
+    {
+        return $this->highlighted;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function setHighlighted($status)
-	{
-		$this->highlighted = (bool)$status;
-	}
+    public function setLabel(string $label): void
+    {
+        $this->label = $label;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function isHighlighted()
-	{
-		return (bool)$this->highlighted;
-	}
+    public function getLabel(): string
+    {
+        return $this->label;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function setLabel($label)
-	{
-		$this->label = $label;
-	}
+    /**
+     * @param ilUsersGalleryUser[] $items
+     */
+    public function setItems(array $items): void
+    {
+        $this->users = $items;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getLabel()
-	{
-		return $this->label;
-	}
+    /**
+     * @return ilUsersGalleryUser[]
+     */
+    public function getItems(): array
+    {
+        return $this->users;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function setItems(array $items)
-	{
-		$this->users = $items;
-	}
+    public function count(): int
+    {
+        return count($this->users);
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getItems()
-	{
-		return $this->users;
-	}
+    public function current(): ilUsersGalleryUser
+    {
+        return current($this->users);
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function count()
-	{
-		return count($this->users);
-	}
+    public function next(): void
+    {
+        next($this->users);
+    }
 
-	/**
-	 * @inheritdoc
-	 * @return ilUsersGalleryUser
-	 */
-	public function current()
-	{
-		return current($this->users);
-	}
+    public function key()
+    {
+        return key($this->users);
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function next()
-	{
-		next($this->users);
-	}
+    public function valid(): bool
+    {
+        return key($this->users) !== null;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function key()
-	{
-		key($this->users);
-	}
-
-	/**
-	 * @inheritdoc
-	 */
-	public function valid()
-	{
-		return key($this->users) !== null;
-	}
-
-	/**
-	 * @inheritdoc
-	 */
-	public function rewind()
-	{
-		reset($this->users);
-	}
+    public function rewind(): void
+    {
+        reset($this->users);
+    }
 }

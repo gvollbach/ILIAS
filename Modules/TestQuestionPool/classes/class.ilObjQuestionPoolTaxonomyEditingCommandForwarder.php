@@ -1,101 +1,79 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\Refinery\Factory as Refinery;
 
 /**
  * class can be used as forwarder for taxonomy editing context
- *
  * @author		Björn Heyser <bheyser@databay.de>
- * @version		$Id$
- * 
  * @package		Modules/TestQuestionPool
  */
 class ilObjQuestionPoolTaxonomyEditingCommandForwarder
 {
-	/**
-	 * object instance of current question
-	 * 
-	 * @var ilObjQuestionPool 
-	 */
-	protected $poolOBJ = null;
-	
-	/**
-	 * global $db
-	 *
-	 * @var ilDBInterface
-	 */
-	protected $db = null;
-	
-	/**
-	 * global $pluginAdmin
-	 *
-	 * @var ilPluginAdmin
-	 */
-	protected $pluginAdmin = null;
-	
-	/**
-	 * global $ilCtrl
-	 *
-	 * @var ilCtrl
-	 */
-	protected $ctrl = null;
+    protected ilObjQuestionPool $poolOBJ;
+    protected ilDBInterface $db;
+    protected Refinery $refinery;
+    protected ilComponentRepository $component_repository;
+    protected ilCtrlInterface $ctrl;
+    protected ilTabsGUI $tabs ;
+    protected ilLanguage $lng;
 
-	/**
-	 * global $ilCtrl
-	 *
-	 * @var ilCtrl
-	 */
-	protected $tabs = null;
+    public function __construct(
+        ilObjQuestionPool $poolOBJ,
+        ilDBInterface $db,
+        Refinery $refinery,
+        ilComponentRepository $component_repository,
+        ilCtrl $ctrl,
+        ilTabsGUI $tabs,
+        ilLanguage $lng
+    ) {
+        $this->poolOBJ = $poolOBJ;
+        $this->db = $db;
+        $this->refinery = $refinery;
+        $this->component_repository = $component_repository;
+        $this->ctrl = $ctrl;
+        $this->tabs = $tabs;
+        $this->lng = $lng;
+    }
 
-	/**
-	 * global $ilCtrl
-	 *
-	 * @var ilCtrl
-	 */
-	protected $lng = null;
-	
-	/**
-	 * Constructor
-	 * 
-	 * @param ilObjQuestionPool $poolOBJ
-	 * @param ilDBInterface $db
-	 * @param ilPluginAdmin $pluginAdmin
-	 * @param ilCtrl $ctrl
-	 * @param ilTabsGUI $tabs
-	 * @param ilLanguage $lng
-	 */
-	public function __construct(ilObjQuestionPool $poolOBJ, ilDBInterface $db, ilPluginAdmin $pluginAdmin, ilCtrl $ctrl, ilTabsGUI $tabs, ilLanguage $lng)
-	{
-		$this->poolOBJ = $poolOBJ;
-		$this->db = $db;
-		$this->pluginAdmin = $pluginAdmin;
-		$this->ctrl = $ctrl;
-		$this->tabs = $tabs;
-		$this->lng = $lng;
-	}
-	
-	/**
-	 * forward method
-	 */
-	public function forward()
-	{
-		$this->tabs->setTabActive('settings');
-		$this->lng->loadLanguageModule('tax');
+    public function forward(): void
+    {
+        $this->tabs->setTabActive('settings');
+        $this->lng->loadLanguageModule('tax');
 
-		require_once 'Modules/TestQuestionPool/classes/class.ilAssQuestionList.php';
-		$questionList = new ilAssQuestionList($this->db, $this->lng, $this->pluginAdmin);
+        $questionList = new ilAssQuestionList(
+            $this->db,
+            $this->lng,
+            $this->refinery,
+            $this->component_repository
+        );
 
-		$questionList->setParentObjId($this->poolOBJ->getId());
+        $questionList->setParentObjId($this->poolOBJ->getId());
 
-		$questionList->load();
+        $questionList->load();
 
-		require_once 'Services/Taxonomy/classes/class.ilObjTaxonomyGUI.php';
-		$taxGUI = new ilObjTaxonomyGUI();
-		
-		$taxGUI->setAssignedObject($this->poolOBJ->getId());
-		$taxGUI->setMultiple(true);
-			
-		$taxGUI->activateAssignedItemSorting($questionList, 'qpl', $this->poolOBJ->getId(), 'quest');
+        $taxGUI = new ilObjTaxonomyGUI();
 
-		$this->ctrl->forwardCommand($taxGUI);
-	}
+        $taxGUI->setAssignedObject($this->poolOBJ->getId());
+        $taxGUI->setMultiple(true);
+
+        $taxGUI->activateAssignedItemSorting($questionList, 'qpl', $this->poolOBJ->getId(), 'quest');
+
+        $this->ctrl->forwardCommand($taxGUI);
+    }
 }

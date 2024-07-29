@@ -1,5 +1,22 @@
-<?php declare(strict_types=1);
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+<?php
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 use ILIAS\Filesystem\Filesystem;
 use ILIAS\FileUpload\Collection\ImmutableStringMap;
@@ -14,15 +31,12 @@ use ILIAS\FileUpload\Location;
  */
 class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
 {
-    /**
-     * @throws ReflectionException
-     */
-    public function testDocumentFormIsProperlyBuiltForNewDocuments() : void
+    public function testDocumentFormIsProperlyBuiltForNewDocuments(): void
     {
         $document = $this
             ->getMockBuilder(ilTermsOfServiceDocument::class)
             ->disableOriginalConstructor()
-            ->setMethods(['getId'])
+            ->addMethods(['getId'])
             ->getMock();
 
         $purifier = $this
@@ -43,52 +57,87 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
             ->getMock();
 
         $form = new ilTermsOfServiceDocumentFormGUI(
-            $document, $purifier, $user, $fs, $fu,
-            'action', 'save', 'cancel',
+            $document,
+            $purifier,
+            $user,
+            $fs,
+            $fu,
+            'action',
+            'save',
+            'cancel',
             true
         );
 
-        $this->assertTrue($form->getItemByPostVar('document')->getRequired(),
-            'Failed asserting document upload is required for new documents');
+        $this->assertTrue(
+            $form->getItemByPostVar('document')->getRequired(),
+            'Failed asserting document upload is required for new documents'
+        );
 
-        $this->assertCount(2, $form->getCommandButtons(),
-            'Failed asserting save and cancel buttons are given if form is editable');
-        $this->assertArrayHasKey(0, $form->getCommandButtons(),
-            'Failed asserting save and cancel buttons are given if form is editable');
-        $this->assertArrayHasKey(1, $form->getCommandButtons(),
-            'Failed asserting save and cancel buttons are given if form is editable');
-        $this->assertEquals('save', $form->getCommandButtons()[0]['cmd'],
-            'Failed asserting save and cancel buttons are given if form is editable');
-        $this->assertEquals('cancel', $form->getCommandButtons()[1]['cmd'],
-            'Failed asserting save and cancel buttons are given if form is editable');
+        $this->assertCount(
+            2,
+            $form->getCommandButtons(),
+            'Failed asserting save and cancel buttons are given if form is editable'
+        );
+        $this->assertArrayHasKey(
+            0,
+            $form->getCommandButtons(),
+            'Failed asserting save and cancel buttons are given if form is editable'
+        );
+        $this->assertArrayHasKey(
+            1,
+            $form->getCommandButtons(),
+            'Failed asserting save and cancel buttons are given if form is editable'
+        );
+        $this->assertSame(
+            'save',
+            $form->getCommandButtons()[0]['cmd'],
+            'Failed asserting save and cancel buttons are given if form is editable'
+        );
+        $this->assertSame(
+            'cancel',
+            $form->getCommandButtons()[1]['cmd'],
+            'Failed asserting save and cancel buttons are given if form is editable'
+        );
 
         $form = new ilTermsOfServiceDocumentFormGUI(
-            $document, $purifier, $user, $fs, $fu,
-            'action', 'save', 'cancel',
+            $document,
+            $purifier,
+            $user,
+            $fs,
+            $fu,
+            'action',
+            'save',
+            'cancel',
             false
         );
 
-        $this->assertCount(1, $form->getCommandButtons(),
-            'Failed asserting only cancel button is given if form is not editable');
-        $this->assertArrayHasKey(0, $form->getCommandButtons(),
-            'Failed asserting only cancel button is given if form is not editable');
-        $this->assertEquals('cancel', $form->getCommandButtons()[0]['cmd'],
-            'Failed asserting only cancel button is given if form is not editable');
+        $this->assertCount(
+            1,
+            $form->getCommandButtons(),
+            'Failed asserting only cancel button is given if form is not editable'
+        );
+        $this->assertArrayHasKey(
+            0,
+            $form->getCommandButtons(),
+            'Failed asserting only cancel button is given if form is not editable'
+        );
+        $this->assertSame(
+            'cancel',
+            $form->getCommandButtons()[0]['cmd'],
+            'Failed asserting only cancel button is given if form is not editable'
+        );
     }
 
-    /**
-     * @throws ReflectionException
-     */
-    public function testFormForNewDocumentsCanBeSavedForValidInput() : void
+    public function testFormForNewDocumentsCanBeSavedForValidInput(): void
     {
         $document = $this
             ->getMockBuilder(ilTermsOfServiceDocument::class)
             ->disableOriginalConstructor()
-            ->setMethods(['getId', 'fetchAllCriterionAssignments'])
+            ->onlyMethods(['fetchAllCriterionAssignments'])
+            ->addMethods(['getId'])
             ->getMock();
 
         $document
-            ->expects($this->any())
             ->method('fetchAllCriterionAssignments');
 
         $purifier = $this
@@ -96,7 +145,9 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
             ->getMock();
 
         $uploadResult = new UploadResult(
-            'phpunit', 1024, 'text/xml',
+            'phpunit',
+            1024,
+            'text/xml',
             $this->getMockBuilder(ImmutableStringMap::class)->getMock(),
             new ProcessingStatus(ProcessingStatus::OK, 'uploaded'),
             '/tmp'
@@ -105,7 +156,7 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
         $user = $this
             ->getMockBuilder(ilObjUser::class)
             ->disableOriginalConstructor()
-            ->setMethods(['getId'])
+            ->onlyMethods(['getId'])
             ->getMock();
 
         $user
@@ -142,7 +193,7 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
 
         $fu = $this
             ->getMockBuilder(FileUpload::class)
-            ->setMethods([
+            ->onlyMethods([
                 'moveFilesTo',
                 'uploadSizeLimit',
                 'register',
@@ -155,7 +206,6 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
             ->getMock();
 
         $fu
-            ->expects($this->any())
             ->method('hasUploads')
             ->willReturn(true);
 
@@ -188,7 +238,7 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
 
         $this->setGlobalVariable('upload', $fu);
 
-        $documentConnector  = $this->getMockBuilder(arConnector::class)->getMock();
+        $documentConnector = $this->getMockBuilder(arConnector::class)->getMock();
         $criterionConnector = $this->getMockBuilder(arConnector::class)->getMock();
 
         $expectedSortingValueExistingDocuments = 10;
@@ -197,15 +247,15 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
             ->expects($this->once())
             ->method('readSet')
             ->willReturnCallback(function () use ($expectedSortingValueExistingDocuments) {
-
                 return [
                     [
-                        'id'      => 666,
-                        'title'   => 'another',
+                        'id' => 666,
+                        'title' => 'another',
                         'sorting' => $expectedSortingValueExistingDocuments - 1,
                     ]
                 ];
             });
+        $documentConnector->method('affectedRows')->willReturn(1);
 
         $criterionConnector
             ->expects($this->once())
@@ -228,7 +278,7 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
                          'cancel',
                          true
                      ])
-                     ->setMethods(['checkInput'])
+                     ->onlyMethods(['checkInput'])
                      ->getMock();
 
         $form
@@ -237,18 +287,15 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
             ->willReturn(true);
 
         $_FILES['document'] = [];
-        $_POST              = [
-            'title'    => 'phpunit',
-            'document' => '',
-            ''         => ''
-        ];
+
         $form->setCheckInputCalled(true);
 
         $this->assertTrue($form->saveObject());
         $this->assertFalse($form->hasTranslatedError());
         $this->assertEmpty($form->getTranslatedError());
-        $this->assertEquals(
-            $expectedSortingValueExistingDocuments, $document->getSorting(),
+        $this->assertSame(
+            $expectedSortingValueExistingDocuments,
+            $document->getSorting(),
             'Failed asserting that the sorting of the new document equals the maximum incremented by one when other documents exist'
         );
 
@@ -258,7 +305,6 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
             ->expects($this->once())
             ->method('readSet')
             ->willReturnCallback(function () {
-
                 return [];
             });
 
@@ -276,7 +322,7 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
                          'cancel',
                          true
                      ])
-                     ->setMethods(['checkInput'])
+                     ->onlyMethods(['checkInput'])
                      ->getMock();
 
         $form
@@ -289,25 +335,22 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
         $this->assertTrue($form->saveObject());
         $this->assertFalse($form->hasTranslatedError());
         $this->assertEmpty($form->getTranslatedError());
-        $this->assertEquals(
-            1, $document->getSorting(),
+        $this->assertSame(
+            1,
+            $document->getSorting(),
             'Failed asserting that the sorting of the new document equals 1 when no other document exists'
         );
     }
 
-    /**
-     * @throws ReflectionException
-     */
-    public function testDocumentFormIsProperlyBuiltForExistingDocuments() : void
+    public function testDocumentFormIsProperlyBuiltForExistingDocuments(): void
     {
         $document = $this
             ->getMockBuilder(ilTermsOfServiceDocument::class)
             ->disableOriginalConstructor()
-            ->setMethods(['getId'])
+            ->addMethods(['getId'])
             ->getMock();
 
         $document
-            ->expects($this->any())
             ->method('getId')
             ->willReturn(1);
 
@@ -318,7 +361,7 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
         $user = $this
             ->getMockBuilder(ilObjUser::class)
             ->disableOriginalConstructor()
-            ->setMethods(['getId'])
+            ->onlyMethods(['getId'])
             ->getMock();
 
         $fs = $this
@@ -330,8 +373,14 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
             ->getMock();
 
         $form = new ilTermsOfServiceDocumentFormGUI(
-            $document, $purifier, $user, $fs, $fu,
-            'action', 'save', 'cancel',
+            $document,
+            $purifier,
+            $user,
+            $fs,
+            $fu,
+            'action',
+            'save',
+            'cancel',
             true
         );
 
@@ -341,17 +390,14 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
         );
     }
 
-    /**
-     * @throws ReflectionException
-     */
-    public function testFormForExistingDocumentsCanBeSavedForValidInput() : void
+    public function testFormForExistingDocumentsCanBeSavedForValidInput(): void
     {
         $expectedSorting = 10;
 
         $document = $this
             ->getMockBuilder(ilTermsOfServiceDocument::class)
             ->disableOriginalConstructor()
-            ->setMethods(['fetchAllCriterionAssignments'])
+            ->onlyMethods(['fetchAllCriterionAssignments'])
             ->getMock();
 
         $document->setId(4711);
@@ -365,7 +411,7 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
         $user = $this
             ->getMockBuilder(ilObjUser::class)
             ->disableOriginalConstructor()
-            ->setMethods(['getId'])
+            ->onlyMethods(['getId'])
             ->getMock();
 
         $user
@@ -379,7 +425,7 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
 
         $fu = $this
             ->getMockBuilder(FileUpload::class)
-            ->setMethods([
+            ->onlyMethods([
                 'moveFilesTo',
                 'uploadSizeLimit',
                 'register',
@@ -392,13 +438,13 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
             ->getMock();
 
         $fu
-            ->expects($this->any())
             ->method('hasUploads')
             ->willReturn(false);
 
         $this->setGlobalVariable('upload', $fu);
 
         $documentConnector = $this->getMockBuilder(arConnector::class)->getMock();
+        $documentConnector->method('affectedRows')->willReturn(0);
 
         arConnectorMap::register(new ilTermsOfServiceDocument(), $documentConnector);
         arConnectorMap::register($document, $documentConnector);
@@ -415,7 +461,7 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
                          'cancel',
                          true
                      ])
-                     ->setMethods(['checkInput'])
+                     ->onlyMethods(['checkInput'])
                      ->getMock();
 
         $form
@@ -423,32 +469,23 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
             ->method('checkInput')
             ->willReturn(true);
 
-        $_POST = [
-            'title'    => 'phpunit',
-            'document' => '',
-            ''         => ''
-        ];
         $form->setCheckInputCalled(true);
 
         $this->assertTrue($form->saveObject());
         $this->assertFalse($form->hasTranslatedError());
         $this->assertEmpty($form->getTranslatedError());
-        $this->assertEquals(
+        $this->assertSame(
             $expectedSorting,
             $document->getSorting(),
             'Failed asserting that the sorting of the existing document has not been changed'
         );
     }
 
-    /**
-     * @throws ReflectionException
-     */
-    public function testUploadIssuesAreHandledWhenDocumentFormIsSaved() : void
+    public function testUploadIssuesAreHandledWhenDocumentFormIsSaved(): void
     {
         $lng = $this->getLanguageMock();
 
         $lng
-            ->expects($this->any())
             ->method('txt')
             ->willReturn('translation');
 
@@ -457,7 +494,8 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
         $document = $this
             ->getMockBuilder(ilTermsOfServiceDocument::class)
             ->disableOriginalConstructor()
-            ->setMethods(['getId', 'fetchAllCriterionAssignments'])
+            ->onlyMethods(['fetchAllCriterionAssignments'])
+            ->addMethods(['getId'])
             ->getMock();
 
         $purifier = $this
@@ -467,12 +505,11 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
         $user = $this
             ->getMockBuilder(ilObjUser::class)
             ->disableOriginalConstructor()
-            ->setMethods()
             ->getMock();
 
         $fu = $this
             ->getMockBuilder(FileUpload::class)
-            ->setMethods([
+            ->onlyMethods([
                 'moveFilesTo',
                 'uploadSizeLimit',
                 'register',
@@ -485,12 +522,12 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
             ->getMock();
 
         $fu
-            ->expects($this->exactly(3))
+            ->expects($this->atLeast(3))
             ->method('hasUploads')
             ->willReturn(true);
 
         $fu
-            ->expects($this->exactly(3))
+            ->expects($this->atLeast(3))
             ->method('hasBeenProcessed')
             ->willReturn(false);
 
@@ -499,14 +536,18 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
             ->method('process');
 
         $uploadResult = new UploadResult(
-            'phpunit', 1024, 'text/xml',
+            'phpunit',
+            1024,
+            'text/xml',
             $this->getMockBuilder(ImmutableStringMap::class)->getMock(),
             new ProcessingStatus(ProcessingStatus::OK, 'uploaded'),
             '/tmp'
         );
 
         $uploadFailingResult = new UploadResult(
-            'phpunit', 1024, 'text/xml',
+            'phpunit',
+            1024,
+            'text/xml',
             $this->getMockBuilder(ImmutableStringMap::class)->getMock(),
             new ProcessingStatus(ProcessingStatus::REJECTED, 'not uploaded'),
             '/tmp'
@@ -516,7 +557,9 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
             ->expects($this->exactly(3))
             ->method('getResults')
             ->willReturnOnConsecutiveCalls(
-                [false], [0 => $uploadFailingResult], [0 => $uploadResult]
+                [false],
+                [0 => $uploadFailingResult],
+                [0 => $uploadResult]
             );
 
         $fs = $this
@@ -548,38 +591,7 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
                          'cancel',
                          true
                      ])
-                     ->setMethods(['checkInput'])
-                     ->getMock();
-
-        $form
-            ->expects($this->once())
-            ->method('checkInput')
-            ->willReturn(true);
-
-        $_POST = [
-            'title'    => '',
-            'document' => '',
-            ''         => ''
-        ];
-        $form->setCheckInputCalled(true);
-
-        $this->assertFalse($form->saveObject());
-        $this->assertTrue($form->hasTranslatedError());
-        $this->assertNotEmpty($form->getTranslatedError());
-
-        $form = $this->getMockBuilder(ilTermsOfServiceDocumentFormGUI::class)
-                     ->setConstructorArgs([
-                         $document,
-                         $purifier,
-                         $user,
-                         $fs,
-                         $fu,
-                         'action',
-                         'save',
-                         'cancel',
-                         true
-                     ])
-                     ->setMethods(['checkInput'])
+                     ->onlyMethods(['checkInput'])
                      ->getMock();
 
         $form
@@ -605,7 +617,33 @@ class ilTermsOfServiceDocumentFormGUITest extends ilTermsOfServiceBaseTest
                          'cancel',
                          true
                      ])
-                     ->setMethods(['checkInput'])
+                     ->onlyMethods(['checkInput'])
+                     ->getMock();
+
+        $form
+            ->expects($this->once())
+            ->method('checkInput')
+            ->willReturn(true);
+
+        $form->setCheckInputCalled(true);
+
+        $this->assertFalse($form->saveObject());
+        $this->assertTrue($form->hasTranslatedError());
+        $this->assertNotEmpty($form->getTranslatedError());
+
+        $form = $this->getMockBuilder(ilTermsOfServiceDocumentFormGUI::class)
+                     ->setConstructorArgs([
+                         $document,
+                         $purifier,
+                         $user,
+                         $fs,
+                         $fu,
+                         'action',
+                         'save',
+                         'cancel',
+                         true
+                     ])
+                     ->onlyMethods(['checkInput'])
                      ->getMock();
 
         $form

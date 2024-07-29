@@ -1,109 +1,96 @@
 <?php
 
-require_once('./Services/GlobalCache/classes/class.ilGlobalCacheService.php');
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Class ilStaticCache
- *
  * @beta
- *
  * @author  Fabian Schmid <fs@studer-raimann.ch>
  * @version 1.0.0
  */
-class ilStaticCache extends ilGlobalCacheService {
+class ilStaticCache extends ilGlobalCacheService
+{
+    protected function getActive(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * @return bool
-	 */
-	protected function getActive() {
-		return true;
-	}
+    protected function getInstallable(): bool
+    {
+        return true;
+    }
 
+    protected static array $cache = [];
 
-	/**
-	 * @return bool
-	 */
-	protected function getInstallable() {
-		return true;
-	}
+    public function exists(string $key): bool
+    {
+        return isset(self::$cache[$this->getComponent()][$key]);
+    }
 
+    /**
+     * @param mixed $serialized_value
+     */
+    public function set(string $key, $serialized_value, int $ttl = null): bool
+    {
+        self::$cache[$this->getComponent()][$key] = $serialized_value;
+        return true;
+    }
 
-	/**
-	 * @var array
-	 */
-	protected static $cache = array();
+    /**
+     * @return mixed
+     */
+    public function get(string $key)
+    {
+        return self::$cache[$this->getComponent()][$key] ?? null;
+    }
 
+    public function delete(string $key): bool
+    {
+        unset(self::$cache[$this->getComponent()][$key]);
 
-	/**
-	 * @param $key
-	 *
-	 * @return bool
-	 */
-	public function exists($key) {
-		return isset(self::$cache[$this->getComponent()][$key]);
-	}
+        return true;
+    }
 
+    public function flush(bool $complete = false): bool
+    {
+        if ($complete) {
+            self::$cache = [];
+        } else {
+            unset(self::$cache[$this->getComponent()]);
+        }
 
-	/**
-	 * @param      $key
-	 * @param      $serialized_value
-	 * @param null $ttl
-	 *
-	 * @return bool
-	 */
-	public function set($key, $serialized_value, $ttl = null) {
-		return self::$cache[$this->getComponent()][$key] = $serialized_value;
-	}
+        return true;
+    }
 
+    /**
+     * @param mixed $value
+     * @return mixed
+     */
+    public function serialize($value)
+    {
+        return ($value);
+    }
 
-	/**
-	 * @param      $key
-	 *
-	 * @return mixed
-	 */
-	public function get($key) {
-		return self::$cache[$this->getComponent()][$key];
-	}
-
-
-	/**
-	 * @param      $key
-	 *
-	 * @return bool
-	 */
-	public function delete($key) {
-		unset(self::$cache[$this->getComponent()][$key]);
-	}
-
-
-	/**
-	 * @return bool
-	 */
-	public function flush() {
-		self::$cache = array();
-
-		return true;
-	}
-
-
-	/**
-	 * @param $value
-	 *
-	 * @return mixed
-	 */
-	public function serialize($value) {
-		return ($value);
-	}
-
-
-	/**
-	 * @param $serialized_value
-	 *
-	 * @return mixed
-	 */
-	public function unserialize($serialized_value) {
-		return ($serialized_value);
-	}
+    /**
+     * @param mixed $serialized_value
+     * @return mixed
+     */
+    public function unserialize($serialized_value)
+    {
+        return ($serialized_value);
+    }
 }
-
-?>

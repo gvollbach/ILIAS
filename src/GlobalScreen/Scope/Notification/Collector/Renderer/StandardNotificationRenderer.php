@@ -1,31 +1,64 @@
-<?php namespace ILIAS\GlobalScreen\Scope\Notification\Collector\Renderer;
+<?php
 
-use ILIAS\GlobalScreen\Scope\Notification\Factory\canHaveSymbol;
-use ILIAS\GlobalScreen\Scope\Notification\Factory\hasActions;
-use ILIAS\GlobalScreen\Scope\Notification\Factory\hasTitle;
+declare(strict_types=1);
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+namespace ILIAS\GlobalScreen\Scope\Notification\Collector\Renderer;
+
+use ILIAS\GlobalScreen\Client\Notifications as ClientNotifications;
+use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Renderer\Hasher;
 use ILIAS\GlobalScreen\Scope\Notification\Factory\isItem;
-use ILIAS\UI\Component\Component;
+use ILIAS\GlobalScreen\Scope\Notification\Factory\StandardNotification;
+use ILIAS\UI\Component\Item\Notification;
 
 /**
- * Class StandardNotificationRenderer
- *
+ * Class StandardNotificationGroupRenderer
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
 class StandardNotificationRenderer extends AbstractBaseNotificationRenderer implements NotificationRenderer
 {
+    use Hasher;
 
     /**
-     * @param isItem|hasActions|canHaveSymbol $item
-     *
-     * @return Component
+     * @param StandardNotification
+     * @return \ILIAS\UI\Component\Item\Notification|mixed
      */
-    public function getComponentForItem(isItem $item) : Component
+    public function getNotificationComponentForItem(isItem $item): \ILIAS\UI\Component\Component
     {
+        $ui_notification_item = $item->getNotificationItem();
 
-        $label = $item instanceof hasTitle ? $item->getTitle() : "";
+        if ($item->hasClosedCallable()) {
+            return $this->attachJSCloseEvent($ui_notification_item, $item);
+        }
 
-        $action = $item instanceof hasActions ? $item->getAction() : "#";
+        return $ui_notification_item;
+    }
 
-        return $this->ui_factory->button()->bulky($this->getStandardSymbol($item), $label, $action);
+    /**
+     * Attaches on load code for communicating back, that the notification has
+     * been closed.
+     * @param Notification $ui_notification_item
+     * @param isItem       $item
+     * @return Notification
+     */
+    protected function attachJSCloseEvent(Notification $ui_notification_item, isItem $item): Notification
+    {
+        $url = ClientNotifications::NOTIFY_ENDPOINT . "?" . $this->buildCloseQuery($item);
+
+        return $ui_notification_item->withCloseAction($url);
     }
 }

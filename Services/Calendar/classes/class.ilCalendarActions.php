@@ -1,160 +1,126 @@
 <?php
 
-/* Copyright (c) 1998-2014 ILIAS open source, Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Checks if certain actions can be performed
- *
  * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id\$
- * @ingroup 
  */
 class ilCalendarActions
 {
-	/**
-	 * @var ilCalendarActions|null
-	 */
-	static protected $instance = null;
+    protected static ?ilCalendarActions $instance = null;
 
-	/**
-	 * @var ilCalendarCategories|null
-	 */
-	protected $cats = null;
+    protected ilCalendarCategories $cats;
+    private int $user_id;
 
-	/**
-	 * @var int user id
-	 */
-	protected $user_id;
+    /**
+     * Constructor
+     */
+    protected function __construct()
+    {
+        global $DIC;
 
-	/**
-	 * Constructor
-	 */
-	protected function __construct()
-	{
-		global $DIC;
+        $this->user_id = $DIC->user()->getId();
+        $this->cats = ilCalendarCategories::_getInstance($this->user_id);
+        if ($this->cats->getMode() == ilCalendarCategories::MODE_UNDEFINED) {
+            throw new ilCalCategoriesNotInitializedException(
+                "ilCalendarActions needs ilCalendarCategories to be initialized for user " . $this->user_id
+            );
+        }
+    }
 
-		$this->user_id = $DIC->user()->getId();
+    /**
+     * Get instance
+     */
+    public static function getInstance(): ilCalendarActions
+    {
+        if (!self::$instance instanceof self) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
-		include_once("./Services/Calendar/classes/class.ilCalendarCategories.php");
-		$this->cats = ilCalendarCategories::_getInstance($this->user_id);
-		if ($this->cats->getMode() == 0)
-		{
-			include_once("./Services/Calendar/exceptions/class.ilCalCategoriesNotInitializedException.php");
-			throw new ilCalCategoriesNotInitializedException("ilCalendarActions needs ilCalendarCategories to be initialized for user ".$this->user_id.".");
-		}
-	}
+    /**
+     * Check calendar editing
+     */
+    public function checkSettingsCal(int $a_cat_id): bool
+    {
+        $info = $this->cats->getCategoryInfo($a_cat_id);
+        return (bool) ($info['settings'] ?? false);
+    }
 
-	/**
-	 * Get instance
-	 *
-	 * @return ilCalendarActions
-	 */
-	static function getInstance()
-	{
-		if (!is_object(self::$instance))
-		{
-			self::$instance = new ilCalendarActions();
-		}
-		return self::$instance;
-	}
+    /**
+     * Check sharing (own) calendar
+     */
+    public function checkShareCal(int $a_cat_id): bool
+    {
+        $info = $this->cats->getCategoryInfo($a_cat_id);
+        return
+            ($info['type'] ?? 0) == ilCalendarCategory::TYPE_USR &&
+            ($info['obj_id'] ?? '') == $this->user_id;
+    }
 
-	/**
-	 * Check calendar editing
-	 *
-	 * @param int $a_cat_id calendar category id
-	 * @return bool
-	 */
-	function checkSettingsCal($a_cat_id)
-	{
-		$info = $this->cats->getCategoryInfo($a_cat_id);
-		return $info['settings'];
-	}
+    /**
+     * Check un-sharing (other users) calendar
+     */
+    public function checkUnshareCal(int $a_cat_id): bool
+    {
+        $info = $this->cats->getCategoryInfo($a_cat_id);
+        if ($info['accepted'] ?? false) {
+            return true;
+        }
+        return false;
+    }
 
-	/**
-	 * Check sharing (own) calendar
-	 *
-	 * @param int $a_cat_id calendar category id
-	 * @return bool
-	 */
-	function checkShareCal($a_cat_id)
-	{
-		$info = $this->cats->getCategoryInfo($a_cat_id);
-		if ($info['type'] == ilCalendarCategory::TYPE_USR && $info['obj_id'] == $this->user_id)
-		{
-			return true;
-		}
+    /**
+     * Check synchronize remote calendar
+     */
+    public function checkSynchronizeCal(int $a_cat_id): bool
+    {
+        $info = $this->cats->getCategoryInfo($a_cat_id);
+        if ($info['remote'] ?? false) {
+            return true;
+        }
+        return false;
+    }
 
-		return false;
-	}
+    /**
+     * Check if adding an event is possible
+     */
+    public function checkAddEvent(int $a_cat_id): bool
+    {
+        $info = $this->cats->getCategoryInfo($a_cat_id);
+        return $info['editable'] ?? false;
+    }
 
-	/**
-	 * Check un-sharing (other users) calendar
-	 *
-	 * @param int $a_cat_id calendar category id
-	 * @return bool
-	 */
-	function checkUnshareCal($a_cat_id)
-	{
-		$info = $this->cats->getCategoryInfo($a_cat_id);
-		if ($info['accepted'])
-		{
-			return true;
-		}
-
-		return false;
-	}
-
-	/**
-	 * Check synchronize remote calendar
-	 *
-	 * @param int $a_cat_id calendar category id
-	 * @return bool
-	 */
-	function checkSynchronizeCal($a_cat_id)
-	{
-		$info = $this->cats->getCategoryInfo($a_cat_id);
-		if ($info['remote'])
-		{
-			return true;
-		}
-
-		return false;
-	}
-
-	/**
-	 * Check if adding an event is possible
-	 *
-	 * @param int $a_cat_id calendar category id
-	 * @return bool
-	 */
-	function checkAddEvent($a_cat_id)
-	{
-		$info = $this->cats->getCategoryInfo($a_cat_id);
-		return $info['editable'];
-	}
-
-	/**
-	 * Check if adding an event is possible
-	 *
-	 * @param int $a_cat_id calendar category id
-	 * @return bool
-	 */
-	function checkDeleteCal($a_cat_id)
-	{
-		$info = $this->cats->getCategoryInfo($a_cat_id);
-		if ($info['type'] == ilCalendarCategory::TYPE_USR && $info['obj_id'] == $this->user_id)
-		{
-			return true;
-		}
-		if ($info['type'] == ilCalendarCategory::TYPE_GLOBAL && $info['settings'])
-		{
-			return true;
-		}
-
-		return false;
-	}
-
-
+    /**
+     * Check if adding an event is possible
+     */
+    public function checkDeleteCal(int $a_cat_id): bool
+    {
+        $info = $this->cats->getCategoryInfo($a_cat_id);
+        if (($info['type'] ?? 0) == ilCalendarCategory::TYPE_USR && ($info['obj_id'] ?? 0) == $this->user_id) {
+            return true;
+        }
+        if (($info['type'] ?? 0) == ilCalendarCategory::TYPE_GLOBAL && ($info['settings'] ?? false)) {
+            return true;
+        }
+        return false;
+    }
 }
-
-?>

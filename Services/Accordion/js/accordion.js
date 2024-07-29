@@ -2,7 +2,7 @@
 
 il.Accordion = {
 
-	duration : 150,
+	duration : 100,
 
 	data: {},
 
@@ -97,6 +97,11 @@ il.Accordion = {
 				});
 				
 				t.on("click", { id: id, el: t}, il.Accordion.clickHandler);
+				t.on('keypress', function (e) {
+					if (e.which === 13 || e.which === 32) {
+						$(this).find("div[role='button']").trigger('click');
+					}
+				});
 			});
 		}
 
@@ -171,8 +176,9 @@ il.Accordion = {
 		var a = il.Accordion.data[id];
 
 		if (a.active_head_class && a.active_head_class != "" && acc_el) {
-			$(acc_el.parentNode).children("div:first").children("div:first").
-				addClass(a.active_head_class);
+			const b = $(acc_el.parentNode).children(":first").children(":first");
+			b.addClass(a.active_head_class);
+			b.attr("aria-expanded", true);
 		}
 	},
 
@@ -180,8 +186,9 @@ il.Accordion = {
 		var a = il.Accordion.data[id];
 
 		if (a.active_head_class && a.active_head_class != "" && acc_el) {
-			$(acc_el.parentNode).children("div:first").children("div:first").
-				removeClass(a.active_head_class);
+			const b = $(acc_el.parentNode).children(":first").children(":first");
+			b.removeClass(a.active_head_class);
+			b.attr("aria-expanded", false);
 		}
 	},
 
@@ -199,10 +206,7 @@ il.Accordion = {
 				t = $(this);
 				if (t.hasClass("ilAccHideContent")) {
 
-					if (a.active_head_class) {
-						$(this.parentNode).children("div:first").children("div:first").
-							addClass(a.active_head_class);
-					}
+					il.Accordion.addActiveHeadClass(id, this);
 
 					// fade in the accordion (currentAccordion)
 					options = il.Accordion.prepareShow(a, t);
@@ -234,10 +238,7 @@ il.Accordion = {
 				t = $(this);
 				if (t.hasClass("ilAccHideContent")) {
 
-					if (a.active_head_class) {
-						$(this.parentNode).children("div:first").children("div:first").
-							addClass(a.active_head_class);
-					}
+					il.Accordion.addActiveHeadClass(id, this);
 
 					// fade in the accordion (currentAccordion)
 					options = il.Accordion.prepareShow(a, t);
@@ -291,8 +292,9 @@ il.Accordion = {
 				}
 			});
 
-			if (typeof a.save_url != "undefined" && a.save_url != "") {
-				il.Util.sendAjaxGetRequestToUrl(a.save_url + "&act=clear&tab_nr=", {}, {}, null);
+			const save_url = il.Accordion.getSaveUrl(a);
+			if (save_url != "") {
+				il.Util.sendAjaxGetRequestToUrl(save_url + "&act=clear&tab_nr=", {}, {}, null);
 			}
 		}
 		return false;
@@ -318,12 +320,13 @@ il.Accordion = {
 			$(a.clicked_acc).addClass("ilAccHideContent");
 			a.last_opened_acc = null;
 			a.animating = false;
-			if (typeof a.save_url != "undefined" && a.save_url != "") {
+			const save_url = il.Accordion.getSaveUrl(a);
+			if (save_url != "") {
 				act = (a.multi)
 					? "&act=rem"
 					: "&act=clear";
 				tab_nr = il.Accordion.getTabNr(a.clicked_acc);
-				il.Util.sendAjaxGetRequestToUrl(a.save_url + act + "&tab_nr=" + tab_nr, {}, {}, null);
+				il.Util.sendAjaxGetRequestToUrl(save_url + act + "&tab_nr=" + tab_nr, {}, {}, null);
 			}
 		});
 	},
@@ -374,14 +377,27 @@ il.Accordion = {
 	},
 
 	saveAllAsOpenedTabs: function(a, id) {
-		if (typeof a.save_url != "undefined" && a.save_url != "") {
+		const save_url = il.Accordion.getSaveUrl(a);
+		if (save_url !== "") {
 			tab_nr = il.Accordion.getAllNr(id);
-			il.Util.sendAjaxGetRequestToUrl(a.save_url + "&act=set&tab_nr=" + tab_nr, {}, {}, null);
+			il.Util.sendAjaxGetRequestToUrl(save_url + "&act=set&tab_nr=" + tab_nr, {}, {}, null);
 		}
 	},
 
+	getSaveUrl(a) {
+		if (typeof a.save_url != "undefined" && a.save_url != "") {
+			let save_url = a.save_url;
+			if (!save_url.includes("accordion_id=")) {
+				save_url = save_url + "&accordion_id=" + a.id;
+			}
+			return save_url;
+		}
+		return "";
+	},
+
 	saveOpenedTabs: function(a, id) {
-		if (typeof a.save_url != "undefined" && a.save_url != "")
+		const save_url = il.Accordion.getSaveUrl(a);
+		if (save_url != "")
 		{
 			if (a.multi) {
 				tab_nr = il.Accordion.getAllOpenedNr(id);
@@ -389,7 +405,7 @@ il.Accordion = {
 				tab_nr = il.Accordion.getTabNr(a.last_opened_acc);
 			}
 			act = "&act=set";
-			il.Util.sendAjaxGetRequestToUrl(a.save_url + act + "&tab_nr=" + tab_nr, {}, {}, null);
+			il.Util.sendAjaxGetRequestToUrl(save_url + act + "&tab_nr=" + tab_nr, {}, {}, null);
 		}
 	},
 
@@ -401,15 +417,14 @@ il.Accordion = {
 		// add active class to opened accordion
 		if (a.active_head_class && a.active_head_class != '') {
 			if (a.last_opened_acc && !a.multi) {
-				$(a.last_opened_acc.parentNode).children("div:first").children("div:first").
-					removeClass(a.active_head_class);
+				il.Accordion.removeActiveHeadClass(id, a.last_opened_acc);
 			}
-			$(a.clicked_acc.parentNode).children("div:first").children("div:first").
-				addClass(a.active_head_class);
+			il.Accordion.addActiveHeadClass(id, a.clicked_acc);
 		}
 
 		// fade in the new accordion (currentAccordion)
 		options = il.Accordion.prepareShow(a, a.clicked_acc);
+		il.Accordion.afterStartOpening(a.clicked_acc);
 
 		$(a.clicked_acc).animate(options, il.Accordion.duration, function () {
 
@@ -448,10 +463,14 @@ il.Accordion = {
 		il.Accordion.rerenderContent(acc_el);
 	},
 
+	afterStartOpening: function (acc_el) {
+		$(acc_el).trigger("il.accordion.start-opening", [acc_el]);
+	},
+
 	rerenderContent: function(acc_el) {
 
 		// rerender mathjax
-		if (typeof MathJax != "undefined") {
+		if (typeof MathJax != "undefined" && typeof MathJax.Hub != "undefined") {
 			MathJax.Hub.Queue(["Reprocess",MathJax.Hub, acc_el[0]]);
 		}
 		// see http://docs.mathjax.org/en/latest/typeset.html
@@ -461,12 +480,11 @@ il.Accordion = {
 			ilMapRerender(acc_el);
 		}
 
-		// rerender copage content
-		if (il && il.COPagePres) {
-			il.COPagePres.accordionRerender(acc_el);
-		}
-
-
+		// see https://mantis.ilias.de/view.php?id=25301
+		// see https://mantis.ilias.de/view.php?id=34329
+		// previously we removed/re-added the player
+		// in ilCOPagePres which led to #34329
+		window.dispatchEvent(new Event('resize'));
 	}
 
 };

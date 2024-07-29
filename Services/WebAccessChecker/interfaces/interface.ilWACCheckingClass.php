@@ -1,7 +1,19 @@
 <?php
-// declare(strict_types=1);
-
-require_once('./Services/Object/classes/class.ilObject2.php');
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Class ilWACCheckingClass
@@ -9,12 +21,7 @@ require_once('./Services/Object/classes/class.ilObject2.php');
  * @author  Fabian Schmid <fs@studer-raimann.ch>
  * @version 1.0.0
  */
-interface ilWACCheckingClass {
-
-	/**
-	 * @param ilWACPath $ilWACPath
-	 *
-	 * @return bool
-	 */
-	public function canBeDelivered(ilWACPath $ilWACPath);
+interface ilWACCheckingClass
+{
+    public function canBeDelivered(ilWACPath $ilWACPath): bool;
 }

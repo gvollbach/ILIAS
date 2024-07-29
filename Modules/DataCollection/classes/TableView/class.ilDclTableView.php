@@ -1,17 +1,30 @@
 <?php
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
 
 /**
  * Class ilDclTableView
- *
  * @author  Theodor Truffer <tt@studer-raimann.ch>
  * @ingroup ModulesDataCollection
  */
 class ilDclTableView extends ActiveRecord
 {
-
     /**
      * @var int
-     *
      * @db_has_field        true
      * @db_is_unique        true
      * @db_is_primary       true
@@ -20,198 +33,217 @@ class ilDclTableView extends ActiveRecord
      * @db_length           8
      * @db_sequence         true
      */
-    protected $id;
+    protected ?int $id;
     /**
      * @var int
-     *
      * @db_has_field        true
      * @db_is_notnull       true
      * @db_fieldtype        integer
      * @db_length           8
-     *
      */
-    protected $table_id;
+    protected int $table_id = 0;
     /**
      * @var string
-     *
      * @db_has_field        true
      * @db_is_notnull       true
      * @db_fieldtype        text
      * @db_length           128
      */
-    protected $title;
+    protected string $title = "";
     /**
      * @var array
-     *
      * @db_has_field        true
      * @db_fieldtype        text
      * @db_length           256
      */
-    protected $roles = array();
+    protected array $roles = array();
     /**
      * @var string
-     *
      * @db_has_field        true
      * @db_fieldtype        text
      * @db_length           128
      */
-    protected $description;
+    protected string $description = '';
     /**
      * @var int
-     *
      * @db_has_field        true
      * @db_fieldtype        integer
      * @db_length           8
      */
-    protected $tableview_order;
+    protected int $tableview_order = 0;
+    /**
+     * @var bool
+     * @db_has_field        true
+     * @db_fieldtype        integer
+     * @db_length           1
+     */
+    protected bool $step_vs = false;
+    /**
+     * @var bool
+     * @db_has_field        true
+     * @db_fieldtype        integer
+     * @db_length           1
+     */
+    protected bool $step_c = false;
+    /**
+     * @var bool
+     * @db_has_field        true
+     * @db_fieldtype        integer
+     * @db_length           1
+     */
+    protected bool $step_e = false;
+    /**
+     * @var bool
+     * @db_has_field        true
+     * @db_fieldtype        integer
+     * @db_length           1
+     */
+    protected bool $step_o = false;
+    /**
+     * @var bool
+     * @db_has_field        true
+     * @db_fieldtype        integer
+     * @db_length           1
+     */
+    protected bool $step_s = false;
     /**
      * @var ilDclBaseFieldModel[]
      */
-    protected $visible_fields_cache;
-
+    protected array $visible_fields_cache = [];
 
     /**
      * @return string
      * @description Return the Name of your Database Table
      */
-    static function returnDbTableName()
+    public static function returnDbTableName(): string
     {
         return "il_dcl_tableview";
     }
 
-
-    /**
-     * @return int
-     */
-    public function getId()
+    public function getId(): ?int
     {
         return $this->id;
     }
 
-
-    /**
-     * @param int $id
-     */
-    public function setId($id)
+    public function setId(int $id): void
     {
         $this->id = $id;
     }
 
-
-    /**
-     * @return int
-     */
-    public function getTableId()
+    public function getTableId(): int
     {
         return $this->table_id;
     }
 
-
-    /**
-     * @param int $table_id
-     */
-    public function setTableId($table_id)
+    public function setTableId(int $table_id): void
     {
         $this->table_id = $table_id;
     }
 
-
-    /**
-     * @return string
-     */
-    public function getTitle()
+    public function getTitle(): string
     {
         return $this->title;
     }
 
-
-    /**
-     * @param string $title
-     */
-    public function setTitle($title)
+    public function setTitle(string $title): void
     {
         $this->title = $title;
     }
 
-
-    /**
-     * @return int
-     */
-    public function getOrder()
+    public function getOrder(): int
     {
         return $this->tableview_order;
     }
 
-
-    /**
-     * @param int $order
-     */
-    public function setOrder($order)
+    public function setOrder(int $order): void
     {
         $this->tableview_order = $order;
     }
 
-
-    /**
-     * @return string
-     */
-    public function getDescription()
+    public function getDescription(): string
     {
         return $this->description;
     }
 
-
-    /**
-     * @param string $description
-     */
-    public function setDescription($description)
+    public function setDescription(string $description): void
     {
         $this->description = $description;
     }
 
-
-    /**
-     * @return int
-     */
-    public function getTableviewOrder()
+    public function getTableviewOrder(): int
     {
         return $this->tableview_order;
     }
 
-
-    /**
-     * @param int $tableview_order
-     */
-    public function setTableviewOrder($tableview_order)
+    public function setTableviewOrder(int $tableview_order): void
     {
         $this->tableview_order = $tableview_order;
     }
 
-
-    /**
-     * @return array
-     */
-    public function getRoles()
+    public function isStepVs(): bool
     {
-        return (array) $this->roles;
+        return $this->step_vs;
     }
 
+    public function setStepVs(bool $step_vs): void
+    {
+        $this->step_vs = $step_vs;
+    }
 
-    /**
-     * @param array $roles
-     */
-    public function setRoles(array $roles)
+    public function isStepC(): bool
+    {
+        return $this->step_c;
+    }
+
+    public function setStepC(bool $step_c): void
+    {
+        $this->step_c = $step_c;
+    }
+
+    public function isStepE(): bool
+    {
+        return $this->step_e;
+    }
+
+    public function setStepE(bool $step_e): void
+    {
+        $this->step_e = $step_e;
+    }
+
+    public function isStepO(): bool
+    {
+        return $this->step_o;
+    }
+
+    public function setStepO(bool $step_o): void
+    {
+        $this->step_o = $step_o;
+    }
+
+    public function isStepS(): bool
+    {
+        return $this->step_s;
+    }
+
+    public function setStepS(bool $step_s): void
+    {
+        $this->step_s = $step_s;
+    }
+
+    public function getRoles(): array
+    {
+        return $this->roles;
+    }
+
+    public function setRoles(array $roles): void
     {
         $this->roles = $roles;
     }
 
-
     /**
-     * @param $field_name
-     *
-     * @return null|string
+     * @param string $field_name
      */
-    public function sleep($field_name)
+    public function sleep($field_name): ?string
     {
         if ($field_name == 'roles') {
             return json_encode($this->roles);
@@ -220,14 +252,11 @@ class ilDclTableView extends ActiveRecord
         return null;
     }
 
-
     /**
-     * @param $field_name
-     * @param $field_value
-     *
-     * @return mixed|null
+     * @param string     $field_name
+     * @param int|string $field_value
      */
-    public function wakeUp($field_name, $field_value)
+    public function wakeUp($field_name, $field_value): ?array
     {
         if ($field_name == 'roles') {
             return json_decode($field_value);
@@ -236,11 +265,7 @@ class ilDclTableView extends ActiveRecord
         return null;
     }
 
-
-    /**
-     *
-     */
-    public function delete()
+    public function delete(): void
     {
         //Delete settings
         foreach ($this->getFieldSettings() as $setting) {
@@ -249,52 +274,56 @@ class ilDclTableView extends ActiveRecord
         parent::delete();
     }
 
-
-    /**
-     * @return ilDclTable
-     */
-    public function getTable()
+    public function getTable(): ilDclTable
     {
         return ilDclCache::getTableCache($this->table_id);
     }
 
+    /**
+     * @return ActiveRecord|ilDclTableView
+     */
+    public static function findOrGetInstance($primary_key, array $add_constructor_args = array()): ActiveRecord
+    {
+        return parent::findOrGetInstance($primary_key, $add_constructor_args);
+    }
 
     /**
      * getFilterableFields
      * Returns all  fieldsetting-objects of this tableview which have set their filterable to true, including standard fields.
-     *
      * @return ilDclBaseFieldModel[]|ilDclTableViewFieldSetting[]
      */
-    public function getFilterableFieldSettings()
+    public function getFilterableFieldSettings(): array
     {
         return ilDclTableViewFieldSetting::where(
             array(
-                "tableview_id"               => $this->id,
-                'in_filter'                  => 1,
+                "tableview_id" => $this->id,
+                'in_filter' => 1,
                 'il_dcl_tfield_set.table_id' => $this->getTableId(),
             )
         )->innerjoin('il_dcl_tfield_set', 'field', 'field', array())
-            ->orderBy('il_dcl_tfield_set.field_order')
-            ->get();
+                                         ->orderBy('il_dcl_tfield_set.field_order')
+                                         ->get();
     }
-
 
     /**
      * Returns all field-objects of this tableview which have set their visibility to true, including standard fields.
-     *
      * @return ilDclBaseFieldModel[]|ilDclTableViewFieldSetting[]
      */
-    public function getVisibleFields()
+    public function getVisibleFields(): array
     {
         if (!$this->visible_fields_cache) {
-            $visible = ilDclTableViewFieldSetting::
-            where(
+            $visible = ilDclTableViewFieldSetting::where(
                 array(
-                    "tableview_id"               => $this->id,
-                    'visible'                    => true,
+                    "tableview_id" => $this->id,
+                    'visible' => true,
                     'il_dcl_tfield_set.table_id' => $this->getTableId(),
                 )
-            )->innerjoin('il_dcl_tfield_set', 'field', 'field', array())->orderBy('il_dcl_tfield_set.field_order')->get();
+            )->innerjoin(
+                'il_dcl_tfield_set',
+                'field',
+                'field',
+                array()
+            )->orderBy('il_dcl_tfield_set.field_order')->get();
             $fields = array();
             foreach ($visible as $field_rec) {
                 $fields[] = $field_rec->getFieldObject();
@@ -305,22 +334,33 @@ class ilDclTableView extends ActiveRecord
         return $this->visible_fields_cache;
     }
 
-
-    public function getFieldSettings()
+    /**
+     * @return ilDclTableViewFieldSetting[]
+     * @throws arException
+     */
+    public function getFieldSettings(): array
     {
         return ilDclTableViewFieldSetting::where(
             array(
-                'tableview_id'               => $this->getId(),
+                'tableview_id' => $this->getId(),
                 'il_dcl_tfield_set.table_id' => $this->getTableId(),
             )
         )->innerjoin('il_dcl_tfield_set', 'field', 'field', array('field_order'))->orderBy('field_order')->get();
     }
 
-
     /**
-     * @param bool $create_default_settings
+     * @param $field_id
+     * @return ilDclTableViewFieldSetting|ActiveRecord
      */
-    public function create($create_default_settings = true)
+    public function getFieldSetting($field_id): ActiveRecord
+    {
+        return ilDclTableViewFieldSetting::where([
+            'tableview_id' => $this->getId(),
+            'field' => $field_id
+        ])->first();
+    }
+
+    public function create(bool $create_default_settings = true): void
     {
         parent::create();
         if ($create_default_settings) {
@@ -328,11 +368,10 @@ class ilDclTableView extends ActiveRecord
         }
     }
 
-
     /**
      * create default ilDclTableViewFieldSetting entries
      */
-    public function createDefaultSettings()
+    public function createDefaultSettings(): void
     {
         $table = ilDclCache::getTableCache($this->table_id);
 
@@ -347,18 +386,16 @@ class ilDclTableView extends ActiveRecord
         }
     }
 
-
     /**
      * create ilDclTableViewFieldSetting for this tableview and the given field id
-     *
-     * @param $field_id
+     * @param int|string $field_id
      */
-    public function createFieldSetting($field_id)
+    public function createFieldSetting($field_id): void
     {
         if (!ilDclTableViewFieldSetting::where(
             array(
                 'tableview_id' => $this->id,
-                'field'        => $field_id,
+                'field' => $field_id,
             )
         )->get()
         ) {
@@ -367,36 +404,61 @@ class ilDclTableView extends ActiveRecord
             $field_set->setField($field_id);
             $field_set->setVisible(!ilDclStandardField::_isStandardField($field_id));
             $field_set->setFilterChangeable(true);
+            $field_set->setLockedCreate(false);
+            $field_set->setLockedEdit(false);
+            $field_set->setRequiredCreate(false);
+            $field_set->setRequiredEdit(false);
+            $field_set->setVisibleCreate(true);
+            $field_set->setVisibleEdit(true);
             $field_set->create();
         }
     }
-
 
     /**
      * @param ilDclTableView $orig
      * @param array          $new_fields fields mapping
      */
-    public function cloneStructure(ilDclTableView $orig, array $new_fields)
+    public function cloneStructure(ilDclTableView $orig, array $new_fields): void
     {
+        global $DIC;
         //clone structure
-        $this->setTitle($orig->getTitle());
+        $this->setTitle($orig->getTitle() . ' ' . $DIC->language()->txt('copy_of_suffix'));
         $this->setOrder($orig->getOrder());
         $this->setDescription($orig->getDescription());
         $this->setRoles($orig->getRoles());
+        $this->setStepVs($orig->isStepVs());
+        $this->setStepC($orig->isStepC());
+        $this->setStepE($orig->isStepE());
+        $this->setStepO($orig->isStepO());
+        $this->setStepS($orig->isStepS());
         $this->create(false); //create default setting, adjust them later
+
+        //clone default values
+        $f = new ilDclDefaultValueFactory();
 
         //clone fieldsettings
         foreach ($orig->getFieldSettings() as $orig_fieldsetting) {
             $new_fieldsetting = new ilDclTableViewFieldSetting();
             $new_fieldsetting->setTableviewId($this->getId());
-            if ($new_fields[$orig_fieldsetting->getField()]) {
+            if ($new_fields[$orig_fieldsetting->getField()] ?? null) {
                 //normal fields
                 $new_fieldsetting->setField($new_fields[$orig_fieldsetting->getField()]->getId());
             } else {
                 //standard fields
                 $new_fieldsetting->setField($orig_fieldsetting->getField());
             }
-            $new_fieldsetting->cloneStructure($orig_fieldsetting);
+            $new_field_id = $new_fieldsetting->cloneStructure($orig_fieldsetting);
+
+            //clone default value
+            $datatype = $orig_fieldsetting->getFieldObject()->getDatatypeId();
+            $match = ilDclTableViewBaseDefaultValue::findSingle($datatype, $orig_fieldsetting->getId());
+
+            if (!is_null($match)) {
+                $new_default_value = $f->create($datatype);
+                $new_default_value->setTviewSetId($new_field_id);
+                $new_default_value->setValue($match->getValue());
+                $new_default_value->create();
+            }
         }
 
         //clone pageobject
@@ -409,36 +471,25 @@ class ilDclTableView extends ActiveRecord
         ilDclCache::setCloneOf($orig->getId(), $this->getId(), ilDclCache::TYPE_TABLEVIEW);
     }
 
-
     /**
-     * @param $table_id
-     *
-     * @return ilDclTableView[]
+     * @return ilDclTableView[]|ActiveRecord[]
      */
-    public static function getAllForTableId($table_id)
+    public static function getAllForTableId(int $table_id): array
     {
         return self::where(array('table_id' => $table_id))->orderBy('tableview_order')->get();
     }
 
-
-    /**
-     * @param $table_id
-     *
-     * @return int
-     */
-    public static function getCountForTableId($table_id)
+    public static function getCountForTableId(int $table_id): int
     {
         return self::where(array('table_id' => $table_id))->orderBy('tableview_order')->count();
     }
 
-
     /**
      * @param      $table_id
      * @param bool $create_default_settings
-     *
-     * @return ilDclTableView
+     * @return ilDclTableView|ActiveRecord
      */
-    public static function createOrGetStandardView($table_id, $create_default_settings = true)
+    public static function createOrGetStandardView(int $table_id, bool $create_default_settings = true): ActiveRecord
     {
         if ($standardview = self::where(array('table_id' => $table_id))->orderBy('tableview_order')->first()) {
             return $standardview;
@@ -446,29 +497,53 @@ class ilDclTableView extends ActiveRecord
 
         global $DIC;
         $rbacreview = $DIC['rbacreview'];
+        $http = $DIC->http();
+        $refinery = $DIC->refinery();
+
         $roles = array();
-        foreach ($rbacreview->getParentRoleIds($_GET['ref_id']) as $role_array) {
+
+        $ref_id = $http->wrapper()->query()->retrieve('ref_id', $refinery->kindlyTo()->int());
+        foreach ($rbacreview->getParentRoleIds($ref_id) as $role_array) {
             $roles[] = $role_array['obj_id'];
         }
 
         $view = new self();
 
-        if ($_GET['ref_id']) {
+        $hasRefId = $http->wrapper()->query()->has('ref_id');
+
+        if ($hasRefId) {
             global $DIC;
             $rbacreview = $DIC['rbacreview'];
+
+            $ref_id = $http->wrapper()->query()->retrieve('ref_id', $refinery->kindlyTo()->int());
+
             $roles = array();
-            foreach ($rbacreview->getParentRoleIds($_GET['ref_id']) as $role_array) {
+            foreach ($rbacreview->getParentRoleIds($ref_id) as $role_array) {
                 $roles[] = $role_array['obj_id'];
             }
-            $view->setRoles(array_merge($roles, $rbacreview->getLocalRoles($_GET['ref_id'])));
+            $view->setRoles(array_merge($roles, $rbacreview->getLocalRoles($ref_id)));
         }
         $view->setTableId($table_id);
         // bugfix mantis 0023307
         $lng = $DIC['lng'];
         $view->setTitle($lng->txt('dcl_title_standardview'));
         $view->setTableviewOrder(10);
+        $view->setStepVs(true);
+        $view->setStepC(false);
+        $view->setStepE(false);
+        $view->setStepO(false);
+        $view->setStepS(false);
         $view->create($create_default_settings);
 
         return $view;
+    }
+
+    /**
+     * Check if the configuration of the view is complete. The step "single" is
+     * optional and therefore omitted.
+     */
+    public function validateConfigCompletion(): bool
+    {
+        return $this->step_vs && $this->step_c && $this->step_e && $this->step_o;
     }
 }

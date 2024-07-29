@@ -21,107 +21,64 @@
    +-----------------------------------------------------------------------------+
   */
 
-
- /**
-   * class for reading a learning module as structure object
-   *
-   * @author Roland Kuestermann (rku@aifb.uni-karlsruhe.de)
-   * @version $Id: class.ilSoapStructureReader.php,v 1.5 2006/05/23 23:09:06 hschottm Exp $
-   *
-   * @package ilias
-   */
-
 include_once "./webservice/soap/classes/class.ilSoapStructureReader.php";
 include_once "./webservice/soap/classes/class.ilSoapStructureObjectFactory.php";
 
+/**
+ * class for reading a learning module as structure object
+ * @author  Roland Kuestermann (rku@aifb.uni-karlsruhe.de)
+ * @version $Id: class.ilSoapStructureReader.php,v 1.5 2006/05/23 23:09:06 hschottm Exp $
+ * @package ilias
+ */
 class ilSoapLMStructureReader extends ilSoapStructureReader
 {
+    public function _parseStructure() : void
+    {
+        /** @var ilObjLearningModule $obect */
+        $obect = $this->object;
+        
+        $ctree = $obect->getLMTree();
 
-	/**
-	 * 
-	 * @param object $object
-	 */
-	public function __construct($object)
-	{
-		parent::__construct($object);
-	}
+        $nodes = $ctree->getSubTree($ctree->getNodeData($ctree->getRootId()));
 
-	function _parseStructure () {
-		// get all child nodes in LM
-		$ctree =& $this->object->getLMTree();
+        $currentParentStructureObject = $this->structureObject;
+        $currentParent = 1;
 
-		$nodes = $ctree->getSubtree($ctree->getNodeData($ctree->getRootId()));
+        $parents = [];
+        $parents[$currentParent] = $currentParentStructureObject;
 
-		$currentParentStructureObject = $this->structureObject;
-		$currentParent = 1;
+        $lastStructureObject = null;
+        $lastNode = null;
+        foreach ($nodes as $node) {
 
-		$parents = array ();
-		$parents [$currentParent]= $currentParentStructureObject;
+            // only pages and chapters
+            if ($node["type"] === "st" || $node["type"] === "pg") {
+                // parent has changed, to build a tree
+                if ((int) $currentParent !== (int) $node["parent"]) {
+                    // did we passed this parent before?
 
-		$lastStructureObject = null;
-		$lastNode = null;
-		$i =0;
-		foreach($nodes as $node)
-		{
+                    if (array_key_exists($node["parent"], $parents)) {
+                        $currentParentStructureObject = $parents[$node["parent"]];
+                    } elseif ($lastNode["type"] !== "pg") {
+                        // no, we did not, so use the last inserted structure as new parent
+                        $parents[$lastNode["child"]] = $lastStructureObject;
+                        $currentParentStructureObject = $lastStructureObject;
+                    }
+                    $currentParent = $lastNode["child"];
+                }
 
-			// only pages and chapters
-			if($node["type"] == "st" || $node["type"] == "pg")
-			{
-//				print_r($node);
-//				echo $node["parent"]."<br>";
-//				echo $node["obj_id"]."<br>";
-//				echo $node["title"]."<br>";
-//				print_r($parents);
-//				echo "<br>";
+                $lastNode = $node;
 
-				// parent has changed, to build a tree
-				if ($currentParent != $node["parent"])
-				{
-					// did we passed this parent before?
+                $lastStructureObject = ilSoapStructureObjectFactory::getInstance(
+                    $node["obj_id"],
+                    $node["type"],
+                    $node["title"],
+                    $node["description"],
+                    $this->getObject()->getRefId()
+                );
 
-					if (array_key_exists($node["parent"], $parents))
-					{
-//						echo "current_parent:".$currentParent."\n";
-//						echo "parent:".$node["parent"]."\n";
-//						// yes, we did, so use the known parent object
-//						print_r($parents);
-						$currentParentStructureObject = $parents[$node["parent"]];
-
-//						print_r($currentParentStructureObject);
-//
-//						die();
-					}
-					else
-					{
-						// no, we did not, so use the last inserted structure as new parent
-						if ($lastNode["type"] != "pg")
-						{
-							$parents[$lastNode["child"]] = $lastStructureObject;
-							$currentParentStructureObject = $lastStructureObject;
-						}
-
-					}
-					 $i++;
-					$currentParent = $lastNode["child"];
-				}
-
-				$lastNode = $node;
-
-				$lastStructureObject = ilSoapStructureObjectFactory::getInstance ($node["obj_id"],$node["type"], $node["title"], $node["description"], $this->getObject()->getRefId());
-
-				$currentParentStructureObject->addStructureObject( $lastStructureObject);
-
-			}
-		}
-
-//		print_r($this->structureObject);
-//
-//		die();
-	}
-
-
-
-
+                $currentParentStructureObject->addStructureObject($lastStructureObject);
+            }
+        }
+    }
 }
-
-?>

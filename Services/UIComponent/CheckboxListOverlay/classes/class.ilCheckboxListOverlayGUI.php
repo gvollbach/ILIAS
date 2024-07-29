@@ -1,214 +1,169 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
-* User interface class for a checkbox list overlay
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* @version $Id:$
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * User interface class for a checkbox list overlay
+ *
+ * @author Alexander Killing <killing@leifos.de>
+ * @deprecated only used in legacy tables, do not introduce this anywhere else
+ */
 class ilCheckboxListOverlayGUI
 {
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+    protected ilLanguage $lng;
+    private array $items = array();
+    protected string $id;
+    protected string $link_title;
+    protected string $selectionheaderclass;
+    protected string $form_cmd;
+    protected string $field_var;
+    protected string $hidden_var;
+    protected \ilGlobalTemplateInterface $main_tpl;
 
-	private $items = array();
-	
-	/**
-	* Constructor.
-	*	
-	*/
-	public function __construct($a_id = "")
-	{
-		global $DIC;
+    public function __construct(
+        string $a_id = ""
+    ) {
+        global $DIC;
 
-		$this->lng = $DIC->language();
-		$this->setId($a_id);
-	}
+        $this->lng = $DIC->language();
+        $this->setId($a_id);
+        $this->main_tpl = $DIC->ui()->mainTemplate();
+    }
 
-	/**
-	 * Set id
-	 *
-	 * @param	string	id
-	 */
-	function setId($a_val)
-	{
-		$this->id = $a_val;
-	}
-	
-	/**
-	 * Get id
-	 *
-	 * @return	string	id
-	 */
-	function getId()
-	{
-		return $this->id;
-	}
-	
+    public function setId(string $a_val): void
+    {
+        $this->id = $a_val;
+    }
 
-	/**
-	 * Set link title
-	 *
-	 * @param	string	link title
-	 */
-	function setLinkTitle($a_val)
-	{
-		$this->link_title = $a_val;
-	}
-	
-	/**
-	 * Get link title
-	 *
-	 * @return	string	link title
-	 */
-	function getLinkTitle()
-	{
-		return $this->link_title;
-	}
-	
-	/**
-	 * Set items
-	 *
-	 * @param	array	items
-	 */
-	function setItems($a_val)
-	{
-		$this->items = $a_val;
-	}
-	
-	/**
-	 * Get items
-	 *
-	 * @return	array	items
-	 */
-	function getItems()
-	{
-		return $this->items;
-	}
-	
-	/**
-	* Set Selection Header Class.
-	*
-	* @param	string	$a_selectionheaderclass	Selection Header Class
-	*/
-	function setSelectionHeaderClass($a_selectionheaderclass)
-	{
-		$this->selectionheaderclass = $a_selectionheaderclass;
-	}
+    public function getId(): string
+    {
+        return $this->id;
+    }
 
-	/**
-	* Get Selection Header Class.
-	*
-	* @return	string	Selection Header Class
-	*/
-	function getSelectionHeaderClass()
-	{
-		return $this->selectionheaderclass;
-	}
+    public function setLinkTitle(string $a_val): void
+    {
+        $this->link_title = $a_val;
+    }
 
-	/**
-	 * Set form command
-	 *
-	 * @param	string	form command
-	 */
-	function setFormCmd($a_val)
-	{
-		$this->form_cmd = $a_val;
-	}
-	
-	/**
-	 * Get form command
-	 *
-	 * @return	string	form command
-	 */
-	function getFormCmd()
-	{
-		return $this->form_cmd;
-	}
-	
-	/**
-	 * Set field var
-	 *
-	 * @param	string	field var
-	 */
-	function setFieldVar($a_val)
-	{
-		$this->field_var = $a_val;
-	}
-	
-	/**
-	 * Get field var
-	 *
-	 * @return	string	field var
-	 */
-	function getFieldVar()
-	{
-		return $this->field_var;
-	}
-	
-	/**
-	 * Set hidden var (used to indicated that checkbox array has been sent in a form)
-	 *
-	 * @param	string	hidden var
-	 */
-	function setHiddenVar($a_val)
-	{
-		$this->hidden_var = $a_val;
-	}
-	
-	/**
-	 * Get hidden var
-	 *
-	 * @return	string	hidden var
-	 */
-	function getHiddenVar()
-	{
-		return $this->hidden_var;
-	}
-	/**
-	* Get selection list HTML
-	*/
-	public function getHTML()
-	{
-		$lng = $this->lng;
-		
-		$items = $this->getItems();
+    public function getLinkTitle(): string
+    {
+        return $this->link_title;
+    }
 
-		$tpl = new ilTemplate("tpl.checkbox_list_overlay.html", true, true,
-			"Services/UIComponent/CheckboxListOverlay", "DEFAULT", false, true);
-				
-		$tpl->setCurrentBlock("top_img");
-		
-		// do not repeat title (accessibility) -> empty alt
-		$tpl->setVariable("TXT_SEL_TOP", $this->getLinkTitle());
-		$tpl->setVariable("ALT_SEL_TOP", "");
-		
-		$tpl->parseCurrentBlock();
-		
-		reset($items);
-		$cnt = 0;
-		foreach ($items as $k => $v)
-		{			
-			$tpl->setCurrentBlock("list_entry");
-			$tpl->setVariable("VAR", $this->getFieldVar());
-			$tpl->setVariable("VAL_ENTRY", $k);
-			$tpl->setVariable("TXT_ENTRY", $v["txt"]);
-			$tpl->setVariable("IDX_ENTRY", ++$cnt); 
-			if ($v["selected"])
-			{
-				$tpl->setVariable("CHECKED", "checked='checked'");
-			}
-			$tpl->parseCurrentBlock();
-		}
-		
-		$tpl->setVariable("ID", $this->getId());
-		$tpl->setVariable("HIDDEN_VAR", $this->getHiddenVar());
-		$tpl->setVariable("CMD_SUBMIT", $this->getFormCmd());
-		$tpl->setVariable("VAL_SUBMIT", $lng->txt("refresh"));				
-		return $tpl->get();
-	}
+    public function setItems(array $a_val): void
+    {
+        $this->items = $a_val;
+    }
+
+    public function getItems(): array
+    {
+        return $this->items;
+    }
+
+    public function setSelectionHeaderClass(
+        string $a_selectionheaderclass
+    ): void {
+        $this->selectionheaderclass = $a_selectionheaderclass;
+    }
+
+    public function getSelectionHeaderClass(): string
+    {
+        return $this->selectionheaderclass;
+    }
+
+    public function setFormCmd(string $a_val): void
+    {
+        $this->form_cmd = $a_val;
+    }
+
+    public function getFormCmd(): string
+    {
+        return $this->form_cmd;
+    }
+
+    public function setFieldVar(string $a_val): void
+    {
+        $this->field_var = $a_val;
+    }
+
+    public function getFieldVar(): string
+    {
+        return $this->field_var;
+    }
+
+    public function setHiddenVar(string $a_val): void
+    {
+        $this->hidden_var = $a_val;
+    }
+
+    public function getHiddenVar(): string
+    {
+        return $this->hidden_var;
+    }
+
+    public function getHTML(bool $pull_right = true): string
+    {
+        $lng = $this->lng;
+
+        $items = $this->getItems();
+
+        $tpl = new ilTemplate(
+            "tpl.checkbox_list_overlay.html",
+            true,
+            true,
+            "Services/UIComponent/CheckboxListOverlay",
+            "DEFAULT",
+            false,
+            true
+        );
+
+        $this->main_tpl->addOnLoadCode("$('#chkbxlstovl_" . $this->getId() . "').click(function(event){
+			event.stopPropagation();
+		});");
+
+        $tpl->touchBlock("top_img");
+
+        // do not repeat title (accessibility) -> empty alt
+        $tpl->setVariable("TXT_SEL_TOP", $this->getLinkTitle());
+
+        $tpl->parseCurrentBlock();
+
+        reset($items);
+        $cnt = 0;
+        foreach ($items as $k => $v) {
+            $tpl->setCurrentBlock("list_entry");
+            $tpl->setVariable("VAR", $this->getFieldVar());
+            $tpl->setVariable("VAL_ENTRY", $k);
+            $tpl->setVariable("TXT_ENTRY", $v["txt"]);
+            $tpl->setVariable("IDX_ENTRY", ++$cnt);
+            if ($v["selected"]) {
+                $tpl->setVariable("CHECKED", "checked='checked'");
+            }
+            $tpl->parseCurrentBlock();
+        }
+
+        if ($pull_right) {
+            $tpl->touchBlock("pr");
+        }
+
+        $tpl->setVariable("ID", $this->getId());
+        $tpl->setVariable("HIDDEN_VAR", $this->getHiddenVar());
+        $tpl->setVariable("CMD_SUBMIT", $this->getFormCmd());
+        $tpl->setVariable("VAL_SUBMIT", $lng->txt("refresh"));
+        return $tpl->get();
+    }
 }
-?>

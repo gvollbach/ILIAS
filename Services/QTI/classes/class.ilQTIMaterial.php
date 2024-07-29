@@ -1,25 +1,23 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2001 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
+
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
 
 /**
 * QTI material class
@@ -31,135 +29,63 @@
 */
 class ilQTIMaterial
 {
-	var $label;
-	var $flow;
-	var $comment;
-	var $mattext;
-	var $matemtext;
-	var $matimage;
-	var $mataudio;
-	var $matvideo;
-	var $matapplet;
-	var $matapplication;
-	var $matref;
-	var $matbreak;
-	var $mat_extension;
-	var $altmaterial;
-	var $materials;
-	
-	function __construct()
-	{
-		$this->flow = 0;
-		$this->altmaterial = array();
-		$this->materials = array();
-	}
-	
-	function addMattext($a_mattext)
-	{
-		array_push($this->materials, array("material" => $a_mattext, "type" => "mattext"));
-	}
+    public ?string $label = null;
+    public int $flow = 0;
 
-	function addMatimage($a_matimage)
-	{
-		array_push($this->materials, array("material" => $a_matimage, "type" => "matimage"));
-	}
+    /**
+     * @var array{material: ilQTIMattext|ilQTIMatimage|ilQTIMatapplet, type: string}[]
+     */
+    public array $materials = [];
 
-	function addMatemtext($a_matemtext)
-	{
-		array_push($this->materials, array("material" => $a_matemtext, "type" => "matemtext"));
-	}
+    public function addMattext(ilQTIMattext $a_mattext): void
+    {
+        $this->materials[] = array("material" => $a_mattext, "type" => "mattext");
+    }
 
-	function addMataudio($a_mataudio)
-	{
-		array_push($this->materials, array("material" => $a_mataudio, "type" => "mataudio"));
-	}
+    public function addMatimage(ilQTIMatimage $a_matimage): void
+    {
+        $this->materials[] = array("material" => $a_matimage, "type" => "matimage");
+    }
 
-	function addMatvideo($a_matvideo)
-	{
-		array_push($this->materials, array("material" => $a_matvideo, "type" => "matvideo"));
-	}
+    public function addMatapplet(ilQTIMatapplet $a_matapplet): void
+    {
+        $this->materials[] = array("material" => $a_matapplet, "type" => "matapplet");
+    }
 
-	function addMatapplet($a_matapplet)
-	{
-		array_push($this->materials, array("material" => $a_matapplet, "type" => "matapplet"));
-	}
+    public function getMaterialCount(): int
+    {
+        return count($this->materials);
+    }
 
-	function addMatapplication($a_matapplication)
-	{
-		array_push($this->materials, array("material" => $a_matapplication, "type" => "matapplication"));
-	}
+    /**
+     * @return false|array{material: ilQTIMattext|ilQTIMatimage|ilQTIMatapplet, type: string}
+     */
+    public function getMaterial(int $a_index)
+    {
+        if (array_key_exists($a_index, $this->materials)) {
+            return $this->materials[$a_index];
+        }
 
-	function addMatref($a_matref)
-	{
-		array_push($this->materials, array("material" => $a_matref, "type" => "matref"));
-	}
+        return false;
+    }
 
-	function addMatbreak($a_matbreak)
-	{
-		array_push($this->materials, array("material" => $a_matbreak, "type" => "matbreak"));
-	}
+    public function setFlow(int $a_flow): void
+    {
+        $this->flow = $a_flow;
+    }
 
-	function addMat_extension($a_mat_extension)
-	{
-		array_push($this->materials, array("material" => $a_mat_extension, "type" => "mat_extension"));
-	}
+    public function getFlow(): int
+    {
+        return $this->flow;
+    }
 
-	function addAltmaterial($a_altmaterial)
-	{
-		array_push($this->materials, array("material" => $a_altmaterial, "type" => "altmaterial"));
-	}
-	
-	function getMaterialCount()
-	{
-		return count($this->materials);
-	}
-	
-	function getMaterial($a_index)
-	{
-		if (array_key_exists($a_index, $this->materials))
-		{
-			return $this->materials[$a_index];
-		}
-		else
-		{
-			return FALSE;
-		}
-	}
-	
-	function setFlow($a_flow)
-	{
-		$this->flow = $a_flow;
-	}
-	
-	function getFlow()
-	{
-		return $this->flow;
-	}
-	
-	function setLabel($a_label)
-	{
-		$this->label = $a_label;
-	}
-	
-	function getLabel()
-	{
-		return $this->label;
-	}
-	
-	function extractText()
-	{
-		$text = "";
-		if ($this->getMaterialCount())
-		{
-			foreach ($this->materials as $mat)
-			{
-				if (strcmp($mat["type"], "mattext") == 0)
-				{
-					$text .= $mat["material"];
-				}
-			}
-		}
-		return $text;
-	}
+    public function setLabel(string $a_label): void
+    {
+        $this->label = $a_label;
+    }
+
+    public function getLabel(): ?string
+    {
+        return $this->label;
+    }
 }
-?>

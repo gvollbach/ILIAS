@@ -1,58 +1,60 @@
 <?php
 
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Interface of auth credentials
  *
- * @author Stefan Meyer <smeyer.ilias@gmx.de> 
+ * @author Stefan Meyer <smeyer.ilias@gmx.de>
  *
  */
 interface ilAuthCredentials
 {
-	/**
-	 * Set username
-	 */
-	public function setUsername($a_name);
-	
-	/**
-	 * Get username
-	 */
-	public function getUsername();
-	
-	/**
-	 * Set password
-	 */
-	public function setPassword($a_password);
-	
-	/**
-	 * Get password
-	 */
-	public function getPassword();
-	
-	/**
-	 * Set captcha code
-	 * @param type $a_code
-	 */
-	public function setCaptchaCode($a_code);
-	
-	/**
-	 * Get captcha code
-	 */
-	public function getCaptchaCode();
-	
-	/**
-	 * Set auth mode. 
-	 * Used - for instance - for manual selection on login screen.
-	 * @param string $a_auth_mode
-	 */
-	public function setAuthMode($a_auth_mode);
-	
-	/**
-	 * Get auth mode
-	 */
-	public function getAuthMode();
-	
-	
+    /**
+     * Set username
+     */
+    public function setUsername(string $a_name): void;
+
+    /**
+     * Get username
+     */
+    public function getUsername(): string;
+
+    /**
+     * Set password
+     */
+    public function setPassword(string $a_password): void;
+
+    /**
+     * Get password
+     */
+    public function getPassword(): string;
+
+    /**
+     * Set auth mode.
+     * Used - for instance - for manual selection on login screen.
+     * @param string $a_auth_mode
+     */
+    public function setAuthMode(string $a_auth_mode): void;
+
+    /**
+     * Get auth mode
+     */
+    public function getAuthMode(): string;
 }
-?>

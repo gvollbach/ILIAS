@@ -1,184 +1,146 @@
 <?php
-require_once(dirname(__FILE__) . '/../Statement/class.arStatement.php');
 
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 /**
  * Class arWhere
- *
  * @author  Fabian Schmid <fs@studer-raimann.ch>
  * @version 2.0.7
  */
-class arWhere extends arStatement {
+class arWhere extends arStatement
+{
+    public const TYPE_STRING = 1;
+    public const TYPE_REGULAR = 2;
+    protected int $type = self::TYPE_REGULAR;
+    protected string $fieldname = '';
+    /**
+     * @var
+     */
+    protected $value;
+    protected string $operator = '=';
+    protected string $statement = '';
+    protected string $link = 'AND';
 
-	const TYPE_STRING = 1;
-	const TYPE_REGULAR = 2;
-	/**
-	 * @var int
-	 */
-	protected $type = self::TYPE_REGULAR;
-	/**
-	 * @var string
-	 */
-	protected $fieldname = '';
-	/**
-	 * @var
-	 */
-	protected $value;
-	/**
-	 * @var string
-	 */
-	protected $operator = '=';
-	/**
-	 * @var string
-	 */
-	protected $statement = '';
-	/**
-	 * @var string
-	 */
-	protected $link = 'AND';
+    /**
+     * @description Build WHERE Statement
+     * @throws arException
+     */
+    public function asSQLStatement(ActiveRecord $ar): string
+    {
+        $type = null;
+        if ($this->getType() === self::TYPE_REGULAR) {
+            $arField = $ar->getArFieldList()->getFieldByName($this->getFieldname());
+            $type = 'text';
+            if ($arField instanceof arField) {
+                $type = $arField->getFieldType();
+                $statement = $ar->getConnectorContainerName() . '.' . $this->getFieldname();
+            } else {
+                $statement = $this->getFieldname();
+            }
 
+            if (is_array($this->getValue())) {
+                if (in_array($this->getOperator(), array('IN', 'NOT IN', 'NOTIN'))) {
+                    $statement .= ' ' . $this->getOperator() . ' (';
+                } else {
+                    $statement .= ' IN (';
+                }
+                $values = array();
+                foreach ($this->getValue() as $value) {
+                    $values[] = $ar->getArConnector()->quote($value, $type);
+                }
+                $statement .= implode(', ', $values);
+                $statement .= ')';
+            } else {
+                if ($this->getValue() === null) {
+                    $operator = 'IS';
+                    if (in_array($this->getOperator(), array('IS', 'IS NOT'))) {
+                        $operator = $this->getOperator();
+                    }
+                    $this->setOperator($operator);
+                }
+                $statement .= ' ' . $this->getOperator();
+                $statement .= ' ' . $ar->getArConnector()->quote($this->getValue(), $type);
+            }
+            $this->setStatement($statement);
+        }
 
-	/**
-	 * @description Build WHERE Statement
-	 *
-	 * @param ActiveRecord $ar
-	 *
-	 * @throws arException
-	 * @return string
-	 */
-	public function asSQLStatement(ActiveRecord $ar) {
-		if ($this->getType() == self::TYPE_REGULAR) {
-			$arField = $ar->getArFieldList()->getFieldByName($this->getFieldname());
-			if ($arField instanceof arField) {
-				$type = $arField->getFieldType();
-				$statement = $ar->getConnectorContainerName() . '.' . $this->getFieldname();
-			} else {
-				$statement = $this->getFieldname();
-			}
+        return $this->getStatement();
+    }
 
-			if (is_array($this->getValue())) {
-				if (in_array($this->getOperator(), array( 'IN', 'NOT IN', 'NOTIN' ))) {
-					$statement .= ' ' . $this->getOperator() . ' (';
-				} else {
-					$statement .= ' IN (';
-				}
-				$values = array();
-				foreach ($this->getValue() as $value) {
-					$values[] = $ar->getArConnector()->quote($value, $type);
-				}
-				$statement .= implode(', ', $values);
-				$statement .= ')';
-			} else {
-				if ($this->getValue() === NULL) {
-					$operator = 'IS';
-					if (in_array($this->getOperator(), array('IS', 'IS NOT'))) {
-						$operator = $this->getOperator();
-					}
-					$this->setOperator($operator);
-				}
-				$statement .= ' ' . $this->getOperator();
-				$statement .= ' ' . $ar->getArConnector()->quote($this->getValue(), $type);
-			}
-			$this->setStatement($statement);
-		}
+    public function setFieldname(string $fieldname): void
+    {
+        $this->fieldname = $fieldname;
+    }
 
-		return $this->getStatement();
-	}
+    public function getFieldname(): string
+    {
+        return $this->fieldname;
+    }
 
+    public function setOperator(string $operator): void
+    {
+        $this->operator = $operator;
+    }
 
-	/**
-	 * @param string $fieldname
-	 */
-	public function setFieldname($fieldname) {
-		$this->fieldname = $fieldname;
-	}
+    public function getOperator(): string
+    {
+        return $this->operator;
+    }
 
+    /**
+     * @param mixed $value
+     */
+    public function setValue($value): void
+    {
+        $this->value = $value;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getFieldname() {
-		return $this->fieldname;
-	}
+    /**
+     * @return mixed|null
+     */
+    public function getValue()
+    {
+        return $this->value;
+    }
 
+    public function setType(int $type): void
+    {
+        $this->type = $type;
+    }
 
-	/**
-	 * @param string $operator
-	 */
-	public function setOperator($operator) {
-		$this->operator = $operator;
-	}
+    public function getType(): int
+    {
+        return $this->type;
+    }
 
+    public function setStatement(string $statement): void
+    {
+        $this->statement = $statement;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getOperator() {
-		return $this->operator;
-	}
+    public function getStatement(): string
+    {
+        return $this->statement;
+    }
 
+    public function setLink(string $link): void
+    {
+        $this->link = $link;
+    }
 
-	/**
-	 * @param mixed $value
-	 */
-	public function setValue($value) {
-		$this->value = $value;
-	}
-
-
-	/**
-	 * @return mixed
-	 */
-	public function getValue() {
-		return $this->value;
-	}
-
-
-	/**
-	 * @param int $type
-	 */
-	public function setType($type) {
-		$this->type = $type;
-	}
-
-
-	/**
-	 * @return int
-	 */
-	public function getType() {
-		return $this->type;
-	}
-
-
-	/**
-	 * @param string $statement
-	 */
-	public function setStatement($statement) {
-		$this->statement = $statement;
-	}
-
-
-	/**
-	 * @return string
-	 */
-	public function getStatement() {
-		return $this->statement;
-	}
-
-
-	/**
-	 * @param string $link
-	 */
-	public function setLink($link) {
-		$this->link = $link;
-	}
-
-
-	/**
-	 * @return string
-	 */
-	public function getLink() {
-		return $this->link;
-	}
+    public function getLink(): string
+    {
+        return $this->link;
+    }
 }
-
-?>

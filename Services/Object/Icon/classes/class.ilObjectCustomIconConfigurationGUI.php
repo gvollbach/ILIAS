@@ -1,160 +1,141 @@
 <?php
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+declare(strict_types=1);
 
 /**
- * Class ilObjectCustomIconConfigurationGUI
- */
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\DI\Container;
+
 class ilObjectCustomIconConfigurationGUI
 {
-	/** @var string */
-	const DEFAULT_CMD = 'showForm';
+    protected const DEFAULT_CMD = 'showForm';
 
-	/** @var \ILIAS\DI\Container */
-	protected $dic;
+    protected Container $dic;
+    protected ilObject $object;
+    /** @var ilObjectGUI|mixed */
+    protected $parentGui;
+    protected ?string $uploadFieldInformationText = null;
+    protected ilGlobalTemplateInterface $main_tpl;
 
-	/** @var \ilObject */
-	protected $object;
+    public function __construct(Container $dic, $parentGui, ilObject $object)
+    {
+        global $DIC;
+        $this->main_tpl = $DIC->ui()->mainTemplate();
+        $this->dic = $dic;
+        $this->parentGui = $parentGui;
+        $this->object = $object;
+    }
 
-	/** @var \ilObjectGUI|mixed */
-	protected $parentGui;
+    public function setUploadFieldInformationText(?string $uploadFieldInformationText): void
+    {
+        $this->uploadFieldInformationText = $uploadFieldInformationText;
+    }
 
-	/**
-	 * @var string|null
-	 */
-	protected $uploadFieldInformationText = null;
+    public function executeCommand(): void
+    {
+        $this->dic->ctrl()->getNextClass($this);
+        $cmd = $this->dic->ctrl()->getCmd(self::DEFAULT_CMD);
 
-	/**
-	 * ilObjectCustomIconConfigurationGUI constructor.
-	 * @param \ILIAS\DI\Container $dic
-	 * @param \ilObjectGUI|mixed  $parentGui
-	 * @param ilObject            $object
-	 */
-	public function __construct(\ILIAS\DI\Container $dic, $parentGui, \ilObject $object)
-	{
-		$this->dic       = $dic;
-		$this->parentGui = $parentGui;
-		$this->object    = $object;
-	}
+        switch (true) {
+            case method_exists($this, $cmd):
+                $this->{$cmd}();
+                break;
 
-	/**
-	 * @param null|string $uploadFieldInformationText
-	 */
-	public function setUploadFieldInformationText($uploadFieldInformationText)
-	{
-		$this->uploadFieldInformationText = $uploadFieldInformationText;
-	}
+            default:
+                $this->{self::DEFAULT_CMD}();
+                break;
+        }
+    }
 
-	public function executeCommand()
-	{
-		$nextClass = $this->dic->ctrl()->getNextClass($this);
-		$cmd       = $this->dic->ctrl()->getCmd(self::DEFAULT_CMD);
+    protected function showForm(?ilPropertyFormGUI $form = null): void
+    {
+        if (null === $form) {
+            $form = $this->getForm();
+        }
 
-		switch (true) {
-			case method_exists($this, $cmd):
-				$this->{$cmd}();
-				break;
+        $this->dic->ui()->mainTemplate()->setContent($form->getHTML());
+    }
 
-			default:
-				$this->{self::DEFAULT_CMD}();
-				break;
-		}
-	}
+    protected function getForm(): ilPropertyFormGUI
+    {
+        $this->dic->language()->loadLanguageModule('cntr');
 
-	/**
-	 * @param ilPropertyFormGUI|null $form
-	 */
-	protected function showForm(\ilPropertyFormGUI $form = null)
-	{
-		if (!$form) {
-			$form = $this->getForm();
-		}
+        $form = new ilPropertyFormGUI();
+        $form->setFormAction($this->dic->ctrl()->getFormAction($this, 'saveForm'));
+        $form->setTitle($this->dic->language()->txt('icon_settings'));
 
-		$this->dic->ui()->mainTemplate()->setContent($form->getHTML());
-	}
+        $this->addSettingsToForm($form);
 
-	/**
-	 * @return \ilPropertyFormGUI
-	 */
-	protected function getForm(): \ilPropertyFormGUI
-	{
-		$this->dic->language()->loadLanguageModule('cntr');
+        $form->addCommandButton('saveForm', $this->dic->language()->txt('save'));
 
-		$form = new \ilPropertyFormGUI();
-		$form->setFormAction($this->dic->ctrl()->getFormAction($this, 'saveForm'));
-		$form->setTitle($this->dic->language()->txt('icon_settings'));
+        return $form;
+    }
 
-		$this->addSettingsToForm($form);
+    public function addSettingsToForm(ilPropertyFormGUI $form): void
+    {
+        /** @var ilObjectCustomIconFactory $customIconFactory */
+        $customIconFactory = $this->dic['object.customicons.factory'];
+        $customIcon = $customIconFactory->getByObjId($this->object->getId(), $this->object->getType());
 
-		$form->addCommandButton('saveForm', $this->dic->language()->txt('save'));
+        $icon = new ilImageFileInputGUI($this->dic->language()->txt('cont_custom_icon'), 'icon');
+        if (is_string($this->uploadFieldInformationText) && $this->uploadFieldInformationText !== '') {
+            $icon->setInfo($this->uploadFieldInformationText);
+        }
 
-		return $form;
-	}
+        $icon->setSuffixes($customIcon->getSupportedFileExtensions());
+        $icon->setUseCache(false);
+        if ($customIcon->exists()) {
+            $icon->setImage($customIcon->getFullPath());
+        } else {
+            $icon->setImage('');
+        }
+        $form->addItem($icon);
+    }
 
-	/**
-	 * Add settings to form
-	 *
-	 * @param ilPropertyFormGUI $form
-	 */
-	public function addSettingsToForm(ilPropertyFormGUI $form)
-	{
-		/** @var \ilObjectCustomIconFactory $customIconFactory */
-		$customIconFactory = $this->dic['object.customicons.factory'];
-		$customIcon        = $customIconFactory->getByObjId($this->object->getId(), $this->object->getType());
+    protected function saveForm(): void
+    {
+        $form = $this->getForm();
+        if ($form->checkInput()) {
+            $this->saveIcon($form);
 
-		$icon = new \ilImageFileInputGUI($this->dic->language()->txt('cont_custom_icon'), 'icon');
-		if (is_string($this->uploadFieldInformationText)) {
-			$icon->setInfo($this->uploadFieldInformationText);
-		}
-		$icon->setSuffixes($customIcon->getSupportedFileExtensions());
-		$icon->setUseCache(false);
-		if ($customIcon->exists()) {
-			$icon->setImage($customIcon->getFullPath());
-		} else {
-			$icon->setImage('');
-		}
-		$form->addItem($icon);
-	}
+            $this->main_tpl->setOnScreenMessage('success', $this->dic->language()->txt('msg_obj_modified'), true);
+            $this->dic->ctrl()->redirect($this, 'showForm');
+        }
 
-	/**
-	 *
-	 */
-	protected function saveForm()
-	{
-		$form = $this->getForm();
-		if ($form->checkInput()) {
+        $form->setValuesByPost();
+        $this->showForm($form);
+    }
 
-			$this->saveIcon($form);
+    public function saveIcon(ilPropertyFormGUI $form): void
+    {
+        /** @var ilObjectCustomIconFactory $customIconFactory */
+        $customIconFactory = $this->dic['object.customicons.factory'];
+        $customIcon = $customIconFactory->getByObjId($this->object->getId(), $this->object->getType());
 
-			ilUtil::sendSuccess($this->dic->language()->txt('msg_obj_modified'), true);
-			$this->dic->ctrl()->redirect($this, 'showForm');
-		}
+        /** @var ilImageFileInputGUI $item */
+        $fileData = (array) $form->getInput('icon');
+        $item = $form->getItemByPostVar('icon');
 
-		$form->setValuesByPost();
-		$this->showForm($form);
-	}
+        if ($item && $item->getDeletionFlag()) {
+            $customIcon->remove();
+        }
 
-	/**
-	 * Save icon
-	 *
-	 * @param ilPropertyFormGUI $form
-	 */
-	public function saveIcon(ilPropertyFormGUI $form)
-	{
-		/** @var \ilObjectCustomIconFactory $customIconFactory */
-		$customIconFactory = $this->dic['object.customicons.factory'];
-		$customIcon        = $customIconFactory->getByObjId($this->object->getId(), $this->object->getType());
-
-		/** @var \ilImageFileInputGUI $item */
-		$fileData = (array)$form->getInput('icon');
-		$item     = $form->getItemByPostVar('icon');
-
-		if ($item->getDeletionFlag()) {
-			$customIcon->remove();
-		}
-
-		if ($fileData['tmp_name']) {
-			$customIcon->saveFromHttpRequest();
-		}
-	}
-
+        if (isset($fileData['tmp_name']) && $fileData['tmp_name']) {
+            $customIcon->saveFromHttpRequest();
+        }
+    }
 }

@@ -1,4 +1,9 @@
 <?php
+
+declare(strict_types=1);
+
+namespace ILIAS\UI\examples\Input\Field\Numeric;
+
 /**
  * Base example showing how to plug a numeric input into a form
  */
@@ -11,12 +16,19 @@ function numeric_inputs()
     $request = $DIC->http()->request();
 
     //Step 1: Declare the numeric input
-    $number_input = $ui->input()->field()->numeric("Some Number", "Put in a number.")->withValue(133);
+    $number_input = $ui->input()->field()
+        ->numeric("Some Number", "Put in a number.")
+        ->withValue(133);
+
+    $number_input2 = $number_input->withRequired(true)->withValue('');
 
     //Step 2, define form and form actions
-    $form = $ui->input()->container()->form()->standard('#', [ $number_input]);
+    $form = $ui->input()->container()->form()->standard('#', [
+        'n1' => $number_input,
+        'n2' => $number_input2
+    ]);
 
-    //Step 4, implement some form data processing.
+    //Step 3, implement some form data processing.
     if ($request->getMethod() == "POST") {
         $form = $form->withRequest($request);
         $result = $form->getData();

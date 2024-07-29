@@ -1,45 +1,33 @@
 <?php
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * @author  Niels Theen <ntheen@databay.de>
  */
 class ilCertificateValueReplacement
 {
-    /**
-     * @var string
-     */
-    private $clientWebDirectory;
-
-    /**
-     * @param string $clientWebDirectory - Replacement for the placeholder [CLIENT_WEB_DIR], if the string is empty
-     *                                     the constant CLIENT_WEB_DIR will be tried as default value.
-     *                                     If CLIENT_WEB_DIR is not defined the default value will be an empty string.
-     */
-    public function __construct(string $clientWebDirectory = '')
-    {
-        if ('' === $clientWebDirectory && true === defined('CLIENT_WEB_DIR')) {
-            $clientWebDirectory = CLIENT_WEB_DIR;
-        }
-        $this->clientWebDirectory = $clientWebDirectory;
-    }
-
-    /**
-     * Replaces placeholder in the certificate content with actual values
-     *
-     * @param array $placeholderValues
-     * @param string $certificateContent
-     * @param string $backgroundPath
-     * @return string
-     */
-    public function replace(array $placeholderValues, string $certificateContent, string $backgroundPath) : string
+    public function replace(array $placeholderValues, string $certificateContent): string
     {
         foreach ($placeholderValues as $placeholder => $value) {
             $certificateContent = str_replace('[' . $placeholder . ']', $value, $certificateContent);
         }
-
-        $certificateContent = str_replace('[BACKGROUND_IMAGE]', $backgroundPath, $certificateContent);
-        $certificateContent = str_replace('[CLIENT_WEB_DIR]', $this->clientWebDirectory, $certificateContent);
 
         return $certificateContent;
     }

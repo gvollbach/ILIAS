@@ -1,98 +1,85 @@
 <?php
-require_once(dirname(__FILE__) . '/../../Connector/class.arConnectorDB.php');
 
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 /**
  * Class arBuilder
- *
  * @author  Fabian Schmid <fs@studer-raimann.ch>
  * @version 2.0.7
  */
-class arBuilder {
+class arBuilder
+{
+    protected ActiveRecord $ar;
+    protected ?int $step = null;
 
-	/**
-	 * @var ActiveRecord
-	 */
-	protected $ar;
-	/**
-	 * @var int
-	 */
-	protected $step;
+    public function __construct(ActiveRecord $ar, int $step = null)
+    {
+        $this->setAr($ar);
+        $this->setStep($step ?? 0);
+    }
 
+    public function generateDBUpdateForInstallation(): void
+    {
+        $tpl = new ilTemplate(__DIR__ . '/templates/dbupdate.txt', true, true);
+        $ar = $this->getAr();
 
-	/**
-	 * @param ActiveRecord $ar
-	 * @param int          $step
-	 */
-	public function __construct(ActiveRecord $ar, $step = 1) {
-		$this->setAr($ar);
-		$this->setStep($step);
-	}
+        $tpl->setVariable('TABLE_NAME', $ar->getConnectorContainerName());
+        $tpl->setVariable('TABLE_NAME2', $ar->getConnectorContainerName());
+        $tpl->setVariable('TABLE_NAME3', $ar->getConnectorContainerName());
+        $tpl->setVariable('STEP', $this->getStep());
+        $tpl->setVariable('PRIMARY', $this->getAr()->getArFieldList()->getPrimaryFieldName());
 
+        foreach ($this->getAr()->getArFieldList()->getFields() as $field) {
+            $tpl->touchBlock('field');
+            $tpl->setVariable('FIELD_NAME', $field->getName());
+            foreach ($field->getAttributesForConnector() as $name => $value) {
+                $tpl->setCurrentBlock('attribute');
+                $tpl->setVariable('NAME', arFieldList::mapKey($name));
+                $tpl->setVariable('VALUE', $value);
+                $tpl->parseCurrentBlock();
+            }
+        }
 
-	public function generateDBUpdateForInstallation() {
-		$tpl = new ilTemplate(dirname(__FILE__) . '/templates/dbupdate.txt', true, true);
-		$ar = $this->getAr();
+        if ($this->getAr()->getArFieldList()->getPrimaryField()->getFieldType() === arField::FIELD_TYPE_INTEGER) {
+            $tpl->setCurrentBlock('attribute');
+            $tpl->setVariable('TABLE_NAME4', $ar->getConnectorContainerName());
+            $tpl->parseCurrentBlock();
+        }
 
-		$tpl->setVariable('TABLE_NAME', $ar->getConnectorContainerName());
-		$tpl->setVariable('TABLE_NAME2', $ar->getConnectorContainerName());
-		$tpl->setVariable('TABLE_NAME3', $ar->getConnectorContainerName());
-		$tpl->setVariable('STEP', $this->getStep());
-		$tpl->setVariable('PRIMARY', $this->getAr()->getArFieldList()->getPrimaryFieldName());
+        header('Content-type: application/x-httpd-php');
+        header("Content-Disposition: attachment; filename=\"dbupdate.php\"");
+        echo $tpl->get();
+        exit;
+    }
 
-		foreach ($this->getAr()->getArFieldList()->getFields() as $field) {
-			$tpl->touchBlock('field');
-			$tpl->setVariable('FIELD_NAME', $field->getName());
-			foreach ($field->getAttributesForConnector() as $name => $value) {
-				$tpl->setCurrentBlock('attribute');
-				$tpl->setVariable('NAME', arFieldList::mapKey($name));
-				$tpl->setVariable('VALUE', $value);
-				$tpl->parseCurrentBlock();
-			}
-		}
+    public function setAr(\ActiveRecord $ar): void
+    {
+        $this->ar = $ar;
+    }
 
-		if ($this->getAr()->getArFieldList()->getPrimaryField()->getFieldType() == arField::FIELD_TYPE_INTEGER) {
-			$tpl->setCurrentBlock('attribute');
-			$tpl->setVariable('TABLE_NAME4', $ar->getConnectorContainerName());
-			$tpl->parseCurrentBlock();
-		}
+    public function getAr(): \ActiveRecord
+    {
+        return $this->ar;
+    }
 
-		header('Content-type: application/x-httpd-php');
-		header("Content-Disposition: attachment; filename=\"dbupdate.php\"");
-		echo $tpl->get();
-		exit;
-	}
+    public function setStep(int $step): void
+    {
+        $this->step = $step;
+    }
 
-
-	/**
-	 * @param \ActiveRecord $ar
-	 */
-	public function setAr($ar) {
-		$this->ar = $ar;
-	}
-
-
-	/**
-	 * @return \ActiveRecord
-	 */
-	public function getAr() {
-		return $this->ar;
-	}
-
-
-	/**
-	 * @param int $step
-	 */
-	public function setStep($step) {
-		$this->step = $step;
-	}
-
-
-	/**
-	 * @return int
-	 */
-	public function getStep() {
-		return $this->step;
-	}
+    public function getStep(): int
+    {
+        return $this->step;
+    }
 }
-
-?>

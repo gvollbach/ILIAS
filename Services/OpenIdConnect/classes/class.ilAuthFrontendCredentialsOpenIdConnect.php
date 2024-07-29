@@ -1,47 +1,70 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+declare(strict_types=1);
 
 /**
- * Class ilOpenIdConnectSettingsGUI
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
  *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
  * @author Stefan Meyer <smeyer.ilias@gmx.de>
- *
- *
  */
-class ilAuthFrontendCredentialsOpenIdConnect extends ilAuthFrontendCredentials implements ilAuthCredentials
+class ilAuthFrontendCredentialsOpenIdConnect extends ilAuthFrontendCredentials
 {
-	/**
-	 * @var ilSetting
-	 */
-	private $settings = null;
+    private const SESSION_TARGET = 'oidc_target';
+    private const QUERY_PARAM_TARGET = 'target';
 
+    private ilOpenIdConnectSettings $settings;
+    private ?string $target = null;
 
-	/**
-	 * Constructor
-	 */
-	public function __construct()
-	{
-		parent::__construct();
+    public function __construct()
+    {
+        global $DIC;
 
-		$this->settings = ilOpenIdConnectSettings::getInstance();
-	}
+        parent::__construct();
+        $this->settings = ilOpenIdConnectSettings::getInstance();
+        $httpquery = $DIC->http()->wrapper()->query();
+        if ($httpquery->has(self::QUERY_PARAM_TARGET)) {
+            $this->target = $httpquery->retrieve(self::QUERY_PARAM_TARGET, $DIC->refinery()->to()->string());
+        }
+    }
 
+    protected function getSettings(): ilOpenIdConnectSettings
+    {
+        return $this->settings;
+    }
 
-	/**
-	 * @return \ilSetting
-	 */
-	protected function getSettings()
-	{
-		return $this->settings;
-	}
+    public function getRedirectionTarget(): ?string
+    {
+        return $this->target;
+    }
 
-	/**
-	 * Init credentials from request
-	 */
-	public function initFromRequest()
-	{
-		$this->setUsername('');
-		$this->setPassword('');
-	}
+    public function initFromRequest(): void
+    {
+        $this->setUsername('');
+        $this->setPassword('');
 
+        $this->parseRedirectionTarget();
+    }
+
+    protected function parseRedirectionTarget(): void
+    {
+        if ($this->target) {
+            ilSession::set(self::SESSION_TARGET, $this->target);
+        } elseif (ilSession::get(self::SESSION_TARGET)) {
+            $this->target = ilSession::get(self::SESSION_TARGET);
+        }
+    }
 }

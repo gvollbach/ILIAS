@@ -1,53 +1,55 @@
 <?php
+
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 /**
  * A general storage interface for Individual assessment settings.
- * @author Denis Klöpfer <denis.kloepfer@concepts-and-training.de>
  */
-require_once 'Modules/IndividualAssessment/classes/class.ilObjIndividualAssessment.php';
-require_once "Modules/IndividualAssessment/exceptions/class.ilIndividualAssessmentException.php";
-interface ilIndividualAssessmentSettingsStorage {
-	/**
-	 * Create a entry corresponding to $settings
-	 *
-	 * @param	ilIndividualAssessmentSettings	$settings
-	 */
-	public function createSettings(ilIndividualAssessmentSettings $settings);
+interface ilIndividualAssessmentSettingsStorage
+{
+    /**
+     * Create an entry corresponding to $settings
+     */
+    public function createSettings(ilIndividualAssessmentSettings $settings): void;
 
-	/**
-	 * Load settings corresponding to obj
-	 *
-	 * @param	ilObjIndividualAssessment	$obj
-	 * @return	ilIndividualAssessmentSettings	$settings
-	 */
-	public function loadSettings(ilObjIndividualAssessment $obj);
+    /**
+     * Load settings corresponding to obj
+     */
+    public function loadSettings(ilObjIndividualAssessment $obj): ilIndividualAssessmentSettings;
 
-	/**
-	 * Update settings entry.
-	 *
-	 * @param	ilIndividualAssessmentSettings	$settings
-	 */
-	public function updateSettings(ilIndividualAssessmentSettings $settings);
+    /**
+     * Update settings entry.
+     */
+    public function updateSettings(ilIndividualAssessmentSettings $settings): void;
 
-	/**
-	 * Load info-screen settings corresponding to obj
-	 *
-	 * @param	ilObjIndividualAssessment	$obj
-	 * @return	ilIndividualAssessmentSettings	$settings
-	 */
-	public function loadInfoSettings(ilObjIndividualAssessment $obj);
-	
-	/**
-	 * Update info-screen settings entry.
-	 *
-	 * @param	ilIndividualAssessmentSettings	$settings
-	 */
-	public function updateInfoSettings(ilIndividualAssessmentInfoSettings $settings);
+    /**
+     * Load info-screen settings corresponding to obj
+     */
+    public function loadInfoSettings(ilObjIndividualAssessment $obj): ilIndividualAssessmentInfoSettings;
 
-	/**
-	 * Delete settings entry corresponding to obj
-	 *
-	 * @param	ilObjIndividualAssessment	$obj
-	 * @return	ilIndividualAssessmentSettings	$settings
-	 */
-	public function deleteSettings(ilObjIndividualAssessment $obj);
+    /**
+     * Update info-screen settings entry.
+     */
+    public function updateInfoSettings(ilIndividualAssessmentInfoSettings $settings): void;
+
+    /**
+     * Delete settings entry corresponding to obj
+     */
+    public function deleteSettings(ilObjIndividualAssessment $obj): void;
 }

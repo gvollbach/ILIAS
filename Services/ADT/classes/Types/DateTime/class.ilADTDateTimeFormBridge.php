@@ -1,63 +1,66 @@
 <?php
 
-require_once "Services/ADT/classes/Bridges/class.ilADTFormBridge.php";
+declare(strict_types=1);
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 
 class ilADTDateTimeFormBridge extends ilADTFormBridge
 {
-	protected $invalid_input; // [bool]
-	protected $text_input; // [bool]
-	
-	protected function isValidADT(ilADT $a_adt) 
-	{
-		return ($a_adt instanceof ilADTDateTime);
-	}
-	
-	public function setTextInputMode($a_value)
-	{
-		$this->text_input = (bool)$a_value;
-	}
-	
-	public function addToForm()
-	{			
-		global $DIC;
+    protected bool $invalid_input = false;
+    protected bool $text_input = false;
 
-		$lng = $DIC['lng'];
-			
-		$adt_date = $this->getADT()->getDate();
+    protected function isValidADT(ilADT $a_adt): bool
+    {
+        return ($a_adt instanceof ilADTDateTime);
+    }
 
-		$date = new ilDateTimeInputGUI($this->getTitle(), $this->getElementId());
-		$date->setShowTime(true);
+    public function setTextInputMode(bool $a_value): void
+    {
+        $this->text_input = $a_value;
+    }
 
-		$this->addBasicFieldProperties($date, $this->getADT()->getCopyOfDefinition());		
-		
-		$date->setDate($adt_date);				
+    public function addToForm(): void
+    {
+        $adt_date = $this->getADT()->getDate();
+        $date = new ilDateTimeInputGUI($this->getTitle(), $this->getElementId());
+        $date->setShowTime(true);
+        $this->addBasicFieldProperties($date, $this->getADT()->getCopyOfDefinition());
+        $date->setDate($adt_date);
+        $this->addToParentElement($date);
+    }
 
-		$this->addToParentElement($date);		
-	}
-	
-	public function importFromPost()
-	{
-		$field = $this->getForm()->getItemByPostvar($this->getElementId());
-				
-		// because of ilDateTime the ADT can only have valid dates		
-		if(!$field->hasInvalidInput())
-		{				
-			// ilPropertyFormGUI::checkInput() is pre-requisite			
-			$this->getADT()->setDate($field->getDate());
+    public function importFromPost(): void
+    {
+        $field = $this->getForm()->getItemByPostVar($this->getElementId());
 
-			$field->setDate($this->getADT()->getDate());
-		}
-		else
-		{
-			$this->invalid_input = true;
-		}		
-	}	
-	
-	public function validate()
-	{		
-		// :TODO: error handling is done by ilDateTimeInputGUI
-		return !(bool)$this->invalid_input;
-	}
+        // because of ilDateTime the ADT can only have valid dates
+        if (!$field->hasInvalidInput()) {
+            // ilPropertyFormGUI::checkInput() is pre-requisite
+            $this->getADT()->setDate($field->getDate());
+
+            $field->setDate($this->getADT()->getDate());
+        } else {
+            $this->invalid_input = true;
+        }
+    }
+
+    public function validate(): bool
+    {
+        // :TODO: error handling is done by ilDateTimeInputGUI
+        return !$this->invalid_input;
+    }
 }
-
-?>

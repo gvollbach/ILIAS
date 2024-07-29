@@ -19,7 +19,7 @@ div.ilCreationFormSection div.ilForm div.ilForm {
 
 
 .il_ItemProperty .badge{
-	font-size: 8px;
+	font-size: @il-font-size-xsmall;
 	padding: 2px 4px;
 	margin-top: -1px;
 	margin-left: -5px;
@@ -32,12 +32,11 @@ div.ilCreationFormSection .form-horizontal {
 }
 
 .ilObjListRow {
-	border-bottom: 1px solid @body-bg;
-	background-color: @il-primary-container-bg;
-}
-
-.ilObjListRow:hover {
-	background-color: lighten(@il-highlight-bg, 5%);
+	border-bottom: @il-item-border-bottom;
+	background-color: @il-main-bg;
+    &:last-child {
+        border-bottom: none;
+    }
 }
 
 //mantis #0017866
@@ -45,7 +44,7 @@ div.ilCreationFormSection .form-horizontal {
     border-collapse: separate;
     > tbody > tr.ilObjListRow {
         > td {
-            background-color: @il-primary-container-bg;
+            background-color: @il-main-bg;
         }
         &:hover {
             > td {

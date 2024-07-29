@@ -1,67 +1,98 @@
 <?php
+
 declare(strict_types=1);
-/* Copyright (c) 1998-2019 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
- * @author  Niels Theen <ntheen@databay.de>
- */
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 namespace ILIAS\Refinery\To\Transformation;
 
-use ILIAS\Refinery\ConstraintViolationException;
 use ILIAS\Refinery\DeriveApplyToFromTransform;
 use ILIAS\Refinery\Transformation;
+use ILIAS\Refinery\DeriveInvokeFromTransform;
+use ILIAS\Refinery\ProblemBuilder;
+use UnexpectedValueException;
+use ILIAS\Refinery\Constraint;
 
-class ListTransformation implements Transformation
+class ListTransformation implements Constraint
 {
     use DeriveApplyToFromTransform;
-    /**
-     * @var Transformation
-     */
-    private $transformation;
+    use DeriveInvokeFromTransform;
+    use ProblemBuilder;
 
-    /**
-     * @param Transformation $transformation
-     */
+    private Transformation $transformation;
+
     public function __construct(Transformation $transformation)
     {
         $this->transformation = $transformation;
     }
 
     /**
-     * @inheritdoc
+     * @inheritDoc
      */
-    public function transform($from)
+    public function transform($from): array
     {
-        if (false === is_array($from)) {
-            throw new ConstraintViolationException(
-                'The input value must be an array',
-                'must_be_array'
-            );
-        }
-        if (array() === $from) {
-            throw new ConstraintViolationException(
-                'Value array is empty',
-                'value_array_is_empty'
-            );
-        }
+        $this->check($from);
 
-        $result = array();
+        $result = [];
         foreach ($from as $value) {
             $transformedValue = $this->transformation->transform($value);
             $result[] = $transformedValue;
         }
 
-
-
         return $result;
     }
 
     /**
-     * @inheritdoc
+     * @inheritDoc
      */
-    public function __invoke($from)
+    public function getError(): string
     {
-        return $this->transform($from);
+        return 'The value MUST be of type array.';
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function check($value)
+    {
+        if (!$this->accepts($value)) {
+            throw new UnexpectedValueException($this->getErrorMessage($value));
+        }
+
+        return null;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function accepts($value): bool
+    {
+        return is_array($value);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function problemWith($value): ?string
+    {
+        if (!$this->accepts($value)) {
+            return $this->getErrorMessage($value);
+        }
+
+        return null;
     }
 }

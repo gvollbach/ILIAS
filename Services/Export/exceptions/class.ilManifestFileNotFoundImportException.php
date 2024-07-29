@@ -1,59 +1,49 @@
 <?php
 
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
 
-include_once("./Services/Export/exceptions/class.ilImportException.php"); 
- 
-/** 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
  * manifest.xml file not found-exception for import
- * 
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$ 
- * 
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilManifestFileNotFoundImportException extends ilImportException
 {
-	private $manifest_dir = "";
-	private $tmp_dir = "";
-	
-	/**
-	 * Set manifest directory
-	 *
-	 * @param string $a_val manifest directory	
-	 */
-	function setManifestDir($a_val)
-	{
-		$this->manifest_dir = $a_val;
-	}
-	
-	/**
-	 * Get manifest directory
-	 *
-	 * @return string manifest directory
-	 */
-	function getManifestDir()
-	{
-		return $this->manifest_dir;
-	}
-	
-	/**
-	 * Set temporary directory
-	 *
-	 * @param string $a_val temporary directory	
-	 */
-	function setTmpDir($a_val)
-	{
-		$this->tmp_dir = $a_val;
-	}
-	
-	/**
-	 * Get temporary directory
-	 *
-	 * @return string temporary directory
-	 */
-	function getTmpDir()
-	{
-		return $this->tmp_dir;
-	}
+    private string $manifest_dir = "";
+    private string $tmp_dir = "";
+
+    public function setManifestDir($a_val)
+    {
+        $this->manifest_dir = $a_val;
+    }
+
+    public function getManifestDir(): string
+    {
+        return $this->manifest_dir;
+    }
+
+    public function setTmpDir(string $a_val): void
+    {
+        $this->tmp_dir = $a_val;
+    }
+
+    public function getTmpDir(): string
+    {
+        return $this->tmp_dir;
+    }
 }
-?>

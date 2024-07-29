@@ -1,268 +1,223 @@
 <?php
 
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-include_once("Services/Feeds/classes/class.ilFeedItem.php");
-
-/** @defgroup ServicesFeeds Services/Feeds
- */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
-* Feed writer class.
-*
-* how to make it "secure"
-* alternative 1:
-* - hash for all objects
-* - feature "mail me rss link"
-* - link includes ref id, user id, combined hash (kind of password)
-* - combined hash = hash(user hash + object hash)
-* - ilias checks whether ref id / user id / combined hash match
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* @version $Id$
-* @ingroup ServicesFeeds
-*/
+ * Feed writer class.
+ * how to make it "secure"
+ * alternative 1:
+ * - hash for all objects
+ * - feature "mail me rss link"
+ * - link includes ref id, user id, combined hash (kind of password)
+ * - combined hash = hash(user hash + object hash)
+ * - ilias checks whether ref id / user id / combined hash match
+ * @author Alexander Killing <killing@leifos.de>
+ */
 class ilFeedWriter
 {
-	/**
-	 * @var ilTree
-	 */
-	protected $tree;
+    private string $ch_desc = "";
+    protected ilTree $tree;
+    protected ilLanguage $lng;
+    protected ilTemplate $tpl;
+    public string $encoding = "UTF-8";
+    public string $ch_about = "";
+    public string $ch_title = "";
+    public string $ch_link = "";
+    public string $ch_description = "";
+    public array $items = array();
 
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+    public function __construct()
+    {
+        global $DIC;
 
-	var $encoding = "UTF-8";
-	var $ch_about = "";
-	var $ch_title = "";
-	var $ch_link = "";
-	var $ch_description = "";
-	var $items = array();
+        $this->tree = $DIC->repositoryTree();
+        $this->lng = $DIC->language();
+    }
 
-	/**
-	 * ilFeedWriter constructor.
-	 */
-	function __construct()
-	{
-		global $DIC;
+    public function setEncoding(string $a_enc): void
+    {
+        $this->encoding = $a_enc;
+    }
 
-		$this->tree = $DIC->repositoryTree();
-		$this->lng = $DIC->language();
+    public function getEncoding(): string
+    {
+        return $this->encoding;
+    }
 
-	}
-	
-	/**
-	* Set feed encoding. Default is UTF-8.
-	*/
-	function setEncoding($a_enc)
-	{
-		$this->encoding = $a_enc;
-	}
-	
-	function getEncoding()
-	{
-		return $this->encoding;
-	}
+    public function setChannelAbout(string $a_ab): void
+    {
+        $this->ch_about = $a_ab;
+    }
 
-	/**
-	* Unique URI that defines the channel
-	*/
-	function setChannelAbout($a_ab)
-	{
-		$this->ch_about = $a_ab;
-	}
-	
-	function getChannelAbout()
-	{
-		return $this->ch_about;
-	}
+    public function getChannelAbout(): string
+    {
+        return $this->ch_about;
+    }
 
-	/**
-	* Channel Title
-	*/
-	function setChannelTitle($a_title)
-	{
-		$this->ch_title = $a_title;
-	}
-	
-	function getChannelTitle()
-	{
-		return $this->ch_title;
-	}
+    public function setChannelTitle(string $a_title): void
+    {
+        $this->ch_title = $a_title;
+    }
 
-	/**
-	* Channel Link
-	* URL to which an HTML rendering of the channel title will link
-	*/
-	function setChannelLink($a_link)
-	{
-		$this->ch_link = $a_link;
-	}
-	
-	function getChannelLink()
-	{
-		return $this->ch_link;
-	}
+    public function getChannelTitle(): string
+    {
+        return $this->ch_title;
+    }
 
-	/**
-	* Channel Description
-	*/
-	function setChannelDescription($a_desc)
-	{
-		$this->ch_desc = $a_desc;
-	}
-	
-	function getChannelDescription()
-	{
-		return $this->ch_desc;
-	}
+    public function setChannelLink(string $a_link): void
+    {
+        $this->ch_link = $a_link;
+    }
 
-	/**
-	* Add Item
-	* Item is an object of type ilFeedItem
-	*/
-	function addItem($a_item)
-	{
-		$this->items[] = $a_item;
-	}
-	
-	function getItems()
-	{
-		return $this->items;
-	}
+    public function getChannelLink(): string
+    {
+        return $this->ch_link;
+    }
 
-	function prepareStr($a_str)
-	{
-		$a_str = str_replace("&", "&amp;", $a_str);
-		$a_str = str_replace("<", "&lt;", $a_str);
-		$a_str = str_replace(">", "&gt;", $a_str);
-		return $a_str;
-	}
+    public function setChannelDescription(string $a_desc): void
+    {
+        $this->ch_desc = $a_desc;
+    }
 
-	/**
-	* get feed xml
-	*/
-	function getFeed()
-	{
-		include_once("./Services/UICore/classes/class.ilTemplate.php");
-		$this->tpl = new ilTemplate("tpl.rss_2_0.xml", true, true, "Services/Feeds");
-		
-		$this->tpl->setVariable("XML", "xml");
-		$this->tpl->setVariable("CONTENT_ENCODING", $this->getEncoding());
-		$this->tpl->setVariable("CHANNEL_ABOUT", $this->getChannelAbout());
-		$this->tpl->setVariable("CHANNEL_TITLE", $this->getChannelTitle());
-		$this->tpl->setVariable("CHANNEL_LINK", $this->getChannelLink());
-		$this->tpl->setVariable("CHANNEL_DESCRIPTION", $this->getChannelDescription());
-		
-		foreach($this->items as $item)
-		{
-			$this->tpl->setCurrentBlock("rdf_seq");
-			$this->tpl->setVariable("RESOURCE", $item->getAbout());
-			$this->tpl->parseCurrentBlock();
-			
-			// Date
-			if ($item->getDate() != "")
-			{
-				$this->tpl->setCurrentBlock("date");
-				$d = $item->getDate();
-				$yyyy = substr($d, 0, 4);
-				$mm = substr($d, 5, 2);
-				$dd = substr($d, 8, 2);
-				$h = substr($d, 11, 2);
-				$m = substr($d, 14, 2);
-				$s = substr($d, 17, 2);
-				$this->tpl->setVariable("ITEM_DATE",
-					date("r", mktime($h, $m, $s, $mm, $dd, $yyyy)));
-				$this->tpl->parseCurrentBlock();
-			}
-			
-			// Enclosure
-			if ($item->getEnclosureUrl() != "")
-			{
-				$this->tpl->setCurrentBlock("enclosure");
-				$this->tpl->setVariable("ENC_URL", $item->getEnclosureUrl());
-				$this->tpl->setVariable("ENC_LENGTH", $item->getEnclosureLength());
-				$this->tpl->setVariable("ENC_TYPE", $item->getEnclosureType());
-				$this->tpl->parseCurrentBlock();
-			}
-			
-			$this->tpl->setCurrentBlock("item");
-			$this->tpl->setVariable("ITEM_ABOUT", $item->getAbout());
-			$this->tpl->setVariable("ITEM_TITLE", $item->getTitle());
-			$this->tpl->setVariable("ITEM_DESCRIPTION", $item->getDescription());
-			$this->tpl->setVariable("ITEM_LINK", $item->getLink());
-			$this->tpl->parseCurrentBlock();
-			
-		}
-		
-		$this->tpl->parseCurrentBlock();
-		return $this->tpl->get();
-	}
-	
-	function showFeed()
-	{
-		header("Content-Type: text/xml; charset=UTF-8;");
-		echo $this->getFeed();
-	}
+    public function getChannelDescription(): string
+    {
+        return $this->ch_desc;
+    }
 
-	function getContextPath($a_ref_id)
-	{
-		$tree = $this->tree;
-		$lng = $this->lng;
+    public function addItem(ilFeedItem $a_item): void
+    {
+        $this->items[] = $a_item;
+    }
 
-		$items = array();
+    public function getItems(): array
+    {
+        return $this->items;
+    }
 
-		if ($a_ref_id > 0)
-		{
-			$path = $tree->getPathFull($a_ref_id);
+    public function prepareStr(string $a_str): string
+    {
+        $a_str = str_replace(["&", "<", ">"], ["&amp;", "&lt;", "&gt;"], $a_str);
+        return $a_str;
+    }
 
-			// we want to show the full path, from the major container to the item
-			// (folders are not! treated as containers here), at least one parent item
-			$r_path = array_reverse($path);
-			$first = "";
-			$omit = array();
-			$do_omit = false;
-			foreach ($r_path as $key => $row)
-			{
-				if ($first == "")
-				{
-					if (in_array($row["type"], array("root", "cat", "grp", "crs")) )
-					{
-						$first = $row["child"];
-					}
-				}
-				$omit[$row["child"]] = $do_omit;
-			}
+    public function getFeed(): string
+    {
+        $this->tpl = new ilTemplate("tpl.rss_2_0.xml", true, true, "Services/Feeds");
 
-			$add_it = false;
-			foreach ($path as $key => $row)
-			{
-				if ($first == $row["child"])
-				{
-					$add_it = true;
-				}
+        $this->tpl->setVariable("XML", "xml");
+        $this->tpl->setVariable("CONTENT_ENCODING", $this->getEncoding());
+        $this->tpl->setVariable("CHANNEL_ABOUT", $this->getChannelAbout());
+        $this->tpl->setVariable("CHANNEL_TITLE", $this->getChannelTitle());
+        $this->tpl->setVariable("CHANNEL_LINK", $this->getChannelLink());
+        $this->tpl->setVariable("CHANNEL_DESCRIPTION", $this->getChannelDescription());
 
-				if ($add_it && !$omit[$row["child"]] &&
-					(($row["child"] != $a_ref_id)))
-				{
-					if ($row["title"] == "ILIAS" && $row["type"] == "root")
-					{
-						$row["title"] = $lng->txt("repository");
-					}
-					$items[] = $row["title"];
-				}
-			}
-		}
+        foreach ($this->items as $item) {
+            $this->tpl->setCurrentBlock("rdf_seq");
+            $this->tpl->setVariable("RESOURCE", $item->getAbout());
+            $this->tpl->parseCurrentBlock();
 
-		if (count($items) > 0)
-		{
-			return "[".implode(" > ", $items)."]";
-		}
-		return "";
-	}
+            // Date
+            if ($item->getDate() != "") {
+                $this->tpl->setCurrentBlock("date");
+                $d = $item->getDate();
+                $yyyy = substr($d, 0, 4);
+                $mm = substr($d, 5, 2);
+                $dd = substr($d, 8, 2);
+                $h = substr($d, 11, 2);
+                $m = substr($d, 14, 2);
+                $s = substr($d, 17, 2);
+                $this->tpl->setVariable(
+                    "ITEM_DATE",
+                    date("r", mktime($h, $m, $s, $mm, $dd, $yyyy))
+                );
+                $this->tpl->parseCurrentBlock();
+            }
 
+            // Enclosure
+            if ($item->getEnclosureUrl() != "") {
+                $this->tpl->setCurrentBlock("enclosure");
+                $this->tpl->setVariable("ENC_URL", $item->getEnclosureUrl());
+                $this->tpl->setVariable("ENC_LENGTH", $item->getEnclosureLength());
+                $this->tpl->setVariable("ENC_TYPE", $item->getEnclosureType());
+                $this->tpl->parseCurrentBlock();
+            }
 
+            $this->tpl->setCurrentBlock("item");
+            $this->tpl->setVariable("ITEM_ABOUT", $item->getAbout());
+            $this->tpl->setVariable("ITEM_TITLE", $item->getTitle());
+            $this->tpl->setVariable("ITEM_DESCRIPTION", $item->getDescription());
+            $this->tpl->setVariable("ITEM_LINK", $item->getLink());
+            $this->tpl->parseCurrentBlock();
+        }
+
+        $this->tpl->parseCurrentBlock();
+        return $this->tpl->get();
+    }
+
+    public function showFeed(): void
+    {
+        header("Content-Type: text/xml; charset=UTF-8;");
+        echo $this->getFeed();
+    }
+
+    public function getContextPath(int $a_ref_id): string
+    {
+        $tree = $this->tree;
+        $lng = $this->lng;
+
+        $items = array();
+
+        if ($a_ref_id > 0) {
+            $path = $tree->getPathFull($a_ref_id);
+
+            // we want to show the full path, from the major container to the item
+            // (folders are not! treated as containers here), at least one parent item
+            $r_path = array_reverse($path);
+            $first = "";
+            $omit = array();
+            $do_omit = false;
+            foreach ($r_path as $key => $row) {
+                if ($first == "") {
+                    if (in_array($row["type"], array("root", "cat", "grp", "crs"))) {
+                        $first = $row["child"];
+                    }
+                }
+                $omit[$row["child"]] = $do_omit;
+            }
+
+            $add_it = false;
+            foreach ($path as $key => $row) {
+                if ($first == $row["child"]) {
+                    $add_it = true;
+                }
+
+                if ($add_it && !$omit[$row["child"]] &&
+                    (($row["child"] != $a_ref_id))) {
+                    if ($row["title"] == "ILIAS" && $row["type"] == "root") {
+                        $row["title"] = $lng->txt("repository");
+                    }
+                    $items[] = $row["title"];
+                }
+            }
+        }
+
+        if (count($items) > 0) {
+            return "[" . implode(" > ", $items) . "]";
+        }
+        return "";
+    }
 }
-?>

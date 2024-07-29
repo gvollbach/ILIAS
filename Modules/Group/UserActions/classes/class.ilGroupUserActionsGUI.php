@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /* Copyright (c) 1998-2017 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
@@ -12,48 +14,26 @@
  */
 class ilGroupUserActionsGUI
 {
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    protected ilCtrl $ctrl;
 
-	/**
-	 * Constructor
-	 *
-	 * @param
-	 */
-	function __construct()
-	{
-		global $DIC;
+    public function __construct()
+    {
+        global $DIC;
+        $this->ctrl = $DIC->ctrl();
+    }
 
-		$this->ctrl = $DIC->ctrl();
-	}
+    public function executeCommand(): void
+    {
+        $ctrl = $this->ctrl;
 
-	/**
-	 * Execute command
-	 */
-	function executeCommand()
-	{
-		$ctrl = $this->ctrl;
+        $next_class = $ctrl->getNextClass($this);
+        $cmd = $ctrl->getCmd("show");
 
-		$next_class = $ctrl->getNextClass($this);
-		$cmd = $ctrl->getCmd("show");
-
-		switch ($next_class)
-		{
-			case "ilgroupaddtogroupactiongui":
-				include_once("./Modules/Group/UserActions/classes/class.ilGroupAddToGroupActionGUI.php");
-				$gui = new ilGroupAddToGroupActionGUI();
-				$ctrl->forwardCommand($gui);
-				break;
-
-			default:
-				/*if (in_array($cmd, array("show")))
-				{
-					$this->$cmd();
-				}*/
-		}
-	}
+        switch ($next_class) {
+            case "ilgroupaddtogroupactiongui":
+                $gui = new ilGroupAddToGroupActionGUI();
+                $ctrl->forwardCommand($gui);
+                break;
+        }
+    }
 }
-
-?>

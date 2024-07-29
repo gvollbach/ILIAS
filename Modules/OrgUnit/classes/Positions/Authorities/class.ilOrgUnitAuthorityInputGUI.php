@@ -1,176 +1,183 @@
 <?php
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
 
 /**
  * Class ilOrgUnitAuthorityInputGUI
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
-class ilOrgUnitAuthorityInputGUI extends ilFormPropertyGUI implements ilMultiValuesItem {
+class ilOrgUnitAuthorityInputGUI extends ilFormPropertyGUI implements ilMultiValuesItem
+{
+    /**
+     * @var ilOrgUnitAuthority[]
+     */
+    protected $value;
 
-	/**
-	 * @var ilOrgUnitAuthority[]
-	 */
-	protected $value;
+    /**
+     * ilOrgUnitAuthorityInputGUI constructor.
+     * @param string $a_title
+     * @param string $a_postvar
+     */
+    public function __construct($a_title, $a_postvar)
+    {
+        parent::__construct($a_title, $a_postvar);
+        ilOrgUnitAuthority::replaceNameRenderer(function ($id) {
+            /**
+             * @var $a ilOrgUnitAuthority
+             */
+            $a = ilOrgUnitAuthority::find($id);
+            $data = array('id' => $id, 'over' => $a->getOver(), 'scope' => $a->getScope());
 
+            return json_encode($data);
+        });
+    }
 
-	/**
-	 * ilOrgUnitAuthorityInputGUI constructor.
-	 *
-	 * @param string $a_title
-	 * @param string $a_postvar
-	 */
-	public function __construct($a_title, $a_postvar) {
-		parent::__construct($a_title, $a_postvar);
-		ilOrgUnitAuthority::replaceNameRenderer(function ($id) {
-			/**
-			 * @var $a ilOrgUnitAuthority
-			 */
-			$a = ilOrgUnitAuthority::find($id);
-			$data = array( 'id' => $id, 'over' => $a->getOver(), 'scope' => $a->getScope() );
+    /**
+     * @param \ilTemplate $a_tpl
+     */
+    public function insert(ilTemplate $a_tpl): void
+    {
+        $html = $this->render();
 
-			return json_encode($data);
-		});
-	}
+        $a_tpl->setCurrentBlock("prop_generic");
+        $a_tpl->setVariable("PROP_GENERIC", $html);
+        $a_tpl->parseCurrentBlock();
+    }
 
+    /**
+     * @param array $values
+     */
+    public function setValueByArray(array $values): void
+    {
+        $authorities = $values[$this->getPostVar()];
+        if (!is_array($authorities)) {
+            $authorities = [];
+        }
+        foreach ($authorities as $authority) {
+            assert($authority instanceof ilOrgUnitAuthority);
+        }
+        $this->setValue($authorities);
+    }
 
-	/**
-	 * @param \ilTemplate $a_tpl
-	 */
-	public function insert(ilTemplate $a_tpl) {
-		$html = $this->render();
+    /**
+     * @param \ilOrgUnitAuthority[] $a_value
+     */
+    public function setValue(array $a_value): void
+    {
+        $this->value = $a_value;
+    }
 
-		$a_tpl->setCurrentBlock("prop_generic");
-		$a_tpl->setVariable("PROP_GENERIC", $html);
-		$a_tpl->parseCurrentBlock();
-	}
+    /**
+     * @return \ilOrgUnitAuthority[]
+     */
+    public function getValue(): array
+    {
+        return $this->value;
+    }
 
+    /**
+     * @throws ilTemplateException
+     */
+    protected function render(): string
+    {
+        $tpl = new ilTemplate("tpl.authority_input.html", true, true, "Modules/OrgUnit");
+        //		if (strlen($this->getValue())) {
+        //			$tpl->setCurrentBlock("prop_text_propval");
+        //			$tpl->setVariable("PROPERTY_VALUE", ilUtil::prepareFormOutput($this->getValue()));
+        //			$tpl->parseCurrentBlock();
+        //		}
 
-	/**
-	 * @param array $values
-	 */
-	public function setValueByArray(array $values) {
-		$authorities = $values[$this->getPostVar()];
-		if (!is_array($authorities)) {
-			$authorities = [];
-		}
-		foreach ($authorities as $authority) {
-			assert($authority instanceof ilOrgUnitAuthority);
-		}
-		$this->setValue($authorities);
-	}
+        //$tpl->setVariable("POSITION_ID", $this->getFieldId());
 
+        $postvar = $this->getPostVar();
+        //		if ($this->getMulti() && substr($postvar, - 2) != "[]") {
+        //			$postvar .= "[]";
+        //		}
 
-	/**
-	 * @param $a_value \ilOrgUnitAuthority[]
-	 */
-	public function setValue($a_value) {
-		$this->value = $a_value;
-	}
+        $tpl->setVariable("POST_VAR", $postvar);
 
+        // SCOPE
+        $scope_html = "";
+        foreach (ilOrgUnitAuthority::getScopes() as $scope) {
+            $txt = $this->dic()->language()->txt('scope_' . $scope);
+            $scope_html .= "<option value='{$scope}'>{$txt}</option>";
+        }
+        $tpl->setVariable("SCOPE_OPTIONS", $scope_html);
 
-	/**
-	 * @return \ilOrgUnitAuthority[]
-	 */
-	public function getValue() {
-		return $this->value;
-	}
+        // Over
+        $over_everyone = ilOrgUnitAuthority::OVER_EVERYONE;
+        $title = $this->lang()->txt('over_' . $over_everyone);
+        $over_html = "<option value='{$over_everyone}'>{$title}</option>";
+        foreach (ilOrgUnitPosition::getArray('id', 'title') as $id => $title) {
+            $over_html .= "<option value='{$id}'>{$title}</option>";
+        }
+        $tpl->setVariable("OVER_OPTIONS", $over_html);
+        /**
+         * @var $ilOrgUnitAuthority ilOrgUnitAuthority
+         */
+        if ($this->getMultiValues()) {
+            foreach ($this->getMultiValues() as $ilOrgUnitAuthority) {
+                //				$tpl->setVariable("OVER_OPTIONS", $over_html);
+            }
+        }
 
+        if ($this->getRequired()) {
+            //			$tpl->setVariable("REQUIRED", "required=\"required\"");
+        }
 
-	protected function render() {
-		$tpl = new ilTemplate("tpl.authority_input.html", true, true, "Modules/OrgUnit");
-		//		if (strlen($this->getValue())) {
-		//			$tpl->setCurrentBlock("prop_text_propval");
-		//			$tpl->setVariable("PROPERTY_VALUE", ilUtil::prepareFormOutput($this->getValue()));
-		//			$tpl->parseCurrentBlock();
-		//		}
+        $tpl->touchBlock("inline_in_bl");
+        $tpl->setVariable("MULTI_ICONS", $this->getMultiIconsHTML());
+        $this->initJS();
 
-		//$tpl->setVariable("POSITION_ID", $this->getFieldId());
+        return $tpl->get();
+    }
 
-		$postvar = $this->getPostVar();
-		//		if ($this->getMulti() && substr($postvar, - 2) != "[]") {
-		//			$postvar .= "[]";
-		//		}
+    protected function dic(): \ILIAS\DI\Container
+    {
+        return $GLOBALS["DIC"];
+    }
 
-		$tpl->setVariable("POST_VAR", $postvar);
+    protected function lang(): \ilLanguage
+    {
+        static $loaded;
+        $lang = $this->dic()->language();
+        if (!$loaded) {
+            $lang->loadLanguageModule('orgu');
+            $loaded = true;
+        }
 
-		// SCOPE
-		$scope_html = "";
-		foreach (ilOrgUnitAuthority::getScopes() as $scope) {
-			$txt = $this->dic()->language()->txt('scope_' . $scope);
-			$scope_html .= "<option value='{$scope}'>{$txt}</option>";
-		}
-		$tpl->setVariable("SCOPE_OPTIONS", $scope_html);
+        return $lang;
+    }
 
-		// Over
-		$over_everyone = ilOrgUnitAuthority::OVER_EVERYONE;
-		$title = $this->lang()->txt('over_' . $over_everyone);
-		$over_html = "<option value='{$over_everyone}'>{$title}</option>";
-		foreach (ilOrgUnitPosition::getArray('id', 'title') as $id => $title) {
-			$over_html .= "<option value='{$id}'>{$title}</option>";
-		}
-		$tpl->setVariable("OVER_OPTIONS", $over_html);
-		/**
-		 * @var $ilOrgUnitAuthority ilOrgUnitAuthority
-		 */
-		if ($this->getMultiValues()) {
-			foreach ($this->getMultiValues() as $ilOrgUnitAuthority) {
-				//				$tpl->setVariable("OVER_OPTIONS", $over_html);
-			}
-		}
+    public function getMulti(): bool
+    {
+        return false;
+    }
 
-		if ($this->getRequired()) {
-			//			$tpl->setVariable("REQUIRED", "required=\"required\"");
-		}
-
-		$tpl->touchBlock("inline_in_bl");
-		$tpl->setVariable("MULTI_ICONS", $this->getMultiIconsHTML());
-		$this->initJS();
-
-		return $tpl->get();
-	}
-
-
-	/**
-	 * @return \ILIAS\DI\Container
-	 */
-	protected function dic() {
-		return $GLOBALS["DIC"];
-	}
-
-
-	/**
-	 * @return \ilLanguage
-	 */
-	protected function lang() {
-		static $loaded;
-		$lang = $this->dic()->language();
-		if (!$loaded) {
-			$lang->loadLanguageModule('orgu');
-			$loaded = true;
-		}
-
-		return $lang;
-	}
-
-
-	/**
-	 * @return bool
-	 */
-	public function getMulti() {
-		return false;
-	}
-
-
-	protected function initJS() {
-		// Global JS
-		/**
-		 * @var $globalTpl \ilTemplate
-		 */
-		$globalTpl = $GLOBALS['DIC'] ? $GLOBALS['DIC']['tpl'] : $GLOBALS['tpl'];
-		$globalTpl->addJavascript("./Modules/OrgUnit/templates/default/authority.js");
-		$config = json_encode(array());
-		$data = json_encode($this->getValue());
-		$globalTpl->addOnLoadCode("ilOrgUnitAuthorityInput.init({$config}, {$data});");
-	}
+    protected function initJS(): void
+    {
+        // Global JS
+        /**
+         * @var $globalTpl \ilTemplate
+         */
+        $globalTpl = $GLOBALS['DIC'] ? $GLOBALS['DIC']['tpl'] : $GLOBALS['tpl'];
+        $globalTpl->addJavascript("./Modules/OrgUnit/templates/default/authority.js");
+        $config = json_encode(array());
+        $data = json_encode($this->getValue());
+        $globalTpl->addOnLoadCode("ilOrgUnitAuthorityInput.init({$config}, {$data});");
+    }
 }
-

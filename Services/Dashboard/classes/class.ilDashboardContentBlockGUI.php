@@ -1,127 +1,109 @@
 <?php
 
-/* Copyright (c) 1998-2019 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-
-include_once("Services/Block/classes/class.ilBlockGUI.php");
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
-* BlockGUI class for (centered) Content on Personal Desktop
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* @version $Id$
-*/
+ * BlockGUI class for (centered) Content on Personal Desktop
+ *
+ * @author Alexander Killing <killing@leifos.de>
+ */
 class ilDashboardContentBlockGUI extends ilBlockGUI
 {
-	static $block_type = "dashcontent";
-	
-	/**
-	* Constructor
-	*/
-	function __construct()
-	{
-		global $DIC;
+    public static string $block_type = "dashcontent";
+    protected int $currentitemnumber;
+    protected string $content;
 
-		$this->ctrl = $DIC->ctrl();
-		$this->lng = $DIC->language();
-		$this->user = $DIC->user();
+    public function __construct()
+    {
+        global $DIC;
 
-		parent::__construct();
-		
-		$this->setEnableNumInfo(false);
-		$this->setLimit(99999);
-		$this->setPresentation(self::PRES_MAIN_LEG);
-		$this->allow_moving = false;
-	}
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        $this->user = $DIC->user();
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getBlockType(): string 
-	{
-		return self::$block_type;
-	}
+        parent::__construct();
 
-	/**
-	* Set Current Item Number.
-	*
-	* @param	int	$a_currentitemnumber	Current Item Number
-	*/
-	function setCurrentItemNumber($a_currentitemnumber)
-	{
-		$this->currentitemnumber = $a_currentitemnumber;
-	}
+        $this->setEnableNumInfo(false);
+        $this->setLimit(99999);
+        $this->setPresentation(self::PRES_MAIN_LEG);
+        $this->allow_moving = false;
+    }
 
-	/**
-	* Get Current Item Number.
-	*
-	* @return	int	Current Item Number
-	*/
-	function getCurrentItemNumber()
-	{
-		return $this->currentitemnumber;
-	}
+    public function getBlockType(): string
+    {
+        return self::$block_type;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	protected function isRepositoryObject(): bool 
-	{
-		return false;
-	}
+    public function setCurrentItemNumber(int $a_currentitemnumber): void
+    {
+        $this->currentitemnumber = $a_currentitemnumber;
+    }
 
-	function getHTML()
-	{
-		return parent::getHTML();
-	}
-	
-	function getContent()
-	{
-		return $this->content;
-	}
-	
-	function setContent($a_content)
-	{
-		$this->content = $a_content;
-	}
-	
-	/**
-	* Fill data section
-	*/
-	function fillDataSection()
-	{
-		$this->tpl->setVariable("BLOCK_ROW", $this->getContent());
-	}
+    public function getCurrentItemNumber(): int
+    {
+        return $this->currentitemnumber;
+    }
 
-	/**
-	* block footer
-	*/
-	function fillFooter()
-	{
-		//$this->fillFooterLinks();
-		$lng = $this->lng;
+    protected function isRepositoryObject(): bool
+    {
+        return false;
+    }
 
-		if (is_array($this->data))
-		{
-			$this->max_count = count($this->data);
-		}
-				
-		// table footer numinfo
-		if ($this->getEnableNumInfo())
-		{
-			$numinfo = "(".$this->getCurrentItemNumber()." ".
-				strtolower($lng->txt("of"))." ".$this->max_count.")";
-	
-			if ($this->max_count > 0)
-			{
-				$this->tpl->setVariable("NUMINFO", $numinfo);
-			}
-		}
-	}
-	
-	function fillPreviousNext()
-	{
-	}
+    public function getHTML(): string
+    {
+        return parent::getHTML();
+    }
+
+    public function getContent(): string
+    {
+        return $this->content;
+    }
+
+    public function setContent(string $a_content): void
+    {
+        $this->content = $a_content;
+    }
+
+    public function fillDataSection(): void
+    {
+        $this->tpl->setVariable("BLOCK_ROW", $this->getContent());
+    }
+
+    public function fillFooter(): void
+    {
+        //$this->fillFooterLinks();
+        $lng = $this->lng;
+
+        if (is_array($this->data)) {
+            $this->max_count = count($this->data);
+        }
+
+        // table footer numinfo
+        if ($this->getEnableNumInfo()) {
+            $numinfo = "(" . $this->getCurrentItemNumber() . " " .
+                strtolower($lng->txt("of")) . " " . $this->max_count . ")";
+
+            if ($this->max_count > 0) {
+                $this->tpl->setVariable("NUMINFO", $numinfo);
+            }
+        }
+    }
+
+    public function fillPreviousNext(): void
+    {
+    }
 }
-
-?>

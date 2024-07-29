@@ -1,120 +1,81 @@
 <?php
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+use ILIAS\Filesystem\Filesystem;
+use ILIAS\Filesystem\Exception\FileAlreadyExistsException;
+use ILIAS\Filesystem\Exception\FileNotFoundException;
+use ILIAS\Filesystem\Exception\IOException;
+use ILIAS\HTTP\Wrapper\WrapperFactory;
+use ILIAS\Refinery\Factory;
 
 /**
  * @author  Niels Theen <ntheen@databay.de>
  */
 class ilCertificateSettingsFormRepository implements ilCertificateFormRepository
 {
-    /**
-     * @var int
-     */
-    private $objectId;
+    private int $objectId;
+    private ilLanguage $language;
+    private ilCtrlInterface $ctrl;
+    private ilAccess $access;
+    private ilToolbarGUI $toolbar;
+    private ilCertificatePlaceholderDescription $placeholderDescriptionObject;
+    private ilPageFormats $pageFormats;
+    private ilFormFieldParser $formFieldParser;
+    private ilCertificateTemplateImportAction $importAction;
+    private ilCertificateTemplateRepository $templateRepository;
+    private bool $hasAdditionalElements;
+    private ilCertificateBackgroundImageFileService $backGroundImageFileService;
+    private WrapperFactory $httpWrapper;
+    private Factory $refinery;
+    private ilObjCertificateSettings $global_certificate_settings;
 
-    /**
-     * @var ilLanguage
-     */
-    private $language;
-
-    /**
-     * @var ilCtrl
-     */
-    private $controller;
-
-    /**
-     * @var ilAccess
-     */
-    private $access;
-
-    /**
-     * @var ilToolbarGUI
-     */
-    private $toolbar;
-
-    /**
-     * @var ilCertificatePlaceholderDescription
-     */
-    private $placeholderDescriptionObject;
-
-    /**
-     * @var ilPageFormats
-     */
-    private $pageFormats;
-
-    /**
-     * @var ilFormFieldParser
-     */
-    private $formFieldParser;
-
-    /**
-     * @var ilCertificateTemplateImportAction|null
-     */
-    private $importAction;
-
-    /**
-     * @var ilCertificateTemplateRepository
-     */
-    private $templateRepository;
-
-    /**
-     * @var string
-     */
-    private $certificatePath;
-
-    /**
-     * @var bool
-     */
-    private $hasAdditionalElements;
-
-    /**
-     * @var ilCertificateBackgroundImageFileService
-     */
-    private $backGroundImageFileService;
-
-    /**
-     * @param integer $objectId
-     * @param string $certificatePath
-     * @param ilLanguage $language
-     * @param ilCtrl $controller
-     * @param ilAccess $access
-     * @param ilToolbarGUI $toolbar
-     * @param ilCertificatePlaceholderDescription $placeholderDescriptionObject
-     * @param ilPageFormats|null $pageFormats
-     * @param ilFormFieldParser|null $formFieldParser
-     * @param ilCertificateTemplateImportAction|null $importAction
-     * @param ilLogger|null $logger
-     * @param ilCertificateTemplateRepository|null $templateRepository
-     */
     public function __construct(
         int $objectId,
         string $certificatePath,
         bool $hasAdditionalElements,
         ilLanguage $language,
-        ilCtrl $controller,
+        ilCtrlInterface $ctrl,
         ilAccess $access,
         ilToolbarGUI $toolbar,
         ilCertificatePlaceholderDescription $placeholderDescriptionObject,
-        ilPageFormats $pageFormats = null,
-        ilFormFieldParser $formFieldParser = null,
-        ilCertificateTemplateImportAction $importAction = null,
-        ilLogger $logger = null,
-        ilCertificateTemplateRepository $templateRepository = null,
-        \ILIAS\Filesystem\Filesystem $filesystem = null,
-        ilCertificateBackgroundImageFileService $backgroundImageFileService = null
+        ?ilPageFormats $pageFormats = null,
+        ?ilFormFieldParser $formFieldParser = null,
+        ?ilCertificateTemplateImportAction $importAction = null,
+        ?ilLogger $logger = null,
+        ?ilCertificateTemplateRepository $templateRepository = null,
+        ?Filesystem $filesystem = null,
+        ?ilCertificateBackgroundImageFileService $backgroundImageFileService = null
     ) {
         global $DIC;
-
-        $this->objectId                     = $objectId;
-        $this->language                     = $language;
-        $this->controller                   = $controller;
-        $this->access                       = $access;
-        $this->toolbar                      = $toolbar;
+        $this->httpWrapper = $DIC->http()->wrapper();
+        $this->refinery = $DIC->refinery();
+        $this->objectId = $objectId;
+        $this->language = $language;
+        $this->ctrl = $ctrl;
+        $this->access = $access;
+        $this->toolbar = $toolbar;
         $this->placeholderDescriptionObject = $placeholderDescriptionObject;
-        $this->certificatePath              = $certificatePath;
-        $this->hasAdditionalElements        = $hasAdditionalElements;
+        $this->hasAdditionalElements = $hasAdditionalElements;
+        $this->global_certificate_settings = new ilObjCertificateSettings();
 
-        $database                           = $DIC->database();
-
+        $database = $DIC->database();
 
         if (null === $logger) {
             $logger = $logger = $DIC->logger()->cert();
@@ -132,7 +93,7 @@ class ilCertificateSettingsFormRepository implements ilCertificateFormRepository
 
         if (null === $importAction) {
             $importAction = new ilCertificateTemplateImportAction(
-                (int) $objectId,
+                $objectId,
                 $certificatePath,
                 $placeholderDescriptionObject,
                 $logger,
@@ -142,7 +103,7 @@ class ilCertificateSettingsFormRepository implements ilCertificateFormRepository
         $this->importAction = $importAction;
 
         if (null === $templateRepository) {
-            $templateRepository = new ilCertificateTemplateRepository($database, $logger);
+            $templateRepository = new ilCertificateTemplateDatabaseRepository($database, $logger);
         }
         $this->templateRepository = $templateRepository;
 
@@ -161,24 +122,23 @@ class ilCertificateSettingsFormRepository implements ilCertificateFormRepository
 
     /**
      * @param ilCertificateGUI $certificateGUI
-     * @param ilCertificate    $certificateObject
-     * @param string           $certificatePath
      * @return ilPropertyFormGUI
-     * @throws \ILIAS\Filesystem\Exception\FileAlreadyExistsException
-     * @throws \ILIAS\Filesystem\Exception\FileNotFoundException
-     * @throws \ILIAS\Filesystem\Exception\IOException
+     * @throws FileAlreadyExistsException
+     * @throws FileNotFoundException
+     * @throws IOException
      * @throws ilDatabaseException
      * @throws ilException
      * @throws ilWACException
      */
-    public function createForm(ilCertificateGUI $certificateGUI) {
+    public function createForm(ilCertificateGUI $certificateGUI): ilPropertyFormGUI
+    {
         $certificateTemplate = $this->templateRepository->fetchCurrentlyUsedCertificate($this->objectId);
 
-        $command = $this->controller->getCmd();
+        $command = $this->ctrl->getCmd();
 
         $form = new ilPropertyFormGUI();
         $form->setPreventDoubleSubmission(false);
-        $form->setFormAction($this->controller->getFormAction($certificateGUI));
+        $form->setFormAction($this->ctrl->getFormAction($certificateGUI));
         $form->setTitle($this->language->txt("cert_form_sec_availability"));
         $form->setMultipart(true);
         $form->setTableWidth("100%");
@@ -189,45 +149,46 @@ class ilCertificateSettingsFormRepository implements ilCertificateFormRepository
 
         $import = new ilFileInputGUI($this->language->txt("import"), "certificate_import");
         $import->setRequired(false);
-        $import->setSuffixes(array("zip"));
+        $import->setSuffixes(["zip"]);
 
         // handle the certificate import
-        if (strlen($_FILES["certificate_import"]["name"])) {
-            if ($import->checkInput()) {
-                $result = $this->importAction->import($_FILES["certificate_import"]["tmp_name"], $_FILES["certificate_import"]["name"]);
-                if ($result == false) {
-                    $import->setAlert($this->language->txt("certificate_error_import"));
-                } else {
-                    $this->controller->redirect($certificateGUI, "certificateEditor");
-                }
+        if (!empty($_FILES["certificate_import"]["name"]) && $import->checkInput()) {
+            $result = $this->importAction->import(
+                $_FILES["certificate_import"]["tmp_name"],
+                $_FILES["certificate_import"]["name"]
+            );
+            if ($result === false) {
+                $import->setAlert($this->language->txt("certificate_error_import"));
+            } else {
+                $this->ctrl->redirect($certificateGUI, "certificateEditor");
             }
         }
         $form->addItem($import);
 
-        $formSection = new \ilFormSectionHeaderGUI();
+        $formSection = new ilFormSectionHeaderGUI();
         $formSection->setTitle($this->language->txt("cert_form_sec_layout"));
         $form->addItem($formSection);
 
-        $pageformat  = new ilRadioGroupInputGUI($this->language->txt("certificate_page_format"), "pageformat");
+        $pageformat = new ilRadioGroupInputGUI($this->language->txt("certificate_page_format"), "pageformat");
         $pageformats = $this->pageFormats->fetchPageFormats();
 
         foreach ($pageformats as $format) {
             $option = new ilRadioOption($format["name"], $format["value"]);
 
-            if (strcmp($format["value"], "custom") == 0) {
+            if (strcmp($format["value"], "custom") === 0) {
                 $pageheight = new ilTextInputGUI($this->language->txt("certificate_pageheight"), "pageheight");
                 $pageheight->setSize(6);
                 $pageheight->setValidationRegexp('/^(([1-9]+|([1-9]+[0]*[\.,]{0,1}[\d]+))|(0[\.,](0*[1-9]+[\d]*)))(cm|mm|in|pt|pc|px|em)$/is');
                 $pageheight->setInfo($this->language->txt("certificate_unit_description"));
                 $pageheight->setRequired(true);
-                $option->addSubitem($pageheight);
+                $option->addSubItem($pageheight);
 
                 $pagewidth = new ilTextInputGUI($this->language->txt("certificate_pagewidth"), "pagewidth");
                 $pagewidth->setSize(6);
                 $pagewidth->setValidationRegexp('/^(([1-9]+|([1-9]+[0]*[\.,]{0,1}[\d]+))|(0[\.,](0*[1-9]+[\d]*)))(cm|mm|in|pt|pc|px|em)$/is');
                 $pagewidth->setInfo($this->language->txt("certificate_unit_description"));
                 $pagewidth->setRequired(true);
-                $option->addSubitem($pagewidth);
+                $option->addSubItem($pagewidth);
             }
 
             $pageformat->addOption($option);
@@ -235,7 +196,7 @@ class ilCertificateSettingsFormRepository implements ilCertificateFormRepository
 
         $pageformat->setRequired(true);
 
-        if (strcmp($command, "certificateSave") == 0) {
+        if (strcmp($command, "certificateSave") === 0) {
             $pageformat->checkInput();
         }
 
@@ -245,38 +206,50 @@ class ilCertificateSettingsFormRepository implements ilCertificateFormRepository
         $bgimage->setRequired(false);
         $bgimage->setUseCache(false);
 
-        $bgimage->setALlowDeletion(true);
+        $bgimage->setAllowDeletion(true);
         if (!$this->backGroundImageFileService->hasBackgroundImage($certificateTemplate)) {
-            if (ilObjCertificateSettingsAccess::hasBackgroundImage()) {
+            if ($this->global_certificate_settings->hasBackgroundImage()) {
                 ilWACSignedPath::setTokenMaxLifetimeInSeconds(15);
-                $imagePath = ilWACSignedPath::signFile(ilObjCertificateSettingsAccess::getBackgroundImageThumbPathWeb());
+                $imagePath = ilWACSignedPath::signFile($this->global_certificate_settings->getBackgroundImageThumbPathWeb());
                 $bgimage->setImage($imagePath);
-                $bgimage->setALlowDeletion(false);
+                $bgimage->setAllowDeletion(false);
             }
         } else {
             ilWACSignedPath::setTokenMaxLifetimeInSeconds(15);
 
-            $thumbnailPath = $this->backGroundImageFileService->getBackgroundImageThumbPath();
+            $thumbnail_path = $this->backGroundImageFileService->getBackgroundImageThumbPath();
 
-            if (!file_exists($thumbnailPath)) {
-                $thumbnailPath = ilObjCertificateSettingsAccess::getBackgroundImageThumbPath();
+            if (!is_file($thumbnail_path)) {
+                //Trying if it uses default image path
+                $thumbnail_path = CLIENT_WEB_DIR . $certificateTemplate->getBackgroundImagePath() . '.thumb.jpg';
+                if (!is_file($thumbnail_path)) {
+                    //Trying to use global default image
+                    $thumbnail_path = $this->global_certificate_settings->getDefaultBackgroundImageThumbPath();
+                    if (!is_file($thumbnail_path)) {
+                        //No image global default configured
+                        $thumbnail_path = '';
+                    }
+                }
                 $bgimage->setALlowDeletion(false);
             }
-            $imagePath = ilWACSignedPath::signFile($thumbnailPath);
+            $imagePath = ilWACSignedPath::signFile($thumbnail_path);
             $bgimage->setImage($imagePath);
         }
 
         $form->addItem($bgimage);
 
-        $thumbnailImage = new ilImageFileInputGUI($this->language->txt('certificate_card_thumbnail_image'), 'certificate_card_thumbnail_image');
+        $thumbnailImage = new ilImageFileInputGUI(
+            $this->language->txt('certificate_card_thumbnail_image'),
+            'certificate_card_thumbnail_image'
+        );
         $thumbnailImage->setRequired(false);
         $thumbnailImage->setUseCache(false);
-        $thumbnailImage->setSuffixes(array('svg'));
+        $thumbnailImage->setSuffixes(['svg']);
 
         $allowThumbnailDeletion = false;
 
         $cardThumbnailImagePath = $certificateTemplate->getThumbnailImagePath();
-        if ('' !== $cardThumbnailImagePath && null !== $cardThumbnailImagePath) {
+        if ('' !== $cardThumbnailImagePath) {
             $presentationThumbnailImagePath = CLIENT_WEB_DIR . $cardThumbnailImagePath;
             $thumbnailImage->setImage(ilWACSignedPath::signFile($presentationThumbnailImagePath));
             $allowThumbnailDeletion = true;
@@ -291,13 +264,14 @@ class ilCertificateSettingsFormRepository implements ilCertificateFormRepository
         $rect->setUseUnits(true);
         $rect->setInfo($this->language->txt("certificate_unit_description"));
 
-        if (strcmp($command, "certificateSave") == 0) {
+        if (strcmp($command, "certificateSave") === 0) {
             $rect->checkInput();
         }
 
         $form->addItem($rect);
 
         $certificate = new ilTextAreaInputGUI($this->language->txt("certificate_text"), "certificate_text");
+        $certificate->setInfo($this->language->txt('certificate_text_info'));
         $certificate->removePlugin('ilimgupload');
         $certificate->setRequired(true);
         $certificate->setRows(20);
@@ -311,7 +285,7 @@ class ilCertificateSettingsFormRepository implements ilCertificateFormRepository
 
         $certificate->setUseRte(true, '3.4.7');
 
-        $tags = array(
+        $tags = [
             "br",
             "em",
             "font",
@@ -322,25 +296,29 @@ class ilCertificateSettingsFormRepository implements ilCertificateFormRepository
             "strong",
             "u",
             "ul"
-        );
+        ];
 
         $certificate->setRteTags($tags);
 
-        if (strcmp($command, "certificateSave") == 0) {
+        if (strcmp($command, "certificateSave") === 0) {
             $certificate->checkInput();
         }
 
         $form->addItem($certificate);
 
         if (true === $this->hasAdditionalElements) {
-            $formSection = new \ilFormSectionHeaderGUI();
+            $formSection = new ilFormSectionHeaderGUI();
             $formSection->setTitle($this->language->txt("cert_form_sec_add_features"));
             $form->addItem($formSection);
         }
 
-        if ($this->access->checkAccess("write", "", $_GET["ref_id"])) {
+        if ($this->access->checkAccess(
+            "write",
+            "",
+            $this->httpWrapper->query()->retrieve("ref_id", $this->refinery->kindlyTo()->int())
+        )) {
             if ($certificateTemplate->isCurrentlyActive()) {
-                $this->toolbar->setFormAction($this->controller->getFormAction($certificateGUI));
+                $this->toolbar->setFormAction($this->ctrl->getFormAction($certificateGUI));
 
                 $preview = ilSubmitButton::getInstance();
                 $preview->setCaption('certificate_preview');
@@ -363,19 +341,15 @@ class ilCertificateSettingsFormRepository implements ilCertificateFormRepository
         return $form;
     }
 
-    /**
-     * @param array $formFields
-     * @return mixed|void
-     */
-    public function save(array $formFields)
+    public function save(array $formFields): void
     {
     }
 
     /**
      * @param string $content
-     * @return array|mixed
+     * @return array
      */
-    public function fetchFormFieldData(string $content)
+    public function fetchFormFieldData(string $content): array
     {
         return $this->formFieldParser->fetchDefaultFormFields($content);
     }

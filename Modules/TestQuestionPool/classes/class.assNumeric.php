@@ -1,751 +1,730 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once './Modules/TestQuestionPool/classes/class.assQuestion.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 require_once './Modules/Test/classes/inc.AssessmentConstants.php';
-require_once './Modules/TestQuestionPool/interfaces/interface.ilObjQuestionScoringAdjustable.php';
-require_once './Modules/TestQuestionPool/interfaces/interface.ilObjAnswerScoringAdjustable.php';
-require_once './Modules/TestQuestionPool/interfaces/interface.iQuestionCondition.php';
-require_once './Modules/TestQuestionPool/classes/class.ilUserQuestionResult.php';
 
 /**
  * Class for numeric questions
  *
  * assNumeric is a class for numeric questions. To solve a numeric
  * question, a learner has to enter a numerical value in a defined range.
- * 
- * @author		Helmut Schottmüller <helmut.schottmueller@mac.com> 
+ *
+ * @author		Helmut Schottmüller <helmut.schottmueller@mac.com>
  * @author		Nina Gharib <nina@wgserve.de>
  * @author		Björn Heyser <bheyser@databay.de>
  * @author		Maximilian Becker <mbecker@databay.de>
  *
  * @version		$Id$
- * 
+ *
  * @ingroup		ModulesTestQuestionPool
  */
 class assNumeric extends assQuestion implements ilObjQuestionScoringAdjustable, ilObjAnswerScoringAdjustable, iQuestionCondition
 {
-	protected $lower_limit;
-	protected $upper_limit;
+    protected $lower_limit;
+    protected $upper_limit;
 
-	/** @var $maxchars integer The maximum number of characters for the numeric input field. */
-	var $maxchars;
+    /** @var $maxchars integer The maximum number of characters for the numeric input field. */
+    public $maxchars;
 
-	/**
-	 * assNumeric constructor
-	 *
-	 * The constructor takes possible arguments an creates an instance of the assNumeric object.
-	 *
-	 * @param string $title A title string to describe the question
-	 * @param string $comment A comment string to describe the question
-	 * @param string $author A string containing the name of the questions author
-	 * @param integer $owner A numerical ID to identify the owner/creator
-	 * @param string $question The question string of the numeric question
-	 */
-	function __construct(
-		$title = "",
-		$comment = "",
-		$author = "",
-		$owner = -1,
-		$question = ""
-	)
-	{
-		parent::__construct($title, $comment, $author, $owner, $question);
-		$this->maxchars = 6;
-	}
+    /**
+     * assNumeric constructor
+     *
+     * The constructor takes possible arguments an creates an instance of the assNumeric object.
+     *
+     * @param string $title A title string to describe the question
+     * @param string $comment A comment string to describe the question
+     * @param string $author A string containing the name of the questions author
+     * @param integer $owner A numerical ID to identify the owner/creator
+     * @param string $question The question string of the numeric question
+     */
+    public function __construct(
+        $title = "",
+        $comment = "",
+        $author = "",
+        $owner = -1,
+        $question = ""
+    ) {
+        parent::__construct($title, $comment, $author, $owner, $question);
+        $this->maxchars = 6;
+    }
 
-	/**
-	 * Returns true, if a numeric question is complete for use
-	 *
-	 * @return boolean True, if the numeric question is complete for use, otherwise false
-	 */
-	public function isComplete()
-	{
-		if (
-			strlen($this->title) 
-			&& $this->author 
-			&& $this->question 
-			&& $this->getMaximumPoints() > 0
-		)
-		{
-			return true;
-		}
-		return false;
-	}
+    /**
+     * Returns true, if a numeric question is complete for use
+     *
+     * @return boolean True, if the numeric question is complete for use, otherwise false
+     */
+    public function isComplete(): bool
+    {
+        if (
+            strlen($this->title)
+            && $this->author
+            && $this->question
+            && $this->getMaximumPoints() > 0
+        ) {
+            return true;
+        }
+        return false;
+    }
 
-	/**
-	 * Saves a assNumeric object to a database
-	 *
-	 * @param string $original_id
-	 */
-	public function saveToDb($original_id = "")
-	{
-		$this->saveQuestionDataToDb($original_id);
-		$this->saveAdditionalQuestionDataToDb();
-		$this->saveAnswerSpecificDataToDb();
-		parent::saveToDb($original_id);
-	}
+    /**
+     * Saves a assNumeric object to a database
+     *
+     * @param string $original_id
+     */
+    public function saveToDb($original_id = ""): void
+    {
+        if ($original_id == "") {
+            $this->saveQuestionDataToDb();
+        } else {
+            $this->saveQuestionDataToDb($original_id);
+        }
 
-	/**
-	 * Loads a assNumeric object from a database
-	 *
-	 * @param integer $question_id A unique key which defines the multiple choice test in the database
-	 */
-	public function loadFromDb($question_id)
-	{
-		/** @var $ilDB ilDBInterface */
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
-		
-		$result = $ilDB->queryF("SELECT qpl_questions.*, " . $this->getAdditionalTableName() . ".* FROM qpl_questions LEFT JOIN " . $this->getAdditionalTableName() . " ON " . $this->getAdditionalTableName() . ".question_fi = qpl_questions.question_id WHERE qpl_questions.question_id = %s",
-			array("integer"),
-			array($question_id)
-		);
-		if ($result->numRows() == 1)
-		{
-			$data = $ilDB->fetchAssoc($result);
-			$this->setId($question_id);
-			$this->setObjId($data["obj_fi"]);
-			$this->setTitle($data["title"]);
-			$this->setComment($data["description"]);
-			$this->setNrOfTries($data['nr_of_tries']);
-			$this->setOriginalId($data["original_id"]);
-			$this->setAuthor($data["author"]);
-			$this->setPoints($data["points"]);
-			$this->setOwner($data["owner"]);
-			require_once './Services/RTE/classes/class.ilRTE.php';
-			$this->setQuestion(ilRTE::_replaceMediaObjectImageSrc($data["question_text"], 1));
-			$this->setMaxChars($data["maxnumofchars"]);
-			$this->setEstimatedWorkingTime(substr($data["working_time"], 0, 2), substr($data["working_time"], 3, 2), substr($data["working_time"], 6, 2));
-			
-			try {
-				$this->setLifecycle(ilAssQuestionLifecycle::getInstance($data['lifecycle']));
-			} catch(ilTestQuestionPoolInvalidArgumentException $e) {
-				$this->setLifecycle(ilAssQuestionLifecycle::getDraftInstance());
-			}
-			
-			try
-			{
-				$this->setAdditionalContentEditingMode($data['add_cont_edit_mode']);
-			}
-			catch(ilTestQuestionPoolException $e)
-			{
-			}
-		}
+        $this->saveAdditionalQuestionDataToDb();
+        $this->saveAnswerSpecificDataToDb();
+        parent::saveToDb($original_id);
+    }
 
-		$result = $ilDB->queryF("SELECT * FROM qpl_num_range WHERE question_fi = %s ORDER BY aorder ASC",
-			array('integer'),
-			array($question_id)
-		);
+    /**
+     * Loads a assNumeric object from a database
+     *
+     * @param integer $question_id A unique key which defines the multiple choice test in the database
+     */
+    public function loadFromDb($question_id): void
+    {
+        /** @var $ilDB ilDBInterface */
+        global $DIC;
+        $ilDB = $DIC['ilDB'];
 
-		require_once './Modules/TestQuestionPool/classes/class.assNumericRange.php';
-		if ($result->numRows() > 0)
-		{
-			/** @noinspection PhpAssignmentInConditionInspection */
-			while ($data = $ilDB->fetchAssoc($result))
-			{
-				$this->setPoints($data['points']);
-				$this->setLowerLimit($data['lowerlimit']);
-				$this->setUpperLimit($data['upperlimit']);
-			}
-		}
+        $result = $ilDB->queryF(
+            "SELECT qpl_questions.*, " . $this->getAdditionalTableName() . ".* FROM qpl_questions LEFT JOIN " . $this->getAdditionalTableName() . " ON " . $this->getAdditionalTableName() . ".question_fi = qpl_questions.question_id WHERE qpl_questions.question_id = %s",
+            array("integer"),
+            array($question_id)
+        );
+        if ($result->numRows() == 1) {
+            $data = $ilDB->fetchAssoc($result);
+            $this->setId($question_id);
+            $this->setObjId($data["obj_fi"]);
+            $this->setTitle((string) $data["title"]);
+            $this->setComment((string) $data["description"]);
+            $this->setNrOfTries($data['nr_of_tries']);
+            $this->setOriginalId($data["original_id"]);
+            $this->setAuthor($data["author"]);
+            $this->setPoints($data["points"]);
+            $this->setOwner($data["owner"]);
+            require_once './Services/RTE/classes/class.ilRTE.php';
+            $this->setQuestion(ilRTE::_replaceMediaObjectImageSrc((string) $data["question_text"], 1));
+            $this->setMaxChars($data["maxnumofchars"]);
 
-		parent::loadFromDb($question_id);
-	}
+            try {
+                $this->setLifecycle(ilAssQuestionLifecycle::getInstance($data['lifecycle']));
+            } catch (ilTestQuestionPoolInvalidArgumentException $e) {
+                $this->setLifecycle(ilAssQuestionLifecycle::getDraftInstance());
+            }
 
-	/**
-	 * Duplicates an assNumericQuestion
-	 *
-	 * @param bool   		$for_test
-	 * @param string 		$title
-	 * @param string 		$author
-	 * @param string 		$owner
-	 * @param integer|null	$testObjId
-	 *
-	 * @return void|integer Id of the clone or nothing.
-	 */
-	public function duplicate($for_test = true, $title = "", $author = "", $owner = "", $testObjId = null)
-	{
-		if ($this->id <= 0)
-		{
-			// The question has not been saved. It cannot be duplicated
-			return;
-		}
-		// duplicate the question in database
-		$this_id = $this->getId();
-		$thisObjId = $this->getObjId();
-		
-		$clone = $this;
-		require_once './Modules/TestQuestionPool/classes/class.assQuestion.php';
-		$original_id = assQuestion::_getOriginalId($this->id);
-		$clone->id = -1;
-		
-		if( (int)$testObjId > 0 )
-		{
-			$clone->setObjId($testObjId);
-		}
-		
-		if ($title)
-		{
-			$clone->setTitle($title);
-		}
+            try {
+                $this->setAdditionalContentEditingMode($data['add_cont_edit_mode']);
+            } catch (ilTestQuestionPoolException $e) {
+            }
+        }
 
-		if ($author)
-		{
-			$clone->setAuthor($author);
-		}
-		if ($owner)
-		{
-			$clone->setOwner($owner);
-		}
+        $result = $ilDB->queryF(
+            "SELECT * FROM qpl_num_range WHERE question_fi = %s ORDER BY aorder ASC",
+            array('integer'),
+            array($question_id)
+        );
 
-		if ($for_test)
-		{
-			$clone->saveToDb($original_id);
-		}
-		else
-		{
-			$clone->saveToDb();
-		}
+        require_once './Modules/TestQuestionPool/classes/class.assNumericRange.php';
+        if ($result->numRows() > 0) {
+            /** @noinspection PhpAssignmentInConditionInspection */
+            while ($data = $ilDB->fetchAssoc($result)) {
+                $this->setPoints($data['points']);
+                $this->setLowerLimit($data['lowerlimit']);
+                $this->setUpperLimit($data['upperlimit']);
+            }
+        }
 
-		// copy question page content
-		$clone->copyPageOfQuestion($this_id);
-		// copy XHTML media objects
-		$clone->copyXHTMLMediaObjectsOfQuestion($this_id);
+        parent::loadFromDb($question_id);
+    }
 
-		$clone->onDuplicate($thisObjId, $this_id, $clone->getObjId(), $clone->getId());
+    /**
+     * Duplicates an assNumericQuestion
+     *
+     * @param bool   		$for_test
+     * @param string 		$title
+     * @param string 		$author
+     * @param string 		$owner
+     * @param integer|null	$testObjId
+     *
+     * @return void|integer Id of the clone or nothing.
+     */
+    public function duplicate(bool $for_test = true, string $title = "", string $author = "", string $owner = "", $testObjId = null): int
+    {
+        if ($this->id <= 0) {
+            // The question has not been saved. It cannot be duplicated
+            return -1;
+        }
+        // duplicate the question in database
+        $this_id = $this->getId();
+        $thisObjId = $this->getObjId();
 
-		return $clone->id;
-	}
+        $clone = $this;
+        require_once './Modules/TestQuestionPool/classes/class.assQuestion.php';
+        $original_id = assQuestion::_getOriginalId($this->id);
+        $clone->id = -1;
 
-	/**
-	 * Copies an assNumeric object
-	 *
-	 * @param integer	$target_questionpool_id
-	 * @param string	$title
-	 *
-	 * @return void|integer Id of the clone or nothing.
-	 */
-	public function copyObject($target_questionpool_id, $title = "")
-	{
-		if ($this->id <= 0)
-		{
-			// The question has not been saved. It cannot be duplicated
-			return;
-		}
-		// duplicate the question in database
-		$clone = $this;
-		include_once ("./Modules/TestQuestionPool/classes/class.assQuestion.php");
-		$original_id = assQuestion::_getOriginalId($this->id);
-		$clone->id = -1;
-		$source_questionpool_id = $this->getObjId();
-		$clone->setObjId($target_questionpool_id);
-		if ($title)
-		{
-			$clone->setTitle($title);
-		}
-		$clone->saveToDb();
+        if ((int) $testObjId > 0) {
+            $clone->setObjId($testObjId);
+        }
 
-		// copy question page content
-		$clone->copyPageOfQuestion($original_id);
-		// copy XHTML media objects
-		$clone->copyXHTMLMediaObjectsOfQuestion($original_id);
+        if ($title) {
+            $clone->setTitle($title);
+        }
 
-		$clone->onCopy($source_questionpool_id, $original_id, $clone->getObjId(), $clone->getId());
+        if ($author) {
+            $clone->setAuthor($author);
+        }
+        if ($owner) {
+            $clone->setOwner($owner);
+        }
 
-		return $clone->id;
-	}
+        if ($for_test) {
+            $clone->saveToDb($original_id);
+        } else {
+            $clone->saveToDb();
+        }
 
-	public function createNewOriginalFromThisDuplicate($targetParentId, $targetQuestionTitle = "")
-	{
-		if ($this->id <= 0)
-		{
-			// The question has not been saved. It cannot be duplicated
-			return;
-		}
+        // copy question page content
+        $clone->copyPageOfQuestion($this_id);
+        // copy XHTML media objects
+        $clone->copyXHTMLMediaObjectsOfQuestion($this_id);
 
-		include_once ("./Modules/TestQuestionPool/classes/class.assQuestion.php");
+        $clone->onDuplicate($thisObjId, $this_id, $clone->getObjId(), $clone->getId());
 
-		$sourceQuestionId = $this->id;
-		$sourceParentId = $this->getObjId();
+        return $clone->id;
+    }
 
-		// duplicate the question in database
-		$clone = $this;
-		$clone->id = -1;
+    /**
+     * Copies an assNumeric object
+     *
+     * @param integer	$target_questionpool_id
+     * @param string	$title
+     *
+     * @return void|integer Id of the clone or nothing.
+     */
+    public function copyObject($target_questionpool_id, $title = "")
+    {
+        if ($this->id <= 0) {
+            // The question has not been saved. It cannot be duplicated
+            return;
+        }
+        // duplicate the question in database
+        $clone = $this;
+        include_once("./Modules/TestQuestionPool/classes/class.assQuestion.php");
+        $original_id = assQuestion::_getOriginalId($this->id);
+        $clone->id = -1;
+        $source_questionpool_id = $this->getObjId();
+        $clone->setObjId($target_questionpool_id);
+        if ($title) {
+            $clone->setTitle($title);
+        }
+        $clone->saveToDb();
 
-		$clone->setObjId($targetParentId);
+        // copy question page content
+        $clone->copyPageOfQuestion($original_id);
+        // copy XHTML media objects
+        $clone->copyXHTMLMediaObjectsOfQuestion($original_id);
 
-		if ($targetQuestionTitle)
-		{
-			$clone->setTitle($targetQuestionTitle);
-		}
+        $clone->onCopy($source_questionpool_id, $original_id, $clone->getObjId(), $clone->getId());
 
-		$clone->saveToDb();
-		// copy question page content
-		$clone->copyPageOfQuestion($sourceQuestionId);
-		// copy XHTML media objects
-		$clone->copyXHTMLMediaObjectsOfQuestion($sourceQuestionId);
+        return $clone->id;
+    }
 
-		$clone->onCopy($sourceParentId, $sourceQuestionId, $clone->getObjId(), $clone->getId());
+    public function createNewOriginalFromThisDuplicate($targetParentId, $targetQuestionTitle = ""): int
+    {
+        if ($this->getId() <= 0) {
+            throw new RuntimeException('The question has not been saved. It cannot be duplicated');
+        }
 
-		return $clone->id;
-	}
+        include_once("./Modules/TestQuestionPool/classes/class.assQuestion.php");
 
-	public function getLowerLimit()
-	{
-		return $this->lower_limit;
-	}
+        $sourceQuestionId = $this->id;
+        $sourceParentId = $this->getObjId();
 
-	public function getUpperLimit()
-	{
-		return $this->upper_limit;
-	}
+        // duplicate the question in database
+        $clone = $this;
+        $clone->id = -1;
 
-	public function setLowerLimit($a_limit)
-	{
-		$a_limit = str_replace(',', '.', $a_limit);
-		$this->lower_limit = $a_limit;
-	}
+        $clone->setObjId($targetParentId);
 
-	public function setUpperLimit($a_limit)
-	{
-		$a_limit = str_replace(',', '.', $a_limit);
-		$this->upper_limit = $a_limit;
-	}
+        if ($targetQuestionTitle) {
+            $clone->setTitle($targetQuestionTitle);
+        }
 
-	/**
-	 * Returns the maximum points, a learner can reach answering the question
-	 *
-	 * @see $points
-	 */
-	public function getMaximumPoints()
-	{
-		return $this->getPoints();
-	}
+        $clone->saveToDb();
+        // copy question page content
+        $clone->copyPageOfQuestion($sourceQuestionId);
+        // copy XHTML media objects
+        $clone->copyXHTMLMediaObjectsOfQuestion($sourceQuestionId);
 
-	public function calculateReachedPointsFromPreviewSession(ilAssQuestionPreviewSession $previewSession)
-	{
-		$points = 0;
-		if ($this->contains($previewSession->getParticipantsSolution()))
-		{
-			$points = $this->getPoints();
-		}
+        $clone->onCopy($sourceParentId, $sourceQuestionId, $clone->getObjId(), $clone->getId());
 
-		$reachedPoints = $this->deductHintPointsFromReachedPoints($previewSession, $points);
-		
-		return $this->ensureNonNegativePoints($reachedPoints);
-	}
+        return $clone->id;
+    }
 
-	/**
-	 * Returns the points, a learner has reached answering the question.
-	 * The points are calculated from the given answers.
-	 *
-	 * @param integer $active_id
-	 * @param integer $pass
-	 * @param boolean $returndetails (deprecated !!)
-	 *
-	 * @throws ilTestException
-	 *
-	 * @return integer|array $points/$details (array $details is deprecated !!)
-	 */
-	public function calculateReachedPoints($active_id, $pass = NULL, $authorizedSolution = true, $returndetails = FALSE)
-	{
-		if( $returndetails )
-		{
-			throw new ilTestException('return details not implemented for '.__METHOD__);
-		}
+    public function getLowerLimit()
+    {
+        return $this->lower_limit;
+    }
 
-		/** @var $ilDB ilDBInterface */
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
+    public function getUpperLimit()
+    {
+        return $this->upper_limit;
+    }
 
-		$found_values = array();
-		if (is_null($pass))
-		{
-			$pass = $this->getSolutionMaxPass($active_id);
-		}
-		$result = $this->getCurrentSolutionResultSet($active_id, $pass, $authorizedSolution);
-		$data = $ilDB->fetchAssoc($result);
+    public function setLowerLimit($a_limit): void
+    {
+        $a_limit = str_replace(',', '.', $a_limit);
+        $this->lower_limit = $a_limit;
+    }
 
-		$enteredvalue = $data["value1"];
+    public function setUpperLimit($a_limit): void
+    {
+        $a_limit = str_replace(',', '.', $a_limit);
+        $this->upper_limit = $a_limit;
+    }
 
-		$points = 0;
-		if ($this->contains($enteredvalue))
-		{
-			$points = $this->getPoints();
-		}
+    /**
+     * Returns the maximum points, a learner can reach answering the question
+     *
+     * @see $points
+     */
+    public function getMaximumPoints(): float
+    {
+        return $this->getPoints();
+    }
 
-		return $points;
-	}
+    public function calculateReachedPointsFromPreviewSession(ilAssQuestionPreviewSession $previewSession)
+    {
+        $points = 0;
+        if ($this->contains($previewSession->getParticipantsSolution())) {
+            $points = $this->getPoints();
+        }
 
-	/**
-	 * Checks for a given value within the range
-	 *
-	 * @see $upperlimit
-	 * @see $lowerlimit
-	 * 
-	 * @param double $value The value to check
-	 *                      
-	 * @return boolean TRUE if the value is in the range, FALSE otherwise
-	 */
-	public function contains($value) 
-	{
-		require_once './Services/Math/classes/class.EvalMath.php';
-		$eval = new EvalMath();
-		$eval->suppress_errors = TRUE;
-		$result = $eval->e($value);
-		if (($result === FALSE) || ($result === TRUE)) 
-		{
-			return FALSE;
-		}
+        $reachedPoints = $this->deductHintPointsFromReachedPoints($previewSession, $points);
 
-		if (($result >= $eval->e($this->getLowerLimit())) && ($result <= $eval->e($this->getUpperLimit())))
-		{
-			return TRUE;
-		}
-		return FALSE;
-	}
-	
-	protected function isValidNumericSubmitValue($submittedValue)
-	{
-		if( is_numeric($submittedValue) )
-		{
-			return true;
-		}
-		
-		if( preg_match('/^[-+]{0,1}\d+\/\d+$/', $submittedValue) )
-		{
-			return true;
-		}
-		
-		return false;
-	}
-	
-	public function validateSolutionSubmit()
-	{
-		if( strlen($this->getSolutionSubmit()) && !$this->isValidNumericSubmitValue($this->getSolutionSubmit()) )
-		{
-			ilUtil::sendFailure($this->lng->txt("err_no_numeric_value"), true);
-			return false;
-		}
-		
-		return true;
-	}
-	
-	public function getSolutionSubmit()
-	{
-		return trim(str_replace(",",".",$_POST["numeric_result"]));
-	}
-	
-	public function isValidSolutionSubmit($numeric_solution)
-	{
-		require_once './Services/Math/classes/class.EvalMath.php';
-		$math = new EvalMath();
-		$math->suppress_errors = TRUE;
-		$result = $math->evaluate($numeric_solution);
-		
-		return !(
-			($result === FALSE || $result === TRUE) && strlen($numeric_solution) > 0
-		);
-	}
+        return $this->ensureNonNegativePoints($reachedPoints);
+    }
 
-	/**
-	 * Saves the learners input of the question to the database.
-	 * 
-	 * @param integer $active_id Active id of the user
-	 * @param integer $pass Test pass
-	 *
-	 * @return boolean $status
-	 */
-	public function saveWorkingData($active_id, $pass = NULL, $authorized = true)
-	{
-		/** @var $ilDB ilDBInterface */
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
+    /**
+     * Returns the points, a learner has reached answering the question.
+     * The points are calculated from the given answers.
+     *
+     * @param integer $active_id
+     * @param integer $pass
+     * @param boolean $returndetails (deprecated !!)
+     *
+     * @throws ilTestException
+     *
+     * @return integer|array $points/$details (array $details is deprecated !!)
+     */
+    public function calculateReachedPoints($active_id, $pass = null, $authorizedSolution = true, $returndetails = false)
+    {
+        if ($returndetails) {
+            throw new ilTestException('return details not implemented for ' . __METHOD__);
+        }
 
-		if (is_null($pass))
-		{
-			require_once './Modules/Test/classes/class.ilObjTest.php';
-			$pass = ilObjTest::_getPass($active_id);
-		}
+        /** @var $ilDB ilDBInterface */
+        global $DIC;
+        $ilDB = $DIC['ilDB'];
 
-		$entered_values = 0;
+        $found_values = array();
+        if (is_null($pass)) {
+            $pass = $this->getSolutionMaxPass($active_id);
+        }
+        $result = $this->getCurrentSolutionResultSet($active_id, $pass, $authorizedSolution);
+        $data = $ilDB->fetchAssoc($result);
+        $enteredvalue = '';
+        if (is_array($data) && array_key_exists('value1', $data)) {
+            $enteredvalue = $data["value1"];
+        }
 
-		$returnvalue = true;
+        $points = 0;
+        if ($this->contains($enteredvalue)) {
+            $points = $this->getPoints();
+        }
 
-		$numeric_result = $this->getSolutionSubmit();
+        return $points;
+    }
 
-		$this->getProcessLocker()->executeUserSolutionUpdateLockOperation(function() use (&$entered_values, $numeric_result, $ilDB, $active_id, $pass, $authorized) {
+    /**
+     * Checks for a given value within the range
+     *
+     * @see $upperlimit
+     * @see $lowerlimit
+     *
+     * @param double $value The value to check
+     *
+     * @return boolean TRUE if the value is in the range, FALSE otherwise
+     */
+    public function contains($value): bool
+    {
+        require_once './Services/Math/classes/class.EvalMath.php';
+        $eval = new EvalMath();
+        $eval->suppress_errors = true;
+        $result = $eval->e($value);
+        if (($result === false) || ($result === true)) {
+            return false;
+        }
 
-			$result = $this->getCurrentSolutionResultSet($active_id, $pass, $authorized);
+        if (($result >= $eval->e($this->getLowerLimit())) && ($result <= $eval->e($this->getUpperLimit()))) {
+            return true;
+        }
+        return false;
+    }
 
-			$row    = $ilDB->fetchAssoc($result);
-			$update = $row["solution_id"];
-			if($update)
-			{
-				if(strlen($numeric_result))
-				{
-					$this->updateCurrentSolution($update, trim($numeric_result), null, $authorized);
-					$entered_values++;
-				}
-				else
-				{
-					$this->removeSolutionRecordById($update);
-				}
-			}
-			else
-			{
-				if(strlen($numeric_result))
-				{
-					$this->saveCurrentSolution($active_id, $pass, trim($numeric_result), null, $authorized);
-					$entered_values++;
-				}
-			}
+    protected function isValidNumericSubmitValue($submittedValue): bool
+    {
+        if (is_numeric($submittedValue)) {
+            return true;
+        }
 
-		});
+        if (preg_match('/^[-+]{0,1}\d+\/\d+$/', $submittedValue)) {
+            return true;
+        }
 
-		if ($entered_values)
-		{
-			require_once './Modules/Test/classes/class.ilObjAssessmentFolder.php';
-			if (ilObjAssessmentFolder::_enabledAssessmentLogging())
-			{
-				assQuestion::logAction($this->lng->txtlng(
-					"assessment",
-					"log_user_entered_values",
-					ilObjAssessmentFolder::_getLogLanguage()
-				),
-					$active_id,
-					$this->getId()
-				);
-			}
-		}
-		else
-		{
-			include_once ("./Modules/Test/classes/class.ilObjAssessmentFolder.php");
-			if (ilObjAssessmentFolder::_enabledAssessmentLogging())
-			{
-				assQuestion::logAction($this->lng->txtlng(
-					"assessment",
-					"log_user_not_entered_values",
-					ilObjAssessmentFolder::_getLogLanguage()
-				),
-					$active_id,
-					$this->getId()
-				);
-			}
-		}
+        return false;
+    }
 
-		return $returnvalue;
-	}
+    public function validateSolutionSubmit(): bool
+    {
+        if (strlen($this->getSolutionSubmit()) && !$this->isValidNumericSubmitValue($this->getSolutionSubmit())) {
+            $this->tpl->setOnScreenMessage('failure', $this->lng->txt("err_no_numeric_value"), true);
+            return false;
+        }
 
-	protected function savePreviewData(ilAssQuestionPreviewSession $previewSession)
-	{
-		$numericSolution = $this->getSolutionSubmit();
-		$previewSession->setParticipantsSolution($numericSolution);
-	}
+        return true;
+    }
 
-	public function saveAdditionalQuestionDataToDb()
-	{
-		/** @var $ilDB ilDBInterface */
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
+    public function getSolutionSubmit(): string
+    {
+        return trim(str_replace(",", ".", $_POST["numeric_result"]));
+    }
 
-		// save additional data
-		$ilDB->manipulateF( "DELETE FROM " . $this->getAdditionalTableName() . " WHERE question_fi = %s",
-							array( "integer" ),
-							array( $this->getId() )
-		);
+    public function isValidSolutionSubmit($numeric_solution): bool
+    {
+        require_once './Services/Math/classes/class.EvalMath.php';
+        $math = new EvalMath();
+        $math->suppress_errors = true;
+        $result = $math->evaluate($numeric_solution);
 
-		$ilDB->manipulateF( "INSERT INTO " . $this->getAdditionalTableName(
-												   ) . " (question_fi, maxnumofchars) VALUES (%s, %s)",
-							array( "integer", "integer" ),
-							array(
-								$this->getId(),
-								($this->getMaxChars()) ? $this->getMaxChars() : 0
-							)
-		);
-	}
+        return !(
+            ($result === false || $result === true) && strlen($numeric_solution) > 0
+        );
+    }
 
-	public function saveAnswerSpecificDataToDb()
-	{
-		/** @var $ilDB ilDBInterface */
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
+    /**
+     * Saves the learners input of the question to the database.
+     *
+     * @param integer $active_id Active id of the user
+     * @param integer $pass Test pass
+     *
+     * @return boolean $status
+     */
+    public function saveWorkingData($active_id, $pass = null, $authorized = true): bool
+    {
+        /** @var $ilDB ilDBInterface */
+        global $DIC;
+        $ilDB = $DIC['ilDB'];
 
-		// Write range to the database
-		$ilDB->manipulateF( "DELETE FROM qpl_num_range WHERE question_fi = %s",
-							array( 'integer' ),
-							array( $this->getId() )
-		);
+        if (is_null($pass)) {
+            require_once './Modules/Test/classes/class.ilObjTest.php';
+            $pass = ilObjTest::_getPass($active_id);
+        }
 
-		$next_id = $ilDB->nextId( 'qpl_num_range' );
-		$ilDB->manipulateF( "INSERT INTO qpl_num_range (range_id, question_fi, lowerlimit, upperlimit, points, aorder, tstamp) 
+        $entered_values = 0;
+
+        $returnvalue = true;
+
+        $numeric_result = $this->getSolutionSubmit();
+
+        $this->getProcessLocker()->executeUserSolutionUpdateLockOperation(function () use (&$entered_values, $numeric_result, $ilDB, $active_id, $pass, $authorized) {
+            $result = $this->getCurrentSolutionResultSet($active_id, $pass, $authorized);
+
+            $update = -1;
+            if ($ilDB->numRows($result) != 0) {
+                $row = $ilDB->fetchAssoc($result);
+                $update = $row["solution_id"];
+            }
+
+            if ($update != -1) {
+                if (strlen($numeric_result)) {
+                    $this->updateCurrentSolution($update, trim($numeric_result), null, $authorized);
+                    $entered_values++;
+                } else {
+                    $this->removeSolutionRecordById($update);
+                }
+            } else {
+                if (strlen($numeric_result)) {
+                    $this->saveCurrentSolution($active_id, $pass, trim($numeric_result), null, $authorized);
+                    $entered_values++;
+                }
+            }
+        });
+
+        if ($entered_values) {
+            require_once './Modules/Test/classes/class.ilObjAssessmentFolder.php';
+            if (ilObjAssessmentFolder::_enabledAssessmentLogging()) {
+                assQuestion::logAction(
+                    $this->lng->txtlng(
+                        "assessment",
+                        "log_user_entered_values",
+                        ilObjAssessmentFolder::_getLogLanguage()
+                    ),
+                    $active_id,
+                    $this->getId()
+                );
+            }
+        } else {
+            include_once("./Modules/Test/classes/class.ilObjAssessmentFolder.php");
+            if (ilObjAssessmentFolder::_enabledAssessmentLogging()) {
+                assQuestion::logAction(
+                    $this->lng->txtlng(
+                        "assessment",
+                        "log_user_not_entered_values",
+                        ilObjAssessmentFolder::_getLogLanguage()
+                    ),
+                    $active_id,
+                    $this->getId()
+                );
+            }
+        }
+
+        return $returnvalue;
+    }
+
+    protected function savePreviewData(ilAssQuestionPreviewSession $previewSession): void
+    {
+        $numericSolution = $this->getSolutionSubmit();
+        $previewSession->setParticipantsSolution($numericSolution);
+    }
+
+    public function saveAdditionalQuestionDataToDb()
+    {
+        /** @var $ilDB ilDBInterface */
+        global $DIC;
+        $ilDB = $DIC['ilDB'];
+
+        // save additional data
+        $ilDB->manipulateF(
+            "DELETE FROM " . $this->getAdditionalTableName() . " WHERE question_fi = %s",
+            array( "integer" ),
+            array( $this->getId() )
+        );
+
+        $ilDB->manipulateF(
+            "INSERT INTO " . $this->getAdditionalTableName(
+            ) . " (question_fi, maxnumofchars) VALUES (%s, %s)",
+            array( "integer", "integer" ),
+            array(
+                                $this->getId(),
+                                ($this->getMaxChars()) ? $this->getMaxChars() : 0
+                            )
+        );
+    }
+
+    public function saveAnswerSpecificDataToDb()
+    {
+        /** @var $ilDB ilDBInterface */
+        global $DIC;
+        $ilDB = $DIC['ilDB'];
+
+        // Write range to the database
+        $ilDB->manipulateF(
+            "DELETE FROM qpl_num_range WHERE question_fi = %s",
+            array( 'integer' ),
+            array( $this->getId() )
+        );
+
+        $next_id = $ilDB->nextId('qpl_num_range');
+        $ilDB->manipulateF(
+            "INSERT INTO qpl_num_range (range_id, question_fi, lowerlimit, upperlimit, points, aorder, tstamp)
 							 VALUES (%s, %s, %s, %s, %s, %s, %s)",
-							array( 'integer', 'integer', 'text', 'text', 'float', 'integer', 'integer' ),
-							array( $next_id, $this->id, $this->getLowerLimit(), $this->getUpperLimit(
-							), $this->getPoints(), 0, time() )
-		);
-	}
+            array( 'integer', 'integer', 'text', 'text', 'float', 'integer', 'integer' ),
+            array( $next_id, $this->id, $this->getLowerLimit(), $this->getUpperLimit(
+            ), $this->getPoints(), 0, time() )
+        );
+    }
 
-	/**
-	 * Returns the question type of the question
-	 *
-	 * @return integer The question type of the question
-	 */
-	public function getQuestionType()
-	{
-		return "assNumeric";
-	}
+    /**
+     * Returns the question type of the question
+     *
+     * @return integer The question type of the question
+     */
+    public function getQuestionType(): string
+    {
+        return "assNumeric";
+    }
 
-	/**
-	 * Returns the maximum number of characters for the numeric input field
-	 *
-	 * @return integer The maximum number of characters
-	 */
-	public function getMaxChars()
-	{
-		return $this->maxchars;
-	}
+    /**
+     * Returns the maximum number of characters for the numeric input field
+     *
+     * @return integer The maximum number of characters
+     */
+    public function getMaxChars()
+    {
+        return $this->maxchars;
+    }
 
-	/**
-	 * Sets the maximum number of characters for the numeric input field
-	 *
-	 * @param integer $maxchars The maximum number of characters
-	 */
-	public function setMaxChars($maxchars)
-	{
-		$this->maxchars = $maxchars;
-	}
+    /**
+     * Sets the maximum number of characters for the numeric input field
+     *
+     * @param integer $maxchars The maximum number of characters
+     */
+    public function setMaxChars($maxchars): void
+    {
+        $this->maxchars = $maxchars;
+    }
 
-	/**
-	 * Returns the name of the additional question data table in the database
-	 *
-	 * @return string The additional table name
-	 */
-	function getAdditionalTableName()
-	{
-		return "qpl_qst_numeric";
-	}
+    /**
+     * Returns the name of the additional question data table in the database
+     *
+     * @return string The additional table name
+     */
+    public function getAdditionalTableName(): string
+    {
+        return "qpl_qst_numeric";
+    }
 
-	/**
-	 * Collects all text in the question which could contain media objects
-	 * which were created with the Rich Text Editor
-	 */
-	function getRTETextWithMediaObjects()
-	{
-		return parent::getRTETextWithMediaObjects();
-	}
+    /**
+     * Collects all text in the question which could contain media objects
+     * which were created with the Rich Text Editor
+     */
+    public function getRTETextWithMediaObjects(): string
+    {
+        return parent::getRTETextWithMediaObjects();
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function setExportDetailsXLS($worksheet, $startrow, $active_id, $pass)
-	{
-		parent::setExportDetailsXLS($worksheet, $startrow, $active_id, $pass);
+    /**
+     * {@inheritdoc}
+     */
+    public function setExportDetailsXLS(ilAssExcelFormatHelper $worksheet, int $startrow, int $active_id, int $pass): int
+    {
+        parent::setExportDetailsXLS($worksheet, $startrow, $active_id, $pass);
 
-		$solutions = $this->getSolutionValues($active_id, $pass);
+        $solutions = $this->getSolutionValues($active_id, $pass);
 
-		$i = 1;
-		$worksheet->setCell($startrow + $i, 0, $this->lng->txt("result"));
-		$worksheet->setBold($worksheet->getColumnCoord(0) . ($startrow + $i));
-		
-		$worksheet->setBold($worksheet->getColumnCoord(0) . ($startrow + $i));
-		if (strlen($solutions[0]["value1"]))
-		{
-			$worksheet->setCell($startrow + $i, 1, $solutions[0]["value1"]);
-		}
-		$i++;
+        $i = 1;
+        $worksheet->setCell($startrow + $i, 0, $this->lng->txt("result"));
+        $worksheet->setBold($worksheet->getColumnCoord(0) . ($startrow + $i));
 
-		return $startrow + $i + 1;
-	}
+        $worksheet->setBold($worksheet->getColumnCoord(0) . ($startrow + $i));
+        if (array_key_exists(0, $solutions) &&
+            array_key_exists('value1', $solutions[0]) &&
+            strlen($solutions[0]["value1"])) {
+            $worksheet->setCell($startrow + $i, 2, $solutions[0]["value1"]);
+        }
+        $i++;
 
-	/**
-	 * Get all available operations for a specific question
-	 *
-	 * @param $expression
-	 *
-	 * @internal param string $expression_type
-	 * @return array
-	 */
-	public function getOperators($expression)
-	{
-		require_once "./Modules/TestQuestionPool/classes/class.ilOperatorsExpressionMapping.php";
-		return ilOperatorsExpressionMapping::getOperatorsByExpression($expression);
-	}
+        return $startrow + $i + 1;
+    }
 
-	/**
-	 * Get all available expression types for a specific question
-	 * @return array
-	 */
-	public function getExpressionTypes()
-	{
-		return array(
-			iQuestionCondition::PercentageResultExpression,
-			iQuestionCondition::NumericResultExpression,
-			iQuestionCondition::EmptyAnswerExpression,
-		);
-	}
+    /**
+     * Get all available operations for a specific question
+     *
+     * @param $expression
+     *
+     * @internal param string $expression_type
+     * @return array
+     */
+    public function getOperators($expression): array
+    {
+        return ilOperatorsExpressionMapping::getOperatorsByExpression($expression);
+    }
 
-	/**
-	* Get the user solution for a question by active_id and the test pass
-	*
-	* @param int $active_id
-	* @param int $pass
-	*
-	* @return ilUserQuestionResult
-	*/
-	public function getUserQuestionResult($active_id, $pass)
-	{
-		/** @var ilDBInterface $ilDB */
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
-		$result = new ilUserQuestionResult($this, $active_id, $pass);
+    /**
+     * Get all available expression types for a specific question
+     * @return array
+     */
+    public function getExpressionTypes(): array
+    {
+        return array(
+            iQuestionCondition::PercentageResultExpression,
+            iQuestionCondition::NumericResultExpression,
+            iQuestionCondition::EmptyAnswerExpression,
+        );
+    }
 
-		$maxStep = $this->lookupMaxStep($active_id, $pass);
+    /**
+    * Get the user solution for a question by active_id and the test pass
+    *
+    * @param int $active_id
+    * @param int $pass
+    *
+    * @return ilUserQuestionResult
+    */
+    public function getUserQuestionResult($active_id, $pass): ilUserQuestionResult
+    {
+        /** @var ilDBInterface $ilDB */
+        global $DIC;
+        $ilDB = $DIC['ilDB'];
+        $result = new ilUserQuestionResult($this, $active_id, $pass);
 
-		if( $maxStep !== null )
-		{
-			$data = $ilDB->queryF(
-				"SELECT value1 FROM tst_solutions WHERE active_fi = %s AND pass = %s AND question_fi = %s AND step = %s",
-				array("integer", "integer", "integer","integer"),
-				array($active_id, $pass, $this->getId(), $maxStep)
-			);
-		}
-		else
-		{
-			$data = $ilDB->queryF(
-				"SELECT value1 FROM tst_solutions WHERE active_fi = %s AND pass = %s AND question_fi = %s",
-				array("integer", "integer", "integer"),
-				array($active_id, $pass, $this->getId())
-			);
-		}
+        $maxStep = $this->lookupMaxStep($active_id, $pass);
 
-		while($row = $ilDB->fetchAssoc($data))
-		{
-			$result->addKeyValue(1, $row["value1"]);
-		}
+        if ($maxStep !== null) {
+            $data = $ilDB->queryF(
+                "SELECT value1 FROM tst_solutions WHERE active_fi = %s AND pass = %s AND question_fi = %s AND step = %s",
+                array("integer", "integer", "integer","integer"),
+                array($active_id, $pass, $this->getId(), $maxStep)
+            );
+        } else {
+            $data = $ilDB->queryF(
+                "SELECT value1 FROM tst_solutions WHERE active_fi = %s AND pass = %s AND question_fi = %s",
+                array("integer", "integer", "integer"),
+                array($active_id, $pass, $this->getId())
+            );
+        }
 
-		$points = $this->calculateReachedPoints($active_id, $pass);
-		$max_points = $this->getMaximumPoints();
+        while ($row = $ilDB->fetchAssoc($data)) {
+            $result->addKeyValue(1, $row["value1"]);
+        }
 
-		$result->setReachedPercentage(($points/$max_points) * 100);
+        $points = $this->calculateReachedPoints($active_id, $pass);
+        $max_points = $this->getMaximumPoints();
 
-		return $result;
-	}
+        $result->setReachedPercentage(($points / $max_points) * 100);
 
-	/**
-	 * If index is null, the function returns an array with all anwser options
-	 * Else it returns the specific answer option
-	 *
-	 * @param null|int $index
-	 *
-	 * @return array|ASS_AnswerSimple
-	 */
-	public function getAvailableAnswerOptions($index = null)
-	{
-		return array(
-			"lower" => $this->getLowerLimit(),
-			"upper" => $this->getUpperLimit()
-		);
-	}
+        return $result;
+    }
+
+    /**
+     * If index is null, the function returns an array with all anwser options
+     * Else it returns the specific answer option
+     *
+     * @param null|int $index
+     *
+     * @return array|ASS_AnswerSimple
+     */
+    public function getAvailableAnswerOptions($index = null)
+    {
+        return array(
+            "lower" => $this->getLowerLimit(),
+            "upper" => $this->getUpperLimit()
+        );
+    }
 }

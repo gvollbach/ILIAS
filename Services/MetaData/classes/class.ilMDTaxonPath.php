@@ -1,244 +1,209 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2001 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
 
+declare(strict_types=1);
 
 /**
-* Meta Data class (element taxon_path)
-*
-* @package ilias-core
-* @version $Id$
-*/
-include_once 'class.ilMDBase.php';
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
+/**
+ * Meta Data class (element taxon_path)
+ * @package ilias-core
+ * @version $Id$
+ */
 class ilMDTaxonPath extends ilMDBase
 {
-	// METHODS OF CHILD OBJECTS (Taxon)
-	function &getTaxonIds()
-	{
-		include_once 'Services/MetaData/classes/class.ilMDTaxon.php';
+    private string $source = '';
+    private ?ilMDLanguageItem $source_language = null;
 
-		return ilMDTaxon::_getIds($this->getRBACId(),$this->getObjId(),$this->getMetaId(),'meta_taxon_path');
-	}
-	function &getTaxon($a_taxon_id)
-	{
-		include_once 'Services/MetaData/classes/class.ilMDTaxon.php';
+    // METHODS OF CHILD OBJECTS (Taxon)
 
-		if(!$a_taxon_id)
-		{
-			return false;
-		}
-		$tax = new ilMDTaxon();
-		$tax->setMetaId($a_taxon_id);
+    /**
+     * @return int[]
+     */
+    public function getTaxonIds(): array
+    {
+        return ilMDTaxon::_getIds($this->getRBACId(), $this->getObjId(), $this->getMetaId(), 'meta_taxon_path');
+    }
 
-		return $tax;
-	}
-	function &addTaxon()
-	{
-		include_once 'Services/MetaData/classes/class.ilMDTaxon.php';
+    public function getTaxon(int $a_taxon_id): ?ilMDTaxon
+    {
+        if (!$a_taxon_id) {
+            return null;
+        }
+        $tax = new ilMDTaxon();
+        $tax->setMetaId($a_taxon_id);
 
-		$tax = new ilMDTaxon($this->getRBACId(),$this->getObjId(),$this->getObjType());
-		$tax->setParentId($this->getMetaId());
-		$tax->setParentType('meta_taxon_path');
+        return $tax;
+    }
 
-		return $tax;
-	}
+    public function addTaxon(): ilMDTaxon
+    {
+        $tax = new ilMDTaxon($this->getRBACId(), $this->getObjId(), $this->getObjType());
+        $tax->setParentId($this->getMetaId());
+        $tax->setParentType('meta_taxon_path');
 
-	// SET/GET
-	function setSource($a_source)
-	{
-		$this->source = $a_source;
-	}
-	function getSource()
-	{
-		return $this->source;
-	}
-	function setSourceLanguage(&$lng_obj)
-	{
-		if(is_object($lng_obj))
-		{
-			$this->source_language = $lng_obj;
-		}
-	}
-	function &getSourceLanguage()
-	{
-		return is_object($this->source_language) ? $this->source_language : false;
-	}
-	function getSourceLanguageCode()
-	{
-		return is_object($this->source_language) ? $this->source_language->getLanguageCode() : false;
-	} 
+        return $tax;
+    }
 
+    // SET/GET
+    public function setSource(string $a_source): void
+    {
+        $this->source = $a_source;
+    }
 
-	function save()
-	{
-		global $DIC;
+    public function getSource(): string
+    {
+        return $this->source;
+    }
 
-		$ilDB = $DIC['ilDB'];
-		
-		$fields = $this->__getFields();
-		$fields['meta_taxon_path_id'] = array('integer',$next_id = $ilDB->nextId('il_meta_taxon_path'));
-		
-		if($this->db->insert('il_meta_taxon_path',$fields))
-		{
-			$this->setMetaId($next_id);
-			return $this->getMetaId();
-		}
-		return false;
-	}
+    public function setSourceLanguage(ilMDLanguageItem $lng_obj): void
+    {
+        $this->source_language = $lng_obj;
+    }
 
-	function update()
-	{
-		global $DIC;
+    public function getSourceLanguage(): ?ilMDLanguageItem
+    {
+        return is_object($this->source_language) ? $this->source_language : null;
+    }
 
-		$ilDB = $DIC['ilDB'];
-		
-		if($this->getMetaId())
-		{
-			if($this->db->update('il_meta_taxon_path',
-									$this->__getFields(),
-									array("meta_taxon_path_id" => array('integer',$this->getMetaId()))))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
+    public function getSourceLanguageCode(): string
+    {
+        return is_object($this->source_language) ? $this->source_language->getLanguageCode() : '';
+    }
 
-	function delete()
-	{
-		global $DIC;
+    public function save(): int
+    {
+        $fields = $this->__getFields();
+        $fields['meta_taxon_path_id'] = array('integer', $next_id = $this->db->nextId('il_meta_taxon_path'));
 
-		$ilDB = $DIC['ilDB'];
-		
-		if($this->getMetaId())
-		{
-			$query = "DELETE FROM il_meta_taxon_path ".
-				"WHERE meta_taxon_path_id = ".$ilDB->quote($this->getMetaId(), 'integer');
-			$res = $ilDB->manipulate($query);
+        if ($this->db->insert('il_meta_taxon_path', $fields)) {
+            $this->setMetaId($next_id);
+            return $this->getMetaId();
+        }
+        return 0;
+    }
 
-			foreach($this->getTaxonIds() as $id)
-			{
-				$tax = $this->getTaxon($id);
-				$tax->delete();
-			}
-			
-			return true;
-		}
-		return false;
-	}
-			
+    public function update(): bool
+    {
+        return $this->getMetaId() && $this->db->update(
+            'il_meta_taxon_path',
+            $this->__getFields(),
+            array("meta_taxon_path_id" => array('integer', $this->getMetaId()))
+        );
+    }
 
-	function __getFields()
-	{
-		return array('rbac_id'	=> array('integer',$this->getRBACId()),
-					 'obj_id'	=> array('integer',$this->getObjId()),
-					 'obj_type'	=> array('text',$this->getObjType()),
-					 'parent_type' => array('text',$this->getParentType()),
-					 'parent_id' => array('integer',$this->getParentId()),
-					 'source'	=> array('text',$this->getSource()),
-					 'source_language' => array('text',$this->getSourceLanguageCode()));
-	}
+    public function delete(): bool
+    {
+        if ($this->getMetaId()) {
+            $query = "DELETE FROM il_meta_taxon_path " .
+                "WHERE meta_taxon_path_id = " . $this->db->quote($this->getMetaId(), 'integer');
+            $res = $this->db->manipulate($query);
 
-	function read()
-	{
-		global $DIC;
+            foreach ($this->getTaxonIds() as $id) {
+                $tax = $this->getTaxon($id);
+                $tax->delete();
+            }
 
-		$ilDB = $DIC['ilDB'];
-		
-		include_once 'Services/MetaData/classes/class.ilMDLanguageItem.php';
+            return true;
+        }
+        return false;
+    }
 
-		if($this->getMetaId())
-		{
-			$query = "SELECT * FROM il_meta_taxon_path ".
-				"WHERE meta_taxon_path_id = ".$ilDB->quote($this->getMetaId() ,'integer');
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    public function __getFields(): array
+    {
+        return array(
+            'rbac_id' => array('integer', $this->getRBACId()),
+            'obj_id' => array('integer', $this->getObjId()),
+            'obj_type' => array('text', $this->getObjType()),
+            'parent_type' => array('text', $this->getParentType()),
+            'parent_id' => array('integer', $this->getParentId()),
+            'source' => array('text', $this->getSource()),
+            'source_language' => array('text', $this->getSourceLanguageCode())
+        );
+    }
 
-			$res = $ilDB->query($query);
-			while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-			{
-				$this->setRBACId($row->rbac_id);
-				$this->setObjId($row->obj_id);
-				$this->setObjType($row->obj_type);
-				$this->setParentId($row->parent_id);
-				$this->setParentType($row->parent_type);
-				$this->setSource($row->source);
-				$this->source_language = new ilMDLanguageItem($row->source_language);
-			}
-		}
-		return true;
-	}
+    public function read(): bool
+    {
+        if ($this->getMetaId()) {
+            $query = "SELECT * FROM il_meta_taxon_path " .
+                "WHERE meta_taxon_path_id = " . $this->db->quote($this->getMetaId(), 'integer');
 
-	/*
-	 * XML Export of all meta data
-	 * @param object (xml writer) see class.ilMD2XML.php
-	 * 
-	 */
-	function toXML(&$writer)
-	{
-		$writer->xmlStartTag('TaxonPath');
+            $res = $this->db->query($query);
+            while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+                $this->setRBACId((int) $row->rbac_id);
+                $this->setObjId((int) $row->obj_id);
+                $this->setObjType($row->obj_type);
+                $this->setParentId((int) $row->parent_id);
+                $this->setParentType($row->parent_type);
+                $this->setSource($row->source ?? '');
+                $this->source_language = new ilMDLanguageItem($row->source_language ?? '');
+            }
+        }
+        return true;
+    }
 
-		$writer->xmlElement('Source',array('Language' => $this->getSourceLanguageCode()
-										   ? $this->getSourceLanguageCode()
-										   : 'en'),
-							$this->getSource());
+    public function toXML(ilXmlWriter $writer): void
+    {
+        $writer->xmlStartTag('TaxonPath');
 
-		// Taxon
-		$taxs = $this->getTaxonIds();
-		foreach($taxs as $id)
-		{
-			$tax =& $this->getTaxon($id);
-			$tax->toXML($writer);
-		}
-		if(!count($taxs))
-		{
-			include_once 'Services/MetaData/classes/class.ilMDTaxon.php';
-			$tax = new ilMDTaxon($this->getRBACId(),$this->getObjId());
-			$tax->toXML($writer);
-		}
-		
-		$writer->xmlEndTag('TaxonPath');
-	}
+        $writer->xmlElement(
+            'Source',
+            array(
+                'Language' => $this->getSourceLanguageCode() ?: 'en'
+            ),
+            $this->getSource()
+        );
 
-				
+        // Taxon
+        $taxs = $this->getTaxonIds();
+        foreach ($taxs as $id) {
+            $tax = $this->getTaxon($id);
+            $tax->toXML($writer);
+        }
+        if (!count($taxs)) {
+            $tax = new ilMDTaxon($this->getRBACId(), $this->getObjId());
+            $tax->toXML($writer);
+        }
 
-	// STATIC
-	static function _getIds($a_rbac_id,$a_obj_id,$a_parent_id,$a_parent_type)
-	{
-		global $DIC;
+        $writer->xmlEndTag('TaxonPath');
+    }
 
-		$ilDB = $DIC['ilDB'];
+    /**
+     * @return int[]
+     */
+    public static function _getIds(int $a_rbac_id, int $a_obj_id, int $a_parent_id, string $a_parent_type): array
+    {
+        global $DIC;
 
-		$query = "SELECT meta_taxon_path_id FROM il_meta_taxon_path ".
-			"WHERE rbac_id = ".$ilDB->quote($a_rbac_id ,'integer')." ".
-			"AND obj_id = ".$ilDB->quote($a_obj_id ,'integer')." ".
-			"AND parent_id = ".$ilDB->quote($a_parent_id ,'integer')." ".
-			"AND parent_type = ".$ilDB->quote($a_parent_type ,'text');
+        $ilDB = $DIC->database();
 
-		$res = $ilDB->query($query);
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			$ids[] = $row->meta_taxon_path_id;
-		}
-		return $ids ? $ids : array();
-	}
+        $query = "SELECT meta_taxon_path_id FROM il_meta_taxon_path " .
+            "WHERE rbac_id = " . $ilDB->quote($a_rbac_id, 'integer') . " " .
+            "AND obj_id = " . $ilDB->quote($a_obj_id, 'integer') . " " .
+            "AND parent_id = " . $ilDB->quote($a_parent_id, 'integer') . " " .
+            "AND parent_type = " . $ilDB->quote($a_parent_type, 'text');
+
+        $res = $ilDB->query($query);
+        $ids = [];
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $ids[] = (int) $row->meta_taxon_path_id;
+        }
+        return $ids;
+    }
 }
-?>

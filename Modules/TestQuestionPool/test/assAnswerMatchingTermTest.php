@@ -1,114 +1,106 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-/** 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
 * Unit tests
-* 
+*
 * @author Maximilian Becker <mbecker@databay.de>
 *
 * @ingroup ModulesTestQuestionPool
 */
 class assAnswerMatchingTermTest extends assBaseTestCase
 {
-	protected $backupGlobals = FALSE;
+    protected $backupGlobals = false;
 
-	protected function setUp(): void
-	{
-		if (defined('ILIAS_PHPUNIT_CONTEXT'))
-		{
-			include_once("./Services/PHPUnit/classes/class.ilUnitUtil.php");
-			ilUnitUtil::performInitialisation();
-		}
-		else
-		{
-			chdir( dirname( __FILE__ ) );
-			chdir('../../../');
-		}
-	}
+    protected function setUp(): void
+    {
+        chdir(dirname(__FILE__));
+        chdir('../../../');
+    }
 
-	public function test_instantiateObjectSimple()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assAnswerMatchingTerm.php';
+    public function test_instantiateObjectSimple(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assAnswerMatchingTerm.php';
 
-		// Act
-		$instance = new assAnswerMatchingTerm();
+        // Act
+        $instance = new assAnswerMatchingTerm();
 
-		// Assert
-		$this->assertInstanceOf('assAnswerMatchingTerm', $instance);
-	}
+        // Assert
+        $this->assertInstanceOf('assAnswerMatchingTerm', $instance);
+    }
 
-	public function test_setGetText()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assAnswerMatchingTerm.php';
-		$instance = new assAnswerMatchingTerm();
-		$expected = 'Text';
+    public function test_setGetText(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assAnswerMatchingTerm.php';
+        $instance = new assAnswerMatchingTerm();
+        $expected = 'Text';
 
-		// Act
-		$instance->text = $expected;
-		$actual = $instance->text;
+        // Act
+        $instance = $instance->withText($expected);
+        $actual = $instance->getText();
 
-		// Assert
-		$this->assertEquals($expected, $actual);
-	}
+        // Assert
+        $this->assertEquals($expected, $actual);
+    }
 
-	public function test_setGetPicture()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assAnswerMatchingTerm.php';
-		$instance = new assAnswerMatchingTerm();
-		$expected = 'path/to/picture?';
+    public function test_setGetPicture(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assAnswerMatchingTerm.php';
+        $instance = new assAnswerMatchingTerm();
+        $expected = 'path/to/picture?';
 
-		// Act
-		$instance->picture = $expected;
-		$actual = $instance->picture;
+        // Act
+        $instance = $instance->withPicture($expected);
+        $actual = $instance->getPicture();
 
-		// Assert
-		$this->assertEquals($expected, $actual);
-	}
+        // Assert
+        $this->assertEquals($expected, $actual);
+    }
 
-	public function test_getUnsetPicture()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assAnswerMatchingTerm.php';
-		$instance = new assAnswerMatchingTerm();
-		$expected = null;
+    public function test_getUnsetPicture(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assAnswerMatchingTerm.php';
+        $instance = new assAnswerMatchingTerm();
+        $expected = null;
 
-		// Act
-		$actual = $instance->picture;
+        // Act
+        $actual = $instance->getPicture();
 
-		// Assert
-		$this->assertEquals($expected, $actual);
-	}
+        // Assert
+        $this->assertEquals($expected, $actual);
+    }
 
-	public function test_setGetIdentifier()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assAnswerMatchingTerm.php';
-		$instance = new assAnswerMatchingTerm();
-		$expected = 12345;
+    public function test_setGetIdentifier(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assAnswerMatchingTerm.php';
+        $instance = new assAnswerMatchingTerm();
+        $expected = 12345;
 
-		// Act
-		$instance->identifier = $expected;
-		$actual = $instance->identifier;
+        // Act
+        $instance = $instance->withIdentifier($expected);
+        $actual = $instance->getIdentifier();
 
-		// Assert
-		$this->assertEquals($expected, $actual);
-	}
-
-	public function test_setGetHokum()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assAnswerMatchingTerm.php';
-		$instance = new assAnswerMatchingTerm();
-		$expected = null;
-
-		// Act
-		$instance->hokum = 'Hokum Value';
-		$actual = $instance->hokum;
-
-		// Assert
-		$this->assertEquals($expected, $actual);
-	}
+        // Assert
+        $this->assertEquals($expected, $actual);
+    }
 }

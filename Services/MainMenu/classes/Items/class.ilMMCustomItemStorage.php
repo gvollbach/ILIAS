@@ -1,65 +1,84 @@
 <?php
 
 /**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+/**
  * Class ilMMCustomItemStorage
  *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
 class ilMMCustomItemStorage extends CachedActiveRecord
 {
-
     /**
-     * @var string
-     *
      * @con_is_primary true
      * @con_is_unique  true
      * @con_has_field  true
      * @con_fieldtype  text
      * @con_length     256
      */
-    protected $identifier = '';
+    protected ?string $identifier = '';
     /**
-     * @var string
-     *
      * @con_has_field  true
      * @con_fieldtype  text
      * @con_length     128
      */
-    protected $type = '';
+    protected string $type = '';
     /**
-     * @var string
-     *
      * @con_has_field  true
      * @con_fieldtype  text
      * @con_length     4000
      */
-    protected $action = "";
+    protected string $action = "";
     /**
-     * @var string
-     *
-     * @con_has_field  true
-     * @con_fieldtype  text
-     * @con_length     4000
-     */
-    protected $default_title = "";
-    /**
-     * @var bool
-     *
      * @con_has_field  true
      * @con_fieldtype  integer
      * @con_length     1
      */
-    protected $top_item = false;
+    protected bool $role_based_visibility = false;
+    /**
+     * @con_has_field  true
+     * @con_fieldtype  text
+     * @con_length     4000
+     */
+    protected ?string $global_role_ids = null;
+    /**
+     * @con_has_field  true
+     * @con_fieldtype  text
+     * @con_length     4000
+     */
+    protected string $default_title = "";
+    /**
+     * @con_has_field  true
+     * @con_fieldtype  integer
+     * @con_length     1
+     */
+    protected bool $top_item = false;
     /**
      * @var string
      */
-    protected $connector_container_name = "il_mm_custom_items";
+    protected string $connector_container_name = "il_mm_custom_items";
 
 
     /**
      * @return string
      */
-    public function getIdentifier() : string
+    public function getIdentifier(): string
     {
         return $this->identifier;
     }
@@ -70,7 +89,7 @@ class ilMMCustomItemStorage extends CachedActiveRecord
      *
      * @return ilMMCustomItemStorage
      */
-    public function setIdentifier(string $identifier) : ilMMCustomItemStorage
+    public function setIdentifier(string $identifier): ilMMCustomItemStorage
     {
         $this->identifier = $identifier;
 
@@ -81,7 +100,7 @@ class ilMMCustomItemStorage extends CachedActiveRecord
     /**
      * @return string
      */
-    public function getType() : string
+    public function getType(): string
     {
         return $this->type;
     }
@@ -92,7 +111,7 @@ class ilMMCustomItemStorage extends CachedActiveRecord
      *
      * @return ilMMCustomItemStorage
      */
-    public function setType(string $type) : ilMMCustomItemStorage
+    public function setType(string $type): ilMMCustomItemStorage
     {
         $this->type = $type;
 
@@ -103,7 +122,7 @@ class ilMMCustomItemStorage extends CachedActiveRecord
     /**
      * @return bool
      */
-    public function isTopItem() : bool
+    public function isTopItem(): bool
     {
         return $this->top_item;
     }
@@ -114,7 +133,7 @@ class ilMMCustomItemStorage extends CachedActiveRecord
      *
      * @return ilMMCustomItemStorage
      */
-    public function setTopItem(bool $top_item) : ilMMCustomItemStorage
+    public function setTopItem(bool $top_item): ilMMCustomItemStorage
     {
         $this->top_item = $top_item;
 
@@ -125,7 +144,7 @@ class ilMMCustomItemStorage extends CachedActiveRecord
     /**
      * @return string
      */
-    public function getAction() : string
+    public function getAction(): string
     {
         return $this->action;
     }
@@ -136,7 +155,7 @@ class ilMMCustomItemStorage extends CachedActiveRecord
      *
      * @return ilMMCustomItemStorage
      */
-    public function setAction(string $action) : ilMMCustomItemStorage
+    public function setAction(string $action): ilMMCustomItemStorage
     {
         $this->action = $action;
 
@@ -145,9 +164,53 @@ class ilMMCustomItemStorage extends CachedActiveRecord
 
 
     /**
+     * @return bool
+     */
+    public function hasRoleBasedVisibility(): bool
+    {
+        return $this->role_based_visibility;
+    }
+
+
+    /**
+     * @param bool $role_based_visibility
+     *
+     * @return ilMMCustomItemStorage
+     */
+    public function setRoleBasedVisibility(bool $role_based_visibility): ilMMCustomItemStorage
+    {
+        $this->role_based_visibility = $role_based_visibility;
+
+        return $this;
+    }
+
+
+    /**
+     * @return array
+     */
+    public function getGlobalRoleIDs(): array
+    {
+        return array_map("intval", explode(",", $this->global_role_ids));
+    }
+
+
+    /**
+     * @param array $global_role_ids
+     *
+     * @return ilMMCustomItemStorage
+     */
+    public function setGlobalRoleIDs(array $global_role_ids): ilMMCustomItemStorage
+    {
+        $this->global_role_ids = implode(",", $global_role_ids);
+
+        return $this;
+    }
+
+
+    /**
      * @return string
      */
-    public function getDefaultTitle() : string
+    public function getDefaultTitle(): string
     {
         return $this->default_title;
     }
@@ -158,7 +221,7 @@ class ilMMCustomItemStorage extends CachedActiveRecord
      *
      * @return ilMMCustomItemStorage
      */
-    public function setDefaultTitle(string $default_title) : ilMMCustomItemStorage
+    public function setDefaultTitle(string $default_title): ilMMCustomItemStorage
     {
         $this->default_title = $default_title;
 
@@ -169,7 +232,7 @@ class ilMMCustomItemStorage extends CachedActiveRecord
     /**
      * @inheritDoc
      */
-    public function getCache() : ilGlobalCache
+    public function getCache(): ilGlobalCache
     {
         return ilGlobalCache::getInstance(ilGlobalCache::COMP_GLOBAL_SCREEN);
     }

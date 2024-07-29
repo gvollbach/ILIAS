@@ -1,113 +1,95 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2009 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
-
 
 /**
-* Class ilWikiContributor
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* @version $Id$
-*
-* @ingroup ModulesWiki
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * @author Alexander Killing <killing@leifos.de>
+ */
 class ilWikiContributor
 {
-	const STATUS_NOT_GRADED = 0;
-	const STATUS_PASSED = 1;
-	const STATUS_FAILED = 2;
-	
-	/**
-	* Lookup current success status (STATUS_NOT_GRADED|STATUS_PASSED|STATUS_FAILED)
-	*
-	* @param	int		$a_obj_id	exercise id
-	* @param	int		$a_user_id	member id
-	* @return	mixed	false (if user is no member) or notgraded|passed|failed
-	*/
-	static function _lookupStatus($a_obj_id, $a_user_id)
-	{
-		global $DIC;
+    public const STATUS_NOT_GRADED = 0;
+    public const STATUS_PASSED = 1;
+    public const STATUS_FAILED = 2;
 
-		$ilDB = $DIC->database();
+    /**
+     * Lookup current success status (STATUS_NOT_GRADED|STATUS_PASSED|STATUS_FAILED)
+     * @return ?int (if user is no member) or notgraded|passed|failed
+     */
+    public static function _lookupStatus(
+        int $a_obj_id,
+        int $a_user_id
+    ): ?int {
+        global $DIC;
 
-		$set = $ilDB->queryF("SELECT status FROM il_wiki_contributor ".
-			"WHERE wiki_id = %s and user_id = %s",
-			array("integer", "integer"),
-			array($a_obj_id, $a_user_id));
-		if($row = $ilDB->fetchAssoc($set))
-		{
-			return $row["status"];
-		}
-		return false;
-	}
+        $ilDB = $DIC->database();
 
-	/**
-	* Lookup last change in mark or success status
-	*
-	* @param	int		$a_obj_id	exercise id
-	* @param	int		$a_user_id	member id
-	* @return	mixed	false (if user is no member) or notgraded|passed|failed
-	*/
-	static function _lookupStatusTime($a_obj_id, $a_user_id)
-	{
-		global $DIC;
+        $set = $ilDB->queryF(
+            "SELECT status FROM il_wiki_contributor " .
+            "WHERE wiki_id = %s and user_id = %s",
+            array("integer", "integer"),
+            array($a_obj_id, $a_user_id)
+        );
+        if ($row = $ilDB->fetchAssoc($set)) {
+            return (int) $row["status"];
+        }
+        return null;
+    }
 
-		$ilDB = $DIC->database();
+    public static function _lookupStatusTime(
+        int $a_obj_id,
+        int $a_user_id
+    ): ?string {
+        global $DIC;
 
-		$set = $ilDB->queryF("SELECT status_time FROM il_wiki_contributor ".
-			"WHERE wiki_id = %s and user_id = %s",
-			array("integer", "integer"),
-			array($a_obj_id, $a_user_id));
-		if($row = $ilDB->fetchAssoc($set))
-		{
-			return $row["status_time"];
-		}
-		return false;
-	}
+        $ilDB = $DIC->database();
 
-	/**
-	* Write success status
-	*
-	* @param	int		$a_obj_id		exercise id
-	* @param	int		$a_user_id		member id
-	* @param	int		$status			status: STATUS_NOT_GRADED|STATUS_PASSED|STATUS_FAILED
-	*
-	* @return	int		number of affected rows
-	*/
-	static function _writeStatus($a_obj_id, $a_user_id, $a_status)
-	{
-		global $DIC;
+        $set = $ilDB->queryF(
+            "SELECT status_time FROM il_wiki_contributor " .
+            "WHERE wiki_id = %s and user_id = %s",
+            array("integer", "integer"),
+            array($a_obj_id, $a_user_id)
+        );
+        if ($row = $ilDB->fetchAssoc($set)) {
+            return $row["status_time"];
+        }
+        return null;
+    }
 
-		$ilDB = $DIC->database();
+    /**
+     * @param int $status status: STATUS_NOT_GRADED|STATUS_PASSED|STATUS_FAILED
+     */
+    public static function _writeStatus(
+        int $a_obj_id,
+        int $a_user_id,
+        int $a_status
+    ): void {
+        global $DIC;
 
-		$ilDB->manipulate("DELETE FROM il_wiki_contributor WHERE ".
-			" wiki_id = ".$ilDB->quote($a_obj_id, "integer").
-			" AND user_id = ".$ilDB->quote($a_user_id, "integer"));
+        $ilDB = $DIC->database();
 
-		$ilDB->manipulateF("INSERT INTO il_wiki_contributor (status, wiki_id, user_id, status_time) ".
-			"VALUES (%s,%s,%s,%s)",
-			array("integer", "integer", "integer", "timestamp"),
-			array($a_status, $a_obj_id, $a_user_id, ilUtil::now()));
-	}
+        $ilDB->manipulate("DELETE FROM il_wiki_contributor WHERE " .
+            " wiki_id = " . $ilDB->quote($a_obj_id, "integer") .
+            " AND user_id = " . $ilDB->quote($a_user_id, "integer"));
 
+        $ilDB->manipulateF(
+            "INSERT INTO il_wiki_contributor (status, wiki_id, user_id, status_time) " .
+            "VALUES (%s,%s,%s,%s)",
+            array("integer", "integer", "integer", "timestamp"),
+            array($a_status, $a_obj_id, $a_user_id, ilUtil::now())
+        );
+    }
 }
-?>

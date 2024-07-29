@@ -1,4 +1,9 @@
 <?php
+
+declare(strict_types=1);
+
+namespace ILIAS\UI\examples\Button\Toggle;
+
 function base()
 {
     global $DIC;
@@ -12,7 +17,10 @@ function base()
     $modal = $factory->modal()->interruptive('ON', $message1, $form_action);
     $modal2 = $factory->modal()->interruptive('OFF', $message2, $form_action);
 
-    $button = $factory->button()->toggle("", $modal->getShowSignal(), $modal2->getShowSignal());
+    //Note, important do not miss to set a proper aria-label (see rules above).
+    //Note that aria-pressed is taken care off by the default implementation.
+    $button = $factory->button()->toggle("", $modal->getShowSignal(), $modal2->getShowSignal())
+        ->withAriaLabel("Switch the State of XY");
 
     return $renderer->render([$button, $modal, $modal2]);
 }

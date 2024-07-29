@@ -1,5 +1,22 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilChatroomCreateGUI
@@ -10,39 +27,28 @@
  */
 class ilChatroomCreateGUI extends ilChatroomGUIHandler
 {
-	/**
-	 * Inserts new object into gui.
-	 */
-	public function save()
-	{
-		require_once 'Modules/Chatroom/classes/class.ilChatroomFormFactory.php';
-		$formFactory = new ilChatroomFormFactory();
-		$form        = $formFactory->getCreationForm();
+    public function save(): void
+    {
+        $formFactory = new ilChatroomFormFactory();
+        $form = $formFactory->getCreationForm();
 
-		if($form->checkInput())
-		{
-			$roomObj = $this->gui->insertObject();
-			$room    = ilChatroom::byObjectId($roomObj->getId());
+        if ($form->checkInput()) {
+            $roomObj = $this->gui->insertObject();
+            $room = ilChatroom::byObjectId($roomObj->getId());
 
-			$connector = $this->gui->getConnector();
-			$response  = $connector->sendCreatePrivateRoom($room->getRoomId(), 0, $roomObj->getOwner(), $roomObj->getTitle());
+            $connector = $this->gui->getConnector();
+            $response = $connector->sendCreatePrivateRoom($room->getRoomId(), 0, $roomObj->getOwner(), $roomObj->getTitle());
 
-			$this->ilCtrl->setParameter($this->gui, 'ref_id', $this->gui->getRefId());
-			$this->ilCtrl->redirect($this->gui, 'settings-general');
-		}
-		else
-		{
-			$this->executeDefault('create');
-		}
-	}
+            $this->ilCtrl->setParameter($this->gui, 'ref_id', $this->gui->getRefId());
+            $this->ilCtrl->redirect($this->gui, 'settings-general');
+        } else {
+            $this->executeDefault('create');
+        }
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function executeDefault($method)
-	{
-		$this->gui->switchToVisibleMode();
-		$this->gui->createObject();
-		return;
-	}
+    public function executeDefault(string $requestedMethod): void
+    {
+        $this->gui->switchToVisibleMode();
+        $this->gui->createObject();
+    }
 }

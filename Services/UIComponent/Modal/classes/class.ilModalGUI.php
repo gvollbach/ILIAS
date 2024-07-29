@@ -1,205 +1,146 @@
 <?php
 
-/* Copyright (c) 1998-2014 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Modal class
  *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- * @ingroup ServicesUIComponent
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilModalGUI
 {
-	protected $heading = "";
-	protected $body = "";
-	protected $id = "";
-	const TYPE_LARGE = "large";
-	const TYPE_MEDIUM = "medium";
-	const TYPE_SMALL = "small";
+    protected string $heading = "";
+    protected string $body = "";
+    protected string $id = "";
 
-	protected $type = self::TYPE_MEDIUM;
-	protected $buttons = array();
+    public const TYPE_LARGE = "large";
+    public const TYPE_MEDIUM = "medium";
+    public const TYPE_SMALL = "small";
 
-	/**
-	 * Constructor
-	 */
-	protected function  __construct()
-	{
+    protected string $type = self::TYPE_MEDIUM;
+    protected array $buttons = array();
 
-	}
+    protected function __construct()
+    {
+    }
 
-	/**
-	 * Get instance
-	 *
-	 * @return ilModalGUI panel instance
-	 */
-	static function getInstance()
-	{
-		return new ilModalGUI();
-	}
+    public static function getInstance(): self
+    {
+        return new ilModalGUI();
+    }
 
-	/**
-	 * Set id
-	 *
-	 * @param string $a_val id
-	 */
-	function setId($a_val)
-	{
-		$this->id = $a_val;
-	}
+    public function setId(string $a_val): void
+    {
+        $this->id = $a_val;
+    }
 
-	/**
-	 * Get id
-	 *
-	 * @return string id
-	 */
-	function getId()
-	{
-		return $this->id;
-	}
+    public function getId(): string
+    {
+        return $this->id;
+    }
 
-	/**
-	 * Set heading
-	 *
-	 * @param string $a_val heading
-	 */
-	function setHeading($a_val)
-	{
-		$this->heading = $a_val;
-	}
-
-	/**
-	 * Get heading
-	 *
-	 * @return string heading
-	 */
-	function getHeading()
-	{
-		return $this->heading;
-	}
-
-	/**
-	 * Set body
-	 *
-	 * @param string $a_val body
-	 */
-	function setBody($a_val)
-	{
-		$this->body = $a_val;
-	}
-
-	/**
-	 * Get body
-	 *
-	 * @return string body
-	 */
-	function getBody()
-	{
-		return $this->body;
-	}
-	
-	/**
-	 * Set type
-	 *
-	 * @param string $a_val type const ilModalGUI::TYPE_SMALL|ilModalGUI::TYPE_MEDIUM|ilModalGUI::TYPE_LARGE
-	 */
-	function setType($a_val)
-	{
-		$this->type = $a_val;
-	}
-	
-	/**
-	 * Get type
-	 *
-	 * @return string type
-	 */
-	function getType()
-	{
-		return $this->type;
-	}
-
-	/**
-	 * Add button
-	 *
-	 * @param ilButtonBase $but button
-	 */
-	function addButton(ilButtonBase $but)
-	{
-		$this->buttons[] = $but;
-	}
-
-	/**
-	 * Get buttons
-	 *
-	 * @return ilButtonBase[]
-	 */
-	function getButtons()
-	{
-		return $this->buttons;
-	}
+    public function setHeading(string $a_val): void
+    {
+        $this->heading = $a_val;
+    }
 
 
-	/**
-	 * Get HTML
-	 *
-	 * @return string html
-	 */
-	function getHTML()
-	{
-		$tpl = new ilTemplate("tpl.modal.html", true, true, "Services/UIComponent/Modal");
+    public function getHeading(): string
+    {
+        return $this->heading;
+    }
 
-		if (count($this->getButtons()) > 0)
-		{
-			foreach ($this->getButtons() as $b)
-			{
-				$tpl->setCurrentBlock("button");
-				$tpl->setVariable("BUTTON", $b->render());
-				$tpl->parseCurrentBlock();
-			}
-			$tpl->setCurrentBlock("footer");
-			$tpl->parseCurrentBlock();
-		}
+    public function setBody(string $a_val): void
+    {
+        $this->body = $a_val;
+    }
 
-		$tpl->setVariable("HEADING", $this->getHeading());
+    public function getBody(): string
+    {
+        return $this->body;
+    }
 
-		$tpl->setVariable("MOD_ID", $this->getId());
-		$tpl->setVariable("BODY", $this->getBody());
+    /**
+     * Set type
+     *
+     * @param string $a_val type const ilModalGUI::TYPE_SMALL|ilModalGUI::TYPE_MEDIUM|ilModalGUI::TYPE_LARGE
+     */
+    public function setType(string $a_val): void
+    {
+        $this->type = $a_val;
+    }
 
-		switch ($this->getType())
-		{
-			case self::TYPE_LARGE:
-				$tpl->setVariable("CLASS", "modal-lg");
-				break;
+    public function getType(): string
+    {
+        return $this->type;
+    }
 
-			case self::TYPE_SMALL:
-				$tpl->setVariable("CLASS", "modal-sm");
-				break;
-		}
+    public function addButton(ilButtonBase $but): void
+    {
+        $this->buttons[] = $but;
+    }
 
-		return $tpl->get();
-	}
+    /**
+     * Get buttons
+     * @return ilButtonBase[]
+     */
+    public function getButtons(): array
+    {
+        return $this->buttons;
+    }
 
-	/**
-	 * Init javascript
-	 */
-	static function initJS(ilGlobalTemplateInterface $a_main_tpl = null)
-	{
-		global $DIC;
+    public function getHTML(): string
+    {
+        $tpl = new ilTemplate("tpl.modal.html", true, true, "Services/UIComponent/Modal");
 
-		if ($a_main_tpl != null)
-		{
-			$tpl = $a_main_tpl;
-		}
-		else
-		{
-			$tpl = $DIC["tpl"];
-		}
+        if (count($this->getButtons()) > 0) {
+            foreach ($this->getButtons() as $b) {
+                $tpl->setCurrentBlock("button");
+                $tpl->setVariable("BUTTON", $b->render());
+                $tpl->parseCurrentBlock();
+            }
+            $tpl->setCurrentBlock("footer");
+            $tpl->parseCurrentBlock();
+        }
 
-		$tpl->addJavascript("./Services/UIComponent/Modal/js/Modal.js");
-	}
+        $tpl->setVariable("HEADING", $this->getHeading());
 
+        $tpl->setVariable("MOD_ID", $this->getId());
+        $tpl->setVariable("BODY", $this->getBody());
 
+        switch ($this->getType()) {
+            case self::TYPE_LARGE:
+                $tpl->setVariable("CLASS", "modal-lg");
+                break;
+
+            case self::TYPE_SMALL:
+                $tpl->setVariable("CLASS", "modal-sm");
+                break;
+        }
+
+        return $tpl->get();
+    }
+
+    public static function initJS(ilGlobalTemplateInterface $a_main_tpl = null): void
+    {
+        global $DIC;
+
+        $tpl = $a_main_tpl ?? $DIC["tpl"];
+
+        $tpl->addJavaScript("./Services/UIComponent/Modal/js/Modal.js");
+    }
 }
-
-?>

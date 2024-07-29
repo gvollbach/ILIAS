@@ -3,103 +3,87 @@
 declare(strict_types=1);
 
 /**
- * @author Daniel Weise <daniel.weise@concepts-and-training.de>
- */
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 class ilLearningSequenceEditParticipantsTableGUI extends ilTable2GUI
 {
-	/**
-	 * @var ilLearningSequenceMembershipGUI
-	 */
-	protected $parent_gui;
+    protected ilLearningSequenceMembershipGUI $parent_gui;
+    protected ilObjLearningSequence $ls_object;
+    protected ilLearningSequenceParticipants $ls_participants;
+    protected ilPrivacySettings $privacy_settings;
 
-	/**
-	 * @var ilObjLearningSequence
-	 */
-	protected $ls_object;
+    public function __construct(
+        ilLearningSequenceMembershipGUI $parent_gui,
+        ilObjLearningSequence $ls_object,
+        ilLearningSequenceParticipants $ls_participants,
+        ilPrivacySettings $privacy_settings
+    ) {
+        parent::__construct($parent_gui, 'editMembers');
 
-	/**
-	 * @var ilLearningSequenceParticipants
-	 */
-	protected $ls_participants;
+        $this->parent_gui = $parent_gui;
+        $this->ls_object = $ls_object;
+        $this->ls_participants = $ls_participants;
+        $this->privacy_settings = $privacy_settings;
 
-	/**
-	 * @var ilPrivacySettings
-	 */
-	protected $privacy_settings;
+        $this->setFormName('participants');
+        $this->setFormAction($this->ctrl->getFormAction($parent_gui));
+        $this->setRowTemplate("tpl.edit_participants_row.html", "Modules/LearningSequence");
 
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+        $this->addColumn($this->lng->txt('name'), 'name', '20%');
+        $this->addColumn($this->lng->txt('login'), 'login', '25%');
+        $this->addColumn($this->lng->txt('lso_notification'), 'notification');
+        $this->addColumn($this->lng->txt('objs_role'), 'roles');
 
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+        if ($this->privacy_settings->enabledLearningSequenceAccessTimes()) {
+            $this->addColumn($this->lng->txt('last_access'), 'access_time');
+        }
 
-	public function __construct(
-		ilLearningSequenceMembershipGUI $parent_gui,
-		ilObjLearningSequence $ls_object,
-		ilLearningSequenceParticipants $ls_participants,
-		ilPrivacySettings $privacy_settings,
-		ilLanguage $lng,
-		ilCtrl $ctrl
-	) {
-		parent::__construct($parent_gui,'editMembers');
+        $this->addCommandButton('updateParticipants', $this->lng->txt('save'));
+        $this->addCommandButton('participants', $this->lng->txt('cancel'));
 
-		$this->parent_gui = $parent_gui;
-		$this->ls_object = $ls_object;
-		$this->ls_participants = $ls_participants;
-		$this->privacy_settings = $privacy_settings;
-		$this->lng = $lng;
-		$this->ctrl = $ctrl;
+        $this->disable('sort');
+        $this->enable('header');
+        $this->enable('numinfo');
+        $this->disable('select_all');
+    }
 
-		$this->setFormName('participants');
-		$this->setFormAction($this->ctrl->getFormAction($parent_gui));
-		$this->setRowTemplate("tpl.edit_participants_row.html","Modules/LearningSequence");
+    protected function fillRow(array $a_set): void
+    {
+        $this->tpl->setVariable('VAL_ID', $a_set['usr_id']);
+        $this->tpl->setVariable('VAL_NAME', $a_set['lastname'] . ', ' . $a_set['firstname']);
+        $this->tpl->setVariable('VAL_LOGIN', $a_set['login']);
+        $this->tpl->setVariable('VAL_NOTIFICATION_ID', $a_set['usr_id']);
+        $this->tpl->setVariable('VAL_NOTIFICATION_CHECKED', $a_set['notification'] ? 'checked="checked"' : '');
+        $this->tpl->setVariable('NUM_ROLES', count($this->ls_participants->getRoles()));
 
-		$this->addColumn($this->lng->txt('name'),'name','20%');
-		$this->addColumn($this->lng->txt('login'),'login','25%');
-		$this->addColumn($this->lng->txt('lso_notification'),'notification');
-		$this->addColumn($this->lng->txt('objs_role'),'roles');
+        if ($this->privacy_settings->enabledLearningSequenceAccessTimes()) {
+            $this->tpl->setVariable('VAL_ACCESS', $a_set['access_time']);
+        }
 
-		if ($this->privacy_settings->enabledLearningSequenceAccessTimes()) {
-			$this->addColumn($this->lng->txt('last_access'),'access_time');
-		}
+        $assigned = $this->ls_participants->getAssignedRoles((int) $a_set['usr_id']);
+        foreach ($this->ls_object->getLocalLearningSequenceRoles(true) as $name => $role_id) {
+            $this->tpl->setCurrentBlock('roles');
+            $this->tpl->setVariable('ROLE_ID', $role_id);
+            $this->tpl->setVariable('ROLE_NAME', $name);
 
-		$this->addCommandButton('updateParticipants',$this->lng->txt('save'));
-		$this->addCommandButton('participants',$this->lng->txt('cancel'));
+            if (in_array($role_id, $assigned)) {
+                $this->tpl->setVariable('ROLE_CHECKED', 'selected="selected"');
+            }
 
-		$this->disable('sort');
-		$this->enable('header');
-		$this->enable('numinfo');
-		$this->disable('select_all');
-	}
-
-	public function fillRow($set)
-	{
-		$this->tpl->setVariable('VAL_ID',$set['usr_id']);
-		$this->tpl->setVariable('VAL_NAME',$set['lastname'].', '.$set['firstname']);
-		$this->tpl->setVariable('VAL_LOGIN',$set['login']);
-		$this->tpl->setVariable('VAL_NOTIFICATION_ID',$set['usr_id']);
-		$this->tpl->setVariable('VAL_NOTIFICATION_CHECKED',$set['notification'] ? 'checked="checked"' : '');
-		$this->tpl->setVariable('NUM_ROLES',count($this->ls_participants->getRoles()));
-
-		if ($this->privacy_settings->enabledLearningSequenceAccessTimes()) {
-			$this->tpl->setVariable('VAL_ACCESS',$set['access_time']);
-		}
-
-		$assigned = $this->ls_participants->getAssignedRoles($set['usr_id']);
-		foreach ($this->ls_object->getLocalLearningSequenceRoles(true) as $name => $role_id) {
-			$this->tpl->setCurrentBlock('roles');
-			$this->tpl->setVariable('ROLE_ID',$role_id);
-			$this->tpl->setVariable('ROLE_NAME',$name);
-
-			if (in_array($role_id, $assigned)) {
-				$this->tpl->setVariable('ROLE_CHECKED','selected="selected"');
-			}
-
-			$this->tpl->parseCurrentBlock();
-		}
-	}
+            $this->tpl->parseCurrentBlock();
+        }
+    }
 }

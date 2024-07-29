@@ -2,6 +2,19 @@
 
 namespace ILIAS\Filesystem;
 
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ *      https://www.ilias.de
+ *      https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 /**
  * Interface Visibility
  *
@@ -15,16 +28,16 @@ namespace ILIAS\Filesystem;
  *
  * @public
  */
-interface Visibility {
-
-	/**
-	 * Public file visibility.
-	 * @since 5.3
-	 */
-	const PUBLIC_ACCESS = 'public';
-	/**
-	 * Private file visibility.
-	 * @since 5.3
-	 */
-	const PRIVATE_ACCESS = 'private';
+interface Visibility
+{
+    /**
+     * Public file visibility.
+     * @since 5.3
+     */
+    public const PUBLIC_ACCESS = 'public';
+    /**
+     * Private file visibility.
+     * @since 5.3
+     */
+    public const PRIVATE_ACCESS = 'private';
 }

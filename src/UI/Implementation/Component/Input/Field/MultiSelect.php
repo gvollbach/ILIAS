@@ -1,37 +1,50 @@
 <?php
 
-/* Copyright (c) 2018 Nils Haagen <nils.haagen@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 namespace ILIAS\UI\Implementation\Component\Input\Field;
 
 use ILIAS\UI\Component as C;
 use ILIAS\Data\Factory as DataFactory;
-use ILIAS\UI\Component\Signal;
+use ILIAS\Refinery\Constraint;
+use Closure;
 
 /**
  * This implements the multi-select input.
  */
-class MultiSelect extends Input implements C\Input\Field\MultiSelect
+class MultiSelect extends FormInput implements C\Input\Field\MultiSelect
 {
-
     /**
      * @var array <string,string> {$value => $label}
      */
-    protected $options = [];
+    protected array $options = [];
+    private bool $complex = true;
 
     /**
-     * @param DataFactory $data_factory
-     * @param \ILIAS\Refinery\Factory $refinery
-     * @param string $label
-     * @param array $options
-     * @param $byline
+     * @param array<string, string> $options
      */
     public function __construct(
         DataFactory $data_factory,
         \ILIAS\Refinery\Factory $refinery,
-        $label,
-        $options,
-        $byline
+        string $label,
+        array $options,
+        ?string $byline
     ) {
         parent::__construct($data_factory, $refinery, $label, $byline);
         $this->options = $options;
@@ -40,7 +53,7 @@ class MultiSelect extends Input implements C\Input\Field\MultiSelect
     /**
      * @inheritdoc
      */
-    public function getOptions() : array
+    public function getOptions(): array
     {
         return $this->options;
     }
@@ -48,49 +61,63 @@ class MultiSelect extends Input implements C\Input\Field\MultiSelect
     /**
      * @inheritdoc
      */
-    protected function isClientSideValueOk($value)
+    protected function isClientSideValueOk($value): bool
     {
-        $ok = is_array($value) || is_null($value);
-        return $ok;
+        if (is_null($value)) {
+            return true;
+        }
+        if (is_array($value)) {
+            foreach ($value as $v) {
+                if (!array_key_exists($v, $this->options)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
     }
 
     /**
      * @inheritdoc
      */
-    protected function getConstraintForRequirement()
+    protected function getConstraintForRequirement(): ?Constraint
     {
-        $constraint = $this->refinery->custom()->constraint(
-            function ($value) {
-                return (is_array($value) && count($value) > 0);
-            },
+        if ($this->requirement_constraint !== null) {
+            return $this->requirement_constraint;
+        }
+
+        return $this->refinery->custom()->constraint(
+            fn ($value) => is_array($value) && count($value) > 0,
             "Empty"
         );
-        return $constraint;
     }
 
     /**
      * @inheritdoc
      */
-    public function getUpdateOnLoadCode() : \Closure
+    public function getUpdateOnLoadCode(): Closure
     {
-        return function ($id) {
-            $code = "var checkedBoxes = function() {
-				var options = {};
-				var options_combined = [];
-				$('#$id').find('input').each(function() {
-					options[$(this).val()] = $(this).prop('checked').toString();
+        return fn ($id) => "var checkedBoxes = function() {
+				var options = [];
+				$('#$id').find('li').each(function() {
+				    if ($(this).find('input').prop('checked')) {
+					    options.push($(this).find('span').text());
+                    }
 				});
-				for (let [key, value] of Object.entries(options)) {
-					options_combined.push(key + ': ' + value);
-				}
-				return options_combined.join(', ');
+				return options.join(', ');
 			}
 			$('#$id').on('input', function(event) {
 				il.UI.input.onFieldUpdate(event, '$id', checkedBoxes());
 			});
 			il.UI.input.onFieldUpdate(event, '$id', checkedBoxes());
 			";
-            return $code;
-        };
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function isComplex(): bool
+    {
+        return $this->complex;
     }
 }

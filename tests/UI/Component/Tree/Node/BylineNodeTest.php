@@ -1,40 +1,45 @@
 <?php
 
-/* Copyright (c) 2019 Nils Haagen <nils.haagen@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 require_once("libs/composer/vendor/autoload.php");
 require_once(__DIR__ . "../../../../Base.php");
 
-use \ILIAS\UI\Component as C;
-use \ILIAS\UI\Implementation\Component as I;
-use ILIAS\UI\Implementation\Component\Input\Field\FieldRendererFactory;
-use ILIAS\UI\Implementation\Component\Symbol\Glyph\GlyphRendererFactory;
-use ILIAS\UI\Implementation\Render\DefaultRendererFactory;
-use ILIAS\UI\Implementation\Render\JavaScriptBinding;
+use ILIAS\UI\Component as C;
+use ILIAS\UI\Implementation\Component as I;
 
 /**
  * Tests for the SimpleNode.
  */
 class BylineNodeTest extends ILIAS_UI_TestBase
 {
-    /**
-     * @var I\Tree\Node\Factory
-     */
-    private $node_factory;
+    private I\Tree\Node\Factory $node_factory;
+    private C\Symbol\Icon\Standard $icon;
 
-    /**
-     * @var C\Symbol\Icon\Standard|I\Symbol\Icon\Standard
-     */
-    private $icon;
-
-    public function setUp() : void
+    public function setUp(): void
     {
         $this->node_factory = new I\Tree\Node\Factory();
         $icon_factory = new I\Symbol\Icon\Factory();
         $this->icon = $icon_factory->standard("", '');
     }
 
-    public function testCreateBylineNode()
+    public function testCreateBylineNode(): void
     {
         $node = $this->node_factory->bylined('My Label', 'This is my byline', $this->icon);
         $this->assertEquals('My Label', $node->getLabel());
@@ -42,7 +47,7 @@ class BylineNodeTest extends ILIAS_UI_TestBase
         $this->assertEquals($this->icon, $node->getIcon());
     }
 
-    public function testRendering()
+    public function testRendering(): void
     {
         $node = $this->node_factory->bylined('My Label', 'This is my byline');
 
@@ -50,7 +55,7 @@ class BylineNodeTest extends ILIAS_UI_TestBase
         $html = $r->render($node);
 
         $expected = <<<EOT
-			<li id=""class="il-tree-node node-simple">
+			<li id="" class="il-tree-node node-simple" role="treeitem">
 				<span class="node-line">
 					<span class="node-label">My Label</span>
 					<span class="node-byline">This is my byline</span>
@@ -64,7 +69,7 @@ EOT;
         );
     }
 
-    public function testRenderingWithIcon()
+    public function testRenderingWithIcon(): void
     {
         $node = $this->node_factory->bylined('My Label', 'This is my byline', $this->icon);
 
@@ -72,9 +77,12 @@ EOT;
         $html = $r->render($node);
 
         $expected = <<<EOT
-			<li id=""class="il-tree-node node-simple">
+			<li id="" class="il-tree-node node-simple" role="treeitem">
 				<span class="node-line">
-					<span class="node-label"><div class="icon small" aria-label=""></div>My Label</span>
+					<span class="node-label">
+						<img class="icon small" src="./templates/default/images/icon_default.svg" alt=""/>
+						My Label
+					</span>
 					<span class="node-byline">This is my byline</span>
 				</span>
 			</li>
@@ -86,7 +94,7 @@ EOT;
         );
     }
 
-    public function testRenderingWithAsync()
+    public function testRenderingWithAsync(): void
     {
         $node = $this->node_factory->bylined('My Label', 'This is my byline');
         $node = $node->withAsyncURL('something.de');
@@ -96,11 +104,14 @@ EOT;
 
         $expected = <<<EOT
 			<li id=""
-				class="il-tree-node node-simple expandable" data-async_url="something.de" data-async_loaded="false">
+				 class="il-tree-node node-simple expandable"
+				 role="treeitem" aria-expanded="false"
+				 data-async_url="something.de" data-async_loaded="false">
 				<span class="node-line">
 					<span class="node-label">My Label</span>
 					<span class="node-byline">This is my byline</span>
 				</span>
+				<ul role="group"></ul>
 			</li>
 EOT;
 
@@ -110,66 +121,30 @@ EOT;
         );
     }
 
-    public function getDefaultRenderer(JavaScriptBinding $js_binding = null)
+    public function testRenderingExpanded(): void
     {
-        $ui_factory = $this->getUIFactory();
-        $tpl_factory = $this->getTemplateFactory();
-        $resource_registry = $this->getResourceRegistry();
-        $lng = $this->getLanguage();
-        if (!$js_binding) {
-            $js_binding = $this->getJavaScriptBinding();
-        }
+        $node = $this->node_factory->bylined('My Label', 'This is my byline');
+        $node = $node->withAsyncURL('something.de')->withExpanded(true);
 
-        $languageMock = $this->getMockBuilder('ilLanguage')
-            ->disableOriginalConstructor()
-            ->getMock();
+        $r = $this->getDefaultRenderer();
+        $html = $r->render($node);
 
-        $defaultRendererFactory = new DefaultRendererFactory(
-            $ui_factory,
-            $tpl_factory,
-            $lng,
-            $js_binding,
-            new ILIAS\Refinery\Factory(new ILIAS\Data\Factory(), $languageMock)
+        $expected = <<<EOT
+			<li id=""
+				 class="il-tree-node node-simple expandable"
+				 role="treeitem" aria-expanded="true"
+				 data-async_url="something.de" data-async_loaded="false">
+				<span class="node-line">
+					<span class="node-label">My Label</span>
+					<span class="node-byline">This is my byline</span>
+				</span>
+				<ul role="group"></ul>
+			</li>
+EOT;
+
+        $this->assertEquals(
+            $this->brutallyTrimHTML($expected),
+            $this->brutallyTrimHTML($html)
         );
-
-        $glyphRendererFactory   = new GlyphRendererFactory(
-            $ui_factory,
-            $tpl_factory,
-            $lng,
-            $js_binding,
-            new ILIAS\Refinery\Factory(new ILIAS\Data\Factory(), $languageMock)
-        );
-
-        $fieldRendererFactory = new FieldRendererFactory(
-            $ui_factory,
-            $tpl_factory,
-            $lng,
-            $js_binding,
-            new ILIAS\Refinery\Factory(new ILIAS\Data\Factory(), $languageMock)
-        );
-
-        $fsLoader               = new \ILIAS\UI\Implementation\Render\FSLoader(
-            $defaultRendererFactory,
-            $glyphRendererFactory,
-            $fieldRendererFactory
-        );
-
-        $loaderResourceRegistryWrapper = new \ILIAS\UI\Implementation\Render\LoaderResourceRegistryWrapper(
-            $resource_registry,
-            $fsLoader
-        );
-
-        $component_renderer_loader
-                                       = new \ILIAS\UI\Implementation\Render\LoaderCachingWrapper(
-                                           $loaderResourceRegistryWrapper
-        );
-        return new TestDefaultRenderer($component_renderer_loader);
-    }
-
-    private function brutallyTrimHTML($html)
-    {
-        $html = str_replace(["\n", "\r", "\t"], "", $html);
-        $html = preg_replace('# {2,}#', " ", $html);
-        return trim($html);
     }
 }

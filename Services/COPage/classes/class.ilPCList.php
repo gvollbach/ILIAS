@@ -1,238 +1,163 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-require_once("./Services/COPage/classes/class.ilPageContent.php");
 
 /**
-* Class ilPCList
-*
-* List content object (see ILIAS DTD)
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* @version $Id$
-*
-* @ingroup ServicesCOPage
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Class ilPCList
+ *
+ * List content object (see ILIAS DTD)
+ *
+ * @author Alexander Killing <killing@leifos.de>
+ */
 class ilPCList extends ilPageContent
 {
-	var $list_node;
+    public php4DOMElement $list_node;
 
-	/**
-	* Init page content component.
-	*/
-	function init()
-	{
-		$this->setType("list");
-	}
+    public function init(): void
+    {
+        $this->setType("list");
+    }
 
-	/**
-	* Set pc node
-	*/
-	function setNode($a_node)
-	{
-		parent::setNode($a_node);		// this is the PageContent node
-		$this->list_node = $a_node->first_child();		// this is the Table node
-	}
+    public function setNode(php4DOMElement $a_node): void
+    {
+        parent::setNode($a_node);		// this is the PageContent node
+        $this->list_node = $a_node->first_child();		// this is the Table node
+    }
 
-	/**
-	* Create new list
-	*/
-	function create(&$a_pg_obj, $a_hier_id, $a_pc_id = "")
-	{
-		$this->node = $this->createPageContentNode();
-		$a_pg_obj->insertContent($this, $a_hier_id, IL_INSERT_AFTER, $a_pc_id);
-		$this->list_node = $this->dom->create_element("List");
-		$this->list_node = $this->node->append_child($this->list_node);
-	}
+    public function create(
+        ilPageObject $a_pg_obj,
+        string $a_hier_id,
+        string $a_pc_id = ""
+    ): void {
+        $this->node = $this->createPageContentNode();
+        $a_pg_obj->insertContent($this, $a_hier_id, IL_INSERT_AFTER, $a_pc_id);
+        $this->list_node = $this->dom->create_element("List");
+        $this->list_node = $this->node->append_child($this->list_node);
+    }
 
-	/**
-	* Add a number of items to list
-	*/
-	function addItems($a_nr)
-	{
-		for ($i=1; $i<=$a_nr; $i++)
-		{
-			$new_item = $this->dom->create_element("ListItem");
-			$new_item = $this->list_node->append_child($new_item);
-		}
-	}
+    /**
+     * Add a number of items to list
+     */
+    public function addItems(int $a_nr): void
+    {
+        for ($i = 1; $i <= $a_nr; $i++) {
+            $new_item = $this->dom->create_element("ListItem");
+            $new_item = $this->list_node->append_child($new_item);
+        }
+    }
 
-	/**
-	* Set order type
-	*/
-/*	function setOrderType($a_type = "Unordered")
-	{
-		switch ($a_type)
-		{
-			case "Unordered":
-				$this->list_node->set_attribute("Type", "Unordered");
-				if ($this->list_node->has_attribute("NumberingType"))
-				{
-					$this->list_node->remove_attribute("NumberingType");
-				}
-				break;
 
-			case "Number":
-			case "Roman":
-			case "roman":
-			case "Alphabetic":
-			case "alphabetic":
-			case "Decimal":
-				$this->list_node->set_attribute("Type", "Ordered");
-				$this->list_node->set_attribute("NumberingType", $a_type);
-				break;
-		}
-	}*/
+    /**
+     * Get order type
+     */
+    public function getOrderType(): string
+    {
+        if ($this->list_node->get_attribute("Type") == "Unordered") {
+            return "Unordered";
+        }
 
-	/**
-	* Get order type
-	*/
-	function getOrderType()
-	{
-		if ($this->list_node->get_attribute("Type") == "Unordered")
-		{
-			return "Unordered";
-		}
-		
-		$nt = $this->list_node->get_attribute("NumberingType");
-		switch ($nt)
-		{
-			case "Number":
-			case "Roman":
-			case "roman":
-			case "Alphabetic":
-			case "alphabetic":
-			case "Decimal":
-				return $nt;
-				break;
-				
-			default:
-				return "Number";
-		}
-	}
+        $nt = $this->list_node->get_attribute("NumberingType");
+        switch ($nt) {
+            case "Number":
+            case "Roman":
+            case "roman":
+            case "Alphabetic":
+            case "alphabetic":
+            case "Decimal":
+                return $nt;
 
-	/**
-	* Get list type
-	*/
-	function getListType()
-	{
-		if ($this->list_node->get_attribute("Type") == "Unordered")
-		{
-			return "Unordered";
-		}
-		return "Ordered";
-	}
+            default:
+                return "Number";
+        }
+    }
 
-	/**
-	* Set list type
-	*
-	* @param	string		list type
-	*/
-	function setListType($a_val)
-	{
-		$this->list_node->set_attribute("Type", $a_val);
-	}
+    public function getListType(): string
+    {
+        if ($this->list_node->get_attribute("Type") == "Unordered") {
+            return "Unordered";
+        }
+        return "Ordered";
+    }
 
-	/**
-	* Get numbering type
-	*/
-	function getNumberingType()
-	{
-		$nt = $this->list_node->get_attribute("NumberingType");
-		switch ($nt)
-		{
-			case "Number":
-			case "Roman":
-			case "roman":
-			case "Alphabetic":
-			case "alphabetic":
-			case "Decimal":
-				return $nt;
-				break;
-				
-			default:
-				return "Number";
-		}
-	}
+    public function setListType(string $a_val): void
+    {
+        $this->list_node->set_attribute("Type", $a_val);
+    }
 
-	/**
-	* Set numbering type
-	*
-	* @param	string	numbering type
-	*/
-	function setNumberingType($a_val)
-	{
-		if ($a_val != "")
-		{
-			$this->list_node->set_attribute("NumberingType", $a_val);
-		}
-		else
-		{
-			if ($this->list_node->has_attribute("NumberingType"))
-			{
-				$this->list_node->remove_attribute("NumberingType");
-			}
-		}
-	}
+    /**
+     * Get numbering type
+     */
+    public function getNumberingType(): string
+    {
+        $nt = $this->list_node->get_attribute("NumberingType");
+        switch ($nt) {
+            case "Number":
+            case "Roman":
+            case "roman":
+            case "Alphabetic":
+            case "alphabetic":
+            case "Decimal":
+                return $nt;
 
-	/**
-	* Set start value
-	*
-	* @param	int		start value
-	*/
-	function setStartValue($a_val)
-	{
-		if ($a_val != "")
-		{
-			$this->list_node->set_attribute("StartValue", $a_val);
-		}
-		else
-		{
-			if ($this->list_node->has_attribute("StartValue"))
-			{
-				$this->list_node->remove_attribute("StartValue");
-			}
-		}
-	}
-	
-	/**
-	* Get start value
-	*
-	* @return	int		start value
-	*/
-	function getStartValue()
-	{
-		return $this->list_node->get_attribute("StartValue");
-	}
-	
-	/**
-	* Set style class
-	*
-	* @param	string		style class
-	*/
-	function setStyleClass($a_val)
-	{
-		if (!in_array($a_val, array("", "BulletedList", "NumberedList")))
-		{
-			$this->list_node->set_attribute("Class", $a_val);
-		}
-		else
-		{
-			if ($this->list_node->has_attribute("Class"))
-			{
-				$this->list_node->remove_attribute("Class");
-			}
-		}
-	}
-	
-	/**
-	* Get style class
-	*
-	* @return	string		style class
-	*/
-	function getStyleClass()
-	{
-		return $this->list_node->get_attribute("Class");
-	}
+            default:
+                return "Number";
+        }
+    }
+
+    public function setNumberingType(string $a_val): void
+    {
+        if ($a_val != "") {
+            $this->list_node->set_attribute("NumberingType", $a_val);
+        } else {
+            if ($this->list_node->has_attribute("NumberingType")) {
+                $this->list_node->remove_attribute("NumberingType");
+            }
+        }
+    }
+
+    public function setStartValue(int $a_val): void
+    {
+        if ($a_val != "") {
+            $this->list_node->set_attribute("StartValue", $a_val);
+        } else {
+            if ($this->list_node->has_attribute("StartValue")) {
+                $this->list_node->remove_attribute("StartValue");
+            }
+        }
+    }
+
+    public function getStartValue(): int
+    {
+        return (int) $this->list_node->get_attribute("StartValue");
+    }
+
+    public function setStyleClass(string $a_val): void
+    {
+        if (!in_array($a_val, array("", "BulletedList", "NumberedList"))) {
+            $this->list_node->set_attribute("Class", $a_val);
+        } else {
+            if ($this->list_node->has_attribute("Class")) {
+                $this->list_node->remove_attribute("Class");
+            }
+        }
+    }
+
+    public function getStyleClass(): string
+    {
+        return $this->list_node->get_attribute("Class");
+    }
 }
-?>

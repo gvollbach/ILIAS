@@ -1,56 +1,47 @@
-<?php declare(strict_types=1);
-/* Copyright (c) 1998-2017 ILIAS open source, Extended GPL, see docs/LICENSE */
+<?php
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilMailOptionsFormGUI
  */
 class ilMailOptionsFormGUI extends ilPropertyFormGUI
 {
-    /** @var ilLanguage */
-    protected $lng;
-
-    /** @var ilSetting */
-    protected $settings;
-
-    /** @var ilObjUser */
-    protected $user;
-
-    /** @var ilCtrl */
-    protected $ctrl;
-
-    /** @var object */
-    protected $parentGui;
-
-    /** @var string */
-    protected $positiveCmd = '';
-
-    /** @var ilMailOptions */
-    protected $options;
+    protected object $parentGui;
+    protected string $positiveCmd = '';
+    protected ilMailOptions $options;
 
     /**
-     * ilMailOptionsFormGUI constructor.
      * @param ilMailOptions $options
-     * @param $parentGui
+     * @param object $parentGui
      * @param string $positiveCmd
-     * @throws InvalidArgumentException
      */
-    public function __construct(ilMailOptions $options, $parentGui, string $positiveCmd)
+    public function __construct(ilMailOptions $options, object $parentGui, string $positiveCmd)
     {
-        global $DIC;
-
         if (!method_exists($parentGui, 'executeCommand')) {
             throw new InvalidArgumentException(sprintf(
-                'Parameter $parentGui must be ilCtrl enabled by implementing executeCommand(), %s given.',
-                is_object($parentGui) ? get_class($parentGui) : var_export($parentGui, 1)
+                'Parameter $parentGui must be ilCtrlInterface enabled by implementing executeCommand(), %s given.',
+                get_class($parentGui)
             ));
         }
 
         parent::__construct();
-
-        $this->ctrl = $DIC->ctrl();
-        $this->settings = $DIC->settings();
-        $this->lng = $DIC->language();
-        $this->user = $DIC->user();
 
         $this->options = $options;
         $this->parentGui = $parentGui;
@@ -59,20 +50,21 @@ class ilMailOptionsFormGUI extends ilPropertyFormGUI
         $this->init();
     }
 
-    /**
-     * 
-     */
-    protected function init() : void
+    protected function init(): void
     {
         $this->setTitle($this->lng->txt('mail_settings'));
         $this->setFormAction($this->ctrl->getFormAction($this->parentGui, $this->positiveCmd));
 
-        if ($this->settings->get('usr_settings_hide_mail_incoming_mail') != '1') {
-            $incoming_mail_gui = new ilIncomingMailInputGUI($this->lng->txt('mail_incoming'), 'incoming_type', false);
+        if ($this->options->maySeeIndividualTransportSettings()) {
+            $incoming_mail_gui = new ilIncomingMailInputGUI(
+                $this->lng->txt('mail_incoming'),
+                'incoming_type',
+                false
+            );
             $this->addItem($incoming_mail_gui);
         }
 
-        $options = array();
+        $options = [];
         for ($i = 50; $i <= 80; $i++) {
             $options[$i] = $i;
         }
@@ -85,29 +77,26 @@ class ilMailOptionsFormGUI extends ilPropertyFormGUI
         $ta->setCols(60);
         $this->addItem($ta);
 
-        if ($this->settings->get('mail_notification')) {
-            $cb = new ilCheckboxInputGUI($this->lng->txt('cron_mail_notification'), 'cronjob_notification');
+        if ($this->settings->get('mail_notification', '0')) {
+            $cb = new ilCheckboxInputGUI(
+                $this->lng->txt('cron_mail_notification'),
+                'cronjob_notification'
+            );
             $cb->setInfo($this->lng->txt('mail_cronjob_notification_info'));
-            $cb->setValue(1);
+            $cb->setValue('1');
             $this->addItem($cb);
         }
 
         $this->addCommandButton($this->positiveCmd, $this->lng->txt('save'));
     }
 
-    /**
-     * @return bool
-     */
-    public function save() : bool
+    public function save(): bool
     {
         if (!$this->checkInput()) {
             return false;
         }
 
-        if (
-            $this->settings->get('usr_settings_hide_mail_incoming_mail') != '1' &&
-            $this->settings->get('usr_settings_disable_mail_incoming_mail') != '1'
-        ) {
+        if ($this->options->mayModifyIndividualTransportSettings()) {
             $incoming_type = (int) $this->getInput('incoming_type');
 
             $mail_address_option = $this->options->getEmailAddressMode();
@@ -126,28 +115,25 @@ class ilMailOptionsFormGUI extends ilPropertyFormGUI
         }
 
         $this->options->setLinebreak((int) $this->getInput('linebreak'));
-        $this->options->setSignature((string) $this->getInput('signature'));
+        $this->options->setSignature($this->getInput('signature'));
         $this->options->setIsCronJobNotificationStatus((bool) $this->getInput('cronjob_notification'));
-        $this->options->setIncomingType((int) $incoming_type);
-        $this->options->setEmailAddressMode((int) $mail_address_option);
+        $this->options->setIncomingType($incoming_type);
+        $this->options->setEmailAddressMode($mail_address_option);
 
         $this->options->updateOptions();
 
         return true;
     }
 
-    /**
-     *
-     */
-    public function populate() : void
+    public function populate(): void
     {
         $data = [
             'linebreak' => $this->options->getLinebreak(),
             'signature' => $this->options->getSignature(),
-            'cronjob_notification' => $this->options->isCronJobNotificationEnabled()
+            'cronjob_notification' => $this->options->isCronJobNotificationEnabled(),
         ];
 
-        if ($this->settings->get('usr_settings_hide_mail_incoming_mail') != '1') {
+        if ($this->options->maySeeIndividualTransportSettings()) {
             $data['incoming_type'] = $this->options->getIncomingType();
 
             $mail_address_option = $this->options->getEmailAddressMode();

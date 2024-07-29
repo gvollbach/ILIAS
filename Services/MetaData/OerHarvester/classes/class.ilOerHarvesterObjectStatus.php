@@ -1,6 +1,22 @@
 <?php
 
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * OER harvester object status
@@ -10,149 +26,125 @@
  */
 class ilOerHarvesterObjectStatus
 {
-	private $obj_id = 0;
+    private int $obj_id;
 
-	private $harvest_ref_id = 0;
+    private int $harvest_ref_id = 0;
 
-	private $blocked = false;
+    private bool $blocked = false;
 
-	private $db = null;
+    protected ilDBInterface $db;
 
+    public function __construct(int $obj_id = 0)
+    {
+        global $DIC;
 
-	/**
-	 * ilOerHarvesterObjectStatus constructor.
-	 * @param int $obj_id
-	 */
-	public function __construct($obj_id = 0)
-	{
-		global $DIC;
+        $this->db = $DIC->database();
 
-		$this->db = $DIC->database();
+        $this->obj_id = $obj_id;
+        if ($this->obj_id) {
+            $this->read();
+        }
+    }
 
-		$this->obj_id = $obj_id;
-		if($this->obj_id)
-		{
-			$this->read();
-		}
+    /**
+     * @return int[]
+     */
+    public static function lookupHarvested(): array
+    {
+        global $DIC;
 
-	}
+        $db = $DIC->database();
 
-	/**
-	 * @return int[]
-	 * @throws ilDatabaseException
-	 */
-	public static function lookupHarvested()
-	{
-		global $DIC;
+        $query = 'SELECT href_id FROM il_meta_oer_stat ';
+        $res = $db->query($query);
 
-		$db = $DIC->database();
+        $hids = [];
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $hids[] = (int) $row->href_id;
+        }
+        return $hids;
+    }
 
-		$query = 'SELECT href_id FROM il_meta_oer_stat ';
-		$res = $db->query($query);
+    public static function lookupObjIdByHarvestingId(int $a_href_id): int
+    {
+        global $DIC;
 
-		$hids = [];
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			$hids[] = $row->href_id;
-		}
-		return $hids;
-	}
+        $db = $DIC->database();
+        $query = 'SELECT obj_id FROM il_meta_oer_stat ' .
+            'WHERE href_id = ' . $db->quote($a_href_id, 'integer');
+        $res = $db->query($query);
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            return (int) $row->obj_id;
+        }
+        return 0;
+    }
 
-	/**
-	 * @param $a_href_id
-	 */
-	public static function lookupObjIdByHarvestingId($a_href_id)
-	{
-		global $DIC;
+    public function setObjId(int $a_obj_id): void
+    {
+        $this->obj_id = $a_obj_id;
+    }
 
-		$db = $DIC->database();
-		$query = 'SELECT obj_id FROM il_meta_oer_stat '.
-			'WHERE href_id = ' . $db->quote($a_href_id,'integer');
-		$res = $db->query($query);
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			return $row->obj_id;
-		}
-	}
+    public function getObjId(): int
+    {
+        return $this->obj_id;
+    }
 
-	public function setObjId($a_obj_id)
-	{
-		$this->obj_id = $a_obj_id;
-	}
+    public function setHarvestRefId(int $a_ref_id): void
+    {
+        $this->harvest_ref_id = $a_ref_id;
+    }
 
-	public function getObjId()
-	{
-		return $this->obj_id;
-	}
+    public function getHarvestRefId(): int
+    {
+        return $this->harvest_ref_id;
+    }
 
-	public function setHarvestRefId($a_ref_id)
-	{
-		$this->harvest_ref_id = $a_ref_id;
-	}
+    public function setBlocked(bool $a_stat): void
+    {
+        $this->blocked = $a_stat;
+    }
 
-	public function getHarvestRefId()
-	{
-		return $this->harvest_ref_id;
-	}
+    public function isBlocked(): bool
+    {
+        return $this->blocked;
+    }
 
-	public function setBlocked($a_stat)
-	{
-		$this->blocked = $a_stat;
-	}
+    public function isCreated(): bool
+    {
+        return (bool) $this->harvest_ref_id;
+    }
 
-	public function isBlocked()
-	{
-		return $this->blocked;
-	}
+    public function save(): bool
+    {
+        $this->delete();
+        $query = 'INSERT INTO il_meta_oer_stat ' .
+            '(obj_id, href_id, blocked ) ' .
+            'VALUES (' .
+            $this->db->quote($this->getObjId(), 'integer') . ', ' .
+            $this->db->quote($this->getHarvestRefId(), 'integer') . ', ' .
+            $this->db->quote($this->isBlocked(), 'integer') .
+            ')';
+        $res = $this->db->manipulate($query);
+        return true;
+    }
 
-	public function isCreated()
-	{
-		return (bool) $this->harvest_ref_id;
-	}
+    public function delete(): bool
+    {
+        $query = 'DELETE FROM il_meta_oer_stat ' .
+            'WHERE obj_id = ' . $this->db->quote($this->getObjId(), 'integer');
+        $this->db->manipulate($query);
+        return true;
+    }
 
-	/**
-	 * @return bool
-	 */
-	public function save()
-	{
-		$this->delete();
-		$query = 'INSERT INTO il_meta_oer_stat '.
-			'(obj_id, href_id, blocked ) '.
-			'VALUES ('.
-			$this->db->quote($this->getObjId(),'integer').', '.
-			$this->db->quote($this->getHarvestRefId(),'integer').', '.
-			$this->db->quote($this->isBlocked(),'integer').
-			')';
-		$res = $this->db->manipulate($query);
-		return true;
-	}
-
-	/**
-	 * Delete by obj_id
-	 */
-	public function delete()
-	{
-		$query = 'DELETE FROM il_meta_oer_stat '.
-			'WHERE obj_id = '.$this->db->quote($this->getObjId(),'integer');
-		$this->db->manipulate($query);
-		return true;
-	}
-
-
-	/**
-	 * @throws ilDatabaseException
-	 */
-	public function read()
-	{
-		$query = 'SELECT * FROM il_meta_oer_stat '.
-			'WHERE obj_id = '.$this->db->quote($this->getObjId(),'integer');
-		$res = $this->db->query($query);
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			$this->setObjId($row->obj_id);
-			$this->setHarvestRefId($row->href_id);
-			$this->setBlocked((bool) $row->blocked);
-		}
-	}
-
+    public function read(): void
+    {
+        $query = 'SELECT * FROM il_meta_oer_stat ' .
+            'WHERE obj_id = ' . $this->db->quote($this->getObjId(), 'integer');
+        $res = $this->db->query($query);
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $this->setObjId((int) $row->obj_id);
+            $this->setHarvestRefId((int) $row->href_id);
+            $this->setBlocked((bool) $row->blocked);
+        }
+    }
 }

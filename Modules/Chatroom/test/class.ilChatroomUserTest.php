@@ -1,205 +1,207 @@
 <?php
 
 /**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+use PHPUnit\Framework\MockObject\MockObject;
+
+/**
  * Class ilChatroomUserTest
  * @author Thomas Joußen <tjoussen@gmx.de>
  */
-class ilChatroomUserTest extends PHPUnit_Framework_TestCase
+class ilChatroomUserTest extends ilChatroomAbstractTest
 {
+    /** @var ilObjUser&MockObject */
+    protected ilObjUser $ilUserMock;
+    protected ilChatroomUser $user;
 
-	/**
-	 * @var PHPUnit_Framework_MockObject_MockObject|ilObjUser
-	 */
-	protected $ilUserMock;
+    public function testGetUserIdIfNotAnonymous(): void
+    {
+        $userId = 6;
 
-	/**
-	 * @var PHPUnit_Framework_MockObject_MockObject|ilChatroom
-	 */
-	protected $ilChatroomMock;
+        $this->ilUserMock->expects($this->once())->method('getId')->willReturn($userId);
+        $this->ilUserMock->expects($this->once())->method('isAnonymous')->willReturn(false);
 
-	/**
-	 * @var ilChatroomUser
-	 */
-	protected $user;
+        $this->assertSame($userId, $this->user->getUserId());
+    }
 
-	protected function setUp()
-	{
-		if(defined('ILIAS_PHPUNIT_CONTEXT'))
-		{
-			include_once("./Services/PHPUnit/classes/class.ilUnitUtil.php");
-			ilUnitUtil::performInitialisation();
-		}
-		else
-		{
-			chdir(dirname(__FILE__));
-			chdir('../../../');
-		}
+    public function testGetUserIdFromSessionIfAnonymous(): void
+    {
+        $userId = 6;
+        $roomId = 99;
 
-		require_once './Modules/Chatroom/classes/class.ilChatroomUser.php';
-		//require_once 'Services/User/classes/class.ilObjUser.php';
-		$this->ilUserMock     = $this->getMockBuilder('ilObjUser')->disableOriginalConstructor()->setMethods(
-			array('getId', 'isAnonymous', 'getLogin', 'getPublicName', 'getFirstname', 'getLastname')
-		)->getMock();
-		$this->ilChatroomMock = $this->getMockBuilder('ilChatroom')->disableOriginalConstructor()->setMethods(
-			array('getRoomId', 'getSetting')
-		)->getMock();
+        $this->ilUserMock->expects($this->once())->method('getId')->willReturn($userId);
+        $this->ilUserMock->expects($this->once())->method('isAnonymous')->willReturn(true);
 
-		$this->user = new ilChatroomUser($this->ilUserMock, $this->ilChatroomMock);
-	}
+        $this->ilChatroomMock->method('getRoomId')->willReturn($roomId);
 
-	public function testConstructor()
-	{
-		$this->assertInstanceOf('ilChatroomUser', $this->user);
-	}
+        $session = [
+            $roomId => [
+                'user_id' => $userId,
+            ],
+        ];
+        ilSession::set('chat', $session);
 
-	public function testGetUserIdIfNotAnonymous()
-	{
-		$userId = 6;
+        $this->assertSame($userId, $this->user->getUserId());
+    }
 
-		$this->ilUserMock->expects($this->once())->method('getId')->will($this->returnValue($userId));
-		$this->ilUserMock->expects($this->once())->method('isAnonymous')->will($this->returnValue(false));
+    public function testGetUserIdRandomGeneratedIfAnonymous(): void
+    {
+        $this->ilUserMock->expects($this->once())->method('getId')->willReturn(0);
+        $this->ilUserMock->expects($this->once())->method('isAnonymous')->willReturn(true);
 
-		$this->assertEquals($userId, $this->user->getUserId());
-	}
+        $this->ilChatroomMock->method('getRoomId')->willReturn(99);
 
-	public function testGetUserIdFromSessionIfAnonymous()
-	{
-		$userId = 6;
-		$roomId = 99;
+        $this->assertNotNull($this->user->getUserId());
+    }
 
-		$this->ilUserMock->expects($this->once())->method('getId')->will($this->returnValue($userId));
-		$this->ilUserMock->expects($this->once())->method('isAnonymous')->will($this->returnValue(true));
+    /**
+     * @dataProvider usernameDataProvider
+     * @param string $username
+     * @param string $expected
+     */
+    public function testSetUsername(string $username, string $expected): void
+    {
+        $this->user->setUsername($username);
+        $this->assertSame($expected, $this->user->getUsername());
+    }
 
-		$this->ilChatroomMock->expects($this->any())->method('getRoomId')->will($this->returnValue($roomId));
+    public function testGetUsernameFromSession(): void
+    {
+        $username = 'username';
+        $roomId = 99;
 
-		$_SESSION['chat'] = array(
-			$roomId => array(
-				'user_id' => $userId,
-			),
-		);
+        ilSession::set('chat', [
+            $roomId => [
+                'username' => $username,
+            ],
+        ]);
 
-		$this->assertEquals($userId, $this->user->getUserId());
-	}
+        $this->ilChatroomMock->method('getRoomId')->willReturn(99);
 
-	public function testGetUserIdRandomGeneratedIfAnonymous()
-	{
-		$this->ilUserMock->expects($this->once())->method('getId')->will($this->returnValue(null));
-		$this->ilUserMock->expects($this->once())->method('isAnonymous')->will($this->returnValue(true));
+        $this->assertSame($username, $this->user->getUsername());
+    }
 
-		$this->ilChatroomMock->expects($this->any())->method('getRoomId')->will($this->returnValue(99));
+    /**
+     * @todo if required session value is not set, there will be a warning.
+     *       Need to check if required value isset.
+     */
+    public function testGetUsernameFromIlObjUser(): void
+    {
+        $username = 'login';
+        $roomId = 99;
+        ilSession::set('chat', [
+            $roomId => [
+                'username' => '',
+            ],
+        ]);
 
-		$this->assertNotNull($this->user->getUserId());
-	}
+        $this->ilUserMock->expects($this->once())->method('getLogin')->willReturn($username);
+        $this->ilChatroomMock->method('getRoomId')->willReturn($roomId);
 
-	/**
-	 * @dataProvider usernameDataProvider
-	 * @param string $username
-	 * @param string $expected
-	 */
-	public function testSetUsername($username, $expected)
-	{
-		$this->user->setUsername($username);
-		$this->assertEquals($expected, $this->user->getUsername());
-	}
+        $this->assertSame($username, $this->user->getUsername());
+    }
 
-	public function testGetUsernameFromSession()
-	{
-		$username                              = 'username';
-		$roomId                                = 99;
-		$_SESSION['chat'][$roomId]['username'] = $username;
+    public function testBuildAnonymousName(): void
+    {
+        $this->ilChatroomMock->method('getSetting')->willReturn('#_anonymous');
 
-		$this->ilChatroomMock->expects($this->any())->method('getRoomId')->will($this->returnValue(99));
+        $firstName = $this->user->buildAnonymousName();
+        $secondName = $this->user->buildAnonymousName();
 
-		$this->assertEquals($username, $this->user->getUsername());
-	}
+        $this->assertNotEquals($firstName, $secondName);
+    }
 
-	/**
-	 * @todo if required session value is not set, there will be a warning.
-	 *       Need to check if required value isset.
-	 */
-	public function testGetUsernameFromIlObjUser()
-	{
-		$username                              = 'login';
-		$roomId                                = 99;
-		$_SESSION['chat'][$roomId]['username'] = ''; // Fix missing key warning
+    public function testBuildLogin(): void
+    {
+        $username = 'username';
+        $this->ilUserMock->expects($this->once())->method('getLogin')->willReturn($username);
 
-		$this->ilUserMock->expects($this->once())->method('getLogin')->will($this->returnValue($username));
-		$this->ilChatroomMock->expects($this->any())->method('getRoomId')->will($this->returnValue($roomId));
+        $this->assertSame($username, $this->user->buildLogin());
+    }
 
-		$this->assertEquals($username, $this->user->getUsername());
-	}
+    public function testBuildFullname(): void
+    {
+        $fullname = 'John Doe';
+        $this->ilUserMock->expects($this->once())->method('getPublicName')->willReturn($fullname);
 
-	public function testBuildAnonymousName()
-	{
-		$this->ilChatroomMock->expects($this->any())->method('getSetting')->will($this->returnValue('#_anonymous'));
+        $this->assertSame($fullname, $this->user->buildFullname());
+    }
 
-		$firstName  = $this->user->buildAnonymousName();
-		$secondName = $this->user->buildAnonymousName();
+    public function testBuildShortname(): void
+    {
+        $firstname = 'John';
+        $lastname = 'Doe';
+        $this->ilUserMock->expects($this->once())->method('getFirstname')->willReturn($firstname);
+        $this->ilUserMock->expects($this->once())->method('getLastname')->willReturn($lastname);
 
-		$this->assertNotEquals($firstName, $secondName);
-	}
+        $this->assertSame('J. Doe', $this->user->buildShortname());
+    }
 
-	public function testBuildLogin()
-	{
-		$username = 'username';
-		$this->ilUserMock->expects($this->once())->method('getLogin')->will($this->returnValue($username));
+    public function testGetChatNameSuggestionsIfAnonymous(): void
+    {
+        $this->ilUserMock->method('isAnonymous')->willReturn(true);
+        $this->ilChatroomMock->method('getSetting')->willReturn('#_anonymous');
 
-		$this->assertEquals($username, $this->user->buildLogin());
-	}
+        $first = $this->user->getChatNameSuggestions();
+        $second = $this->user->getChatNameSuggestions();
 
-	public function testBuildFullname()
-	{
-		$fullname = 'John Doe';
-		$this->ilUserMock->expects($this->once())->method('getPublicName')->will($this->returnValue($fullname));
+        $this->assertNotEquals($first, $second);
+    }
 
-		$this->assertEquals($fullname, $this->user->buildFullname());
-	}
+    public function testGetChatNameSuggestionsIfNotAnonymous(): void
+    {
+        $this->ilUserMock->method('isAnonymous')->willReturn(false);
+        $this->ilUserMock->expects($this->once())->method('getFirstname')->willReturn('John');
+        $this->ilUserMock->expects($this->once())->method('getLastname')->willReturn('Doe');
+        $this->ilUserMock->expects($this->once())->method('getPublicName')->willReturn('John Doe');
+        $this->ilUserMock->expects($this->once())->method('getLogin')->willReturn('jdoe');
+        $this->ilChatroomMock->method('getSetting')->willReturn('#_anonymous');
 
-	public function testBuildShortname()
-	{
-		$firstname = 'John';
-		$lastname  = 'Doe';
-		$this->ilUserMock->expects($this->once())->method('getFirstname')->will($this->returnValue($firstname));
-		$this->ilUserMock->expects($this->once())->method('getLastname')->will($this->returnValue($lastname));
+        $suggestions = $this->user->getChatNameSuggestions();
 
-		$this->assertEquals('J. Doe', $this->user->buildShortname());
-	}
+        $this->assertSame('John Doe', $suggestions['fullname']);
+        $this->assertSame('J. Doe', $suggestions['shortname']);
+        $this->assertSame('jdoe', $suggestions['login']);
+    }
 
-	public function testGetChatNameSuggestionsIfAnonymous()
-	{
-		$this->ilUserMock->expects($this->any())->method('isAnonymous')->will($this->returnValue(true));
-		$this->ilChatroomMock->expects($this->any())->method('getSetting')->will($this->returnValue('#_anonymous'));
+    /**
+     * @return array
+     */
+    public function usernameDataProvider(): array
+    {
+        return [
+            ['username', 'username'],
+            ['>username<', '&gt;username&lt;'],
+        ];
+    }
 
-		$first  = $this->user->getChatNameSuggestions();
-		$second = $this->user->getChatNameSuggestions();
+    protected function setUp(): void
+    {
+        parent::setUp();
 
-		$this->assertNotEquals($first, $second);
-	}
+        $this->ilUserMock = $this->getMockBuilder(ilObjUser::class)->disableOriginalConstructor()->onlyMethods(
+            ['getId', 'isAnonymous', 'getLogin', 'getPublicName', 'getFirstname', 'getLastname']
+        )->getMock();
+        $this->ilChatroomMock = $this->getMockBuilder(ilChatroom::class)->disableOriginalConstructor()->onlyMethods(
+            ['getRoomId', 'getSetting']
+        )->getMock();
 
-	public function testGetChatNameSuggestionsIfNotAnonymous()
-	{
-		$this->ilUserMock->expects($this->any())->method('isAnonymous')->will($this->returnValue(false));
-		$this->ilUserMock->expects($this->once())->method('getFirstname')->will($this->returnValue('John'));
-		$this->ilUserMock->expects($this->once())->method('getLastname')->will($this->returnValue('Doe'));
-		$this->ilUserMock->expects($this->once())->method('getPublicName')->will($this->returnValue('John Doe'));
-		$this->ilUserMock->expects($this->once())->method('getLogin')->will($this->returnValue('jdoe'));
-		$this->ilChatroomMock->expects($this->any())->method('getSetting')->will($this->returnValue('#_anonymous'));
-
-		$suggestions = $this->user->getChatNameSuggestions();
-
-		$this->assertEquals('John Doe', $suggestions['fullname']);
-		$this->assertEquals('J. Doe', $suggestions['shortname']);
-		$this->assertEquals('jdoe', $suggestions['login']);
-	}
-
-	/**
-	 * @return array
-	 */
-	public function usernameDataProvider()
-	{
-		return array(
-			array('username', 'username'),
-			array('>username<', '&gt;username&lt;'),
-		);
-	}
+        $this->user = new ilChatroomUser($this->ilUserMock, $this->ilChatroomMock);
+    }
 }

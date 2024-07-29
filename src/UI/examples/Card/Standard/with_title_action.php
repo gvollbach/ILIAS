@@ -1,6 +1,8 @@
 <?php
 
-/* Copyright (c) 2016 Jesús López <lopez@leifos.de> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+namespace ILIAS\UI\examples\Card\Standard;
 
 function with_title_action()
 {

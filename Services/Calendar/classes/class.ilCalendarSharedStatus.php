@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /*
         +-----------------------------------------------------------------------------+
         | ILIAS open source                                                           |
@@ -22,317 +24,178 @@
 */
 
 /**
-* Stores status (accepted/declined) of shared calendars
-*
-* @author Stefan Meyer <smeyer.ilias@gmx.de>
-* @version $Id$
-*
-* @ingroup ServicesCalendar
-*/
+ * Stores status (accepted/declined) of shared calendars
+ * @author  Stefan Meyer <smeyer.ilias@gmx.de>
+ * @ingroup ServicesCalendar
+ */
 class ilCalendarSharedStatus
 {
-	const STATUS_ACCEPTED = 1;
-	const STATUS_DECLINED = 2;
-	const STATUS_DELETED = 3;
-	
-	protected $db = null;
-	
-	private $usr_id = 0;
-	
-	private $calendars = array();
-	private $writable = array();
-	
+    public const STATUS_ACCEPTED = 1;
+    public const STATUS_DECLINED = 2;
+    public const STATUS_DELETED = 3;
 
-	/**
-	 * Constructor
-	 *
-	 * @access public
-	 * @param
-	 * @return
-	 */
-	public function __construct($a_usr_id)
-	{
-		global $DIC;
+    protected ?ilDBInterface $db;
 
-		$ilDB = $DIC['ilDB'];
-		
-		$this->usr_id = $a_usr_id;
-		$this->db = $ilDB;
-		
-		$this->read();
-	}
-	
-	/**
-	 * is accepted
-	 *
-	 * @access public
-	 * @param int cal_id
-	 * @return
-	 */
-	public function isAccepted($a_cal_id)
-	{
-		return isset($this->calendars[$a_cal_id]) and $this->calendars[$a_cal_id] == self::STATUS_ACCEPTED;
-	}
-	
-	/**
-	 * is declined
-	 *
-	 * @access public
-	 * @param int cal_id
-	 * @return
-	 */
-	public function isDeclined($a_cal_id)
-	{
-		return isset($this->calendars[$a_cal_id]) and $this->calendars[$a_cal_id] == self::STATUS_DECLINED;
-	}
-	
-	/**
-	 * get accepted shared calendars
-	 *
-	 * @access public
-	 * @param int usr_id
-	 * @return array int array of calendar ids
-	 */ 
-	public static function getAcceptedCalendars($a_usr_id)
-	{
-		global $DIC;
+    private int $usr_id = 0;
 
-		$ilDB = $DIC['ilDB'];
-		
-		$query = "SELECT cal_id FROM cal_shared_status ".
-			"WHERE status = ".$ilDB->quote(self::STATUS_ACCEPTED ,'integer')." ".
-			"AND usr_id = ".$ilDB->quote($a_usr_id ,'integer')." ";
-		$res = $ilDB->query($query);
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			$cal_ids[] = $row->cal_id;
-		}
-		return $cal_ids ? $cal_ids : array();
-	}
-	
-	/**
-	 * check if a status is set for an calendar
-	 *
-	 * @access public
-	 * @param int usr_id
-	 * @param int calendar id
-	 * @return bool
-	 * @static
-	 */
-	public static function hasStatus($a_usr_id,$a_calendar_id)
-	{
-		global $DIC;
+    private array $calendars = array();
+    private array $writable = array();
 
-		$ilDB = $DIC['ilDB'];
-		
-		$query = "SELECT * FROM cal_shared_status ".
-			"WHERE usr_id = ".$ilDB->quote($a_usr_id ,'integer')." ".
-			"AND cal_id = ".$ilDB->quote($a_calendar_id ,'integer')." ";
-		$res = $ilDB->query($query);
-		return $res->numRows() ? true : false;
-	}
-	
-	/**
-	 * Delete by user
-	 *
-	 * @access public
-	 * @param int usr_id
-	 * @return bool
-	 * @static
-	 */
-	public static function deleteUser($a_usr_id)
-	{
-		global $DIC;
+    public function __construct(int $a_usr_id)
+    {
+        global $DIC;
+        $this->usr_id = $a_usr_id;
+        $this->db = $DIC->database();
+        $this->read();
+    }
 
-		$ilUser = $DIC['ilUser'];
-		$ilDB = $DIC['ilDB'];
-		
-		$query = "DELETE FROM cal_shared_status ".
-			"WHERE usr_id = ".$ilDB->quote($a_usr_id ,'integer')." ";
-		$res = $ilDB->manipulate($query);
-		return true;
-	}
-	
-	/**
-	 * Delete calendar
-	 *
-	 * @access public
-	 * @param int calendar id
-	 * @return bool
-	 * @static
-	 */
-	public static function deleteCalendar($a_calendar_id)
-	{
-		global $DIC;
+    public function isAccepted(int $a_cal_id): bool
+    {
+        return
+            isset($this->calendars[$a_cal_id]) &&
+            $this->calendars[$a_cal_id] == self::STATUS_ACCEPTED;
+    }
 
-		$ilDB = $DIC['ilDB'];
-		
-		$query = "DELETE FROM cal_shared_status ".
-			"WHERE cal_id = ".$ilDB->quote($a_calendar_id ,'integer')." ";
-		$res = $ilDB->manipulate($query);
-		return true;
-	}
-	
-	/**
-	 * delete status
-	 *
-	 * @access public
-	 * @param int usr_id or role_id
-	 * @param int calendar_id
-	 * @return
-	 * @static
-	 */
-	public static function deleteStatus($a_id,$a_calendar_id)
-	{
-		global $DIC;
+    public function isDeclined(int $a_cal_id): bool
+    {
+        return
+            isset($this->calendars[$a_cal_id]) &&
+            $this->calendars[$a_cal_id] == self::STATUS_DECLINED;
+    }
 
-		$ilDB = $DIC['ilDB'];
-		$rbacreview = $DIC['rbacreview'];
-		
-		
-		if(ilObject::_lookupType($a_id) == 'usr')
-		{
-			$query = "DELETE FROM cal_shared_status ".
-				"WHERE cal_id = ".$ilDB->quote($a_calendar_id ,'integer')." ".
-				"AND usr_id = ".$ilDB->quote($a_id ,'integer')." ";
-			$res = $ilDB->manipulate($query);
-			
-		}
-		elseif(ilObject::_lookupType($a_id) == 'role')
-		{
-			$assigned_users = $rbacreview->assignedUsers($a_id);
-			
-			if(!count($assigned_users))
-			{
-				return true;
-			}
-			
-			$query = "DELETE FROM cal_shared_status ".
-				"WHERE cal_id = ".$ilDB->quote($a_calendar_id ,'integer')." ".
-				"AND ".$ilDB->in('usr_id',$assigned_users,false,'integer');
-			$res = $ilDB->manipulate($query);
-			
-		}		
-		
-		return true;
-	}
-	
-	
-	
-	/**
-	 * accept calendar
-	 *
-	 * @access public
-	 * @param int calendar id
-	 * @return
-	 */
-	public function accept($a_calendar_id)
-	{
-		global $DIC;
+    public static function getAcceptedCalendars(int $a_usr_id): array
+    {
+        global $DIC;
 
-		$ilDB = $DIC['ilDB'];
-		
-		self::deleteStatus($this->usr_id,$a_calendar_id);
-		
-		$query = "INSERT INTO cal_shared_status (cal_id,usr_id,status) ".
-			"VALUES ( ".
-			$this->db->quote($a_calendar_id ,'integer').", ".
-			$this->db->quote($this->usr_id ,'integer').", ".
-			$this->db->quote(self::STATUS_ACCEPTED ,'integer')." ".
-			")";
-		$res = $ilDB->manipulate($query);
-		
-		$this->calendars[$a_calendar_id] = self::STATUS_ACCEPTED;
-		
-		return true;
-	}
-	
-	/**
-	 * decline calendar
-	 *
-	 * @access public
-	 * @param int calendar id
-	 * @return
-	 */
-	public function decline($a_calendar_id)
-	{
-		global $DIC;
+        $ilDB = $DIC['ilDB'];
+        $query = "SELECT cal_id FROM cal_shared_status " .
+            "WHERE status = " . $ilDB->quote(self::STATUS_ACCEPTED, 'integer') . " " .
+            "AND usr_id = " . $ilDB->quote($a_usr_id, 'integer') . " ";
+        $res = $ilDB->query($query);
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $cal_ids[] = $row->cal_id;
+        }
+        return $cal_ids ?? [];
+    }
 
-		$ilDB = $DIC['ilDB'];
+    public static function hasStatus(int $a_usr_id, int $a_calendar_id): bool
+    {
+        global $DIC;
 
-		self::deleteStatus($this->usr_id,$a_calendar_id);
-		
-		$query = "INSERT INTO cal_shared_status (cal_id,usr_id,status) ".
-			"VALUES ( ".
-			$this->db->quote($a_calendar_id ,'integer').", ".
-			$this->db->quote($this->usr_id ,'integer').", ".
-			$this->db->quote(self::STATUS_DECLINED ,'integer')." ".
-			")";
-		$res = $ilDB->manipulate($query);
-		
-		$this->calendars[$a_calendar_id] = self::STATUS_DECLINED;
+        $ilDB = $DIC['ilDB'];
+        $query = "SELECT * FROM cal_shared_status " .
+            "WHERE usr_id = " . $ilDB->quote($a_usr_id, 'integer') . " " .
+            "AND cal_id = " . $ilDB->quote($a_calendar_id, 'integer') . " ";
+        $res = $ilDB->query($query);
+        return (bool) $res->numRows();
+    }
 
-		return true;
-	
-	}
-	
-	/**
-	 * read
-	 *
-	 * @access protected
-	 * @return
-	 */
-	protected function read()
-	{
-		global $DIC;
+    public static function deleteUser(int $a_usr_id): void
+    {
+        global $DIC;
 
-		$ilDB = $DIC['ilDB'];
-		
-		$query = "SELECT * FROM cal_shared_status ".
-			"WHERE usr_id = ".$this->db->quote($this->usr_id ,'integer')." ";
-		$res = $this->db->query($query);
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			$this->calendars[$row->cal_id] = $row->status; 
-		}
-	}
+        $ilDB = $DIC['ilDB'];
+        $query = "DELETE FROM cal_shared_status " .
+            "WHERE usr_id = " . $ilDB->quote($a_usr_id, 'integer') . " ";
+        $res = $ilDB->manipulate($query);
+    }
 
-	/**
-	 * Get open invitations
-	 *
-	 * @return array
-	 */
-	function getOpenInvitations()
-	{
-		include_once('./Services/Calendar/classes/class.ilCalendarShared.php');
-		$shared = ilCalendarShared::getSharedCalendarsForUser($this->usr_id);
+    public static function deleteCalendar(int $a_calendar_id): void
+    {
+        global $DIC;
 
-		$invitations = array();
+        $ilDB = $DIC['ilDB'];
+        $query = "DELETE FROM cal_shared_status " .
+            "WHERE cal_id = " . $ilDB->quote($a_calendar_id, 'integer') . " ";
+        $res = $ilDB->manipulate($query);
+    }
 
-		foreach($shared as $data)
-		{
-			if($this->isDeclined($data['cal_id']) || $this->isAccepted($data['cal_id']))
-			{
-				continue;
-			}
+    public static function deleteStatus(int $a_id, int $a_calendar_id): void
+    {
+        global $DIC;
 
-			$tmp_calendar = new ilCalendarCategory($data['cal_id']);
+        $ilDB = $DIC['ilDB'];
+        $rbacreview = $DIC['rbacreview'];
 
-			$invitations[] = array(
-				'cal_id' => $data['cal_id'],
-				'create_date' => $data['create_date'],
-				'obj_type' => $data['obj_type'],
-				'name' => $tmp_calendar->getTitle(),
-				'owner' => $tmp_calendar->getObjId(),
-				'apps' => count(ilCalendarCategoryAssignments::_getAssignedAppointments(array($data['cal_id']))),
-				'accepted' => $this->isAccepted($data['cal_id']),
-				'declined' => $this->isDeclined($data['cal_id'])
-			);
+        if (ilObject::_lookupType($a_id) == 'usr') {
+            $query = "DELETE FROM cal_shared_status " .
+                "WHERE cal_id = " . $ilDB->quote($a_calendar_id, 'integer') . " " .
+                "AND usr_id = " . $ilDB->quote($a_id, 'integer') . " ";
+            $res = $ilDB->manipulate($query);
+        } elseif (ilObject::_lookupType($a_id) == 'role') {
+            $assigned_users = $rbacreview->assignedUsers($a_id);
 
-		}
+            if (!count($assigned_users)) {
+                return;
+            }
 
-		return $invitations;
-	}
+            $query = "DELETE FROM cal_shared_status " .
+                "WHERE cal_id = " . $ilDB->quote($a_calendar_id, 'integer') . " " .
+                "AND " . $ilDB->in('usr_id', $assigned_users, false, 'integer');
+            $res = $ilDB->manipulate($query);
+        }
+    }
 
+    public function accept(int $a_calendar_id): void
+    {
+        self::deleteStatus($this->usr_id, $a_calendar_id);
+        $query = "INSERT INTO cal_shared_status (cal_id,usr_id,status) " .
+            "VALUES ( " .
+            $this->db->quote($a_calendar_id, 'integer') . ", " .
+            $this->db->quote($this->usr_id, 'integer') . ", " .
+            $this->db->quote(self::STATUS_ACCEPTED, 'integer') . " " .
+            ")";
+        $res = $this->db->manipulate($query);
+
+        $this->calendars[$a_calendar_id] = self::STATUS_ACCEPTED;
+    }
+
+    public function decline(int $a_calendar_id): void
+    {
+        self::deleteStatus($this->usr_id, $a_calendar_id);
+        $query = "INSERT INTO cal_shared_status (cal_id,usr_id,status) " .
+            "VALUES ( " .
+            $this->db->quote($a_calendar_id, 'integer') . ", " .
+            $this->db->quote($this->usr_id, 'integer') . ", " .
+            $this->db->quote(self::STATUS_DECLINED, 'integer') . " " .
+            ")";
+        $res = $this->db->manipulate($query);
+        $this->calendars[$a_calendar_id] = self::STATUS_DECLINED;
+    }
+
+    protected function read()
+    {
+        $query = "SELECT * FROM cal_shared_status " .
+            "WHERE usr_id = " . $this->db->quote($this->usr_id, 'integer') . " ";
+        $res = $this->db->query($query);
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $this->calendars[(int) $row->cal_id] = (int) $row->status;
+        }
+    }
+
+    public function getOpenInvitations(): array
+    {
+        $shared = ilCalendarShared::getSharedCalendarsForUser($this->usr_id);
+
+        $invitations = array();
+        foreach ($shared as $data) {
+            if ($this->isDeclined($data['cal_id']) || $this->isAccepted($data['cal_id'])) {
+                continue;
+            }
+
+            $tmp_calendar = new ilCalendarCategory($data['cal_id']);
+
+            $invitations[] = array(
+                'cal_id' => (int) $data['cal_id'],
+                'create_date' => $data['create_date'],
+                'obj_type' => $data['obj_type'],
+                'name' => $tmp_calendar->getTitle(),
+                'owner' => $tmp_calendar->getObjId(),
+                'apps' => count(ilCalendarCategoryAssignments::_getAssignedAppointments(array((int) $data['cal_id']))),
+                'accepted' => $this->isAccepted((int) $data['cal_id']),
+                'declined' => $this->isDeclined((int) $data['cal_id'])
+            );
+        }
+        return $invitations;
+    }
 }
-?>

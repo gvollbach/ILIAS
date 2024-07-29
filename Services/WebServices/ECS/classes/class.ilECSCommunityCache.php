@@ -1,204 +1,182 @@
 <?php
+
 /**
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2006 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ */
+
+declare(strict_types=1);
 
 /**
 * @author Stefan Meyer <meyer@leifos.com>
-* @version $Id$
-*
-*
-* @ingroup ServicesWebServicesECS
 */
-
 class ilECSCommunityCache
 {
-	protected static $instance = null;
+    /** @var array<int, array<int, self>>  */
+    protected static array $instance = [];
 
-	protected $sid = 0;
-	protected $cid = 0;
-	protected $own_id = 0;
-	protected $cname = '';
-	protected $mids = array();
+    protected int $server_id = 0;
+    protected int $community_id = 0;
+    protected int $own_id = 0;
+    protected string $cname = '';
+    protected array $mids = array();
 
-	protected $entryExists = false;
-	
+    protected bool $entryExists = false;
 
-	/**
-	 * Singleton constructor
-	 * @param int $sid
-	 * @param int $cid
-	 */
-	protected function __construct($sid,$cid)
-	{
-		$this->sid = $sid;
-		$this->cid = $cid;
+    private ilDBInterface $db;
 
-		$this->read();
-	}
+    /**
+     * Singleton constructor
+     * @param int $server_id
+     * @param int $community_id
+     */
+    protected function __construct(int $server_id, int $community_id)
+    {
+        global $DIC;
 
-	/**
-	 * Get instance
-	 * @param int $a_sid
-	 * @param int $a_cid
-	 * @return ilECSCommunityCache
-	 */
-	public static function getInstance($a_sid,$a_cid)
-	{
-		if(isset(self::$instance[$a_sid][$a_cid]))
-		{
-			return self::$instance[$a_sid][$a_cid];
-		}
-		return self::$instance[$a_sid][$a_cid] = new ilECSCommunityCache($a_sid, $a_cid);
-	}
+        $this->db = $DIC->database();
 
+        $this->server_id = $server_id;
+        $this->community_id = $community_id;
 
+        $this->read();
+    }
 
-	public function getServerId()
-	{
-		return $this->sid;
-	}
-
-	public function getCommunityId()
-	{
-		return $this->cid;
-	}
-
-	public function setOwnId($a_id)
-	{
-		$this->own_id = $a_id;
-	}
-
-	public function getOwnId()
-	{
-		return $this->own_id;
-	}
-
-	public function setCommunityName($a_name)
-	{
-		$this->cname = $a_name;
-	}
-
-	public function getCommunityName()
-	{
-		return $this->cname;
-	}
-
-	public function setMids($a_mids)
-	{
-		$this->mids = $a_mids;
-	}
-
-	public function getMids()
-	{
-		return $this->mids;
-	}
-
-	/**
-	 * Create or update ecs community
-	 * @global ilDB $ilDB
-	 * @return bool
-	 */
-	public function update()
-	{
-		global $DIC;
-
-		$ilDB = $DIC['ilDB'];
-
-		if(!$this->entryExists)
-		{
-			return $this->create();
-		}
-
-		$query = 'UPDATE ecs_community '.
-			'SET own_id = '.$ilDB->quote($this->getOwnId(),'integer').', '.
-			'cname = '.$ilDB->quote($this->getCommunityName(),'text').', '.
-			'mids = '.$ilDB->quote(serialize($this->getMids()),'text').' '.
-			'WHERE sid = '.$ilDB->quote($this->getServerId(),'integer').' '.
-			'AND cid = '.$ilDB->quote($this->getCommunityId(),'integer');
-		$ilDB->manipulate($query);
-		return true;
-	}
+    /**
+     * Get instance
+     * @param int $a_server_id
+     * @param int $a_community_id
+     * @return ilECSCommunityCache
+     */
+    public static function getInstance(int $a_server_id, int $a_community_id): ilECSCommunityCache
+    {
+        return self::$instance[$a_server_id][$a_community_id] ??
+            (self::$instance[$a_server_id][$a_community_id] = new ilECSCommunityCache(
+                $a_server_id,
+                $a_community_id
+            ));
+    }
 
 
 
-	/**
-	 * Create new dataset
-	 * @global ilDB $ilDB
-	 */
-	protected function create()
-	{
-		global $DIC;
+    public function getServerId(): int
+    {
+        return $this->server_id;
+    }
 
-		$ilDB = $DIC['ilDB'];
+    public function getCommunityId(): int
+    {
+        return $this->community_id;
+    }
 
-		$query = 'INSERT INTO ecs_community (sid,cid,own_id,cname,mids) '.
-			'VALUES( '.
-			$ilDB->quote($this->getServerId(),'integer').', '.
-			$ilDB->quote($this->getCommunityId(),'integer').', '.
-			$ilDB->quote($this->getOwnId(),'integer').', '.
-			$ilDB->quote($this->getCommunityName(), 'text').', '.
-			$ilDB->quote(serialize($this->getMids()),'text').' '.
-			')';
-		$ilDB->manipulate($query);
-		return true;
-	}
+    public function setOwnId(int $a_id): void
+    {
+        $this->own_id = $a_id;
+    }
 
-	/**
-	 * Read dataset
-	 * @global ilDB $ilDB
-	 * @return bool
-	 */
-	protected function read()
-	{
-		global $DIC;
+    public function getOwnId(): int
+    {
+        return $this->own_id;
+    }
 
-		$ilDB = $DIC['ilDB'];
+    public function setCommunityName(string $a_name): void
+    {
+        $this->cname = $a_name;
+    }
 
-		$this->entryExists = false;
+    public function getCommunityName(): string
+    {
+        return $this->cname;
+    }
 
-		$query = 'SELECT * FROM ecs_community '.
-			'WHERE sid = '.$ilDB->quote($this->getServerId(),'integer').' '.
-			'AND cid = '.$ilDB->quote($this->getCommunityId(),'integer');
-		$res = $ilDB->query($query);
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			$this->entryExists = true;
-			$this->setOwnId($row->own_id);
-			$this->setCommunityName($row->cname);
-			$this->setMids(unserialize($row->mids));
-		}
-		return true;
-	}
-	
-	public static function deleteByServerId($a_server_id)
-	{
-		global $DIC;
+    public function setMids(array $a_mids): void
+    {
+        $this->mids = $a_mids;
+    }
 
-		$ilDB = $DIC['ilDB'];
+    public function getMids(): array
+    {
+        return $this->mids;
+    }
 
-		$query = 'DELETE FROM ecs_community'.
-			' WHERE sid = '.$ilDB->quote($a_server_id,'integer');
-		$ilDB->manipulate($query);
-		return true;
-	}
+    /**
+     * Create or update ecs community
+     */
+    public function update(): bool
+    {
+        if (!$this->entryExists) {
+            return $this->create();
+        }
+
+        $query = 'UPDATE ecs_community ' .
+            'SET own_id = ' . $this->db->quote($this->getOwnId(), 'integer') . ', ' .
+            'cname = ' . $this->db->quote($this->getCommunityName(), 'text') . ', ' .
+            'mids = ' . $this->db->quote(serialize($this->getMids()), 'text') . ' ' .
+            'WHERE sid = ' . $this->db->quote($this->getServerId(), 'integer') . ' ' .
+            'AND cid = ' . $this->db->quote($this->getCommunityId(), 'integer');
+        $this->db->manipulate($query);
+        return true;
+    }
+
+
+
+    /**
+     * Create new dataset
+     */
+    protected function create(): bool
+    {
+        $query = 'INSERT INTO ecs_community (sid,cid,own_id,cname,mids) ' .
+            'VALUES( ' .
+            $this->db->quote($this->getServerId(), 'integer') . ', ' .
+            $this->db->quote($this->getCommunityId(), 'integer') . ', ' .
+            $this->db->quote($this->getOwnId(), 'integer') . ', ' .
+            $this->db->quote($this->getCommunityName(), 'text') . ', ' .
+            $this->db->quote(serialize($this->getMids()), 'text') . ' ' .
+            ')';
+        $this->db->manipulate($query);
+        return true;
+    }
+
+    /**
+     * Read dataset
+     */
+    private function read(): void
+    {
+        $this->entryExists = false;
+
+        $query = 'SELECT * FROM ecs_community ' .
+            'WHERE sid = ' . $this->db->quote($this->getServerId(), 'integer') . ' ' .
+            'AND cid = ' . $this->db->quote($this->getCommunityId(), 'integer');
+        $res = $this->db->query($query);
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $this->entryExists = true;
+            $this->setOwnId((int) $row->own_id);
+            $this->setCommunityName($row->cname);
+            $this->setMids(unserialize($row->mids, ['allowed_classes' => true]));
+        }
+    }
+
+    /**
+     * @todo move function into CommunityCacheRepository
+     *
+     * @param int $a_server_id
+     * @return bool
+     */
+    public function deleteByServerId(int $a_server_id): bool
+    {
+        $query = 'DELETE FROM ecs_community' .
+            ' WHERE sid = ' . $this->db->quote($a_server_id, 'integer');
+        $this->db->manipulate($query);
+        return true;
+    }
 }
-?>

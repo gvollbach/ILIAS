@@ -1,5 +1,22 @@
 <?php
-/* Copyright (c) 1998-2016 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilSamlSettings
@@ -7,50 +24,30 @@
  */
 class ilSamlSettings
 {
-	/**
-	 * @var self
-	 */
-	protected static $instance = null;
+    protected static ?self $instance = null;
+    protected ilSetting $settings;
 
-	/**
-	 * @var ilSetting
-	 */
-	protected $settings;
+    protected function __construct()
+    {
+        $this->settings = new ilSetting('auth_saml');
+    }
 
-	/**
-	 * ilSamlSettings constructor.
-	 */
-	protected function __construct()
-	{
-		$this->settings = new ilSetting('auth_saml');
-	}
+    public static function getInstance(): self
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
 
-	/**
-	 * @return self
-	 */
-	public static function getInstance()
-	{
-		if(null === self::$instance)
-		{
-			self::$instance = new self();
-		}
+        return self::$instance;
+    }
 
-		return self::$instance;
-	}
+    public function isDisplayedOnLoginPage(): bool
+    {
+        return (bool) $this->settings->get('login_form', '0');
+    }
 
-	/**
-	 * @return boolean
-	 */
-	public function isDisplayedOnLoginPage()
-	{
-		return (bool)$this->settings->get('login_form', 0);
-	}
-
-	/**
-	 * @param $displayed_on_login_page boolean
-	 */
-	public function setLoginFormStatus($displayed_on_login_page)
-	{
-		$this->settings->set('login_form', (int)$displayed_on_login_page);
-	}
+    public function setLoginFormStatus(bool $displayed_on_login_page): void
+    {
+        $this->settings->set('login_form', (string) ((int) $displayed_on_login_page));
+    }
 }

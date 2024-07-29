@@ -1,23 +1,46 @@
 <?php
 
-/* Copyright (c) 1998-2011 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
-include_once "Services/Object/classes/class.ilObjectListGUI.php";
+use ILIAS\FileUpload\MimeType;
 
 /**
  * Class ilObjFileListGUI
- *
  * @author        Alex Killing <alex.killing@gmx.de>
  * @author        Stefan Born <stefan.born@phzh.ch>
  * @author        Fabian Schmid <fs@studer-raimann.ch>
  */
 class ilObjFileListGUI extends ilObjectListGUI
 {
+    use ilObjFileSecureString;
+
+    private ilObjFileInfoRepository $file_info;
+    protected string $title;
+
+    public function __construct(int $context = self::CONTEXT_REPOSITORY)
+    {
+        parent::__construct($context);
+        $this->file_info = new ilObjFileInfoRepository();
+    }
 
     /**
      * initialisation
      */
-    function init()
+    public function init(): void
     {
         $this->delete_enabled = true;
         $this->cut_enabled = true;
@@ -25,29 +48,22 @@ class ilObjFileListGUI extends ilObjectListGUI
         $this->subscribe_enabled = true;
         $this->link_enabled = true;
         $this->info_screen_enabled = true;
-        $this->type = "file";
-        $this->gui_class_name = "ilobjfilegui";
-
-        // general commands array
-        include_once('./Modules/File/classes/class.ilObjFileAccess.php');
+        $this->type = ilObjFile::OBJECT_TYPE;
+        $this->gui_class_name = ilObjFileGUI::class;
         $this->commands = ilObjFileAccess::_getCommands();
     }
 
-
     /**
      * Get command target frame
-     *
-     * @param string $a_cmd command
-     *
-     * @return    string        command target frame
      */
-    function getCommandFrame($a_cmd)
+    public function getCommandFrame(string $cmd): string
     {
+        $info = $this->file_info->getByObjectId($this->obj_id);
+
         $frame = "";
-        switch ($a_cmd) {
-            case 'sendfile' :
-                require_once('Modules/File/classes/class.ilObjFileAccess.php');
-                if (ilObjFileAccess::_isFileInline($this->title)) {
+        switch ($cmd) {
+            case 'sendfile':
+                if ($info->shouldDeliverInline()) {
                     $frame = '_blank';
                 }
                 break;
@@ -62,146 +78,160 @@ class ilObjFileListGUI extends ilObjectListGUI
     }
 
 
+
     /**
      * Returns the icon image type.
      * For most objects, this is same as the object type, e.g. 'cat','fold'.
      * We can return here other values, to express a specific state of an object,
-     * e.g. 'crs_offline", and/or to express a specific kind of object, e.g.
+     * e.g. 'crs_offline', and/or to express a specific kind of object, e.g.
      * 'file_inline'.
      */
-    function getIconImageType()
+    public function getIconImageType(): string
     {
-        include_once('Modules/File/classes/class.ilObjFileAccess.php');
-
-        return ilObjFileAccess::_isFileInline($this->title) ? $this->type . '_inline' : $this->type;
+        return $this->file_info->getByObjectId($this->obj_id)->shouldDeliverInline()
+            ? $this->type . '_inline'
+            : $this->type;
     }
 
 
-    /**
-     * getTitle overwritten in class.ilObjLinkResourceList.php
-     *
-     * @return string title
-     */
-    public function getTitle()
+    public function getTitle(): string
     {
         // Remove filename extension from title
-        return preg_replace('/\\.[a-z0-9]+\\z/i', '', $this->title);
-    }
+        return $this->file_info->getByObjectId($this->obj_id)->getListTitle();
 
+        return $this->secure(preg_replace('/\\.[a-z0-9]+\\z/i', '', $this->title));
+
+    }
 
     /**
      * Get item properties
-     *
      * @return    array        array of property arrays:
      *                        "alert" (boolean) => display as an alert property (usually in red)
      *                        "property" (string) => property name
      *                        "value" (string) => property value
      */
-    public function getProperties()
+    public function getProperties(): array
     {
         global $DIC;
 
         $props = parent::getProperties();
 
-        // to do: implement extra smaller file info object
+        $info = $this->file_info->getByObjectId($this->obj_id);
 
-        // Display a warning if a file is not a hidden Unix file, and
-        // the filename extension is missing
-        if (!preg_match('/^\\.|\\.[a-zA-Z0-9]+$/', $this->title)) {
+        $revision = $info->getVersion();
+
+        $props[] = array(
+            "alert" => false,
+            "property" => $DIC->language()->txt("type"),
+            "value" => $info->getSuffix(),
+            'propertyNameVisible' => false,
+        );
+
+        $props[] = array(
+            "alert" => false,
+            "property" => $DIC->language()->txt("size"),
+            "value" => (string) $info->getFileSize(),
+            'propertyNameVisible' => false,
+        );
+
+        $version = $info->getVersion();
+        if ($version > 1) {
+            // add versions link
+            if (parent::checkCommandAccess("write", "versions", $this->ref_id, $this->type)) {
+                $link = $this->getCommandLink("versions");
+                $value = "<a href=\"$link\">" . $DIC->language()->txt("version") . ": $version</a>";
+            } else {
+                $value = $DIC->language()->txt("version") . ": $version";
+            }
             $props[] = array(
-                "alert"               => false,
-                "property"            => $DIC->language()->txt("filename_interoperability"),
-                "value"               => $DIC->language()->txt("filename_extension_missing"),
-                'propertyNameVisible' => false,
+                "alert" => false,
+                "property" => $DIC->language()->txt("version"),
+                "value" => $value,
+                "propertyNameVisible" => false,
             );
         }
 
         $props[] = array(
-            "alert"               => false,
-            "property"            => $DIC->language()->txt("type"),
-            "value"               => ilObjFileAccess::_getFileExtension($this->title),
+            "alert" => false,
+            "property" => $DIC->language()->txt("last_update"),
+            "value" => ilDatePresentation::formatDate(
+                new ilDateTime($info->getCreationDate()->format('U'), IL_CAL_UNIX)
+            ),
             'propertyNameVisible' => false,
         );
 
-        $fileData = ilObjFileAccess::getListGUIData($this->obj_id);
-        if (is_array($fileData)) {
+        if ($info->getPageCount() !== null && $info->getPageCount() > 0) {
             $props[] = array(
-                "alert"               => false,
-                "property"            => $DIC->language()->txt("size"),
-                "value"               => ilUtil::formatSize($fileData['size'], 'short'),
-                'propertyNameVisible' => false,
+                "alert" => false,
+                "property" => $DIC->language()->txt("page_count"),
+                "value" => $info->getPageCount(),
+                'propertyNameVisible' => true,
             );
-            $version = $fileData['version'];
-            if ($version > 1) {
-                // add versions link
-                if (parent::checkCommandAccess("write", "versions", $this->ref_id, $this->type)) {
-                    $link = $this->getCommandLink("versions");
-                    $value = "<a href=\"$link\">" . $DIC->language()->txt("version") . ": $version</a>";
-                } else {
-                    $value = $DIC->language()->txt("version") . ": $version";
-                }
-                $props[] = array(
-                    "alert"               => false,
-                    "property"            => $DIC->language()->txt("version"),
-                    "value"               => $value,
-                    "propertyNameVisible" => false,
-                );
-            }
-
-            // #6040
-            if ($fileData["date"]) {
-                $props[] = array(
-                    "alert"               => false,
-                    "property"            => $DIC->language()->txt("last_update"),
-                    "value"               => ilDatePresentation::formatDate(new ilDateTime($fileData["date"], IL_CAL_DATETIME)),
-                    'propertyNameVisible' => false,
-                );
-            }
-
-            if ($fileData["page_count"]) {
-                $props[] = array(
-                    "alert"               => false,
-                    "property"            => $DIC->language()->txt("page_count"),
-                    "value"               => $fileData["page_count"],
-                    'propertyNameVisible' => true,
-                );
-            }
         }
 
         return $props;
     }
 
-
     /**
      * Get command icon image
      */
-    function getCommandImage($a_cmd)
+    public function getCommandImage($a_cmd): string
     {
-        switch ($a_cmd) {
-            default:
-                return "";
-        }
+        return "";
     }
 
+    public function checkCommandAccess(
+        string $permission,
+        string $cmd,
+        int $ref_id,
+        string $type,
+        ?int $obj_id = null
+    ): bool {
+        if (ilFileVersionsGUI::CMD_UNZIP_CURRENT_REVISION === $cmd) {
+            $info = $this->file_info->getByObjectId($this->obj_id);
 
-    /**
-     * Get command link url.
-     *
-     * @param string $a_cmd The command to get the link for.
-     *
-     * @return string The command link.
-     */
-    function getCommandLink($a_cmd)
+            return $info->isZip() && parent::checkCommandAccess(
+                $permission,
+                $cmd,
+                $ref_id,
+                $type,
+                $obj_id
+            );
+        }
+
+        return parent::checkCommandAccess(
+            $permission,
+            $cmd,
+            $ref_id,
+            $type,
+            $obj_id
+        );
+    }
+
+    public function getCommandLink(string $cmd): string
     {
-        // overwritten to always return the permanent download link
-
         // only create permalink for repository
-        if ($a_cmd == "sendfile" && $this->context == self::CONTEXT_REPOSITORY) {
+        if ($cmd === "sendfile" && $this->context === self::CONTEXT_REPOSITORY) {
             // return the perma link for downloads
             return ilObjFileAccess::_getPermanentDownloadLink($this->ref_id);
         }
 
-        return parent::getCommandLink($a_cmd);
+        if (ilFileVersionsGUI::CMD_UNZIP_CURRENT_REVISION === $cmd) {
+            $info = $this->file_info->getByObjectId($this->obj_id);
+
+            if ($info->isZip()) {
+                $this->ctrl->setParameterByClass(ilRepositoryGUI::class, 'ref_id', $this->ref_id);
+                $cmd_link = $this->ctrl->getLinkTargetByClass(
+                    ilRepositoryGUI::class,
+                    ilFileVersionsGUI::CMD_UNZIP_CURRENT_REVISION
+                );
+                $this->ctrl->setParameterByClass(ilRepositoryGUI::class, 'ref_id', $this->requested_ref_id);
+            } else {
+                $access_granted = false;
+            }
+        }
+
+
+        return parent::getCommandLink($cmd);
     }
-} // END class.ilObjFileListGUI
-?>
+}

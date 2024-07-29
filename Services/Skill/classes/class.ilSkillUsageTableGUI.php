@@ -1,87 +1,91 @@
 <?php
 
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
 
-include_once("./Services/Table/classes/class.ilTable2GUI.php");
+use ILIAS\Skill\Tree;
 
 /**
  * TableGUI class for skill usages
  *
  * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- *
- * @ingroup Services
  */
 class ilSkillUsageTableGUI extends ilTable2GUI
 {
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    protected ilAccessHandler $access;
+    protected ilSkillTreeRepository $tree_repo;
+    protected Tree\SkillTreeFactory $tree_factory;
+    protected Tree\SkillTreeManager $tree_manager;
+    protected int $skill_id = 0;
+    protected int $tref_id = 0;
 
-	/**
-	 * @var ilAccessHandler
-	 */
-	protected $access;
+    public function __construct($a_parent_obj, string $a_parent_cmd, string $a_cskill_id, array $a_usage, $a_mode = "")
+    {
+        global $DIC;
 
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        $this->access = $DIC->access();
+        $ilCtrl = $DIC->ctrl();
 
-	/**
-	 * Constructor
-	 */
-	function __construct($a_parent_obj, $a_parent_cmd, $a_cskill_id, $a_usage)
-	{
-		global $DIC;
+        $this->tree_repo = $DIC->skills()->internal()->repo()->getTreeRepo();
+        $this->tree_factory = $DIC->skills()->internal()->factory()->tree();
+        $this->tree_manager = $DIC->skills()->internal()->manager()->getTreeManager();
 
-		$this->ctrl = $DIC->ctrl();
-		$this->lng = $DIC->language();
-		$this->access = $DIC->access();
-		$ilCtrl = $DIC->ctrl();
-		$lng = $DIC->language();
-		$ilAccess = $DIC->access();
-		$lng = $DIC->language();
+        $id_parts = explode(":", $a_cskill_id);
+        $this->skill_id = (int) $id_parts[0];
+        $this->tref_id = (int) $id_parts[1];
 
-		$id_parts = explode(":", $a_cskill_id);
-		$this->skill_id = $id_parts[0];
-		$this->tref_id = $id_parts[1];
+        $data = [];
+        foreach ($a_usage as $k => $v) {
+            $data[] = array("type" => $k, "usages" => $v);
+        }
 
-		$data = array();
-		foreach ($a_usage as $k => $v)
-		{
-			$data[] = array("type" => $k, "usages" => $v);
-		}
+        parent::__construct($a_parent_obj, $a_parent_cmd);
+        $this->setData($data);
 
-		parent::__construct($a_parent_obj, $a_parent_cmd);
-		$this->setData($data);
-		$this->setTitle(ilSkillTreeNode::_lookupTitle($this->skill_id, $this->tref_id));
+        $tree = $this->tree_repo->getTreeForNodeId($this->skill_id);
+        if ($a_mode == "tree") {
+            $tree_obj = $this->tree_manager->getTree($tree->getTreeId());
+            $title = $tree_obj->getTitle() . " > " . ilSkillTreeNode::_lookupTitle($this->skill_id, $this->tref_id);
+            $this->setTitle($title);
+        } else {
+            $this->setTitle(ilSkillTreeNode::_lookupTitle($this->skill_id, $this->tref_id));
+        }
 
-		include_once("./Services/Skill/classes/class.ilSkillTree.php");
-		$tree = new ilSkillTree();
-		$path = $tree->getSkillTreePathAsString($this->skill_id, $this->tref_id);
-		$this->setDescription($path);
+        $path = $tree->getSkillTreePathAsString($this->skill_id, $this->tref_id);
+        $this->setDescription($path);
 
-		$this->addColumn($this->lng->txt("skmg_type"), "", "50%");
-		$this->addColumn($this->lng->txt("skmg_number"), "", "50%");
+        $this->addColumn($this->lng->txt("skmg_type"), "", "50%");
+        $this->addColumn($this->lng->txt("skmg_number"), "", "50%");
 
-		$this->setFormAction($ilCtrl->getFormAction($a_parent_obj));
-		$this->setRowTemplate("tpl.skill_usage_row.html", "Services/Skill");
-		$this->setEnableNumInfo(false);
+        $this->setFormAction($ilCtrl->getFormAction($a_parent_obj));
+        $this->setRowTemplate("tpl.skill_usage_row.html", "Services/Skill");
+        $this->setEnableNumInfo(false);
 
-//		$this->addMultiCommand("", $lng->txt(""));
+        //		$this->addMultiCommand("", $lng->txt(""));
 //		$this->addCommandButton("", $lng->txt(""));
-	}
+    }
 
-
-	/**
-	 * Fill table row
-	 */
-	protected function fillRow($a_set)
-	{
-		$lng = $this->lng;
-//var_dump($a_set);
-		$this->tpl->setVariable("TYPE_INFO", ilSkillUsage::getTypeInfoString($a_set["type"]));
-		$this->tpl->setVariable("NUMBER", count($a_set["usages"]));
-		$this->tpl->setVariable("OBJ_TYPE", ilSkillUsage::getObjTypeString($a_set["type"]));
-	}
-
+    protected function fillRow(array $a_set): void
+    {
+        $lng = $this->lng;
+        $this->tpl->setVariable("TYPE_INFO", ilSkillUsage::getTypeInfoString($a_set["type"]));
+        $this->tpl->setVariable("NUMBER", count($a_set["usages"]));
+        $this->tpl->setVariable("OBJ_TYPE", ilSkillUsage::getObjTypeString($a_set["type"]));
+    }
 }
-?>

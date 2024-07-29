@@ -1,7 +1,20 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Modules/Test/classes/class.ilObjAssessmentFolder.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * @author		Björn Heyser <bheyser@databay.de>
@@ -11,122 +24,113 @@ require_once 'Modules/Test/classes/class.ilObjAssessmentFolder.php';
  */
 class ilTestPasswordChecker
 {
-	/**
-	 * @var ilRbacSystem
-	 */
-	protected $rbacsystem;
+    /**
+     * @var ilRbacSystem
+     */
+    protected $rbacsystem;
 
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
+    /**
+     * @var ilObjUser
+     */
+    protected $user;
 
-	/**
-	 * @var ilObjTest
-	 */
-	protected $testOBJ;
+    /**
+     * @var ilObjTest
+     */
+    protected $testOBJ;
 
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
-	
-	public function __construct(ilRbacSystem $rbacsystem, ilObjUser $user, ilObjTest $testOBJ, ilLanguage $lng)
-	{
-		$this->rbacsystem = $rbacsystem;
-		$this->user = $user;
-		$this->testOBJ = $testOBJ;
-		$this->lng = $lng;
-		
-		$this->initSession();
-	}
-	
-	public function isPasswordProtectionPageRedirectRequired()
-	{
-		if( !$this->isTestPasswordEnabled() )
-		{
-			return false;
-		}
+    /**
+     * @var ilLanguage
+     */
+    protected $lng;
 
-		if( $this->isPrivilegedParticipant() )
-		{
-			return false;
-		}
+    public function __construct(ilRbacSystem $rbacsystem, ilObjUser $user, ilObjTest $testOBJ, ilLanguage $lng)
+    {
+        $this->rbacsystem = $rbacsystem;
+        $this->user = $user;
+        $this->testOBJ = $testOBJ;
+        $this->lng = $lng;
+    }
 
-		if( $this->isUserEnteredPasswordCorrect() )
-		{
-			return false;
-		}
-		
-		return true;
-	}
+    public function isPasswordProtectionPageRedirectRequired(): bool
+    {
+        if (!$this->isTestPasswordEnabled()) {
+            return false;
+        }
 
-	protected function isTestPasswordEnabled()
-	{
-		return strlen($this->testOBJ->getPassword());
-	}
+        if ($this->isPrivilegedParticipant()) {
+            return false;
+        }
 
-	protected function isPrivilegedParticipant()
-	{
-		return $this->rbacsystem->checkAccess('write', $this->testOBJ->getRefId());
-	}
-	
-	public function wrongUserEnteredPasswordExist()
-	{
-		if( !strlen($this->getUserEnteredPassword()) )
-		{
-			return false;
-		}
-		
-		return !$this->isUserEnteredPasswordCorrect();
-	}
+        if ($this->isUserEnteredPasswordCorrect()) {
+            return false;
+        }
 
-	public function isUserEnteredPasswordCorrect()
-	{
-		return $this->getUserEnteredPassword() == $this->testOBJ->getPassword();
-	}
+        return true;
+    }
 
-	public function setUserEnteredPassword($enteredPassword)
-	{
-		$_SESSION[$this->buildSessionKey()] = $enteredPassword;
-	}
-	
-	protected function getUserEnteredPassword()
-	{
-		return $_SESSION[$this->buildSessionKey()];
-	}
+    protected function isTestPasswordEnabled(): int
+    {
+        return strlen($this->testOBJ->getPassword());
+    }
 
-	protected function initSession()
-	{
-		if( !isset($_SESSION[$this->buildSessionKey()]) )
-		{
-			$_SESSION[$this->buildSessionKey()] = null;
-		}
-	}
-	
-	protected function buildSessionKey()
-	{
-		return 'tst_password_'.$this->testOBJ->getTestId();
-	}
-	
-	public function logWrongEnteredPassword()
-	{
-		if( !ilObjAssessmentFolder::_enabledAssessmentLogging() )
-		{
-			return;
-		}
-		
-		ilObjAssessmentFolder::_addLog( $this->user->getId(), $this->testOBJ->getId(),
-			$this->getWrongEnteredPasswordLogMsg(), null, null, true, $this->testOBJ->getRefId()
-		);
-	}
-	
-	protected function getWrongEnteredPasswordLogMsg()
-	{
-		$msg = $this->lng->txtlng(
-			'assessment', 'log_wrong_test_password_entered', ilObjAssessmentFolder::_getLogLanguage()
-		);
-		
-		return sprintf($msg, $this->getUserEnteredPassword());
-	}
+    protected function isPrivilegedParticipant(): bool
+    {
+        return $this->rbacsystem->checkAccess('write', $this->testOBJ->getRefId());
+    }
+
+    public function wrongUserEnteredPasswordExist(): bool
+    {
+        if (!strlen($this->getUserEnteredPassword())) {
+            return false;
+        }
+
+        return !$this->isUserEnteredPasswordCorrect();
+    }
+
+    public function isUserEnteredPasswordCorrect(): bool
+    {
+        return $this->getUserEnteredPassword() == $this->testOBJ->getPassword();
+    }
+
+    public function setUserEnteredPassword($enteredPassword)
+    {
+        ilSession::set($this->buildSessionKey(), $enteredPassword);
+    }
+
+    protected function getUserEnteredPassword()
+    {
+        return ilSession::get($this->buildSessionKey());
+    }
+
+    protected function buildSessionKey(): string
+    {
+        return 'tst_password_' . $this->testOBJ->getTestId();
+    }
+
+    public function logWrongEnteredPassword()
+    {
+        if (!ilObjAssessmentFolder::_enabledAssessmentLogging()) {
+            return;
+        }
+
+        ilObjAssessmentFolder::_addLog(
+            $this->user->getId(),
+            $this->testOBJ->getId(),
+            $this->getWrongEnteredPasswordLogMsg(),
+            null,
+            null,
+            true,
+            $this->testOBJ->getRefId()
+        );
+    }
+
+    protected function getWrongEnteredPasswordLogMsg(): string
+    {
+        return $this->lng->txtlng(
+            'assessment',
+            'log_wrong_test_password_entered',
+            ilObjAssessmentFolder::_getLogLanguage()
+        );
+    }
 }

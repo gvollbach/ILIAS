@@ -1,62 +1,64 @@
 <?php
 
-declare(strict_types=1);
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
-/* Copyright (c) 2016 Richard Klees <richard.klees@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
 
 namespace ILIAS\UI\Implementation\Component\Input\Field;
 
-use ILIAS\UI\Component\Input\Field;
+use ILIAS\UI\Implementation\Component\Input\UploadLimitResolver;
 use ILIAS\Data;
+use ILIAS\UI\Component\Input\Container\Form\FormInput;
+use ILIAS\UI\Component\Input\Field as I;
+use ILIAS\UI\Component\Input\Field\UploadHandler;
 use ILIAS\UI\Implementation\Component\SignalGeneratorInterface;
+use ilLanguage;
 
 /**
  * Class Factory
  *
  * @package ILIAS\UI\Implementation\Component\Input\Field
  */
-class Factory implements Field\Factory
+class Factory implements I\Factory
 {
+    protected UploadLimitResolver $upload_limit_resolver;
+    protected Data\Factory $data_factory;
+    protected SignalGeneratorInterface $signal_generator;
+    private \ILIAS\Refinery\Factory $refinery;
+    protected ilLanguage $lng;
 
-    /**
-     * @var    Data\Factory
-     */
-    protected $data_factory;
-    /**
-     * @var Validation\Factory
-     */
-    protected $validation_factory;
-    /**
-     * @var SignalGeneratorInterface
-     */
-    protected $signal_generator;
-    /**
-     * @var \ILIAS\Refinery\Factory
-     */
-    private $refinery;
-
-
-    /**
-     * Factory constructor.
-     *
-     * @param SignalGeneratorInterface $signal_generator
-     * @param Data\Factory $data_factory
-     * @param \ILIAS\Refinery\Factory $refinery
-     */
     public function __construct(
+        UploadLimitResolver $upload_limit_resolver,
         SignalGeneratorInterface $signal_generator,
         Data\Factory $data_factory,
-        \ILIAS\Refinery\Factory $refinery
+        \ILIAS\Refinery\Factory $refinery,
+        ilLanguage $lng
     ) {
+        $this->upload_limit_resolver = $upload_limit_resolver;
         $this->signal_generator = $signal_generator;
         $this->data_factory = $data_factory;
         $this->refinery = $refinery;
+        $this->lng = $lng;
     }
 
     /**
      * @inheritdoc
      */
-    public function text($label, $byline = null)
+    public function text(string $label, ?string $byline = null): I\Text
     {
         return new Text($this->data_factory, $this->refinery, $label, $byline);
     }
@@ -64,7 +66,7 @@ class Factory implements Field\Factory
     /**
      * @inheritdoc
      */
-    public function numeric($label, $byline = null)
+    public function numeric(string $label, ?string $byline = null): I\Numeric
     {
         return new Numeric($this->data_factory, $this->refinery, $label, $byline);
     }
@@ -72,39 +74,39 @@ class Factory implements Field\Factory
     /**
      * @inheritdoc
      */
-    public function group(array $inputs, string $label='')
+    public function group(array $inputs, string $label = '', ?string $byline = null): I\Group
     {
-        return new Group($this->data_factory, $this->refinery, $inputs, $label, null);
+        return new Group($this->data_factory, $this->refinery, $this->lng, $inputs, $label, $byline);
     }
 
     /**
      * @inheritdoc
      */
-    public function optionalGroup(array $inputs, string $label, string $byline = null) : Field\OptionalGroup
+    public function optionalGroup(array $inputs, string $label, ?string $byline = null): I\OptionalGroup
     {
-        return new OptionalGroup($this->data_factory, $this->refinery, $inputs, $label, $byline);
+        return new OptionalGroup($this->data_factory, $this->refinery, $this->lng, $inputs, $label, $byline);
     }
 
     /**
      * @inheritdoc
      */
-    public function switchableGroup(array $inputs, string $label, string $byline = null) : Field\SwitchableGroup
+    public function switchableGroup(array $inputs, string $label, ?string $byline = null): I\SwitchableGroup
     {
-        return new SwitchableGroup($this->data_factory, $this->refinery, $inputs, $label, $byline);
+        return new SwitchableGroup($this->data_factory, $this->refinery, $this->lng, $inputs, $label, $byline);
     }
 
     /**
      * @inheritdoc
      */
-    public function section(array $inputs, $label, $byline = null)
+    public function section(array $inputs, string $label, ?string $byline = null): I\Section
     {
-        return new Section($this->data_factory, $this->refinery, $inputs, $label, $byline);
+        return new Section($this->data_factory, $this->refinery, $this->lng, $inputs, $label, $byline);
     }
 
     /**
      * @inheritdoc
      */
-    public function checkbox($label, $byline = null)
+    public function checkbox(string $label, ?string $byline = null): I\Checkbox
     {
         return new Checkbox($this->data_factory, $this->refinery, $label, $byline);
     }
@@ -112,7 +114,7 @@ class Factory implements Field\Factory
     /**
      * @inheritDoc
      */
-    public function tag(string $label, array $tags, $byline = null) : Field\Tag
+    public function tag(string $label, array $tags, ?string $byline = null): I\Tag
     {
         return new Tag($this->data_factory, $this->refinery, $label, $byline, $tags);
     }
@@ -120,7 +122,7 @@ class Factory implements Field\Factory
     /**
      * @inheritdoc
      */
-    public function password($label, $byline = null)
+    public function password(string $label, ?string $byline = null): I\Password
     {
         return new Password($this->data_factory, $this->refinery, $label, $byline, $this->signal_generator);
     }
@@ -128,7 +130,7 @@ class Factory implements Field\Factory
     /**
      * @inheritdoc
      */
-    public function select($label, array $options, $byline = null)
+    public function select(string $label, array $options, ?string $byline = null): I\Select
     {
         return new Select($this->data_factory, $this->refinery, $label, $options, $byline);
     }
@@ -136,7 +138,7 @@ class Factory implements Field\Factory
     /**
      * @inheritdoc
      */
-    public function textarea($label, $byline = null)
+    public function textarea(string $label, ?string $byline = null): I\Textarea
     {
         return new Textarea($this->data_factory, $this->refinery, $label, $byline);
     }
@@ -144,7 +146,7 @@ class Factory implements Field\Factory
     /**
      * @inheritdoc
      */
-    public function radio($label, $byline = null)
+    public function radio(string $label, ?string $byline = null): I\Radio
     {
         return new Radio($this->data_factory, $this->refinery, $label, $byline);
     }
@@ -152,7 +154,7 @@ class Factory implements Field\Factory
     /**
      * @inheritdoc
      */
-    public function multiSelect($label, array $options, $byline = null)
+    public function multiSelect(string $label, array $options, ?string $byline = null): I\MultiSelect
     {
         return new MultiSelect($this->data_factory, $this->refinery, $label, $options, $byline);
     }
@@ -160,7 +162,7 @@ class Factory implements Field\Factory
     /**
      * @inheritdoc
      */
-    public function dateTime($label, $byline = null)
+    public function dateTime(string $label, ?string $byline = null): I\DateTime
     {
         return new DateTime($this->data_factory, $this->refinery, $label, $byline);
     }
@@ -168,8 +170,53 @@ class Factory implements Field\Factory
     /**
      * @inheritdoc
      */
-    public function duration($label, $byline = null)
+    public function duration(string $label, ?string $byline = null): I\Duration
     {
-        return new Duration($this->data_factory, $this->refinery, $this, $label, $byline);
+        return new Duration($this->data_factory, $this->refinery, $this->lng, $this, $label, $byline);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function file(
+        UploadHandler $handler,
+        string $label,
+        ?string $byline = null,
+        FormInput $metadata_input = null
+    ): I\File {
+        return new File(
+            $this->lng,
+            $this->data_factory,
+            $this->refinery,
+            $this->upload_limit_resolver,
+            $handler,
+            $label,
+            $metadata_input,
+            $byline
+        );
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function url(string $label, ?string $byline = null): I\Url
+    {
+        return new Url($this->data_factory, $this->refinery, $label, $byline);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function link(string $label, ?string $byline = null): I\Link
+    {
+        return new Link($this->data_factory, $this->refinery, $this->lng, $this, $label, $byline);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function hidden(): I\Hidden
+    {
+        return new Hidden($this->data_factory, $this->refinery);
     }
 }

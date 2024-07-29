@@ -1,40 +1,40 @@
 <?php
 /*
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) by Alexandre Alapetite,                                       |
-	| http://alexandre.alapetite.net/cv/alexandre-alapetite.en.html               |
-	| http://alexandre.alapetite.net/doc-alex/domxml-php4-php5/                   |
-	| Modifications by Alex Killing, alex.killing@gmx.de  (search for ##)         |
-	|-----------------------------------------------------------------------------|
-	| Allows PHP4/DOMXML scripts to run on PHP5/DOM                               |
-	|                                                                             |
-	| Typical use:                                                                |
-	| {                                                                           |
-	| 	if (version_compare(PHP_VERSION,'5','>='))                                |
-	| 		require_once('domxml-php4-to-php5.php');                              |
-	| }                                                                           |
-	|-----------------------------------------------------------------------------|
-	| This code is published under Creative Commons                               |
-	| Attribution-ShareAlike 2.0 "BY-SA" licence.                                 |
-	| See http://creativecommons.org/licenses/by-sa/2.0/ for details.             |
-	+-----------------------------------------------------------------------------+
+    +-----------------------------------------------------------------------------+
+    | Copyright (c) by Alexandre Alapetite,                                       |
+    | http://alexandre.alapetite.net/cv/alexandre-alapetite.en.html               |
+    | http://alexandre.alapetite.net/doc-alex/domxml-php4-php5/                   |
+    | Modifications by Alex Killing, alex.killing@gmx.de  (search for ##)         |
+    |-----------------------------------------------------------------------------|
+    | Allows PHP4/DOMXML scripts to run on PHP5/DOM                               |
+    |                                                                             |
+    | Typical use:                                                                |
+    | {                                                                           |
+    | 	if (version_compare(PHP_VERSION,'5','>='))                                |
+    | 		require_once('domxml-php4-to-php5.php');                              |
+    | }                                                                           |
+    |-----------------------------------------------------------------------------|
+    | This code is published under Creative Commons                               |
+    | Attribution-ShareAlike 2.0 "BY-SA" licence.                                 |
+    | See http://creativecommons.org/licenses/by-sa/2.0/ for details.             |
+    +-----------------------------------------------------------------------------+
 */
 
-function staticxmlerror($errno, $errstr, $errfile, $errline, $errcontext, $ret = false)
+function staticxmlerror(int $errno, string $errstr, ?string $errfile = null, ?int $errline = null, ?array $errcontext = null, bool $ret = false)
 {
-   static $errs = array();
+    static $errs = array();
 
-   if ($ret === true) {
-       return $errs;
-   }
+    $tag = 'DOMDocument::validate(): ';
+    $errs[] = str_replace($tag, '', $errstr);
 
-   $tag = 'DOMDocument::validate(): ';
-   $errs[] = str_replace($tag, '', $errstr);
+    if ($ret === true) {
+        return $errs;
+    }
 }
 
 function domxml_open_file($filename)
 {
-	return new php4DOMDocument($filename);
+    return new php4DOMDocument($filename);
 }
 
 define('DOMXML_LOAD_PARSING', 0);
@@ -42,220 +42,212 @@ define('DOMXML_LOAD_PARSING', 0);
 /*
 * ##added
 */
-function domxml_open_mem($str, $mode = 0, &$error = NULL)
+function domxml_open_mem($str, $mode = 0, &$error = null)
 {
-	if (!is_int($mode))
-	{
-		$mode = 0;
-	}
-	$doc = new php4DOMDocument($str, false, $mode);
-	if (!$doc->success)
-	{
-		$error = $doc->error;
-	}
-	
-	return $doc;
+    if (!is_int($mode)) {
+        $mode = 0;
+    }
+    $doc = new php4DOMDocument($str, false, $mode);
+    if (!$doc->success) {
+        $error = $doc->error;
+    }
+
+    return $doc;
 }
 
-function xpath_eval($xpath_context,$eval_str,$contextnode=null)
+function xpath_eval(php4DOMXPath $xpath_context, string $eval_str, $contextnode = null)
 {
-	return $xpath_context->query($eval_str,$contextnode);
+    return $xpath_context->query($eval_str, $contextnode);
 }
 
-function xpath_new_context($dom_document)
+function xpath_new_context($dom_document): php4DOMXPath
 {
-	return new php4DOMXPath($dom_document);
+    return new php4DOMXPath($dom_document);
 }
 
 class php4DOMAttr extends php4DOMNode
 {
-	var $myDOMAttr;
+    public $myDOMAttr;
 
-	function __construct($aDOMAttr)
-	{
-		$this->myDOMAttr=$aDOMAttr;
-	}
+    public function __construct($aDOMAttr)
+    {
+        $this->myDOMAttr = $aDOMAttr;
+    }
 
-	function Name()
-	{
-		return $this->myDOMAttr->name;
-	}
+    public function Name()
+    {
+        return $this->myDOMAttr->name;
+    }
 
-	function Specified()
-	{
-		return $this->myDOMAttr->specified;
-	}
+    public function Specified()
+    {
+        return $this->myDOMAttr->specified;
+    }
 
-	function Value()
-	{
-		return $this->myDOMAttr->value;
-	}
+    public function Value()
+    {
+        return $this->myDOMAttr->value;
+    }
 }
 
 class php4DOMCDATASection extends php4DOMNode
 {
-	var $myDOMCDATASection;
+    public $myDOMCDATASection;
 
-	function __construct($aDOMCDATASection)
-	{
-		parent::php4DOMNode($aDOMCDATASection);						// #added
-		$this->myDOMCDATASection=$aDOMCDATASection;
-	}
+    public function __construct($aDOMCDATASection)
+    {
+        parent::php4DOMNode($aDOMCDATASection);						// #added
+        $this->myDOMCDATASection = $aDOMCDATASection;
+    }
 }
 
 class php4DOMDocument
 {
-	var $myDOMDocument;
+    public $success = null;
+    public string $error = "";
+    public DOMDocument $myDOMDocument;
 
-	// ##altered
-	function __construct($source, $file = true, $a_mode = 0)
-	{
-		$this->myDOMDocument=new DOMDocument();
-		// temporary set error handler
-		set_error_handler('staticxmlerror');
-		$old = ini_set('html_errors', false);
+    // ##altered
+    public function __construct($source, $file = true, $a_mode = 0)
+    {
+        $this->myDOMDocument = new DOMDocument();
+        // temporary set error handler
+        set_error_handler('staticxmlerror');
+        $old = ini_set('html_errors', false);
 
-		if (is_object($source))
-		{
-			$this->myDOMDocument = $source;
-			$this->success = true;
-		}
-		else
-		{
-			if ($file)
-			{
-				$this->success = @$this->myDOMDocument->load($source,$a_mode);
-				$this->success = @$this->myDOMDocument->load($source,$a_mode);
-			}
-			else
-			{
-				$this->success = $this->myDOMDocument->loadXML($source,$a_mode);
-			}
-		}
-				
-		// Restore error handling
-		ini_set('html_errors', $old);
-		restore_error_handler();
-		
-		if (!$this->success)
-		{
-			$this->error_arr = staticxmlerror(null, null, null, null, null, true);
-			foreach($this->error_arr as $error)
-			{
-				$error = str_replace("DOMDocument::loadXML():", "", $error);
-				$this->error.= $error."<br />";
-			}
-		}
-	}
+        if (is_object($source)) {
+            $this->myDOMDocument = $source;
+            $this->success = true;
+        } else {
+            if ($file) {
+                $this->success = @$this->myDOMDocument->load($source, $a_mode);
+            } else {
+                $this->success = $this->myDOMDocument->loadXML($source, $a_mode);
+            }
+        }
 
-	// ##added
-	function xpath_init()
-	{
-	}
+        // Restore error handling
+        ini_set('html_errors', $old);
+        restore_error_handler();
 
-	function free()
-	{
-		unset($this->myDOMDocument);
-	}
+        if (!$this->success) {
+            $this->error_arr = staticxmlerror(0, "", "", 0, null, true);
+            foreach ($this->error_arr as $error) {
+                $error = str_replace("DOMDocument::loadXML():", "", $error);
+                $this->error .= $error . "<br />";
+            }
+        }
+    }
 
-	// ##added
-	function xpath_new_context()
-	{
-		return xpath_new_context($this);
-	}
+    // ##added
+    public function xpath_init()
+    {
+    }
 
-	// ##added
-	function dump_node($node)
-	{
-		$str = $this->myDOMDocument->saveXML($node->myDOMNode);
-		return $str;
-	}
+    public function free()
+    {
+        unset($this->myDOMDocument);
+    }
 
-	// ##added
-	function validate(&$error)
-	{
-		$ok = $this->myDOMDocument->validate();
+    // ##added
+    public function xpath_new_context()
+    {
+        return xpath_new_context($this);
+    }
 
-		if (!$ok)
-		{
-			$error = array(array("0", "Unknown Error"));
+    // ##added
+    public function dump_node($node)
+    {
+        $str = $this->myDOMDocument->saveXML($node->myDOMNode);
+        return $str;
+    }
 
-			if (function_exists("libxml_get_last_error"))
-			{
-				$err = libxml_get_last_error();
-				
-				if (is_object($err))
-				{
-					$error = array(array($err->code, $err->message));
-				}
-			}
-		}
-		return $error;
-	}
+    // ##added
+    public function validate(&$error, bool $throw = false)
+    {
+        $ok = false;
+        try {
+            $ok = $this->myDOMDocument->validate();
+        } catch (Exception $e) {
+            if ($throw) {
+                throw $e;
+            }
+        }
+        if (!$ok) {
+            $error = array(array("0", "Unknown Error"));
 
-	function create_attribute($name,$value)
-	{
-		$myAttr=$this->myDOMDocument->createAttribute($name);
-		$myAttr->value=$value;
+            if (function_exists("libxml_get_last_error")) {
+                $err = libxml_get_last_error();
 
-		return new php4DOMAttr($myAttr);
-	}
+                if (is_object($err)) {
+                    $error = array(array($err->code, $err->message));
+                }
+            }
+        }
+        return $error;
+    }
 
-	function create_cdata_section($content)
-	{
-		return new php4DOMCDATASection($this->myDOMDocument->createCDATASection($content));
-	}
+    public function create_attribute($name, $value)
+    {
+        $myAttr = $this->myDOMDocument->createAttribute($name);
+        $myAttr->value = $value;
 
-	function create_comment($data)
-	{
-		return new php4DOMElement($this->myDOMDocument->createComment($data));
-	}
+        return new php4DOMAttr($myAttr);
+    }
 
-	function create_element($name)
-	{
-		return new php4DOMElement($this->myDOMDocument->createElement($name));
-	}
+    public function create_cdata_section($content)
+    {
+        return new php4DOMCDATASection($this->myDOMDocument->createCDATASection($content));
+    }
 
-	function create_text_node($content)
-	{
-		return new php4DOMNode($this->myDOMDocument->createTextNode($content));
-	}
+    public function create_comment($data)
+    {
+        return new php4DOMElement($this->myDOMDocument->createComment($data));
+    }
 
-	function document_element()
-	{
-		return new php4DOMElement($this->myDOMDocument->documentElement);
-	}
+    public function create_element(string $name): php4DOMElement
+    {
+        return new php4DOMElement($this->myDOMDocument->createElement($name));
+    }
 
-	function dump_file($filename,$compressionmode=false,$format=false)
-	{
-		return $this->myDOMDocument->save($filename);
-	}
+    public function create_text_node($content)
+    {
+        return new php4DOMNode($this->myDOMDocument->createTextNode($content));
+    }
 
-	function dump_mem($format=false,$encoding=false)
-	{
-		$r =  $this->myDOMDocument->saveXML();
-		return $r;
-	}
+    public function document_element()
+    {
+        return new php4DOMElement($this->myDOMDocument->documentElement);
+    }
 
-	function get_elements_by_tagname($name)
-	{
-		$myDOMNodeList=$this->myDOMDocument->getElementsByTagName($name);
-		$nodeSet=array();
-		$i=0;
-		while ($node=$myDOMNodeList->item($i))
-		{
-			$nodeSet[]=new php4DOMElement($node);
-			$i++;
-		}
+    public function dump_file($filename, $compressionmode = false, $format = false)
+    {
+        return $this->myDOMDocument->save($filename);
+    }
 
-		return $nodeSet;
-	}
+    public function dump_mem($format = false, $encoding = false)
+    {
+        $r = $this->myDOMDocument->saveXML();
+        return $r;
+    }
 
-	function html_dump_mem()
-	{
-		return $this->myDOMDocument->saveHTML();
-	}
-	
+    public function get_elements_by_tagname($name)
+    {
+        $myDOMNodeList = $this->myDOMDocument->getElementsByTagName($name);
+        $nodeSet = array();
+        $i = 0;
+        while ($node = $myDOMNodeList->item($i)) {
+            $nodeSet[] = new php4DOMElement($node);
+            $i++;
+        }
+
+        return $nodeSet;
+    }
+
+    public function html_dump_mem()
+    {
+        return $this->myDOMDocument->saveHTML();
+    }
 }
 
 /**
@@ -263,93 +255,85 @@ class php4DOMDocument
 */
 class php4DOMElement extends php4DOMNode
 {
-	function get_attribute($name)
-	{
-		return $this->myDOMNode->getAttribute($name);
-	}
-	
-	function owner_document()
-	{
-		return new php4DOMDocument($this->myDOMNode->ownerDocument);
-	}
+    public function get_attribute($name)
+    {
+        return $this->myDOMNode->getAttribute($name);
+    }
 
-	function get_elements_by_tagname($name)
-	{
-		$myDOMNodeList=$this->myDOMNode->getElementsByTagName($name);
-		$nodeSet=array();
-		$i=0;
-		while ($node=$myDOMNodeList->item($i))
-		{
-			$nodeSet[]=new php4DOMElement($node);
-			$i++;
-		}
+    public function owner_document()
+    {
+        return new php4DOMDocument($this->myDOMNode->ownerDocument);
+    }
 
-		return $nodeSet;
-	}
+    public function get_elements_by_tagname($name)
+    {
+        $myDOMNodeList = $this->myDOMNode->getElementsByTagName($name);
+        $nodeSet = array();
+        $i = 0;
+        while ($node = $myDOMNodeList->item($i)) {
+            $nodeSet[] = new php4DOMElement($node);
+            $i++;
+        }
 
-	function has_attribute($name)
-	{
-		return $this->myDOMNode->hasAttribute($name);
-	}
+        return $nodeSet;
+    }
 
-	function remove_attribute($name)
-	{
-		return $this->myDOMNode->removeAttribute($name);
-	}
+    public function has_attribute($name)
+    {
+        return $this->myDOMNode->hasAttribute($name);
+    }
 
-	function set_attribute($name,$value)
-	{
-		return $this->myDOMNode->setAttribute($name,$value);
-	}
+    public function remove_attribute($name)
+    {
+        return $this->myDOMNode->removeAttribute($name);
+    }
 
-	function tagname()
-	{
-		return $this->myDOMNode->tagName;
-	}
+    public function set_attribute($name, $value)
+    {
+        return $this->myDOMNode->setAttribute($name, $value);
+    }
 
-	// ##added
-	function set_content($text)
-	{
-		// the following replace has been added to conform with PHP4.
-		// A set_content("&amp;") brought a get_content() = "&" there,
-		// whereas PHP5 gives a get_content() = "&amp;"
-		$text = str_replace("&lt;", "<", $text);
-		$text = str_replace("&gt;", ">", $text);
-		$text = str_replace("&amp;", "&", $text);
-		
-		$text_node = new DOMText();
-		$text_node->appendData($text);
-		if (is_object($this->myDOMNode->firstChild))
-		{
-			$this->myDOMNode->replaceChild($text_node, $this->myDOMNode->firstChild);
-		}
-		else
-		{
-			$this->myDOMNode->appendChild($text_node);
-		}
-	}
+    public function tagname()
+    {
+        return $this->myDOMNode->tagName;
+    }
 
-	// ##added
-	function get_content()
-	{
-		$text_node = $this->myDOMNode->firstChild;
+    // ##added
+    public function set_content($text)
+    {
+        // the following replace has been added to conform with PHP4.
+        // A set_content("&amp;") brought a get_content() = "&" there,
+        // whereas PHP5 gives a get_content() = "&amp;"
+        $text = str_replace("&lt;", "<", $text);
+        $text = str_replace("&gt;", ">", $text);
+        $text = str_replace("&amp;", "&", $text);
 
-		if (is_object($text_node))
-		{
-			return $text_node->textContent;
-		}
-		else
-		{
-			return "";
-		}
-	}
-	
-	// ## added
-	function unlink($aDomNode)
-	{
-		parent::unlink_node($aDomNode);
-	}
+        $text_node = new DOMText();
+        $text_node->appendData($text);
+        if (is_object($this->myDOMNode->firstChild)) {
+            $this->myDOMNode->replaceChild($text_node, $this->myDOMNode->firstChild);
+        } else {
+            $this->myDOMNode->appendChild($text_node);
+        }
+    }
 
+    // ##added
+    public function get_content()
+    {
+        $text_node = $this->myDOMNode->firstChild;
+
+        if (is_object($text_node)) {
+            return $text_node->textContent;
+        } else {
+            return "";
+        }
+    }
+
+    // ## added
+    public function unlink($aDomNode)
+    {
+        parent::unlink_node($aDomNode);
+    }
 }
 
 /**
@@ -357,284 +341,258 @@ class php4DOMElement extends php4DOMNode
 */
 class php4DOMNode
 {
-	var $myDOMNode;
+    public $myDOMNode;
 
-	function __construct($aDomNode)
-	{
-		$this->myDOMNode=$aDomNode;
-	}
+    public function __construct($aDomNode)
+    {
+        $this->myDOMNode = $aDomNode;
+    }
 
-	function append_child($newnode)
-	{
-//echo "BH";
-		//if (strtolower(get_class($newnode)) != "php4domcdatasection")
-		//{
-			$doc = $this->myDOMNode->ownerDocument;
-	//echo "<br>BH1:".get_class($newnode).":";
-			$newnode->myDOMNode = $doc->importNode($newnode->myDOMNode, true);
-	//echo "BH2";
-			return new php4DOMElement($this->myDOMNode->appendChild($newnode->myDOMNode));
-		//}
-		//else
-		//{
-		//}
-	}
+    public function append_child($newnode)
+    {
+        //echo "BH";
+        //if (strtolower(get_class($newnode)) != "php4domcdatasection")
+        //{
+        $doc = $this->myDOMNode->ownerDocument;
+        //echo "<br>BH1:".get_class($newnode).":";
+        $newnode->myDOMNode = $doc->importNode($newnode->myDOMNode, true);
+        //echo "BH2";
+        return new php4DOMElement($this->myDOMNode->appendChild($newnode->myDOMNode));
+        //}
+        //else
+        //{
+        //}
+    }
 
-	function replace_node($newnode)
-	{
-		return $this->set_content($newnode->myDOMNode->textContent);
-	}
-	
-	function append_sibling($newnode)
-	{
-		return new php4DOMElement($this->myDOMNode->parentNode->appendChild($newnode->myDOMNode));
-	}
+    public function replace_node($newnode)
+    {
+        return $this->set_content($newnode->myDOMNode->textContent);
+    }
 
-	function attributes()
-	{
-//echo "<br>node:".$this->myDOMNode->nodeName.":";
-		$myDOMNodeList=$this->myDOMNode->attributes;
-		$nodeSet=array();
-		$i=0;
-		if (is_object($myDOMNodeList))
-		{
-			while ($node=$myDOMNodeList->item($i))
-			{
-				$nodeSet[]=new php4DOMAttr($node);
-				$i++;
-			}
-		}
+    public function append_sibling($newnode)
+    {
+        return new php4DOMElement($this->myDOMNode->parentNode->appendChild($newnode->myDOMNode));
+    }
 
-		return $nodeSet;
-	}
+    public function attributes()
+    {
+        //echo "<br>node:".$this->myDOMNode->nodeName.":";
+        $myDOMNodeList = $this->myDOMNode->attributes;
+        $nodeSet = array();
+        $i = 0;
+        if (is_object($myDOMNodeList)) {
+            while ($node = $myDOMNodeList->item($i)) {
+                $nodeSet[] = new php4DOMAttr($node);
+                $i++;
+            }
+        }
 
-	function child_nodes()
-	{
-		$myDOMNodeList=$this->myDOMNode->childNodes;
-		$nodeSet=array();
-		$i=0;
-		while ($node=$myDOMNodeList->item($i))
-		{
-			$nodeSet[]=new php4DOMElement($node);
-			$i++;
-		}
-		return $nodeSet;
-	}
+        return $nodeSet;
+    }
 
-	// ## added
-	function children()
-	{
-//echo "<br>php4DomNode::children"; flush();
-		return $this->child_nodes();
-	}
+    public function child_nodes()
+    {
+        $myDOMNodeList = $this->myDOMNode->childNodes;
+        $nodeSet = array();
+        $i = 0;
+        while ($node = $myDOMNodeList->item($i)) {
+            $nodeSet[] = new php4DOMElement($node);
+            $i++;
+        }
+        return $nodeSet;
+    }
 
-	// ## added
-	function unlink_node($aDomNode = "")
-	{
-		// sometimes the node to unlink is passed
-		if (!is_object($aDomNode))
-		{
-			$aDomNode = $this;
-			//$aDomNode = $this;
-		}
+    // ## added
+    public function children()
+    {
+        //echo "<br>php4DomNode::children"; flush();
+        return $this->child_nodes();
+    }
 
-		$parent = $aDomNode->myDOMNode->parentNode;
-		if (is_object($parent))
-		{
-			$parent->removeChild($aDomNode->myDOMNode);
-		}
-	}
+    // ## added
+    public function unlink_node($aDomNode = "")
+    {
+        // sometimes the node to unlink is passed
+        if (!is_object($aDomNode)) {
+            $aDomNode = $this;
+            //$aDomNode = $this;
+        }
 
-	function clone_node($deep=false)
-	{
-		return new php4DOMElement($this->myDOMNode->cloneNode($deep));
-	}
+        $parent = $aDomNode->myDOMNode->parentNode;
+        if (is_object($parent)) {
+            $parent->removeChild($aDomNode->myDOMNode);
+        }
+    }
 
-	function first_child()
-	{
-		return new php4DOMElement($this->myDOMNode->firstChild);
-	}
+    public function clone_node($deep = false)
+    {
+        return new php4DOMElement($this->myDOMNode->cloneNode($deep));
+    }
 
-	function get_content()
-	{
-		return $this->myDOMNode->textContent;
-	}
+    public function first_child()
+    {
+        return new php4DOMElement($this->myDOMNode->firstChild);
+    }
 
-	function has_attributes()
-	{
-		return $this->myDOMNode->hasAttributes();
-	}
+    public function get_content()
+    {
+        return $this->myDOMNode->textContent;
+    }
 
-	function has_child_nodes()
-	{
-		return $this->myDOMNode->hasChildNodes();
-	}
+    public function has_attributes()
+    {
+        return $this->myDOMNode->hasAttributes();
+    }
 
-	// ## changed
-	function insert_before($newnode,$refnode)
-	{
-		//echo "BH";
-		$doc = $this->myDOMNode->ownerDocument;
-		$newnode->myDOMNode = $doc->importNode($newnode->myDOMNode, true);
-		
-		$mydomnode = $this->myDOMNode;
-		$mynewnode = $newnode->myDOMNode;
-		$myrefnode = $refnode->myDOMNode;
-		try
-		{
-			$domel = $mydomnode->insertBefore($mynewnode,$myrefnode);
-		}
-		catch (DOMException $exception)
-		{
-			// php 4 accepted $this == $refnode -> switch to parent of $this
-			$mydomnode = $this->myDOMNode->parentNode;
-			$domel = $mydomnode->insertBefore($mynewnode,$myrefnode);
-		}
-		$el = new php4DOMElement($domel);
-		return $el;
-	}
+    public function has_child_nodes()
+    {
+        return $this->myDOMNode->hasChildNodes();
+    }
 
-	// ## changed
-	function last_child()
-	{
-		$last = $this->myDOMNode->lastChild;
+    // ## changed
+    public function insert_before($newnode, $refnode)
+    {
+        //echo "BH";
+        $doc = $this->myDOMNode->ownerDocument;
+        $newnode->myDOMNode = $doc->importNode($newnode->myDOMNode, true);
 
-		if (is_object($last))
-		{
-			return new php4DOMElement($last);
-		}
-		else
-		{
-			return false;
-		}
-	}
+        $mydomnode = $this->myDOMNode;
+        $mynewnode = $newnode->myDOMNode;
+        $myrefnode = $refnode->myDOMNode;
+        try {
+            $domel = $mydomnode->insertBefore($mynewnode, $myrefnode);
+        } catch (DOMException $exception) {
+            // php 4 accepted $this == $refnode -> switch to parent of $this
+            $mydomnode = $this->myDOMNode->parentNode;
+            $domel = $mydomnode->insertBefore($mynewnode, $myrefnode);
+        }
+        $el = new php4DOMElement($domel);
+        return $el;
+    }
 
-	// ## changed
-	function next_sibling()
-	{
-		$next = $this->myDOMNode->nextSibling;
+    // ## changed
+    public function last_child()
+    {
+        $last = $this->myDOMNode->lastChild;
 
-		if (is_object($next))
-		{
-			return new php4DOMElement($next);
-		}
-		else
-		{
-			return false;
-		}
-	}
+        if (is_object($last)) {
+            return new php4DOMElement($last);
+        } else {
+            return false;
+        }
+    }
 
-	function node_name($a_local = false)
-	{
-		if ($a_local)
-		{
-			return $this->myDOMNode->localName;
-		}
-		else
-		{
-			return $this->myDOMNode->nodeName;
-		}
-	}
+    // ## changed
+    public function next_sibling()
+    {
+        $next = $this->myDOMNode->nextSibling;
 
-	function node_type()
-	{
-		return $this->myDOMNode->nodeType;
-	}
+        if (is_object($next)) {
+            return new php4DOMElement($next);
+        } else {
+            return false;
+        }
+    }
 
-	function node_value()
-	{
-		return $this->myDOMNode->nodeValue;
-	}
+    public function node_name($a_local = false)
+    {
+        if ($a_local) {
+            return $this->myDOMNode->localName ?? "";
+        } else {
+            return $this->myDOMNode->nodeName ?? "";
+        }
+    }
 
-	// ## changed
-	function parent_node()
-	{
-		$parent = $this->myDOMNode->parentNode;
+    public function node_type()
+    {
+        return $this->myDOMNode->nodeType;
+    }
 
-		if (is_object($parent))
-		{
-			return new php4DOMElement($parent);
-		}
-		else
-		{
-			return false;
-		}
-	}
+    public function node_value()
+    {
+        return $this->myDOMNode->nodeValue;
+    }
 
-	// ## changed
-	function previous_sibling()
-	{
-		$prev = $this->myDOMNode->previousSibling;
+    // ## changed
+    public function parent_node()
+    {
+        $parent = $this->myDOMNode->parentNode;
 
-		if (is_object($prev))
-		{
-			return new php4DOMElement($prev);
-		}
-		else
-		{
-			return false;
-		}
-	}
+        if (is_object($parent)) {
+            return new php4DOMElement($parent);
+        } else {
+            return false;
+        }
+    }
 
-	function remove_child($oldchild)
-	{
-		return new php4DOMElement($this->myDOMNode->removeChild($oldchild->myDOMNode));
-	}
+    // ## changed
+    public function previous_sibling()
+    {
+        $prev = $this->myDOMNode->previousSibling;
 
-	function replace_child($oldnode,$newnode)
-	{
-		return new php4DOMElement($this->myDOMNode->replaceChild($oldchild->myDOMNode,$newnode->myDOMNode));
-	}
+        if (is_object($prev)) {
+            return new php4DOMElement($prev);
+        } else {
+            return false;
+        }
+    }
 
-	function set_content($text)
-	{
-		$this->myDOMNode->textContent = $text;
-		return $this->myDOMNode->textContent;
-	}
+    public function remove_child($oldchild)
+    {
+        return new php4DOMElement($this->myDOMNode->removeChild($oldchild->myDOMNode));
+    }
+
+    public function replace_child($oldnode, $newnode)
+    {
+        return new php4DOMElement($this->myDOMNode->replaceChild($oldchild->myDOMNode, $newnode->myDOMNode));
+    }
+
+    public function set_content($text)
+    {
+        $this->myDOMNode->textContent = $text;
+        return $this->myDOMNode->textContent;
+    }
 }
 
 class php4DOMNodelist
 {
-	var $myDOMNodelist;
-	var $nodeset;
+    public $myDOMNodelist;
+    public array $nodeset;
 
-	function __construct($aDOMNodelist)
-	{
-		$this->myDOMNodelist=$aDOMNodelist;
-		$this->nodeset=array();
-		$i=0;
-		while ($node=$this->myDOMNodelist->item($i))
-		{
-			$this->nodeset[]=new php4DOMElement($node);
-			$i++;
-		}
-	}
+    public function __construct($aDOMNodelist)
+    {
+        $this->myDOMNodelist = $aDOMNodelist;
+        $this->nodeset = array();
+        $i = 0;
+        while ($node = $this->myDOMNodelist->item($i)) {
+            $this->nodeset[] = new php4DOMElement($node);
+            $i++;
+        }
+    }
 }
 
 class php4DOMXPath
 {
-	var $myDOMXPath;
+    public DOMXPath $myDOMXPath;
 
-	// ## added
-	function xpath_eval($eval_str)
-	{
-		return xpath_eval($this, $eval_str);
-	}
+    // ## added
+    public function xpath_eval($eval_str)
+    {
+        return xpath_eval($this, $eval_str);
+    }
 
-	function __construct($dom_document)
-	{
-		$this->myDOMXPath=new DOMXPath($dom_document->myDOMDocument);
-	}
+    public function __construct($dom_document)
+    {
+        $this->myDOMXPath = new DOMXPath($dom_document->myDOMDocument);
+    }
 
-	function query($eval_str)
-	{
-		return new php4DOMNodelist($this->myDOMXPath->query($eval_str));
-	}
+    public function query(string $eval_str): php4DOMNodelist
+    {
+        return new php4DOMNodelist($this->myDOMXPath->query($eval_str));
+    }
 
-	function xpath_register_ns($prefix,$namespaceURI)
-	{
-		return $this->myDOMXPath->registerNamespace($prefix,$namespaceURI);
-	}
+    public function xpath_register_ns($prefix, $namespaceURI)
+    {
+        return $this->myDOMXPath->registerNamespace($prefix, $namespaceURI);
+    }
 }
-
-?>

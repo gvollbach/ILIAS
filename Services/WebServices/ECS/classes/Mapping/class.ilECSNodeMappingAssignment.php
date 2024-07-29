@@ -1,234 +1,225 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
- * 
- * 
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ */
+
+declare(strict_types=1);
+
+/**
  * @author Stefan Meyer <smeyer.ilias@gmx.de>
- * $Id$
  */
 class ilECSNodeMappingAssignment
 {
-	private $server_id;
-	private $mid;
-	private $cs_root;
-	private $cs_id;
-	private $ref_id;
-	private $obj_id;
+    private int $server_id;
+    private int $mid;
+    private int $cs_root;
+    private int $cs_id;
+    private int $ref_id;
+    private int $obj_id;
 
-	private $title_update = false;
-	private $position_update = false;
-	private $tree_update = false;
-	
-	private $mapped = false;
+    private bool $title_update = false;
+    private bool $position_update = false;
+    private bool $tree_update = false;
 
-	/**
-	 * Constructor
-	 */
-	public function __construct($a_server_id, $mid, $cs_root, $cs_id)
-	{
-		$this->server_id = $a_server_id;
-		$this->mid = $mid;
-		$this->cs_root = $cs_root;
-		$this->cs_id = $cs_id;
+    private bool $mapped = false;
 
-		$this->read();
-	}
-	
-	public function isMapped()
-	{
-		return $this->mapped;
-	}
-	
-	public function getServerId()
-	{
-		return $this->server_id;
-	}
-	
-	public function setServerId($a_id) 
-	{
-		$this->server_id = $a_id;
-	}
+    private ilDBInterface $db;
 
-	public function setMemberId($a_member_id)
-	{
-		$this->mid = $a_member_id;
-	}
+    public function __construct(int $a_server_id, int $mid, int $cs_root, int $cs_id)
+    {
+        global $DIC;
 
-	public function getMemberId()
-	{
-		return $this->mid;
-	}
-	
-	public function getTreeId()
-	{
-		return $this->cs_root;
-	}
+        $this->db = $DIC->database();
 
-	public function setTreeId($root)
-	{
-		$this->cs_root = $root;
-	}
+        $this->server_id = $a_server_id;
+        $this->mid = $mid;
+        $this->cs_root = $cs_root;
+        $this->cs_id = $cs_id;
 
-	public function getCSId()
-	{
-		return $this->cs_id;
-	}
+        $this->read();
+    }
 
-	public function setCSId($id)
-	{
-		$this->cs_id = $id;
-	}
+    public function isMapped(): bool
+    {
+        return $this->mapped;
+    }
 
-	public function getRefId()
-	{
-		return $this->ref_id;
-	}
+    public function getServerId(): int
+    {
+        return $this->server_id;
+    }
 
-	public function setRefId($a_id)
-	{
-		$this->ref_id = $a_id;
-	}
+    public function setServerId(int $a_id): void
+    {
+        $this->server_id = $a_id;
+    }
 
-	public function getObjId()
-	{
-		return $this->obj_id;
-	}
+    public function setMembershipId(int $a_member_id): void
+    {
+        $this->mid = $a_member_id;
+    }
 
-	public function setObjId($id)
-	{
-		$this->obj_id = $id;
-	}
+    public function getMembershipId(): int
+    {
+        return $this->mid;
+    }
 
-	public function isTitleUpdateEnabled()
-	{
-		return $this->title_update;
-	}
+    public function getTreeId(): int
+    {
+        return $this->cs_root;
+    }
 
-	public function enableTitleUpdate($enabled)
-	{
-		$this->title_update = $enabled;
-	}
+    public function setTreeId(int $root): void
+    {
+        $this->cs_root = $root;
+    }
 
-	public function isPositionUpdateEnabled()
-	{
-		return $this->position_update;
-	}
+    public function getCSId(): int
+    {
+        return $this->cs_id;
+    }
 
-	public function enablePositionUpdate($enabled)
-	{
-		$this->position_update = $enabled;
-	}
+    public function setCSId(int $id): void
+    {
+        $this->cs_id = $id;
+    }
 
-	public function isTreeUpdateEnabled()
-	{
-		return $this->tree_update;
-	}
+    public function getRefId(): int
+    {
+        return $this->ref_id;
+    }
 
-	public function enableTreeUpdate($enabled)
-	{
-		$this->tree_update = $enabled;
-	}
+    public function setRefId(int $a_id): void
+    {
+        $this->ref_id = $a_id;
+    }
 
-	/**
-	 * Update node mapping
-	 */
-	public function update()
-	{
-		global $DIC;
+    public function getObjId(): int
+    {
+        return $this->obj_id;
+    }
 
-		$ilDB = $DIC['ilDB'];
+    public function setObjId(int $id): void
+    {
+        $this->obj_id = $id;
+    }
 
-		$this->delete();
-		$this->create();
+    public function isTitleUpdateEnabled(): bool
+    {
+        return $this->title_update;
+    }
 
-	}
+    public function enableTitleUpdate(bool $enabled): void
+    {
+        $this->title_update = $enabled;
+    }
 
-	public function create()
-	{
-		global $DIC;
+    public function isPositionUpdateEnabled(): bool
+    {
+        return $this->position_update;
+    }
 
-		$ilDB = $DIC['ilDB'];
+    public function enablePositionUpdate(bool $enabled): void
+    {
+        $this->position_update = $enabled;
+    }
 
-		$query = 'INSERT INTO ecs_node_mapping_a (server_id,mid,cs_root,cs_id,ref_id,obj_id,title_update,position_update,tree_update) '.
-			'VALUES( '.
-			$ilDB->quote($this->getServerId(),'integer').', '.
-			$ilDB->quote($this->getMemberId(),'integer').', '.
-			$ilDB->quote($this->getTreeId(),'integer').', '.
-			$ilDB->quote($this->getCSId(),'integer').', '.
-			$ilDB->quote($this->getRefId(),'integer').', '.
-			$ilDB->quote($this->getObjId(),'integer').', '.
-			$ilDB->quote($this->isTitleUpdateEnabled(),'integer').', '.
-			$ilDB->quote($this->isPositionUpdateEnabled(),'integer').', '.
-			$ilDB->quote($this->isTreeUpdateEnabled(),'integer').' '.
-			')';
-		$ilDB->manipulate($query);
-		return true;
+    public function isTreeUpdateEnabled(): bool
+    {
+        return $this->tree_update;
+    }
 
-	}
+    public function enableTreeUpdate(bool $enabled): void
+    {
+        $this->tree_update = $enabled;
+    }
+
+    /**
+     * Update node mapping
+     */
+    public function update(): void
+    {
+        $this->delete();
+        $this->create();
+    }
+
+    public function create(): bool
+    {
+        $query = 'INSERT INTO ecs_node_mapping_a (server_id,mid,cs_root,cs_id,ref_id,obj_id,title_update,position_update,tree_update) ' .
+            'VALUES( ' .
+            $this->db->quote($this->getServerId(), 'integer') . ', ' .
+            $this->db->quote($this->getMembershipId(), 'integer') . ', ' .
+            $this->db->quote($this->getTreeId(), 'integer') . ', ' .
+            $this->db->quote($this->getCSId(), 'integer') . ', ' .
+            $this->db->quote($this->getRefId(), 'integer') . ', ' .
+            $this->db->quote($this->getObjId(), 'integer') . ', ' .
+            $this->db->quote($this->isTitleUpdateEnabled(), 'integer') . ', ' .
+            $this->db->quote($this->isPositionUpdateEnabled(), 'integer') . ', ' .
+            $this->db->quote($this->isTreeUpdateEnabled(), 'integer') . ' ' .
+            ')';
+        $this->db->manipulate($query);
+        return true;
+    }
 
 
-	/**
-	 * Delete entry
-	 * @global ilDB $ilDB
-	 */
-	public function delete()
-	{
-		global $DIC;
-
-		$ilDB = $DIC['ilDB'];
-
-		$query = 'DELETE FROM ecs_node_mapping_a '.
-			'WHERE server_id = '.$ilDB->quote($this->getServerId(),'integer'). ' '.
-			'AND mid = '.$ilDB->quote($this->getMemberId(),'integer'). ' '.
-			'AND cs_root = '.$ilDB->quote($this->getTreeId(),'integer').' '.
-			'AND cs_id = '.$ilDB->quote($this->getCSId(),'integer');
-		$ilDB->manipulate($query);
-	}
+    /**
+     * Delete entry
+     */
+    public function delete(): void
+    {
+        $query = 'DELETE FROM ecs_node_mapping_a ' .
+            'WHERE server_id = ' . $this->db->quote($this->getServerId(), 'integer') . ' ' .
+            'AND mid = ' . $this->db->quote($this->getMembershipId(), 'integer') . ' ' .
+            'AND cs_root = ' . $this->db->quote($this->getTreeId(), 'integer') . ' ' .
+            'AND cs_id = ' . $this->db->quote($this->getCSId(), 'integer');
+        $this->db->manipulate($query);
+    }
 
 
 
-	/**
-	 * read settings
-	 * @global ilDB $ilDB
-	 */
-	protected function read()
-	{
-		global $DIC;
+    /**
+     * read settings
+     */
+    protected function read(): void
+    {
+        $query = 'SELECT * FROM ecs_node_mapping_a ' .
+            'WHERE server_id = ' . $this->db->quote($this->getServerId(), 'integer') . ' ' .
+            'AND mid = ' . $this->db->quote($this->getMembershipId(), 'integer') . ' ' .
+            'AND cs_root = ' . $this->db->quote($this->getTreeId(), 'integer') . ' ' .
+            'AND cs_id = ' . $this->db->quote($this->getCSId(), 'integer') . ' ';
+        $res = $this->db->query($query);
 
-		$ilDB = $DIC['ilDB'];
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $this->setObjId($row->obj_id);
+            $this->setRefId($row->ref_id);
+            $this->enableTitleUpdate($row->title_update);
+            $this->enablePositionUpdate($row->position_update);
+            $this->enableTreeUpdate($row->tree_update);
+            $this->mapped = true;
+        }
+    }
 
-		$query = 'SELECT * FROM ecs_node_mapping_a '.
-			'WHERE server_id = '.$ilDB->quote($this->getServerId(), 'integer').' '.
-			'AND mid = '.$ilDB->quote($this->getMemberId(),'integer'). ' '.
-			'AND cs_root = '.$ilDB->quote($this->getTreeId(), 'integer').' '.
-			'AND cs_id = '.$ilDB->quote($this->getCSId(), 'integer').' ';
-		$res = $ilDB->query($query);
-		
-		#$GLOBALS['DIC']['ilLog']->write(__METHOD__.': '.$query);
-		
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			$this->setObjId($row->obj_id);
-			$this->setRefId($row->ref_id);
-			$this->enableTitleUpdate($row->title_update);
-			$this->enablePositionUpdate($row->position_update);
-			$this->enableTreeUpdate($row->tree_update);
-			$this->mapped = true;
-		}
-	}
-	
-	public static function deleteByServerId($a_server_id)
-	{
-		global $DIC;
+    public static function deleteByServerId($a_server_id): bool
+    {
+        global $DIC;
 
-		$ilDB = $DIC['ilDB'];
+        $ilDB = $DIC['ilDB'];
 
-		$query = 'DELETE FROM ecs_node_mapping_a'.
-			' WHERE server_id = '.$ilDB->quote($a_server_id,'integer');
-		$ilDB->manipulate($query);
-		return true;
-	}
-
+        $query = 'DELETE FROM ecs_node_mapping_a' .
+            ' WHERE server_id = ' . $ilDB->quote($a_server_id, 'integer');
+        $ilDB->manipulate($query);
+        return true;
+    }
 }
-?>

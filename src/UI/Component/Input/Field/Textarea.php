@@ -1,22 +1,36 @@
 <?php
 
-/* Copyright (c) 2017 Jesús López <lopez@leifos.com> Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 namespace ILIAS\UI\Component\Input\Field;
 
-use ILIAS\UI\Component\JavaScriptBindable;
+use ILIAS\UI\Component\Input\Container\Form\FormInput;
 
 /**
  * This describes Textarea inputs.
  */
-interface Textarea extends Input
+interface Textarea extends FormInput
 {
-
     /**
      * set maximum number of characters
-     * @param $max_limit integer
      */
-    public function withMaxLimit($max_limit);
+    public function withMaxLimit(int $max_limit): Textarea;
 
     /**
      * get maximum limit of characters
@@ -26,9 +40,8 @@ interface Textarea extends Input
 
     /**
      * set minimum number of characters
-     * @param $min_limit integer
      */
-    public function withMinLimit($min_limit);
+    public function withMinLimit(int $min_limit): Textarea;
 
     /**
      * get minimum limit of characters
@@ -38,7 +51,6 @@ interface Textarea extends Input
 
     /**
      * bool if textarea has max or min number of character limit.
-     * @return mixed
      */
-    public function isLimited();
+    public function isLimited(): bool;
 }

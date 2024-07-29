@@ -1,8 +1,23 @@
 <?php
 
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
 
-include_once("./Services/Object/classes/class.ilObjectAccess.php");
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 
 /**
 * Class ilObjGroupAccess
@@ -14,416 +29,308 @@ include_once("./Services/Object/classes/class.ilObjectAccess.php");
 */
 class ilObjGroupAccess extends ilObjectAccess
 {
-	protected static $using_code = false;
-	/**
-	* checks wether a user may invoke a command or not
-	* (this method is called by ilAccessHandler::checkAccess)
-	*
-	* @param	string		$a_cmd		command (not permission!)
-	* @param	string		$a_permission	permission
-	* @param	int			$a_ref_id	reference id
-	* @param	int			$a_obj_id	object id
-	* @param	int			$a_user_id	user id (if not provided, current user is taken)
-	*
-	* @return	boolean		true, if everything is ok
-	*/
-	function _checkAccess($a_cmd, $a_permission, $a_ref_id, $a_obj_id, $a_user_id = "")
-	{
+    protected static bool $using_code = false;
 
-		global $DIC;
+    /**
+     * @inheritDoc
+     */
+    public function _checkAccess(string $cmd, string $permission, int $ref_id, int $obj_id, ?int $user_id = null): bool
+    {
+        global $DIC;
 
-		$ilUser = $DIC['ilUser'];
-		$lng = $DIC['lng'];
-		$rbacsystem = $DIC['rbacsystem'];
-		$ilAccess = $DIC['ilAccess'];
+        $ilUser = $DIC['ilUser'];
+        $lng = $DIC['lng'];
+        $ilAccess = $DIC['ilAccess'];
 
-		if ($a_user_id == "")
-		{
-			$a_user_id = $ilUser->getId();
-		}
-		
-		switch ($a_cmd)
-		{
-			case "info":
-			
-				include_once './Modules/Group/classes/class.ilGroupParticipants.php';
-				if(ilGroupParticipants::_isParticipant($a_ref_id,$a_user_id))
-				{
-					$ilAccess->addInfoItem(ilAccessInfo::IL_STATUS_INFO, $lng->txt("info_is_member"));
-				}
-				else
-				{
-					$ilAccess->addInfoItem(ilAccessInfo::IL_STATUS_INFO, $lng->txt("info_is_not_member"));
-				}						
-				break;
-				
-			case "join":
-			
-				if(!self::_registrationEnabled($a_obj_id))
-				{
-					return false;
-				}
+        if (is_null($user_id)) {
+            $user_id = $ilUser->getId();
+        }
 
-				include_once './Modules/Group/classes/class.ilGroupWaitingList.php';
-				if(ilGroupWaitingList::_isOnList($ilUser->getId(), $a_obj_id))
-				{
-					return false;
-				}
+        switch ($cmd) {
+            case "info":
 
-				include_once './Modules/Group/classes/class.ilGroupParticipants.php';
-				if(ilGroupParticipants::_isParticipant($a_ref_id,$a_user_id))
-				{
-					return false;
-				}
-				break;
-				
-			case 'leave':
+                if (ilGroupParticipants::_isParticipant($ref_id, $user_id)) {
+                    $ilAccess->addInfoItem(ilAccessInfo::IL_STATUS_INFO, $lng->txt("info_is_member"));
+                } else {
+                    $ilAccess->addInfoItem(ilAccessInfo::IL_STATUS_INFO, $lng->txt("info_is_not_member"));
+                }
+                break;
 
-				// Regular member
-				if($a_permission == 'leave')
-				{
-					include_once './Modules/Group/classes/class.ilObjGroup.php';
-					$limit = null;
-					if(!ilObjGroup::mayLeave($a_obj_id, $a_user_id, $limit))
-					{						
-						$ilAccess->addInfoItem(ilAccessInfo::IL_STATUS_INFO,
-							sprintf($lng->txt("grp_cancellation_end_rbac_info"), ilDatePresentation::formatDate($limit)));
-						return false;
-					}		
-					
-					include_once './Modules/Group/classes/class.ilGroupParticipants.php';
-					if(!ilGroupParticipants::_isParticipant($a_ref_id, $a_user_id))
-					{
-						return false;
-					}
-				}
-				// Waiting list
-				if($a_permission == 'join')
-				{
-					include_once './Modules/Group/classes/class.ilGroupWaitingList.php';
-					if(!ilGroupWaitingList::_isOnList($ilUser->getId(), $a_obj_id))
-					{
-						return false;
-					}
-				}
-				break;
-				
-		}
+            case "join":
 
-		switch ($a_permission)
-		{
-			case 'leave':
-				include_once './Modules/Group/classes/class.ilObjGroup.php';
-				return ilObjGroup::mayLeave($a_obj_id, $a_user_id);
-		}
-		return true;
-	}
+                if (!self::_registrationEnabled($obj_id)) {
+                    return false;
+                }
 
-	/**
-	 * get commands
-	 * 
-	 * this method returns an array of all possible commands/permission combinations
-	 * 
-	 * example:	
-	 * $commands = array
-	 *	(
-	 *		array("permission" => "read", "cmd" => "view", "lang_var" => "show"),
-	 *		array("permission" => "write", "cmd" => "edit", "lang_var" => "edit"),
-	 *	);
-	 */
-	static function _getCommands()
-	{
-		$commands = array();
-		$commands[] = array("permission" => "grp_linked", "cmd" => "", "lang_var" => "show", "default" => true);
+                if (ilGroupWaitingList::_isOnList($ilUser->getId(), $obj_id)) {
+                    return false;
+                }
 
-		include_once './Services/WebServices/FileManager/classes/class.ilFMSettings.php';
-		if(ilFMSettings::getInstance()->isEnabled())
-		{
-			$commands[] = array(
-				'permission' => 'read',
-				'cmd' => 'fileManagerLaunch',
-				'lang_var' => 'fm_start',
-				'enable_anonymous' => false
-			);
-		}
+                if (ilGroupParticipants::_isParticipant($ref_id, $user_id)) {
+                    return false;
+                }
+                break;
 
-		$commands[] = array("permission" => "join", "cmd" => "join", "lang_var" => "join");
+            case 'leave':
+                // Regular member
+                if ($permission == 'leave') {
+                    $limit = null;
+                    if (!ilObjGroup::mayLeave($obj_id, $user_id, $limit)) {
+                        $ilAccess->addInfoItem(
+                            ilAccessInfo::IL_STATUS_INFO,
+                            sprintf($lng->txt("grp_cancellation_end_rbac_info"), ilDatePresentation::formatDate($limit))
+                        );
+                        return false;
+                    }
 
-		// on waiting list
-		$commands[]	= array('permission' => "join", "cmd" => "leave", "lang_var" => "leave_waiting_list");
-		
-		// regualar users
-		$commands[]	= array('permission' => "leave", "cmd" => "leave", "lang_var" => "grp_btn_unsubscribe");
-		
-		include_once ('Services/WebDAV/classes/class.ilDAVActivationChecker.php');
-		if (ilDAVActivationChecker::_isActive())
-		{
-			include_once './Services/WebDAV/classes/class.ilWebDAVUtil.php';
-			if(ilWebDAVUtil::getInstance()->isLocalPasswordInstructionRequired())
-			{
-				$commands[] = array('permission' => 'read', 'cmd' => 'showPasswordInstruction', 'lang_var' => 'mount_webfolder', 'enable_anonymous' => 'false');
-			}
-			else
-			{
-				$commands[] = array("permission" => "read", "cmd" => "mount_webfolder", "lang_var" => "mount_webfolder", "enable_anonymous" => "false");
-			}
-		}
+                    if (!ilGroupParticipants::_isParticipant($ref_id, $user_id)) {
+                        return false;
+                    }
+                }
+                break;
 
-		$commands[] = array("permission" => "write", "cmd" => "enableAdministrationPanel", "lang_var" => "edit_content");
-		$commands[] = array("permission" => "write", "cmd" => "edit", "lang_var" => "settings");
-		
-		return $commands;
-	}
-	
-	/**
-	* check whether goto script will succeed
-	*/
-	static function _checkGoto($a_target)
-	{
-		global $DIC;
+            case 'leaveWaitList':
+                // Waiting list
+                if ($permission == 'join') {
+                    if (!ilGroupWaitingList::_isOnList($ilUser->getId(), $obj_id)) {
+                        return false;
+                    }
+                }
+                break;
 
-		$ilAccess = $DIC['ilAccess'];
-		$ilUser = $DIC['ilUser'];
+        }
 
-		$t_arr = explode("_", $a_target);
-		// registration codes
-		if(substr($t_arr[2],0,5) == 'rcode' and $ilUser->getId() != ANONYMOUS_USER_ID)
-		{
-			self::$using_code = true;
-			return true;
-		}
+        switch ($permission) {
+            case 'leave':
+                return ilObjGroup::mayLeave($obj_id, $user_id);
+        }
+        return true;
+    }
 
-		if ($t_arr[0] != "grp" || ((int) $t_arr[1]) <= 0)
-		{
-			return false;
-		}
+    /**
+     * @inheritDoc
+     */
+    public static function _getCommands(): array
+    {
+        $commands = array();
+        $commands[] = array("permission" => "grp_linked", "cmd" => "", "lang_var" => "show", "default" => true);
 
-		if ($ilAccess->checkAccess("read", "", $t_arr[1]) ||
-			$ilAccess->checkAccess("visible", "", $t_arr[1]))
-		{
-			return true;
-		}
-		return false;
-	}
-	
-	/**
-	 * 
-	 * @return 
-	 * @param object $a_obj_id
-	 */
-	public static function _registrationEnabled($a_obj_id)
-	{
-		global $DIC;
+        $commands[] = array("permission" => "join", "cmd" => "join", "lang_var" => "join");
 
-		$ilDB = $DIC['ilDB'];
+        // on waiting list
+        $commands[] = array('permission' => "join", "cmd" => "leaveWaitList", "lang_var" => "leave_waiting_list");
 
-		$query = "SELECT * FROM grp_settings ".
-			"WHERE obj_id = ".$ilDB->quote($a_obj_id ,'integer')." ";
+        // regualar users
+        $commands[] = array('permission' => "leave", "cmd" => "leave", "lang_var" => "grp_btn_unsubscribe");
 
-		$res = $ilDB->query($query);
-		
-		$enabled = $unlimited = false;
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			$enabled = $row->registration_enabled;
-			$unlimited = $row->registration_unlimited;
-			$start = $row->registration_start;
-			$end = $row->registration_end;
-		}
+        if (ilDAVActivationChecker::_isActive()) {
+            $webdav_obj = new ilObjWebDAV();
+            $commands[] = $webdav_obj->retrieveWebDAVCommandArrayForActionMenu();
+        }
 
-		if(!$enabled)
-		{
-			return false;
-		}
-		if($unlimited)
-		{
-			return true;
-		}
-		
-		if(!$unlimited)
-		{
-			$start = new ilDateTime($start,IL_CAL_DATETIME);
-			$end = new ilDateTime($end,IL_CAL_DATETIME);
-			$time = new ilDateTime(time(),IL_CAL_UNIX);
-			
-			return ilDateTime::_after($time, $start) and ilDateTime::_before($time,$end); 
-		}
-		return false;
-	}
-	
+        $commands[] = array("permission" => "write", "cmd" => "enableAdministrationPanel", "lang_var" => "edit_content");
+        $commands[] = array("permission" => "write", "cmd" => "edit", "lang_var" => "settings");
 
-	/**
-	 * Preload data
-	 *
-	 * @param array $a_obj_ids array of object ids
-	 */
-	static function _preloadData($a_obj_ids, $a_ref_ids)
-	{
-		global $DIC;
+        return $commands;
+    }
 
-		$ilDB = $DIC['ilDB'];
-		$ilUser = $DIC['ilUser'];
-		
-		include_once("./Modules/Group/classes/class.ilGroupWaitingList.php");
-		ilGroupWaitingList::_preloadOnListInfo($ilUser->getId(), $a_obj_ids);
-	}
-	
-	/**
-	 * Lookup registration info
-	 * @global ilDB $ilDB
-	 * @global ilObjUser $ilUser
-	 * @global ilLanguage $lng
-	 * @param int $a_obj_id
-	 * @return array
-	 */
-	public static function lookupRegistrationInfo($a_obj_id)
-	{
-		global $DIC;
+    /**
+     * @inheritDoc
+    */
+    public static function _checkGoto(string $target): bool
+    {
+        global $DIC;
 
-		$ilDB = $DIC['ilDB'];
-		$ilUser = $DIC['ilUser'];
-		$lng = $DIC['lng'];
-		
-		$query = 'SELECT registration_type, registration_enabled, registration_unlimited,  registration_start, '.
-			'registration_end, registration_mem_limit, registration_max_members FROM grp_settings '.
-			'WHERE obj_id = '.$ilDB->quote($a_obj_id);
-		$res = $ilDB->query($query);
-		
-		$info = array();
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			$info['reg_info_start'] = new ilDateTime($row->registration_start, IL_CAL_DATETIME);
-			$info['reg_info_end'] = new ilDateTime($row->registration_end, IL_CAL_DATETIME);
-			$info['reg_info_type'] = $row->registration_type;
-			$info['reg_info_max_members'] = $row->registration_max_members;
-			$info['reg_info_mem_limit'] = $row->registration_mem_limit;
-			$info['reg_info_unlimited'] = $row->registration_unlimited;
-			
-			$info['reg_info_max_members'] = 0;
-			if($info['reg_info_mem_limit'])
-			{
-				$info['reg_info_max_members'] = $row->registration_max_members;
-			}
-			
-			$info['reg_info_enabled'] = $row->registration_enabled;
-		}
-		
-		$registration_possible = $info['reg_info_enabled'];
+        $ilAccess = $DIC->access();
+        $ilUser = $DIC->user();
 
-		// Limited registration (added $registration_possible, see bug 0010157)
-		if(!$info['reg_info_unlimited'] && $registration_possible)
-		{
-			$dt = new ilDateTime(time(),IL_CAL_UNIX);
-			if(ilDateTime::_before($dt, $info['reg_info_start']))
-			{
-				$info['reg_info_list_prop']['property'] = $lng->txt('grp_list_reg_start');
-				$info['reg_info_list_prop']['value'] = ilDatePresentation::formatDate($info['reg_info_start']);
-			}
-			elseif(ilDateTime::_before($dt, $info['reg_info_end']))
-			{
-				$info['reg_info_list_prop']['property'] = $lng->txt('grp_list_reg_end');
-				$info['reg_info_list_prop']['value'] = ilDatePresentation::formatDate($info['reg_info_end']);
-			}
-			else
-			{
-				$registration_possible = false;
-				$info['reg_info_list_prop']['property'] = $lng->txt('grp_list_reg_period');
-				$info['reg_info_list_prop']['value'] = $lng->txt('grp_list_reg_noreg');
-			}
-		}
-		else
-		{
-			// added !$registration_possible, see bug 0010157
-			if (!$registration_possible)
-			{
-				$registration_possible = false;
-				$info['reg_info_list_prop']['property'] = $lng->txt('grp_list_reg');
-				$info['reg_info_list_prop']['value'] = $lng->txt('grp_list_reg_noreg');
-			}
-		}
-		
-		if($info['reg_info_mem_limit'] && $info['reg_info_max_members'] && $registration_possible)
-		{
-			// Check for free places
-			include_once './Modules/Group/classes/class.ilGroupParticipants.php';
-			$part = ilGroupParticipants::_getInstanceByObjId($a_obj_id);
+        $t_arr = explode("_", $target);
+        // registration codes
+        if (substr((string) ($t_arr[2] ?? ""), 0, 5) === 'rcode' and $ilUser->getId() != ANONYMOUS_USER_ID) {
+            self::$using_code = true;
+            return true;
+        }
 
-			include_once './Modules/Course/classes/class.ilCourseWaitingList.php';
-			$info['reg_info_list_size'] = ilCourseWaitingList::lookupListSize($a_obj_id);
-			if($info['reg_info_list_size'])
-			{
-				$info['reg_info_free_places'] = 0;
-			}
-			else
-			{
-				$info['reg_info_free_places'] = max(0,$info['reg_info_max_members'] - $part->getCountMembers());
-			}
+        if ($t_arr[0] != "grp" || ((int) $t_arr[1]) <= 0) {
+            return false;
+        }
 
-			if($info['reg_info_free_places'])
-			{
-				$info['reg_info_list_prop_limit']['property'] = $lng->txt('grp_list_reg_limit_places');
-				$info['reg_info_list_prop_limit']['value'] = $info['reg_info_free_places'];
-			}
-			else
-			{
-				$info['reg_info_list_prop_limit']['property'] = '';
-				$info['reg_info_list_prop_limit']['value'] = $lng->txt('grp_list_reg_limit_full');
-			}
-		}
+        if ($ilAccess->checkAccess("read", "", (int) $t_arr[1]) ||
+            $ilAccess->checkAccess("visible", "", (int) $t_arr[1])) {
+            return true;
+        }
+        return false;
+    }
 
-		return $info;
-	}
-	
-	/**
-	 * Lookup course period info
-	 * 
-	 * @param int $a_obj_id
-	 * @return array
-	 */
-	public static function lookupPeriodInfo($a_obj_id)
-	{
-		global $DIC;
+    public static function _registrationEnabled(int $a_obj_id): bool
+    {
+        global $DIC;
 
-		$ilDB = $DIC['ilDB'];
-		$lng = $DIC['lng'];
-		
-		$start = $end = null;
-		
-		$query = 'SELECT grp_start, grp_end FROM grp_settings'.
-			' WHERE obj_id = '.$ilDB->quote($a_obj_id);
-		$set = $ilDB->query($query);		
-		while($row = $ilDB->fetchAssoc($set))
-		{			
-			$start = $row['grp_start'] 
-				? new ilDate($row['grp_start'], IL_CAL_UNIX)
-				: null;
-			$end = $row['grp_end'] 
-				? new ilDate($row['grp_end'], IL_CAL_UNIX)
-				: null;
-		}
-		
-		if($start && $end)
-		{
-			$lng->loadLanguageModule('grp');
-			
-			return array(
-				'property' => $lng->txt('grp_period'),
-				'value' => ilDatePresentation::formatPeriod($start, $end)
-			);
-		}
-	}
-	
+        $ilDB = $DIC->database();
+        $query = "SELECT * FROM grp_settings " .
+            "WHERE obj_id = " . $ilDB->quote($a_obj_id, 'integer') . " ";
 
-	/**
-	 * Using Registration code
-	 *
-	 * @return bool
-	 */
-	public static function _usingRegistrationCode()
-	{
-		return self::$using_code;
-	}
-	
+        $res = $ilDB->query($query);
 
+        $enabled = $unlimited = false;
+        $start = $end = 0;
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $enabled = $row->registration_enabled;
+            $unlimited = $row->registration_unlimited;
+            $start = $row->registration_start;
+            $end = $row->registration_end;
+        }
+
+        if (!$enabled) {
+            return false;
+        }
+        if ($unlimited) {
+            return true;
+        }
+        $start = new ilDateTime($start, IL_CAL_DATETIME);
+        $end = new ilDateTime($end, IL_CAL_DATETIME);
+        $time = new ilDateTime(time(), IL_CAL_UNIX);
+        return ilDateTime::_after($time, $start) and ilDateTime::_before($time, $end);
+    }
+
+
+    /**
+     * @inheritDoc
+     */
+    public static function _preloadData(array $obj_ids, array $ref_ids): void
+    {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+        $ilUser = $DIC->user();
+
+        ilGroupWaitingList::_preloadOnListInfo([$ilUser->getId()], $obj_ids);
+    }
+
+    public static function lookupRegistrationInfo(int $a_obj_id): array
+    {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+        $lng = $DIC->language();
+
+        $query = 'SELECT registration_type, registration_enabled, registration_unlimited,  registration_start, ' .
+            'registration_end, registration_mem_limit, registration_max_members FROM grp_settings ' .
+            'WHERE obj_id = ' . $ilDB->quote($a_obj_id, ilDBConstants::T_INTEGER);
+        $res = $ilDB->query($query);
+
+        $info = array();
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $info['reg_info_start'] = new ilDateTime($row->registration_start, IL_CAL_DATETIME);
+            $info['reg_info_end'] = new ilDateTime($row->registration_end, IL_CAL_DATETIME);
+            $info['reg_info_type'] = $row->registration_type;
+            $info['reg_info_mem_limit'] = $row->registration_mem_limit;
+            $info['reg_info_unlimited'] = $row->registration_unlimited;
+
+            $info['reg_info_max_members'] = 0;
+            if ($info['reg_info_mem_limit']) {
+                $info['reg_info_max_members'] = $row->registration_max_members;
+            }
+
+            $info['reg_info_enabled'] = $row->registration_enabled;
+        }
+
+        $registration_possible = $info['reg_info_enabled'];
+
+        // Limited registration (added $registration_possible, see bug 0010157)
+        if (!$info['reg_info_unlimited'] && $registration_possible) {
+            $dt = new ilDateTime(time(), IL_CAL_UNIX);
+            if (ilDateTime::_before($dt, $info['reg_info_start'])) {
+                $info['reg_info_list_prop']['property'] = $lng->txt('grp_list_reg_start');
+                $info['reg_info_list_prop']['value'] = ilDatePresentation::formatDate($info['reg_info_start']);
+            } elseif (ilDateTime::_before($dt, $info['reg_info_end'])) {
+                $info['reg_info_list_prop']['property'] = $lng->txt('grp_list_reg_end');
+                $info['reg_info_list_prop']['value'] = ilDatePresentation::formatDate($info['reg_info_end']);
+            } else {
+                $registration_possible = false;
+                $info['reg_info_list_prop']['property'] = $lng->txt('grp_list_reg_period');
+                $info['reg_info_list_prop']['value'] = $lng->txt('grp_list_reg_noreg');
+            }
+        } else {
+            // added !$registration_possible, see bug 0010157
+            if (!$registration_possible) {
+                $registration_possible = false;
+                $info['reg_info_list_prop']['property'] = $lng->txt('grp_list_reg');
+                $info['reg_info_list_prop']['value'] = $lng->txt('grp_list_reg_noreg');
+            }
+        }
+
+        if ($info['reg_info_mem_limit'] && $info['reg_info_max_members'] && $registration_possible) {
+            // Check for free places
+            $part = ilGroupParticipants::_getInstanceByObjId($a_obj_id);
+
+            $info['reg_info_list_size'] = ilCourseWaitingList::lookupListSize($a_obj_id);
+            if ($info['reg_info_list_size']) {
+                $info['reg_info_free_places'] = 0;
+            } else {
+                $info['reg_info_free_places'] = max(0, $info['reg_info_max_members'] - $part->getCountMembers());
+            }
+
+            if ($info['reg_info_free_places']) {
+                $info['reg_info_list_prop_limit']['property'] = $lng->txt('grp_list_reg_limit_places');
+                $info['reg_info_list_prop_limit']['value'] = $info['reg_info_free_places'];
+            } else {
+                $info['reg_info_list_prop_limit']['property'] = '';
+                $info['reg_info_list_prop_limit']['value'] = $lng->txt('grp_list_reg_limit_full');
+            }
+        }
+
+        return $info;
+    }
+
+    /**
+     * @param int $a_obj_id
+     * @return array<{property: string, value: string}> | null
+     * @throws ilDateTimeException
+     */
+    public static function lookupPeriodInfo(int $a_obj_id): ?array
+    {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+        $lng = $DIC->language();
+
+        $start = $end = null;
+        $query = 'SELECT period_start, period_end, period_time_indication FROM grp_settings ' .
+            'WHERE obj_id = ' . $ilDB->quote($a_obj_id, ilDBConstants::T_INTEGER);
+
+        $res = $ilDB->query($query);
+        while ($row = $res->fetchRow(\ilDBConstants::FETCHMODE_OBJECT)) {
+            if (!$row->period_time_indication) {
+                $start = ($row->period_start
+                    ? new \ilDate($row->period_start, IL_CAL_DATETIME)
+                    : null);
+                $end = ($row->period_end
+                    ? new \ilDate($row->period_end, IL_CAL_DATETIME)
+                    : null);
+            } else {
+                $start = ($row->period_start
+                    ? new \ilDateTime($row->period_start, IL_CAL_DATETIME, \ilTimeZone::UTC)
+                    : null);
+                $end = ($row->period_end
+                    ? new \ilDateTime($row->period_end, IL_CAL_DATETIME, \ilTimeZone::UTC)
+                    : null);
+            }
+        }
+        if ($start && $end) {
+            $lng->loadLanguageModule('grp');
+
+            return
+                [
+                    'property' => $lng->txt('grp_period'),
+                    'value' => ilDatePresentation::formatPeriod($start, $end)
+                ];
+        }
+        return null;
+    }
+
+    public static function _usingRegistrationCode(): bool
+    {
+        return self::$using_code;
+    }
 }
-?>

@@ -1,6 +1,20 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * @author		Björn Heyser <bheyser@databay.de>
@@ -10,149 +24,143 @@
  */
 class ilTestQuestionRelatedObjectivesList
 {
-	/**
-	 * @var array
-	 */
-	protected $objectivesByQuestion;
+    /**
+     * @var array
+     */
+    protected $objectivesByQuestion;
 
-	/**
-	 * @var array
-	 */
-	protected $objectivesTitles;
-	
-	public function __construct()
-	{
-		$this->objectivesByQuestion = array();
-		$this->objectivesTitles = array();
-	}
+    /**
+     * @var array
+     */
+    protected $objectivesTitles;
 
-	/**
-	 * @param integer $questionId
-	 * @param string $objectiveTitle
-	 */
-	public function addQuestionRelatedObjectives($questionId, $objectiveIds)
-	{
-		$this->objectivesByQuestion[$questionId] = $objectiveIds;
-	}
+    public function __construct()
+    {
+        $this->objectivesByQuestion = array();
+        $this->objectivesTitles = array();
+    }
 
-	/**
-	 * @param integer $questionId
-	 * @return bool
-	 */
-	public function hasQuestionRelatedObjectives($questionId)
-	{
-		if( !isset($this->objectivesByQuestion[$questionId]) )
-		{
-			return false;
-		}
-		
-		return (bool)count($this->objectivesByQuestion[$questionId]);
-	}
+    /**
+     * @param integer $questionId
+     * @param string $objectiveTitle
+     */
+    public function addQuestionRelatedObjectives($questionId, $objectiveIds)
+    {
+        $this->objectivesByQuestion[$questionId] = $objectiveIds;
+    }
 
-	/**
-	 * @param integer $questionId
-	 * @return string
-	 */
-	public function getQuestionRelatedObjectives($questionId)
-	{
-		return $this->objectivesByQuestion[$questionId];
-	}
-	
-	public function loadObjectivesTitles()
-	{
-		require_once 'Modules/Course/classes/class.ilCourseObjective.php';
-		
-		foreach( $this->objectivesByQuestion as $objectiveIds )
-		{
-			foreach( $objectiveIds as $objectiveId )
-			{
-				if( !isset($this->objectivesTitles[$objectiveId]) )
-				{
-					$objectiveTitle = ilCourseObjective::lookupObjectiveTitle($objectiveId);
-					$this->objectivesTitles[$objectiveId] = $objectiveTitle;
-				}
-			}
-		}
-	}
+    /**
+     * @param integer $questionId
+     * @return bool
+     */
+    public function hasQuestionRelatedObjectives($questionId): bool
+    {
+        if (!isset($this->objectivesByQuestion[$questionId])) {
+            return false;
+        }
 
-	/**
-	 * @param integer $questionId
-	 * @return string
-	 */
-	public function getQuestionRelatedObjectiveTitles($questionId)
-	{
-		$titles = array();
-		
-		foreach((array) $this->objectivesByQuestion[$questionId] as $objectiveId)
-		{
-			$titles[] = $this->objectivesTitles[$objectiveId];
-		}
-		
-		return implode(', ', $titles);
-	}
-	
-	public function getUniqueObjectivesString()
-	{
-		return implode(', ', $this->objectivesTitles);
-	}
+        return (bool) count($this->objectivesByQuestion[$questionId]);
+    }
 
-	public function getUniqueObjectivesStringForQuestions($questionIds)
-	{
-		$objectiveTitles = array();
+    /**
+     * @param integer $questionId
+     */
+    public function getQuestionRelatedObjectives($questionId)
+    {
+        return $this->objectivesByQuestion[$questionId];
+    }
 
-		foreach( $this->objectivesByQuestion as $questionId => $objectiveIds )
-		{
-			if( !in_array($questionId, $questionIds) )
-			{
-				continue;
-			}
-			
-			foreach( $objectiveIds as $objectiveId )
-			{
-				$objectiveTitles[$objectiveId] = $this->objectivesTitles[$objectiveId];
-			}
-		}
-		
-		return implode(', ', $objectiveTitles);
-	}
+    public function loadObjectivesTitles()
+    {
+        foreach ($this->objectivesByQuestion as $objectiveIds) {
+            foreach ($objectiveIds as $objectiveId) {
+                if (!isset($this->objectivesTitles[$objectiveId])) {
+                    $objectiveTitle = ilCourseObjective::lookupObjectiveTitle($objectiveId);
+                    $this->objectivesTitles[$objectiveId] = $objectiveTitle;
+                }
+            }
+        }
+    }
 
-	public function getObjectiveTitleById($objectiveId)
-	{
-		return $this->objectivesTitles[$objectiveId];
-	}
+    /**
+     * @param integer $questionId
+     * @return string
+     */
+    public function getQuestionRelatedObjectiveTitles($questionId): string
+    {
+        if (!isset($this->objectivesByQuestion['questionId'])
+            || !is_array($this->objectivesByQuestion['questionId'])) {
+            return '';
+        }
 
-	public function getObjectives()
-	{
-		return $this->objectivesTitles;
-	}
+        $titles = [];
+        foreach ($this->objectivesByQuestion[$questionId] as $objectiveId) {
+            $titles[] = $this->objectivesTitles[$objectiveId];
+        }
 
-	public function isQuestionRelatedToObjective($questionId, $objectiveId)
-	{
-		foreach($this->objectivesByQuestion[$questionId] as $relatedObjectiveId)
-		{
-			if($relatedObjectiveId == $objectiveId)
-			{
-				return true;
-			}
-		}
+        return implode(', ', $titles);
+    }
 
-		return false;
-	}
+    public function getUniqueObjectivesString(): string
+    {
+        return implode(', ', $this->objectivesTitles);
+    }
 
-	public function filterResultsByObjective($testResults, $objectiveId)
-	{
-		$filteredResults = array();
+    public function getUniqueObjectivesStringForQuestions($questionIds): string
+    {
+        $objectiveTitles = array();
 
-		foreach($testResults as $questionId => $resultData)
-		{
-			if( !$this->isQuestionRelatedToObjective($questionId, $objectiveId) )
-			{
-				continue;
-			}
+        foreach ($this->objectivesByQuestion as $questionId => $objectiveIds) {
+            if (!in_array($questionId, $questionIds)) {
+                continue;
+            }
 
-			$filteredResults[$questionId] = $resultData;
-		}
+            foreach ($objectiveIds as $objectiveId) {
+                $objectiveTitles[$objectiveId] = $this->objectivesTitles[$objectiveId];
+            }
+        }
 
-		return $filteredResults;
-	}
+        return implode(', ', $objectiveTitles);
+    }
+
+    public function getObjectiveTitleById($objectiveId)
+    {
+        return $this->objectivesTitles[$objectiveId];
+    }
+
+    public function getObjectives(): array
+    {
+        return $this->objectivesTitles;
+    }
+
+    public function isQuestionRelatedToObjective($questionId, $objectiveId): bool
+    {
+        if (!isset($this->objectivesByQuestion['questionId'])
+            || !is_array($this->objectivesByQuestion['questionId'])) {
+            return false;
+        }
+
+        foreach ($this->objectivesByQuestion[$questionId] as $relatedObjectiveId) {
+            if ($relatedObjectiveId == $objectiveId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function filterResultsByObjective($testResults, $objectiveId): array
+    {
+        $filteredResults = array();
+
+        foreach ($testResults as $questionId => $resultData) {
+            if (!$this->isQuestionRelatedToObjective($questionId, $objectiveId)) {
+                continue;
+            }
+
+            $filteredResults[$questionId] = $resultData;
+        }
+
+        return $filteredResults;
+    }
 }

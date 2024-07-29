@@ -1,222 +1,161 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2006 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
 
-/** 
-* 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ */
+
+declare(strict_types=1);
+
+/**
 * @author Stefan Meyer <meyer@leifos.com>
-* @version $Id$
-* 
-* 
-* @ingroup ServicesWebServicesECS
 */
 class ilECSDataMappingSetting
 {
+    public const MAPPING_EXPORT = 1;
+    public const MAPPING_IMPORT_CRS = 2;
+    public const MAPPING_IMPORT_RCRS = 3;
 
-	const MAPPING_EXPORT = 1;
-	const MAPPING_IMPORT_CRS = 2;
-	const MAPPING_IMPORT_RCRS = 3;
+    private ilDBInterface $db;
 
-	private $server_id = 0;
-	private $mapping_type = 0;
-	private $ecs_field = 0;
-	private $advmd_id = 0;
+    private int $server_id = 0;
+    private int $mapping_type = 0;
+    private string $ecs_field = '';
+    private int $advmd_id = 0;
 
+    public function __construct(int $a_server_id = 0, int $mapping_type = 0, string $ecs_field = '')
+    {
+        global $DIC;
 
- 	/**
-	 * constructor
-	 * @access public
-	 * 
-	 */
-	public function __construct($a_server_id = 0,$mapping_type = 0,$ecs_field = '')
-	{
-		$this->setServerId($a_server_id);
-		$this->setMappingType($mapping_type);
-		$this->setECSField($ecs_field);
-	}
+        $this->db = $DIC->database();
 
-	/**
-	 * set server id
-	 * @param int $a_server_id
-	 */
-	public function setServerId($a_server_id)
-	{
-		$this->server_id = $a_server_id;
-	}
+        $this->setServerId($a_server_id);
+        $this->setMappingType($mapping_type);
+        $this->setECSField($ecs_field);
+    }
 
-	/**
-	 * Get server id
-	 */
-	public function getServerId()
-	{
-		return $this->server_id;
-	}
+    /**
+     * set server id
+     */
+    public function setServerId(int $a_server_id): void
+    {
+        $this->server_id = $a_server_id;
+    }
 
-	/**
-	 *
-	 * @param string $ecs_field
-	 */
-	public function setECSField($ecs_field)
-	{
-		$this->ecs_field = $ecs_field;
-	}
+    /**
+     * Get server id
+     */
+    public function getServerId(): int
+    {
+        return $this->server_id;
+    }
 
-	/**
-	 * Get ecs field
-	 */
-	public function getECSField()
-	{
-		return $this->ecs_field;
-	}
+    public function setECSField(string $ecs_field): void
+    {
+        $this->ecs_field = $ecs_field;
+    }
 
-	/**
-	 * Set mapping type
-	 * @param int $mapping_type
-	 */
-	public function setMappingType($mapping_type)
-	{
-		$this->mapping_type = $mapping_type;
-	}
+    /**
+     * Get ecs field
+     */
+    public function getECSField(): string
+    {
+        return $this->ecs_field;
+    }
 
-	/**
-	 * Get mapping type
-	 */
-	public function getMappingType()
-	{
-		return $this->mapping_type;
-	}
+    /**
+     * Set mapping type
+     */
+    public function setMappingType(int $mapping_type): void
+    {
+        $this->mapping_type = $mapping_type;
+    }
 
+    /**
+     * Get mapping type
+     */
+    public function getMappingType(): int
+    {
+        return $this->mapping_type;
+    }
 
-	/**
-	 *
-	 * @return int
-	 */
-	public function getAdvMDId()
-	{
-		return $this->advmd_id;
-	}
+    public function getAdvMDId(): int
+    {
+        return $this->advmd_id;
+    }
 
-	public function setAdvMDId($a_id)
-	{
-		$this->advmd_id = $a_id;
-	}
+    public function setAdvMDId(int $a_id): void
+    {
+        $this->advmd_id = $a_id;
+    }
 
-	/**
-	 * Save mappings
-	 *
-	 * @access public
-	 */
-	public function save()
-	{
-		global $DIC;
+    /**
+     * Save mappings
+     */
+    public function save(): void
+    {
+        $query = 'SELECT * FROM ecs_data_mapping ' .
+            'WHERE sid = ' . $this->db->quote($this->getServerId(), 'integer') . ' ' .
+            'AND mapping_type = ' . $this->db->quote($this->getMappingType(), 'integer') . ' ' .
+            'AND ecs_field = ' . $this->db->quote($this->getECSField(), 'text');
+        $res = $this->db->query($query);
+        if ($res->numRows()) {
+            $this->update();
+        } else {
+            $this->create();
+        }
+    }
 
-		$ilDB = $DIC['ilDB'];
+    /**
+     * Update setting
+     */
+    protected function update(): void
+    {
+        $query = 'UPDATE ecs_data_mapping ' .
+            'SET advmd_id = ' . $this->db->quote($this->getAdvMDId(), 'integer') . ' ' .
+            'WHERE sid = ' . $this->db->quote($this->getServerId(), 'integer') . ' ' .
+            'AND mapping_type = ' . $this->db->quote($this->getMappingType(), 'integer') . ' ' .
+            'AND ecs_field = ' . $this->db->quote($this->getECSField(), 'text');
+        $this->db->manipulate($query);
+    }
 
-		$query = 'SELECT * FROM ecs_data_mapping '.
-			'WHERE sid = '.$ilDB->quote($this->getServerId(),'integer').' '.
-			'AND mapping_type = '.$ilDB->quote($this->getMappingType(),'integer').' '.
-			'AND ecs_field = '.$ilDB->quote($this->getECSField(),'text');
-		$res = $ilDB->query($query);
-		if($res->numRows())
-		{
-			$this->update();
-		}
-		else
-		{
-			$this->create();
-		}
-	}
-
-	/**
-	 * Update setting
-	 * @global ilDB $ilDB 
-	 */
-	protected function update()
-	{
-		global $DIC;
-
-		$ilDB = $DIC['ilDB'];
-
-		$query = 'UPDATE ecs_data_mapping '.
-			'SET advmd_id = '.$ilDB->quote($this->getAdvMDId(),'integer').' '.
-			'WHERE sid = '.$ilDB->quote($this->getServerId(),'integer').' '.
-			'AND mapping_type = '.$ilDB->quote($this->getMappingType(),'integer').' '.
-			'AND ecs_field = '.$ilDB->quote($this->getECSField(),'text');
-		$ilDB->manipulate($query);
-	}
-
-	protected function create()
-	{
-		global $DIC;
-
-		$ilDB = $DIC['ilDB'];
-
-		$query = 'INSERT INTO ecs_data_mapping (sid,mapping_type,ecs_field,advmd_id) '.
-			'VALUES('.
-			$ilDB->quote($this->getServerId(), 'integer') . ', ' .
-			$ilDB->quote($this->getMappingType(),'integer').', '.
-			$ilDB->quote($this->getECSField(),'text').', '.
-			$ilDB->quote($this->getAdvMDId(),'integer').' ) ';
-		$res = $ilDB->manipulate($query);
-		return true;
-	}
+    protected function create(): bool
+    {
+        $query = 'INSERT INTO ecs_data_mapping (sid,mapping_type,ecs_field,advmd_id) ' .
+            'VALUES(' .
+            $this->db->quote($this->getServerId(), 'integer') . ', ' .
+            $this->db->quote($this->getMappingType(), 'integer') . ', ' .
+            $this->db->quote($this->getECSField(), 'text') . ', ' .
+            $this->db->quote($this->getAdvMDId(), 'integer') . ' ) ';
+        $this->db->manipulate($query);
+        return true;
+    }
 
 
-	/**
-	 * Read settings
-	 *
-	 * @access private
-	 * 
-	 */
-	private function read()
-	{
-		global $DIC;
-
-		$ilDB = $DIC['ilDB'];
-		
-		if($this->getServerId() and $this->getMappingType() and $this->getECSField())
-		{
-			$query = 'SELECT * FROM ecs_data_mapping '.
-				'WHERE sid = '.$ilDB->quote($this->getServerId(),'integer').' '.
-				'AND mapping_type = '.$ilDB->quote($this->getMappingType(),'integer').' '.
-				'AND ecs_field = '.$ilDB->quote($this->getECSField(),'text');
-			$res = $ilDB->query($query);
-			while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-			{
-				$this->setAdvMDId($row->advmd_id);
-			}
-		}
-	}
-	
-	public static function deleteByServerId($a_server_id)
-	{
-		global $DIC;
-
-		$ilDB = $DIC['ilDB'];
-
-		$query = 'DELETE FROM ecs_data_mapping'.
-			' WHERE sid = '.$ilDB->quote($a_server_id,'integer');
-		$ilDB->manipulate($query);
-		return true;
-	}
+    /**
+     * Read settings
+     */
+    private function read(): void
+    {
+        if ($this->getServerId() || $this->getMappingType() || $this->getECSField()) {
+            $query = 'SELECT * FROM ecs_data_mapping ' .
+                'WHERE sid = ' . $this->db->quote($this->getServerId(), 'integer') . ' ' .
+                'AND mapping_type = ' . $this->db->quote($this->getMappingType(), 'integer') . ' ' .
+                'AND ecs_field = ' . $this->db->quote($this->getECSField(), 'text');
+            $res = $this->db->query($query);
+            while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+                $this->setAdvMDId($row->advmd_id);
+            }
+        }
+    }
 }
-?>

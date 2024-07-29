@@ -1,5 +1,22 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilChatroomInfoGUI
@@ -10,56 +27,36 @@
  */
 class ilChatroomInfoGUI extends ilChatroomGUIHandler
 {
-	/**
-	 * Prepares and displays the info screen.
-	 * @param string $method
-	 * @throws ilCtrlException
-	 */
-	public function executeDefault($method)
-	{
-		include_once 'Modules/Chatroom/classes/class.ilChatroom.php';
+    protected function createInfoScreenGUI(ilChatroomObjectGUI $gui): ilInfoScreenGUI
+    {
+        return new ilInfoScreenGUI($gui);
+    }
 
-		$this->redirectIfNoPermission('read');
+    public function executeDefault(string $requestedMethod): void
+    {
+        $this->redirectIfNoPermission('visible');
 
-		$this->gui->switchToVisibleMode();
+        $this->gui->switchToVisibleMode();
 
-		if(!ilChatroom::checkUserPermissions("visible", $this->gui->ref_id, false))
-		{
-			$this->gui->ilias->raiseError(
-				$this->ilLng->txt("msg_no_perm_read"), $this->ilias->error_obj->MESSAGE
-			);
-		}
+        $info = $this->createInfoScreenGUI($this->gui);
 
-		$info = $this->createInfoScreenGUI($this->gui);
+        $info->enablePrivateNotes();
 
-		$info->enablePrivateNotes();
+        $refId = $this->getRequestValue('ref_id', $this->refinery->kindlyTo()->int());
+        if (ilChatroom::checkUserPermissions('read', $refId, false)) {
+            $info->enableNews();
+        }
 
-		if(ilChatroom::checkUserPermissions("read", (int)$_GET["ref_id"], false))
-		{
-			$info->enableNews();
-		}
-
-		$info->addMetaDataSections(
-			$this->gui->object->getId(), 0, $this->gui->object->getType()
-		);
-		if(!$method)
-		{
-			$this->ilCtrl->setCmd('showSummary');
-		}
-		else
-		{
-			$this->ilCtrl->setCmd($method);
-		}
-		$this->ilCtrl->forwardCommand($info);
-	}
-
-	/**
-	 * @param ilChatroomObjectGui $gui
-	 * @return ilInfoScreenGUI
-	 */
-	protected function createInfoScreenGUI($gui)
-	{
-		require_once 'Services/InfoScreen/classes/class.ilInfoScreenGUI.php';
-		return new ilInfoScreenGUI($gui);
-	}
+        $info->addMetaDataSections(
+            $this->gui->getObject()->getId(),
+            0,
+            $this->gui->getObject()->getType()
+        );
+        if ($requestedMethod === '') {
+            $this->ilCtrl->setCmd('showSummary');
+        } else {
+            $this->ilCtrl->setCmd($requestedMethod);
+        }
+        $this->ilCtrl->forwardCommand($info);
+    }
 }

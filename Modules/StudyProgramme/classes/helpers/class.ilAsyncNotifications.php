@@ -1,132 +1,148 @@
 <?php
 
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 /**
  * Class ilAsyncNotifications
- * Allows to display async notifications on a page
+ * Allows displaying async notifications on a page
  *
  * @author Michael Herren <mh@studer-raimann.ch>
  * @version 1.0.0
  */
-class ilAsyncNotifications {
+class ilAsyncNotifications
+{
+    /**
+     * @var bool Shows if the js is already added
+     */
+    protected bool $js_init;
 
-	/**
-	 * @var bool Shows if the js is already added
-	 */
-	protected $js_init;
+    /**
+     * @var string|null Id of the container to add the notifications
+     */
+    protected ?string $content_container_id;
 
-	/**
-	 * @var string|null Id of the container to add the notifications
-	 */
-	protected $content_container_id;
+    /**
+     * @var string Path to the js-path of the module
+     */
+    protected string $js_path;
 
-	/**
-	 * @var string Path to the js-path of the module
-	 */
-	protected $js_path;
+    /**
+     * @var array JavaScript configuration for the jquery plugin
+     */
+    protected array $js_config;
 
-	/**
-	 * @var array JavaScript configuration for the jquery plugin
-	 */
-	protected $js_config;
+    public function __construct(string $content_container_id = null)
+    {
+        $this->js_init = false;
+        $this->js_path = "./Modules/StudyProgramme/templates/js/";
+        $this->content_container_id = $content_container_id ?? "ilContentContainer";
+    }
 
+    /**
+     * Setup the message templates and add the js onload code
+     */
+    public function initJs(): void
+    {
+        global $DIC;
+        $tpl = $DIC['tpl'];
 
-	public function __construct($content_container_id = null) {
-		$this->js_init = false;
-		$this->js_path = "./Modules/StudyProgramme/templates/js/";
-		$this->content_container_id = ($content_container_id != null)? $content_container_id : "ilContentContainer";
-	}
+        if (!$this->js_init) {
+            $tpl->addJavaScript($this->getJsPath() . 'ilStudyProgramme.js');
 
+            // TODO: DW -> refactor ilUtil
+            $templates['info'] = ilUtil::getSystemMessageHTML("[MESSAGE]");
+            $templates['success'] = ilUtil::getSystemMessageHTML("[MESSAGE]", 'success');
+            $templates['failure'] = ilUtil::getSystemMessageHTML("[MESSAGE]", 'failure');
+            $templates['question'] = ilUtil::getSystemMessageHTML("[MESSAGE]", 'question');
 
-	/**
-	 * Setup the message templates and add the js onload code
-	 */
-	public function initJs() {
-		global $DIC;
-		$tpl = $DIC['tpl'];
+            $this->addJsConfig('templates', $templates);
 
-		if(!$this->js_init) {
-			$tpl->addJavaScript($this->getJsPath().'ilStudyProgramme.js');
+            $tpl->addOnLoadCode(
+                "$('#" .
+                $this->content_container_id .
+                "').study_programme_notifications(" .
+                json_encode($this->js_config, JSON_THROW_ON_ERROR) .
+                ");"
+            );
 
-			$templates['info'] = ilUtil::getSystemMessageHTML("[MESSAGE]");
-			$templates['success'] = ilUtil::getSystemMessageHTML("[MESSAGE]", 'success');
-			$templates['failure'] = ilUtil::getSystemMessageHTML("[MESSAGE]", 'failure');
-			$templates['question'] = ilUtil::getSystemMessageHTML("[MESSAGE]", 'question');
+            $this->js_init = true;
+        }
+    }
 
-			$this->addJsConfig('templates', $templates);
+    /**
+     * Returns the component (returns the js tag)
+     */
+    public function getHTML(): void
+    {
+        $this->initJs();
+    }
 
-			$tpl->addOnLoadCode("$('#".$this->content_container_id."').study_programme_notifications(".json_encode($this->js_config).");");
+    /**
+     * Gets the target container for the notification
+     */
+    public function getContentContainerId(): ?string
+    {
+        return $this->content_container_id;
+    }
 
-			$this->js_init = true;
-		}
-	}
+    /**
+     * Sets the target container for the notification
+     */
+    public function setContentContainerId(?string $content_container_id): void
+    {
+        $this->content_container_id = $content_container_id;
+    }
 
+    /**
+     * Return the path for the java scripts
+     */
+    public function getJsPath(): string
+    {
+        return $this->js_path;
+    }
 
-	/**
-	 * Returns the component (returns the js tag)
-	 */
-	public function getHTML() {
-		global $DIC;
-		$tpl = $DIC['tpl'];
+    /**
+     * Sets the path for the java scripts
+     */
+    public function setJsPath(string $js_path): void
+    {
+        $this->js_path = $js_path;
+    }
 
-		$this->initJs();
-	}
+    /**
+     * Gets a setting of the jquery-plugin config
+     *
+     * @return mixed $key
+     */
+    public function getJsConfig($key)
+    {
+        return $this->js_config[$key];
+    }
 
-	/**
-	 * Gets the target container for the notification
-	 *
-	 * @return null|string
-	 */
-	public function getContentContainerId() {
-		return $this->content_container_id;
-	}
-
-
-	/**
-	 * Sets the target container for the notification
-	 *
-	 * @param null|string $content_container_id
-	 */
-	public function setContentContainerId($content_container_id) {
-		$this->content_container_id = $content_container_id;
-	}
-
-
-	/**
-	 * Return the path for the javascripts
-	 *
-	 * @return string
-	 */
-	public function getJsPath() {
-		return $this->js_path;
-	}
-
-
-	/**
-	 * Sets the path for the javascripts
-	 *
-	 * @param string $js_path
-	 */
-	public function setJsPath($js_path) {
-		$this->js_path = $js_path;
-	}
-
-
-	/**
-	 * Gets a setting of the jquery-plugin config
-	 *
-	 * @return mixed
-	 */
-	public function getJsConfig($key) {
-		return $this->js_config[$key];
-	}
-
-
-	/**
-	 * Sets Jquery settings for the plugin
-	 *
-	 * @param mixed $js_config
-	 */
-	public function addJsConfig($key, $value) {
-		$this->js_config[$key] = $value;
-	}
+    /**
+     * Sets Jquery settings for the plugin
+     *
+     * @param mixed $key
+     * @param mixed $value
+     */
+    public function addJsConfig($key, $value): void
+    {
+        $this->js_config[$key] = $value;
+    }
 }

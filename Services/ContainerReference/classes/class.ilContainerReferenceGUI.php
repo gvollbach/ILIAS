@@ -1,506 +1,386 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2006 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
 
-include_once('./Services/Object/classes/class.ilObjectGUI.php');
+declare(strict_types=1);
 
-/** 
-* 
-* 
-* @author Stefan Meyer <meyer@leifos.com>
-* @version $Id$
-* 
-*
-* @ingroup ServicesContainerReference 
-*/
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\ContainerReference\StandardGUIRequest;
+
+/**
+ * @author Stefan Meyer <meyer@leifos.com>
+ */
 class ilContainerReferenceGUI extends ilObjectGUI
 {
-	const MAX_SELECTION_ENTRIES = 50;
+    public const MAX_SELECTION_ENTRIES = 50;
+    public const MODE_CREATE = 1;
+    public const MODE_EDIT = 2;
 
-	const MODE_CREATE = 1;
-	const MODE_EDIT = 2;
+    protected ilTabsGUI $tabs;
+    protected ilErrorHandling $error;
+    protected array $existing_objects = [];
 
-	/**
-	 * @var \ilTabsGUI
-	 */
-	protected $tabs;
+    protected string $target_type;
+    protected string $reference_type;
+    protected ilPropertyFormGUI $form;
+    protected StandardGUIRequest $cont_request;
 
-	/**
-	 * @var \ilLocatorGUI
-	 */
-	protected $locator;
+    public function __construct($a_data, int $a_id, bool $a_call_by_reference = true, bool $a_prepare_output = true)
+    {
+        /** @var \ILIAS\DI\Container $DIC */
+        global $DIC;
 
-	/**
-	 * @var \ilObjUser
-	 */
-	protected $user;
+        $this->lng = $DIC->language();
+        $this->ctrl = $DIC->ctrl();
+        $this->tabs = $DIC->tabs();
+        $this->locator = $DIC["ilLocator"];
+        $this->user = $DIC->user();
+        $this->access = $DIC->access();
+        $this->error = $DIC["ilErr"];
+        $this->settings = $DIC->settings();
+        $lng = $DIC->language();
+        parent::__construct($a_data, $a_id, $a_call_by_reference, $a_prepare_output);
 
-	/**
-	 * @var \ilAccessHandler
-	 */
-	protected $access;
+        $lng->loadLanguageModule('objref');
+        $this->cont_request = $DIC
+            ->containerReference()
+            ->internal()
+            ->gui()
+            ->standardRequest();
+    }
 
-	/**
-	 * @var \ilErrorHandling
-	 */
-	protected $error;
+    public function executeCommand(): void
+    {
+        $ilCtrl = $this->ctrl;
+        $ilTabs = $this->tabs;
 
-	/**
-	 * @var \ilSetting
-	 */
-	protected $settings;
+        if ($this->cont_request->getCreationMode() === self::MODE_CREATE) {
+            $this->setCreationMode(true);
+        }
 
+        $next_class = $ilCtrl->getNextClass($this);
+        $cmd = $ilCtrl->getCmd();
 
-	protected $existing_objects = array();
+        $this->prepareOutput();
 
-	/**
-	 * @var string
-	 */
-	protected $target_type;
-	/**
-	 * @var string
-	 */
-	protected $reference_type;
+        switch ($next_class) {
+            case "ilpropertyformgui":
+                $form = $this->initForm($this->creation_mode ? self::MODE_CREATE : self::MODE_EDIT);
+                $this->ctrl->forwardCommand($form);
+                break;
 
-	/**
-	 * @var \ilPropertyFormGUI
-	 */
-	protected $form;
+            case 'ilpermissiongui':
+                $ilTabs->setTabActive('perm_settings');
+                include_once("Services/AccessControl/classes/class.ilPermissionGUI.php");
+                $ilCtrl->forwardCommand(new ilPermissionGUI($this));
+                break;
 
-	/**
-	 * Constructor
-	 * @param
-	 */
-	public function __construct($a_data, $a_id, $a_call_by_reference = true, $a_prepare_output = true)
-	{
-		global $DIC;
+            default:
+                if ($cmd === null || $cmd === '' || $cmd === 'view') {
+                    $cmd = "edit";
+                }
+                $cmd .= "Object";
+                $this->$cmd();
+                break;
+        }
+    }
 
-		$this->lng = $DIC->language();
-		$this->ctrl = $DIC->ctrl();
-		$this->tabs = $DIC->tabs();
-		$this->locator = $DIC["ilLocator"];
-		$this->user = $DIC->user();
-		$this->access = $DIC->access();
-		$this->error = $DIC["ilErr"];
-		$this->settings = $DIC->settings();
-		$lng = $DIC->language();
-		parent::__construct($a_data, $a_id,$a_call_by_reference,$a_prepare_output);
+    protected function addLocatorItems(): void
+    {
+        $ilLocator = $this->locator;
 
-		$lng->loadLanguageModule('objref');
-	}
+        if ($this->object instanceof ilObject) {
+            $ilLocator->addItem($this->object->getPresentationTitle(), $this->ctrl->getLinkTarget($this));
+        }
+    }
 
-	/**
-	 * Execute command
-	 *
-	 * @access public
-	 *
-	 * @return bool|mixed
-	 * @throws ilCtrlException
-	 */
-	public function executeCommand()
-	{
-		$ilCtrl = $this->ctrl;
-		$ilTabs = $this->tabs;
+    public function redirectObject(): void
+    {
+        $ilCtrl = $this->ctrl;
 
+        $ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $this->object->getTargetRefId());
+        $ilCtrl->redirectByClass("ilrepositorygui", "");
+    }
 
-		if(isset($_GET['creation_mode']) && $_GET['creation_mode'] == self::MODE_CREATE)
-		{
-			$this->setCreationMode(true);
-		}
+    public function createObject(): void
+    {
+        $ilAccess = $this->access;
+        $ilErr = $this->error;
 
-		$next_class = $ilCtrl->getNextClass($this);
-		$cmd = $ilCtrl->getCmd();
-
-		$this->prepareOutput();
-
-		switch($next_class)
-		{
-			case "ilpropertyformgui":
-				$form = $this->initForm($this->creation_mode ? self::MODE_CREATE : self::MODE_EDIT);
-				$this->ctrl->forwardCommand($form);
-				break;
-
-			case 'ilpermissiongui':
-				$ilTabs->setTabActive('perm_settings');
-				include_once("Services/AccessControl/classes/class.ilPermissionGUI.php");
-				$ilCtrl->forwardCommand(new ilPermissionGUI($this));
-				break;
-
-			default:
-				if(!$cmd || $cmd == 'view')
-				{
-					$cmd = "edit";
-				}
-				$cmd .= "Object";
-				$this->$cmd();
-				break;
-		}
-		return true;
-	}
-	
-	/**
-	 * Add locator item
-	 */
-	protected function addLocatorItems()
-	{
-		$ilLocator = $this->locator;
-		
-		if($this->object instanceof ilObject)
-		{
-			$ilLocator->addItem($this->object->getPresentationTitle(),$this->ctrl->getLinkTarget($this));
-		}
-	}
-	
-	/**
-	 * redirect to target 
-	 * @param
-	 */
-	public function redirectObject()
-	{
-		$ilCtrl = $this->ctrl;
-		
-		$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $this->object->getTargetRefId());
-		$ilCtrl->redirectByClass("ilrepositorygui", "");
-	}
-	
-	/**
-	 * Create object 
-	 * 
-	 * @return void
-	 */
-	public function createObject()
-	{
-		$ilUser = $this->user;
-		$ilAccess = $this->access;
-		$ilErr = $this->error;
-		$ilSetting = $this->settings;
-		
-		$new_type = $_REQUEST["new_type"];
-		if(!$ilAccess->checkAccess("create_".$this->getReferenceType(),'',$_GET["ref_id"], $new_type))
-		{
-			$ilErr->raiseError($this->lng->txt("permission_denied"),$ilErr->MESSAGE);
-		}
-		$form = $this->initForm(self::MODE_CREATE);
-		$this->tpl->setContent($form->getHTML());
-	}
-	
-	
-	/**
-	 * save object
-	 *
-	 * @access public
-	 * @param
-	 * @return
-	 */
-	public function saveObject()
-	{
-		$ilAccess = $this->access;
-		
-		if(!(int) $_REQUEST['target_id'])
-		{
-			ilUtil::sendFailure($this->lng->txt('select_one'));
-			$this->createObject();
-			return false;	
-		}
-		if(!$ilAccess->checkAccess('visible','',(int) $_REQUEST['target_id']))
-		{
-			ilUtil::sendFailure($this->lng->txt('permission_denied'));
-			$this->createObject();
-			return false;	
-		}
-		
-		parent::saveObject();
-	}
-	
-	protected function initCreateForm($a_new_type)
-	{
-		return $this->initForm(self::MODE_CREATE);
-	}
-
-	/**
-	 * @param ilObject $a_new_object
-	 */
-	protected function afterSave(ilObject $a_new_object)
-	{		
-		$target_obj_id = ilObject::_lookupObjId((int) $this->form->getInput('target_id'));
-		$a_new_object->setTargetId($target_obj_id);
-
-		$a_new_object->setTitleType($this->form->getInput('title_type'));
-		if($this->form->getInput('title_type') == ilContainerReference::TITLE_TYPE_CUSTOM)
-		{
-			$a_new_object->setTitle($this->form->getInput('title'));
-		}
-
-		$a_new_object->update();
-		
-		ilUtil::sendSuccess($this->lng->txt("object_added"), true);
-		$this->ctrl->setParameter($this,'ref_id',$a_new_object->getRefId());
-		$this->ctrl->setParameter($this,'creation_mode',0);
-		$this->ctrl->redirect($this,'firstEdit');
-	}
-	
-	/**
-	 * show edit screen without info message
-	 */
-	protected function firstEditObject()
-	{
-		$this->editObject();
-	}
-
-	public function editReferenceObject()
-	{
-		$this->editObject();
-	}
-	
-	/**
-	 * edit title
-	 * 
-	 * @param ilPropertyFormGUI $form
-	 */
-	public function editObject(ilPropertyFormGUI $form = null)
-	{
-		global $DIC;
-
-		$main_tpl = $DIC->ui()->mainTemplate();
-
-		$ilTabs = $this->tabs;
-
-		$ilTabs->setTabActive('settings');
-		
-		if(!$form instanceof ilPropertyFormGUI)
-		{
-			$form = $this->initForm();
-		}
-		$main_tpl->setContent($form->getHTML());
-	}
-	
-	/**
-	 * Init title form
-	 * @param int $a_mode
-	 * @return ilPropertyFormGUI 
-	 */
-	protected function initForm($a_mode = self::MODE_EDIT)
-	{
-		include_once './Services/Form/classes/class.ilPropertyFormGUI.php';
-		include_once './Services/ContainerReference/classes/class.ilContainerReference.php';
-		$form = new ilPropertyFormGUI();
-
-		if ($a_mode == self::MODE_CREATE) {
-			$form->setTitle($this->lng->txt($this->getReferenceType(). '_new' ));
-
-			$this->ctrl->setParameter($this, 'creation_mode', $a_mode);
-			$this->ctrl->setParameter($this, 'new_type', $_REQUEST['new_type']);
-		}
-		else
-		{
-			$form->setTitle($this->lng->txt('edit'));
-		}
-
-		$form->setFormAction($this->ctrl->getFormAction($this));
-		if ($a_mode == self::MODE_CREATE) 
-		{
-			$form->addCommandButton('save', $this->lng->txt('create'));
-			$form->addCommandButton('cancel', $this->lng->txt('cancel'));
-		} 
-		else 
-		{
-			$form->addCommandButton('update', $this->lng->txt('save'));
-		}
-
-		// title type 
-		$ttype = new ilRadioGroupInputGUI($this->lng->txt('title'), 'title_type');
-		if ($a_mode == self::MODE_EDIT)
-		{
-			$ttype->setValue($this->object->getTitleType());
-		}
-		else
-		{
-			$ttype->setValue(ilContainerReference::TITLE_TYPE_REUSE);
-		}
-
-		$reuse = new ilRadioOption($this->lng->txt('objref_reuse_title'));
-		$reuse->setValue(ilContainerReference::TITLE_TYPE_REUSE);
-		$ttype->addOption($reuse);
-		
-		$custom = new ilRadioOption($this->lng->txt('objref_custom_title'));
-		$custom->setValue(ilContainerReference::TITLE_TYPE_CUSTOM);
-		
-		// title 
-		$title = new ilTextInputGUI($this->lng->txt('title'),'title');
-		$title->setSize(min(40, ilObject::TITLE_LENGTH));
-		$title->setMaxLength(ilObject::TITLE_LENGTH);
-		$title->setRequired(true);
-
-		if($a_mode == self::MODE_EDIT)
-		{
-			$title->setValue($this->object->getTitle());
-		}
-
-		$custom->addSubItem($title);
-		$ttype->addOption($custom);
-		$form->addItem($ttype);
-
-		include_once("./Services/Form/classes/class.ilRepositorySelector2InputGUI.php");
-		$repo = new ilRepositorySelector2InputGUI($this->lng->txt("objref_edit_ref"), "target_id");
-		//$repo->setParent($this);
-		$repo->setRequired(true);
-		$repo->getExplorerGUI()->setSelectableTypes(array($this->getTargetType()));
-		$repo->getExplorerGUI()->setTypeWhiteList(array_merge(
-				array($this->getTargetType()),
-				array("root", "cat", "grp", "fold", "crs"))
-		);
-		$repo->setInfo($this->lng->txt($this->getReferenceType().'_edit_info'));
-
-		if($a_mode == self::MODE_EDIT)
-		{
-			$repo->getExplorerGUI()->setPathOpen($this->object->getTargetRefId());
-			$repo->setValue($this->object->getTargetRefId());
-		}
-
-		$form->addItem($repo);
-		$this->form = $form;
-		return $form;
-	}
+        $new_type = $this->cont_request->getNewType();
+        if (!$ilAccess->checkAccess(
+            "create_" . $this->getReferenceType(),
+            '',
+            $this->cont_request->getRefId(),
+            $new_type
+        )) {
+            $ilErr->raiseError($this->lng->txt("permission_denied"), $ilErr->MESSAGE);
+        }
+        $this->ctrl->saveParameter($this, "crtptrefid");
+        $this->ctrl->saveParameter($this, "crtcb");
+        $form = $this->initForm(self::MODE_CREATE);
+        $this->tpl->setContent($form->getHTML());
+    }
 
 
-	/**
-	 * @param \ilPropertyFormGUI $form
-	 * @return bool
-	 */
-	protected function loadPropertiesFromSettingsForm(\ilPropertyFormGUI $form) : bool
-	{
-		global $DIC;
+    public function saveObject(): void
+    {
+        $ilAccess = $this->access;
 
-		$ok = true;
-		$access = $DIC->access();
+        if ($this->cont_request->getTargetId() === 0) {
+            $this->tpl->setOnScreenMessage('failure', $this->lng->txt('select_one'));
+            $this->createObject();
+            return;
+        }
+        if (!$ilAccess->checkAccess(
+            'visible',
+            '',
+            $this->cont_request->getTargetId()
+        )) {
+            $this->tpl->setOnScreenMessage('failure', $this->lng->txt('permission_denied'));
+            $this->createObject();
+            return;
+        }
 
-		$this->object->setTitleType($form->getInput('title_type'));
-		if($form->getInput('title_type') == ilContainerReference::TITLE_TYPE_CUSTOM) {
-			$this->object->setTitle($form->getInput('title'));
-		}
+        parent::saveObject();
+    }
 
-		// check access
-		if(
-			!$access->checkAccess('visible','', (int) $form->getInput('target_id'))
-		) {
-			$ok = false;
-			$form->getItemByPostVar('target_id')->setAlert($this->lng->txt('permission_denied'));
-		}
-		// check target type
-		if(ilObject::_lookupType($form->getInput('target_id'),true) != $this->target_type) {
-			$ok = false;
-			$form->getItemByPostVar('target_id')->setAlert(
-				$this->lng->txt('objref_failure_target_type').
-				': ' .
-				$this->lng->txt('obj_' . $this->target_type)
-			);
-		}
+    protected function initCreateForm(string $new_type): ilPropertyFormGUI
+    {
+        return $this->initForm(self::MODE_CREATE);
+    }
 
-		return $ok;
-	}
+    protected function afterSave(ilObject $new_object): void
+    {
+        $target_obj_id = ilObject::_lookupObjId((int) $this->form->getInput('target_id'));
+        $new_object->setTargetId($target_obj_id);
+        $new_object->setTitleType((int) $this->form->getInput('title_type'));
 
-	
-	/**
-	 * update title
-	 */
-	public function updateObject()
-	{
-		$this->checkPermission('write');
+        if ((int) $this->form->getInput('title_type') === ilContainerReference::TITLE_TYPE_CUSTOM) {
+            $new_object->setTitle($this->form->getInput('title'));
+        } elseif ((int) $this->form->getInput('title_type') === ilContainerReference::TITLE_TYPE_REUSE) {
+            $new_object->setTitle(ilObject::_lookupTitle($new_object->getTargetId()));
+        }
 
-		$ilAccess = $this->access;
-		$form = $this->initForm();
-		if(
-			$form->checkInput() &&
-			$this->loadPropertiesFromSettingsForm($form)
-		)
-		{
+        $new_object->update();
 
-			$this->object->update();
-			ilUtil::sendSuccess($this->lng->txt('settings_saved'), true);
-			$this->ctrl->redirect($this,'edit');
-		}
-		$form->setValuesByPost();
-		ilUtil::sendFailure($this->lng->txt('err_check_input'));
-		$this->editObject($form);
-		return true;
-	}
+        $this->tpl->setOnScreenMessage('success', $this->lng->txt("object_added"), true);
+        $this->ctrl->setParameter($this, 'ref_id', $new_object->getRefId());
+        $this->ctrl->setParameter($this, 'creation_mode', 0);
+        $this->ctrl->redirect($this, 'firstEdit');
+    }
 
-	/**
-	 * get target type
-	 *
-	 * @access public
-	 * @return string
-	 */
-	public function getTargetType()
-	{
-		return $this->target_type;
-	}
-	
-	/**
-	 * get reference type
-	 *
-	 * @access public
-	 * @return string
-	 */
-	public function getReferenceType()
-	{
-		return $this->reference_type;
-	}
+    protected function firstEditObject(): void
+    {
+        $this->editObject();
+    }
 
-	/**
-	 * get tabs
-	 *
-	 * @access public
-	 * @param	object	tabs gui object
-	 */
-	public function getTabs()
-	{
-		global $DIC;
+    public function editReferenceObject(): void
+    {
+        $this->editObject();
+    }
 
-		$ilHelp = $DIC['ilHelp'];
-		$ilHelp->setScreenIdComponent($this->getReferenceType());
+    public function editObject(ilPropertyFormGUI $form = null): void
+    {
+        global $DIC;
 
-		if($this->access->checkAccess('write','',$this->object->getRefId()))
-		{
-			$this->tabs_gui->addTarget("settings",
-				$this->ctrl->getLinkTarget($this, "edit"),
-				array(),
-				"");
-		}
-		if ($this->access->checkAccess('edit_permission','',$this->object->getRefId()))
-		{
-			$this->tabs_gui->addTarget("perm_settings",
-				$this->ctrl->getLinkTargetByClass(array(get_class($this),'ilpermissiongui'), "perm"),
-				array("perm","info","owner"), 'ilpermissiongui');
-		}
-	}
+        $main_tpl = $DIC->ui()->mainTemplate();
 
-	/**
-	 * @return int
-	 */
-	public function getId()
-	{
-		return $this->obj_id;
-	}
+        $ilTabs = $this->tabs;
 
+        $ilTabs->setTabActive('settings');
+
+        if (!$form instanceof ilPropertyFormGUI) {
+            $form = $this->initForm();
+        }
+        $main_tpl->setContent($form->getHTML());
+    }
+
+    protected function initForm(int $a_mode = self::MODE_EDIT): ilPropertyFormGUI
+    {
+        $form = new ilPropertyFormGUI();
+
+        if ($a_mode === self::MODE_CREATE) {
+            $form->setTitle($this->lng->txt($this->getReferenceType() . '_new'));
+
+            $this->ctrl->setParameter($this, 'creation_mode', $a_mode);
+            $this->ctrl->setParameter(
+                $this,
+                'new_type',
+                $this->cont_request->getNewType()
+            );
+        } else {
+            $form->setTitle($this->lng->txt($this->reference_type . '_settings'));
+        }
+
+        $form->setFormAction($this->ctrl->getFormAction($this));
+        if ($a_mode === self::MODE_CREATE) {
+            $lv = $this->getTargetType() . "r_add";   // see also https://mantis.ilias.de/view.php?id=31863
+            $form->addCommandButton('save', $this->lng->txt($lv));
+            $form->addCommandButton('cancel', $this->lng->txt('cancel'));
+        } else {
+            $form->addCommandButton('update', $this->lng->txt('save'));
+        }
+
+        // title type
+        $ttype = new ilRadioGroupInputGUI($this->lng->txt('title'), 'title_type');
+        if ($a_mode === self::MODE_EDIT) {
+            $ttype->setValue((string) $this->object->getTitleType());
+        } else {
+            $ttype->setValue((string) ilContainerReference::TITLE_TYPE_REUSE);
+        }
+
+        $reuse = new ilRadioOption($this->lng->txt('objref_reuse_title'));
+        $reuse->setValue((string) ilContainerReference::TITLE_TYPE_REUSE);
+        $ttype->addOption($reuse);
+
+        $custom = new ilRadioOption($this->lng->txt('objref_custom_title'));
+        $custom->setValue((string) ilContainerReference::TITLE_TYPE_CUSTOM);
+
+        // title
+        $title = new ilTextInputGUI($this->lng->txt('title'), 'title');
+        $title->setSize(min(40, ilObject::TITLE_LENGTH));
+        $title->setMaxLength(ilObject::TITLE_LENGTH);
+        $title->setRequired(true);
+
+        if ($a_mode === self::MODE_EDIT) {
+            $title->setValue($this->object->getTitle());
+        }
+
+        $custom->addSubItem($title);
+        $ttype->addOption($custom);
+        $form->addItem($ttype);
+
+        include_once("./Services/Form/classes/class.ilRepositorySelector2InputGUI.php");
+        $repo = new ilRepositorySelector2InputGUI($this->lng->txt("objref_edit_ref"), "target_id");
+        //$repo->setParent($this);
+        $repo->setRequired(true);
+        $repo->getExplorerGUI()->setSelectableTypes([$this->getTargetType()]);
+        $repo->getExplorerGUI()->setTypeWhiteList(
+            array_merge(
+                [$this->getTargetType()],
+                ["root", "cat", "grp", "fold", "crs"]
+            )
+        );
+        $repo->setInfo($this->lng->txt($this->getReferenceType() . '_edit_info'));
+
+        if ($a_mode === self::MODE_EDIT) {
+            $repo->getExplorerGUI()->setPathOpen($this->object->getTargetRefId());
+            $repo->setValue($this->object->getTargetRefId());
+        }
+
+        $form->addItem($repo);
+        $this->form = $form;
+        return $form;
+    }
+
+    protected function loadPropertiesFromSettingsForm(ilPropertyFormGUI $form): bool
+    {
+        global $DIC;
+
+        $ok = true;
+        $access = $DIC->access();
+
+        // check access
+        if (
+            !$access->checkAccess('visible', '', (int) $form->getInput('target_id'))
+        ) {
+            $ok = false;
+            $form->getItemByPostVar('target_id')->setAlert($this->lng->txt('permission_denied'));
+        }
+        // check target type
+        if (ilObject::_lookupType((int) $form->getInput('target_id'), true) !== $this->target_type) {
+            $ok = false;
+            $form->getItemByPostVar('target_id')->setAlert(
+                $this->lng->txt('objref_failure_target_type') .
+                ': ' .
+                $this->lng->txt('obj_' . $this->target_type)
+            );
+        }
+
+        $this->object->setTargetId(
+            ilObject::_lookupObjId((int) $form->getInput('target_id'))
+        );
+
+        // set title after target id, so that the title can be reused immediately
+        $this->object->setTitleType((int) $form->getInput('title_type'));
+        if ((int) $form->getInput('title_type') === ilContainerReference::TITLE_TYPE_CUSTOM) {
+            $this->object->setTitle($form->getInput('title'));
+        } elseif ((int) $form->getInput('title_type') === ilContainerReference::TITLE_TYPE_REUSE) {
+            $this->object->setTitle(ilObject::_lookupTitle($this->object->getTargetId()));
+        }
+
+        return $ok;
+    }
+
+    public function updateObject(): void
+    {
+        $this->checkPermission('write');
+
+        $form = $this->initForm();
+        if (
+            $form->checkInput() &&
+            $this->loadPropertiesFromSettingsForm($form)
+        ) {
+            $this->object->update();
+            $this->tpl->setOnScreenMessage('success', $this->lng->txt('settings_saved'), true);
+            $this->ctrl->redirect($this, 'edit');
+        }
+        $form->setValuesByPost();
+        $this->tpl->setOnScreenMessage('failure', $this->lng->txt('err_check_input'));
+        $this->editObject($form);
+    }
+
+    public function getTargetType(): string
+    {
+        return $this->target_type;
+    }
+
+    public function getReferenceType(): string
+    {
+        return $this->reference_type;
+    }
+
+    protected function getTabs(): void
+    {
+        global $DIC;
+
+        $ilHelp = $DIC['ilHelp'];
+        $ilHelp->setScreenIdComponent($this->getReferenceType());
+
+        if ($this->access->checkAccess('write', '', $this->object->getRefId())) {
+            $this->tabs_gui->addTarget(
+                "settings",
+                $this->ctrl->getLinkTarget($this, "edit"),
+                [],
+                ""
+            );
+        }
+        if ($this->access->checkAccess('edit_permission', '', $this->object->getRefId())) {
+            $this->tabs_gui->addTarget(
+                "perm_settings",
+                $this->ctrl->getLinkTargetByClass([get_class($this), 'ilpermissiongui'], "perm"),
+                ["perm", "info", "owner"],
+                'ilpermissiongui'
+            );
+        }
+    }
+
+    public function getId(): int
+    {
+        return $this->obj_id;
+    }
 }
-?>

@@ -1,7 +1,22 @@
 <?php
-/* Copyright (c) 1998-2016 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/Authentication/classes/External/UserAttributeMapping/class.ilExternalAuthUserAttributeMappingRule.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilExternalAuthUserAttributeMapping
@@ -9,223 +24,146 @@ require_once 'Services/Authentication/classes/External/UserAttributeMapping/clas
  */
 class ilExternalAuthUserAttributeMapping implements ArrayAccess, Countable, Iterator
 {
-	/**
-	 * @var ilDB
-	 */
-	protected $db;
+    protected ilDBInterface $db;
+    protected string $authMode;
+    protected int $authSourceId;
+    /** @var ilExternalAuthUserAttributeMappingRule[] */
+    protected array $mapping = [];
 
-	/**
-	 * @var string
-	 */
-	protected $authMode = '';
+    public function __construct(string $authMode, int $authSourceId = 0)
+    {
+        global $DIC;
+        $this->db = $DIC->database();
 
-	/**
-	 * @var int
-	 */
-	protected $authSourceId;
+        $this->setAuthMode($authMode);
+        $this->setAuthSourceId($authSourceId);
 
-	/**
-	 * @var ilExternalAuthUserAttributeMappingRule[]
-	 */
-	protected $mapping = array();
+        $this->read();
+    }
 
-	/**
-	 * ilExternalAuthUserAttributeMapping constructor.
-	 * @param string $authMode
-	 * @param int    $authSourceId
-	 */
-	public function __construct($authMode, $authSourceId = 0)
-	{
-		assert(is_string($authMode));
-		assert(is_numeric($authSourceId));
+    public function getAuthSourceId(): int
+    {
+        return $this->authSourceId;
+    }
 
-		$this->db = $GLOBALS['DIC']->database();
+    public function setAuthSourceId(int $authSourceId): void
+    {
+        $this->authSourceId = $authSourceId;
+    }
 
-		$this->setAuthMode($authMode);
-		$this->setAuthSourceId($authSourceId);
+    public function getAuthMode(): string
+    {
+        return $this->authMode;
+    }
 
-		$this->read();
-	}
+    public function setAuthMode(string $authMode): void
+    {
+        $this->authMode = $authMode;
+    }
 
-	/**
-	 * @return int
-	 */
-	public function getAuthSourceId()
-	{
-		return $this->authSourceId;
-	}
+    public function getEmptyRule(): ilExternalAuthUserAttributeMappingRule
+    {
+        return new ilExternalAuthUserAttributeMappingRule();
+    }
 
-	/**
-	 * @param int $authSourceId
-	 */
-	public function setAuthSourceId($authSourceId)
-	{
-		$this->authSourceId = $authSourceId;
-	}
+    public function offsetExists($offset): bool
+    {
+        return isset($this->mapping[$offset]);
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getAuthMode()
-	{
-		return $this->authMode;
-	}
+    public function offsetGet($offset)
+    {
+        return $this->offsetExists($offset) ? $this->mapping[$offset] : null;
+    }
 
-	/**
-	 * @param string $authMode
-	 */
-	public function setAuthMode($authMode)
-	{
-		$this->authMode = $authMode;
-	}
+    public function offsetSet($offset, $value): void
+    {
+        if (is_null($offset)) {
+            $this->mapping[] = $value;
+        } else {
+            $this->mapping[$offset] = $value;
+        }
+    }
 
-	/**
-	 * @return ilExternalAuthUserAttributeMappingRule
-	 */
-	public function getEmptyRule()
-	{
-		return new ilExternalAuthUserAttributeMappingRule();
-	}
+    public function offsetUnset($offset): void
+    {
+        unset($this->mapping[$offset]);
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function offsetExists($offset)
-	{
-		return isset($this->mapping[$offset]);
-	}
+    public function count(): int
+    {
+        return count($this->mapping);
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function offsetGet($offset)
-	{
-		return $this->offsetExists($offset) ? $this->mapping[$offset] : null;
-	}
+    public function current(): ilExternalAuthUserAttributeMappingRule
+    {
+        return current($this->mapping);
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function offsetSet($offset, $value)
-	{
-		if(is_null($offset))
-		{
-			$this->mapping[] = $value;
-		}
-		else
-		{
-			$this->mapping[$offset] = $value;
-		}
-	}
+    public function next(): void
+    {
+        next($this->mapping);
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function offsetUnset($offset)
-	{
-		unset($this->mapping[$offset]);
-	}
+    public function key()
+    {
+        return key($this->mapping);
+    }
 
-	/**
-	 * @return int
-	 */
-	public function count()
-	{
-		return count($this->mapping);
-	}
+    public function valid()
+    {
+        return current($this->mapping);
+    }
 
-	/**
-	 * @return ilExternalAuthUserAttributeMappingRule
-	 */
-	public function current()
-	{
-		return current($this->mapping);
-	}
+    public function rewind(): void
+    {
+        reset($this->mapping);
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function next()
-	{
-		next($this->mapping);
-	}
+    protected function read(): void
+    {
+        $this->mapping = [];
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function key()
-	{
-		return key($this->mapping);
-	}
+        $res = $this->db->queryF(
+            'SELECT * FROM auth_ext_attr_mapping WHERE auth_mode = %s AND auth_src_id = %s',
+            ['text', 'integer'],
+            [$this->getAuthMode(), $this->getAuthSourceId()]
+        );
+        while ($row = $this->db->fetchAssoc($res)) {
+            $rule = $this->getEmptyRule();
+            $rule->setAttribute($row['attribute']);
+            $rule->setExternalAttribute($row['ext_attribute']);
+            $rule->updateAutomatically((bool) $row['update_automatically']);
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function valid()
-	{
-		return current($this->mapping);
-	}
+            $this->mapping[$rule->getAttribute()] = $rule;
+        }
+    }
 
-	public function rewind()
-	{
-		reset($this->mapping);
-	}
+    public function save(): void
+    {
+        foreach ($this->mapping as $rule) {
+            $this->db->replace(
+                'auth_ext_attr_mapping',
+                [
+                    'auth_mode' => ['text', $this->getAuthMode()],
+                    'auth_src_id' => ['integer', $this->getAuthSourceId()],
+                    'attribute' => ['text', $rule->getAttribute()]
+                ],
+                [
+                    'ext_attribute' => ['text', $rule->getExternalAttribute()],
+                    'update_automatically' => ['integer', (int) $rule->isAutomaticallyUpdated()]
+                ]
+            );
+        }
+    }
 
-	/**
-	 *
-	 */
-	protected function read()
-	{
-		$this->mapping = array();
-
-		$res = $this->db->queryF(
-			'SELECT * FROM auth_ext_attr_mapping WHERE auth_mode = %s AND auth_src_id = %s',
-			array('text', 'integer'),
-			array($this->getAuthMode(), $this->getAuthSourceId())
-		);
-		while($row = $this->db->fetchAssoc($res))
-		{
-			$rule = $this->getEmptyRule();
-			$rule->setAttribute($row['attribute']);
-			$rule->setExternalAttribute($row['ext_attribute']);
-			$rule->updateAutomatically((bool)$row['update_automatically']);
-
-			$this->mapping[$rule->getAttribute()] = $rule;
-		}
-	}
-
-	/**
-	 *
-	 */
-	public function save()
-	{
-		foreach($this->mapping as $rule)
-		{
-			$this->db->replace(
-				'auth_ext_attr_mapping',
-				array(
-					'auth_mode'   => array('text', $this->getAuthMode()),
-					'auth_src_id' => array('integer', $this->getAuthSourceId()),
-					'attribute'   => array('text', $rule->getAttribute())
-				),
-				array(
-					'ext_attribute'        => array('text', $rule->getExternalAttribute()),
-					'update_automatically' => array('integer', (int)$rule->isAutomaticallyUpdated())
-				)
-			);
-		}
-	}
-
-	/**
-	 *
-	 */
-	public function delete()
-	{
-		$this->mapping = array();
-		$this->db->manipulateF(
-			'DELETE FROM auth_ext_attr_mapping WHERE auth_mode = %s AND auth_src_id = %s',
-			array('text', 'integer'),
-			array($this->getAuthMode(), $this->getAuthSourceId())
-		);
-	}
+    public function delete(): void
+    {
+        $this->mapping = [];
+        $this->db->manipulateF(
+            'DELETE FROM auth_ext_attr_mapping WHERE auth_mode = %s AND auth_src_id = %s',
+            ['text', 'integer'],
+            [$this->getAuthMode(), $this->getAuthSourceId()]
+        );
+    }
 }

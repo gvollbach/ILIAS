@@ -2,146 +2,119 @@
 
 /* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once "./Services/Xml/classes/class.ilXmlWriter.php";
-
 /**
-* XML writer class
-*
-* Class to simplify manual writing of xml documents.
-* It only supports writing xml sequentially, because the xml document
-* is saved in a string with no additional structure information.
-* The author is responsible for well-formedness and validity
-* of the xml document.
-*
-* @author Stefan Meyer <meyer@leifos.com>
-* @version $Id: class.ilObjectXMLWriter.php,v 1.3 2005/11/04 12:50:24 smeyer Exp $
-*/
+ * XML writer class
+ * Class to simplify manual writing of xml documents.
+ * It only supports writing xml sequentially, because the xml document
+ * is saved in a string with no additional structure information.
+ * The author is responsible for well-formedness and validity
+ * of the xml document.
+ * @author  Stefan Meyer <meyer@leifos.com>
+ * @version $Id: class.ilObjectXMLWriter.php,v 1.3 2005/11/04 12:50:24 smeyer Exp $
+ */
 class ilSoapRoleObjectXMLWriter extends ilXmlWriter
 {
-	var $ilias;
-	var $xml;
-	var $roles;
-	var $role_type;
-	var $user_id = 0;
+    public string $xml = '';
+    private array $roles = [];
+    private string $role_type = '';
 
-	/**
-	* constructor
-	* @param	string	xml version
-	* @param	string	output encoding
-	* @param	string	input encoding
-	* @access	public
-	*/
-	function __construct()
-	{
-		global $DIC;
+    public function __construct()
+    {
+        global $DIC;
 
-		$ilias = $DIC['ilias'];
-		$ilUser = $DIC['ilUser'];
+        $ilUser = $DIC->user();
 
-		parent::__construct();
+        parent::__construct();
+    }
 
-		$this->ilias =& $ilias;
-		$this->user_id = $ilUser->getId();
-	}
+    public function setObjects(array $roles) : void
+    {
+        $this->roles = $roles;
+    }
 
+    public function setType(string $type) : void
+    {
+        $this->role_type = $type;
+    }
 
-	function setObjects(&  $roles)
-	{
-		$this->roles = & $roles;
-	}
+    public function start() : bool
+    {
+        global $DIC;
 
-	function setType ($type)
-	{
-		$this->role_type = $type;
-	}
+        $rbacreview = $DIC['rbacreview'];
+        if ($this->roles === []) {
+            return false;
+        }
 
+        $this->buildHeader();
 
-	function start()
-	{
-		global $DIC;
+        include_once './Services/AccessControl/classes/class.ilObjRole.php';
+        include_once './webservice/soap/classes/class.ilObjectXMLWriter.php';
 
-		$rbacreview = $DIC['rbacreview'];
-		if (!is_array($this->roles))
-			return false;
+        foreach ($this->roles as $role) {
+            // if role type is not empty and does not match, then continue;
+            if (!empty($this->role_type) && strcasecmp($this->role_type, $role["role_type"]) !== 0) {
+                continue;
+            }
+            if ($rbacreview->isRoleDeleted($role["obj_id"])) {
+                continue;
+            }
 
-		$this->__buildHeader();
+            $attrs = [
+                'role_type' => ucwords($role["role_type"]),
+                'id' => "il_" . IL_INST_ID . "_role_" . $role["obj_id"]
+            ];
 
-		include_once './Services/AccessControl/classes/class.ilObjRole.php';
-		include_once './webservice/soap/classes/class.ilObjectXMLWriter.php';
+            $this->xmlStartTag("Role", $attrs);
+            $this->xmlElement('Title', null, $role["title"]);
+            $this->xmlElement('Description', null, $role["description"]);
+            $this->xmlElement('Translation', null, ilObjRole::_getTranslation($role["title"]));
 
-		foreach ($this->roles as $role)
-		{
-			// if role type is not empty and does not match, then continue;
-			if (!empty($this->role_type) && strcasecmp ($this->role_type, $role["role_type"]) != 0 )
-			{
-				continue;				
-			}
-			if ($rbacreview->isRoleDeleted($role["obj_id"]))
-			{
-				continue;
-			}
-			
-			$attrs = array(	'role_type' => ucwords($role["role_type"]), 
-				'id' => "il_".IL_INST_ID."_role_".$role["obj_id"]);
+            if ($ref_id = ilUtil::__extractRefId($role["title"])) {
+                $ownerObj = ilObjectFactory::getInstanceByRefId($ref_id, false);
 
-			// open tag
-			$this->xmlStartTag("Role", $attrs);
+                if (is_object($ownerObj)) {
+                    $attrs = [
+                        "obj_id" => implode(
+                            '_',
+                            [
+                                "il",
+                                IL_INST_ID,
+                                $ownerObj->getType(),
+                                $ownerObj->getId()
+                            ]
+                        ),
+                        "ref_id" => $ownerObj->getRefId(),
+                        "type" => $ownerObj->getType()
+                    ];
+                    $this->xmlStartTag('AssignedObject', $attrs);
+                    $this->xmlElement('Title', null, $ownerObj->getTitle());
+                    $this->xmlElement('Description', null, $ownerObj->getDescription());
+                    ilObjectXMLWriter::appendPathToObject($this, $ref_id);
+                    $this->xmlEndTag('AssignedObject');
+                }
+            }
+            $this->xmlEndTag("Role");
+        }
+        $this->buildFooter();
+        return true;
+    }
 
+    public function getXML() : string
+    {
+        return $this->xmlDumpMem(false);
+    }
 
-			$this->xmlElement('Title',null, $role["title"]);
-			$this->xmlElement('Description',null, $role["description"]);
-			$this->xmlElement('Translation',null,ilObjRole::_getTranslation($role["title"]));
+    private function buildHeader() : void
+    {
+        $this->xmlSetDtdDef("<!DOCTYPE Roles PUBLIC \"-//ILIAS//DTD ILIAS Roles//EN\" \"" . ILIAS_HTTP_PATH . "/xml/ilias_role_object_3_10.dtd\">");
+        $this->xmlSetGenCmt("Roles information of ilias system");
+        $this->xmlHeader();
+        $this->xmlStartTag('Roles');
+    }
 
-			if ($ref_id = ilUtil::__extractRefId($role["title"]))
-			{
-
-				$ownerObj = IlObjectFactory::getInstanceByRefId($ref_id, false);
-
-				if (is_object($ownerObj))
-				{
-					$attrs = array ("obj_id" => 
-						"il_".IL_INST_ID."_".$ownerObj->getType()."_".$ownerObj->getId(), "ref_id" => $ownerObj->getRefId(), "type" => $ownerObj->getType());
-					$this->xmlStartTag('AssignedObject', $attrs);
-					$this->xmlElement ('Title', null, $ownerObj->getTitle());
-					$this->xmlElement ('Description', null, $ownerObj->getDescription());
-					ilObjectXMLWriter::appendPathToObject($this, $ref_id);
-					$this->xmlEndTag ('AssignedObject', $attrs);
-				}
-			}
-
-			$this->xmlEndTag ("Role");
-
-		}
-
-		$this->__buildFooter();
-
-		return true;
-	}
-
-	function getXML()
-	{
-		return $this->xmlDumpMem(FALSE);
-	}
-
-
-	function __buildHeader()
-	{
-		$this->xmlSetDtdDef("<!DOCTYPE Roles PUBLIC \"-//ILIAS//DTD ILIAS Roles//EN\" \"".ILIAS_HTTP_PATH."/xml/ilias_role_object_3_10.dtd\">");
-		$this->xmlSetGenCmt("Roles information of ilias system");
-		$this->xmlHeader();
-
-		$this->xmlStartTag('Roles');
-
-		return true;
-	}
-
-	function __buildFooter()
-	{
-		$this->xmlEndTag('Roles');
-	}
-
-
+    private function buildFooter() : void
+    {
+        $this->xmlEndTag('Roles');
+    }
 }
-
-
-?>

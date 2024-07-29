@@ -1,6 +1,8 @@
 <?php
 
-/* Copyright (c) 2018 Jesús López <lopez@leifos.com> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+namespace ILIAS\UI\examples\Card\RepositoryObject;
 
 function with_object_icon()
 {
@@ -9,7 +11,7 @@ function with_object_icon()
     $f = $DIC->ui()->factory();
     $renderer = $DIC->ui()->renderer();
 
-    $icon = $f->symbol()->icon()->standard("crs", 'Course')->withIsOutlined(true);
+    $icon = $f->symbol()->icon()->standard("crs", 'Course');
 
     $image = $f->image()->responsive(
         "./templates/default/images/HeaderIcon.svg",

@@ -1,52 +1,49 @@
 <?php
 
-/* Copyright (c) 2016 Timon Amstutz <timon.amstutz@ilub.unibe.ch> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 require_once(__DIR__ . "/../../../../libs/composer/vendor/autoload.php");
 require_once(__DIR__ . "/../../Base.php");
 
-use \ILIAS\UI\Component as C;
-use \ILIAS\UI\Implementation as I;
+use ILIAS\UI\Component as C;
+use ILIAS\UI\Implementation as I;
 
 /**
  * Test on deck implementation.
  */
 class DeckTest extends ILIAS_UI_TestBase
 {
-
-    /**
-     * @return \ILIAS\UI\Implementation\Factory
-     */
-    public function getFactory()
+    public function getFactory(): NoUIFactory
     {
-        return new \ILIAS\UI\Implementation\Factory(
-            $this->createMock(C\Counter\Factory::class),
-            $this->createMock(C\Button\Factory::class),
-            $this->createMock(C\Listing\Factory::class),
-            $this->createMock(C\Image\Factory::class),
-            $this->createMock(C\Panel\Factory::class),
-            $this->createMock(C\Modal\Factory::class),
-            $this->createMock(C\Dropzone\Factory::class),
-            $this->createMock(C\Popover\Factory::class),
-            $this->createMock(C\Divider\Factory::class),
-            $this->createMock(C\Link\Factory::class),
-            $this->createMock(C\Dropdown\Factory::class),
-            $this->createMock(C\Item\Factory::class),
-            $this->createMock(C\ViewControl\Factory::class),
-            $this->createMock(C\Chart\Factory::class),
-            $this->createMock(C\Input\Factory::class),
-            $this->createMock(C\Table\Factory::class),
-            $this->createMock(C\MessageBox\Factory::class),
-            new I\Component\Card\Factory(),
-            $this->createMock(C\Layout\Factory::class),
-            $this->createMock(C\MainControls\Factory::class),
-            $this->createMock(C\Tree\Factory::class),
-            $this->createMock(C\Menu\Factory::class),
-            $this->createMock(C\Symbol\Factory::class)
-        );
+        return new class () extends NoUIFactory {
+            public function card(): C\Card\Factory
+            {
+                return new I\Component\Card\Factory();
+            }
+            public function deck(array $cards): C\Deck\Deck
+            {
+                return new I\Component\Deck\Deck($cards, C\Deck\Deck::SIZE_S);
+            }
+        };
     }
 
-    public function test_implements_factory_interface()
+    public function test_implements_factory_interface(): void
     {
         $f = $this->getFactory();
 
@@ -55,7 +52,7 @@ class DeckTest extends ILIAS_UI_TestBase
         $this->assertInstanceOf("ILIAS\\UI\\Component\\Deck\\Deck", $f->deck(array($c)));
     }
 
-    public function test_get_cards()
+    public function test_get_cards(): void
     {
         $f = $this->getFactory();
         $c = $f->card()->standard("Card Title");
@@ -64,7 +61,7 @@ class DeckTest extends ILIAS_UI_TestBase
         $this->assertEquals($d->getCards(), array($c));
     }
 
-    public function test_with_cards()
+    public function test_with_cards(): void
     {
         $f = $this->getFactory();
         $c = $f->card()->standard("Card Title");
@@ -74,17 +71,17 @@ class DeckTest extends ILIAS_UI_TestBase
         $this->assertEquals($d->getCards(), array($c,$c));
     }
 
-    public function test_get_size()
+    public function test_get_size(): void
     {
         $f = $this->getFactory();
 
         $c = $f->card()->standard("Card Title");
         $d = $f->deck(array($c));
 
-        $this->assertEquals($d->getCardsSize(), C\Deck\Deck::SIZE_S);
+        $this->assertEquals(C\Deck\Deck::SIZE_S, $d->getCardsSize());
     }
 
-    public function test_with_size()
+    public function test_with_size(): void
     {
         $f = $this->getFactory();
 
@@ -92,25 +89,25 @@ class DeckTest extends ILIAS_UI_TestBase
         $d = $f->deck(array($c));
 
         $d = $d->withExtraSmallCardsSize();
-        $this->assertEquals($d->getCardsSize(), C\Deck\Deck::SIZE_XS);
+        $this->assertEquals(C\Deck\Deck::SIZE_XS, $d->getCardsSize());
 
         $d = $d->withSmallCardsSize();
-        $this->assertEquals($d->getCardsSize(), C\Deck\Deck::SIZE_S);
+        $this->assertEquals(C\Deck\Deck::SIZE_S, $d->getCardsSize());
 
         $d = $d->withNormalCardsSize();
-        $this->assertEquals($d->getCardsSize(), C\Deck\Deck::SIZE_M);
+        $this->assertEquals(C\Deck\Deck::SIZE_M, $d->getCardsSize());
 
         $d = $d->withLargeCardsSize();
-        $this->assertEquals($d->getCardsSize(), C\Deck\Deck::SIZE_L);
+        $this->assertEquals(C\Deck\Deck::SIZE_L, $d->getCardsSize());
 
         $d = $d->withExtraLargeCardsSize();
-        $this->assertEquals($d->getCardsSize(), C\Deck\Deck::SIZE_XL);
+        $this->assertEquals(C\Deck\Deck::SIZE_XL, $d->getCardsSize());
 
         $d = $d->withFullSizedCardsSize();
-        $this->assertEquals($d->getCardsSize(), C\Deck\Deck::SIZE_FULL);
+        $this->assertEquals(C\Deck\Deck::SIZE_FULL, $d->getCardsSize());
     }
 
-    public function test_render_content()
+    public function test_render_content(): void
     {
         $r = $this->getDefaultRenderer();
         $f = $this->getFactory();
@@ -119,25 +116,20 @@ class DeckTest extends ILIAS_UI_TestBase
 
         $d = $d->withCards(array($c,$c,$c,$c,$c,$c,$c))->withLargeCardsSize();
 
-        $html = $r->render($d);
+        $html = $this->brutallyTrimHTML($r->render($d));
 
         $expected_html =
-                '<div class="il-deck">
-					<div class="row row-eq-height">
-						<div class="col-sm-12 col-md-4"><div class="il-card thumbnail"><div class="card-no-highlight"></div><div class="caption"><h5 class="card-title">Card Title</h5></div></div></div>
-						<div class="col-sm-12 col-md-4"><div class="il-card thumbnail"><div class="card-no-highlight"></div><div class="caption"><h5 class="card-title">Card Title</h5></div></div></div>
-						<div class="col-sm-12 col-md-4"><div class="il-card thumbnail"><div class="card-no-highlight"></div><div class="caption"><h5 class="card-title">Card Title</h5></div></div></div>
-					</div>
-					<div class="row row-eq-height">
-						<div class="col-sm-12 col-md-4"><div class="il-card thumbnail"><div class="card-no-highlight"></div><div class="caption"><h5 class="card-title">Card Title</h5></div></div></div>
-						<div class="col-sm-12 col-md-4"><div class="il-card thumbnail"><div class="card-no-highlight"></div><div class="caption"><h5 class="card-title">Card Title</h5></div></div></div>
-						<div class="col-sm-12 col-md-4"><div class="il-card thumbnail"><div class="card-no-highlight"></div><div class="caption"><h5 class="card-title">Card Title</h5></div></div></div>
-					</div>
-					<div class="row row-eq-height">
-						<div class="col-sm-12 col-md-4"><div class="il-card thumbnail"><div class="card-no-highlight"></div><div class="caption"><h5 class="card-title">Card Title</h5></div></div></div>
+                '<div class="il-deck"><div class="row row-eq-height">
+						<div class="col-xs-12 col-sm-6 col-md-6 col-lg-4"><div class="il-card thumbnail"><div class="card-no-highlight"></div><div class="caption card-title">Card Title</div></div></div>
+						<div class="col-xs-12 col-sm-6 col-md-6 col-lg-4"><div class="il-card thumbnail"><div class="card-no-highlight"></div><div class="caption card-title">Card Title</div></div></div>
+						<div class="col-xs-12 col-sm-6 col-md-6 col-lg-4"><div class="il-card thumbnail"><div class="card-no-highlight"></div><div class="caption card-title">Card Title</div></div></div>
+						<div class="col-xs-12 col-sm-6 col-md-6 col-lg-4"><div class="il-card thumbnail"><div class="card-no-highlight"></div><div class="caption card-title">Card Title</div></div></div>
+						<div class="col-xs-12 col-sm-6 col-md-6 col-lg-4"><div class="il-card thumbnail"><div class="card-no-highlight"></div><div class="caption card-title">Card Title</div></div></div>
+						<div class="col-xs-12 col-sm-6 col-md-6 col-lg-4"><div class="il-card thumbnail"><div class="card-no-highlight"></div><div class="caption card-title">Card Title</div></div></div>
+						<div class="col-xs-12 col-sm-6 col-md-6 col-lg-4"><div class="il-card thumbnail"><div class="card-no-highlight"></div><div class="caption card-title">Card Title</div></div></div>
 					</div>
 				</div>';
 
-        $this->assertHTMLEquals($expected_html, $html);
+        $this->assertHTMLEquals($this->brutallyTrimHTML($expected_html), $html);
     }
 }

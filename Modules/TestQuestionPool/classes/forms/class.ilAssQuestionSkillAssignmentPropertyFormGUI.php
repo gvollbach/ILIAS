@@ -1,245 +1,238 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-require_once 'Services/Form/classes/class.ilPropertyFormGUI.php';
-
-require_once 'Modules/TestQuestionPool/classes/class.ilLogicalAnswerComparisonExpressionInputGUI.php';
-require_once 'Modules/TestQuestionPool/classes/class.ilAssQuestionSolutionComparisonExpressionList.php';
-
-require_once 'Services/Form/classes/class.ilNonEditableValueGUI.php';
-require_once 'Services/Form/classes/class.ilRadioGroupInputGUI.php';
 
 /**
- * @author		Björn Heyser <bheyser@databay.de>
- * @version		$Id$
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
  *
- * @package     Modules/Test
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * User interface form for configuring under which conditions a competence is
+ * awarded when a test question has been solved. Refers to one specific
+ * question from a test question pool (or directly from a test).
+ *
+ * @author  Björn Heyser <bheyser@databay.de>
+ * @package Modules/Test
  */
 class ilAssQuestionSkillAssignmentPropertyFormGUI extends ilPropertyFormGUI
 {
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
-	
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
-	
-	/**
-	 * @var ilAssQuestionSkillAssignmentsGUI
-	 */
-	protected $parentGUI;
-	
-	/**
-	 * @var assQuestion
-	 */
-	private $question = null;
+    /** @var ilGlobalTemplateInterface */
+    private $pageTemplate;
+    /** @var ilAssQuestionSkillAssignmentsGUI */
+    private $parentGUI;
+    /** @var assQuestion */
+    private $question = null;
+    /** @var ilAssQuestionSkillAssignment */
+    private $assignment = null;
+    /** @var bool */
+    private $manipulationEnabled = false;
+    /** @var \ILIAS\UI\Factory */
+    private $uiFactory;
+    /** @var \ILIAS\UI\Renderer */
+    private $uiRenderer;
 
-	/**
-	 * @var ilAssQuestionSkillAssignment
-	 */
-	private $assignment = null;
-	
-	/**
-	 * @var bool
-	 */
-	private $manipulationEnabled = false;
+    public function __construct(
+        ilGlobalTemplateInterface $pageTemplate,
+        ilCtrl $ctrl,
+        ilLanguage $lng,
+        ilAssQuestionSkillAssignmentsGUI $parentGUI
+    ) {
+        global $DIC;
 
-	
-	public function __construct(ilCtrl $ctrl, ilLanguage $lng, ilAssQuestionSkillAssignmentsGUI $parentGUI)
-	{
-		$this->ctrl = $ctrl;
-		$this->lng = $lng;
-		$this->parentGUI = $parentGUI;
-		
-		parent::__construct();
-	}
-	
-	/**
-	 * @return assQuestion
-	 */
-	public function getQuestion()
-	{
-		return $this->question;
-	}
+        $this->pageTemplate = $pageTemplate;
+        $this->ctrl = $ctrl;
+        $this->lng = $lng;
+        $this->parentGUI = $parentGUI;
+        $this->uiFactory = $DIC->ui()->factory();
+        $this->uiRenderer = $DIC->ui()->renderer();
 
-	/**
-	 * @param assQuestion $question
-	 */
-	public function setQuestion($question)
-	{
-		$this->question = $question;
-	}
+        parent::__construct();
+    }
 
-	/**
-	 * @return ilAssQuestionSkillAssignment
-	 */
-	public function getAssignment()
-	{
-		return $this->assignment;
-	}
+    /**
+     * @return assQuestion
+     */
+    public function getQuestion(): ?assQuestion
+    {
+        return $this->question;
+    }
 
-	/**
-	 * @param ilAssQuestionSkillAssignment $assignment
-	 */
-	public function setAssignment($assignment)
-	{
-		$this->assignment = $assignment;
-	}
+    /**
+     * @param assQuestion $question
+     */
+    public function setQuestion($question): void
+    {
+        $this->question = $question;
+    }
 
-	/**
-	 * @return boolean
-	 */
-	public function isManipulationEnabled()
-	{
-		return $this->manipulationEnabled;
-	}
+    /**
+     * @return ilAssQuestionSkillAssignment
+     */
+    public function getAssignment(): ?ilAssQuestionSkillAssignment
+    {
+        return $this->assignment;
+    }
 
-	/**
-	 * @param boolean $manipulationEnabled
-	 */
-	public function setManipulationEnabled($manipulationEnabled)
-	{
-		$this->manipulationEnabled = $manipulationEnabled;
-	}
+    /**
+     * @param ilAssQuestionSkillAssignment $assignment
+     */
+    public function setAssignment($assignment): void
+    {
+        $this->assignment = $assignment;
+    }
 
-	public function build()
-	{
-		$this->setFormAction($this->ctrl->getFormAction($this->parentGUI));
+    /**
+     * @return boolean
+     */
+    public function isManipulationEnabled(): bool
+    {
+        return $this->manipulationEnabled;
+    }
 
-		if( $this->isManipulationEnabled() )
-		{
-			$this->addCommandButton(
-				ilAssQuestionSkillAssignmentsGUI::CMD_SAVE_SKILL_QUEST_ASSIGN_PROPERTIES_FORM,
-				$this->lng->txt('save')
-			);
+    /**
+     * @param boolean $manipulationEnabled
+     */
+    public function setManipulationEnabled($manipulationEnabled): void
+    {
+        $this->manipulationEnabled = $manipulationEnabled;
+    }
 
-			$this->addCommandButton(
-				ilAssQuestionSkillAssignmentsGUI::CMD_SHOW_SKILL_QUEST_ASSIGNS,
-				$this->lng->txt('cancel')
-			);
-		}
-		else
-		{
-			$this->addCommandButton(
-				ilAssQuestionSkillAssignmentsGUI::CMD_SHOW_SKILL_QUEST_ASSIGNS,
-				$this->lng->txt('back')
-			);
-		}
+    public function build(): void
+    {
+        $this->setFormAction($this->ctrl->getFormAction($this->parentGUI));
 
-		$this->setTitle($this->assignment->getSkillTitle());
+        if ($this->isManipulationEnabled()) {
+            $this->addCommandButton(
+                ilAssQuestionSkillAssignmentsGUI::CMD_SAVE_SKILL_QUEST_ASSIGN_PROPERTIES_FORM,
+                $this->lng->txt('save')
+            );
 
-		$questionTitle = new ilNonEditableValueGUI($this->lng->txt('question'));
-		$questionTitle->setValue($this->question->getTitle());
-		$this->addItem($questionTitle);
+            $this->addCommandButton(
+                ilAssQuestionSkillAssignmentsGUI::CMD_SHOW_SKILL_QUEST_ASSIGNS,
+                $this->lng->txt('cancel')
+            );
+        } else {
+            $this->addCommandButton(
+                ilAssQuestionSkillAssignmentsGUI::CMD_SHOW_SKILL_QUEST_ASSIGNS,
+                $this->lng->txt('back')
+            );
+        }
 
-		$questionDesc = new ilNonEditableValueGUI($this->lng->txt('description'));
-		$questionDesc->setValue($this->question->getComment());
-		$this->addItem($questionDesc);
+        $this->setTitle($this->assignment->getSkillTitle());
 
-		if( $this->questionSupportsSolutionCompare() )
-		{
-			$this->populateFullProperties();
-		}
-		else
-		{
-			$this->populateLimitedProperties();
-		}
+        $questionTitle = new ilNonEditableValueGUI($this->lng->txt('question'));
+        $questionTitle->setValue($this->question->getTitle());
+        $this->addItem($questionTitle);
 
-			
-	}
+        $questionDesc = new ilNonEditableValueGUI($this->lng->txt('description'));
+        $questionDesc->setValue($this->question->getComment());
+        $this->addItem($questionDesc);
 
-	private function buildLacLegendToggleButton()
-	{
-		if( $this->assignment->hasEvalModeBySolution() )
-		{
-			$langVar = 'ass_lac_hide_legend_btn';
-		}
-		else
-		{
-			$langVar = 'ass_lac_show_legend_btn';
-		}
+        if ($this->questionSupportsSolutionCompare()) {
+            $this->populateFullProperties();
+        } else {
+            $this->populateLimitedProperties();
+        }
+    }
 
-		return '<a id="lac_legend_toggle_btn" href="#">'.$this->lng->txt($langVar).'</a>';
-	}
-	
-	private function populateFullProperties()
-	{
-		$evaluationMode = new ilRadioGroupInputGUI($this->lng->txt('condition'), 'eval_mode');
-		$evalOptionReachedQuestionPoints = new ilRadioOption(
-			$this->lng->txt('qpl_skill_point_eval_by_quest_result'), 'result'
-		);
-		$evaluationMode->addOption($evalOptionReachedQuestionPoints);
-		$evalOptionLogicalAnswerCompare = new ilRadioOption(
-			$this->lng->txt('qpl_skill_point_eval_by_solution_compare'), 'solution'
-		);
-		$evaluationMode->addOption($evalOptionLogicalAnswerCompare);
-		$evaluationMode->setRequired(true);
-		$evaluationMode->setValue($this->assignment->getEvalMode());
-		if( !$this->isManipulationEnabled() )
-		{
-			$evaluationMode->setDisabled(true);
-		}
-		$this->addItem($evaluationMode);
+    private function populateFullProperties(): void
+    {
+        $evaluationMode = new ilRadioGroupInputGUI($this->lng->txt('condition'), 'eval_mode');
+        $evalOptionReachedQuestionPoints = new ilRadioOption(
+            $this->lng->txt('qpl_skill_point_eval_by_quest_result'),
+            'result'
+        );
+        $evaluationMode->addOption($evalOptionReachedQuestionPoints);
+        $evalOptionLogicalAnswerCompare = new ilRadioOption(
+            $this->lng->txt('qpl_skill_point_eval_by_solution_compare'),
+            'solution'
+        );
+        $evaluationMode->addOption($evalOptionLogicalAnswerCompare);
+        $evaluationMode->setRequired(true);
+        $evaluationMode->setValue($this->assignment->getEvalMode());
+        if (!$this->isManipulationEnabled()) {
+            $evaluationMode->setDisabled(true);
+        }
+        $this->addItem($evaluationMode);
 
-		$questSolutionCompareExpressions = new ilLogicalAnswerComparisonExpressionInputGUI(
-			$this->lng->txt('tst_solution_compare_cfg'), 'solution_compare_expressions'
-		);
-		$questSolutionCompareExpressions->setRequired(true);
-		$questSolutionCompareExpressions->setAllowMove($this->isManipulationEnabled());
-		$questSolutionCompareExpressions->setAllowAddRemove($this->isManipulationEnabled());
-		$questSolutionCompareExpressions->setQuestionObject($this->question);
-		$questSolutionCompareExpressions->setValues($this->assignment->getSolutionComparisonExpressionList()->get());
-		$questSolutionCompareExpressions->setMinvalueShouldBeGreater(false);
-		$questSolutionCompareExpressions->setMinValue(1);
-		if( !$this->isManipulationEnabled() )
-		{
-			$questSolutionCompareExpressions->setDisabled(true);
-		}
-		else
-		{
-			// #19192
-			$questSolutionCompareExpressions->setInfo($this->buildLacLegendToggleButton());
-		}
-		$evalOptionLogicalAnswerCompare->addSubItem($questSolutionCompareExpressions);
+        $questSolutionCompareExpressions = new ilLogicalAnswerComparisonExpressionInputGUI(
+            $this->lng->txt('tst_solution_compare_cfg'),
+            'solution_compare_expressions'
+        );
+        $questSolutionCompareExpressions->setRequired(true);
+        $questSolutionCompareExpressions->setAllowMove($this->isManipulationEnabled());
+        $questSolutionCompareExpressions->setAllowAddRemove($this->isManipulationEnabled());
+        $questSolutionCompareExpressions->setQuestionObject($this->question);
+        $questSolutionCompareExpressions->setValues($this->assignment->getSolutionComparisonExpressionList()->get());
+        $questSolutionCompareExpressions->setMinvalueShouldBeGreater(false);
 
-		$questResultSkillPoints = $this->buildResultSkillPointsInputField();
-		$evalOptionReachedQuestionPoints->addSubItem($questResultSkillPoints);
-	}
-	
-	private function populateLimitedProperties()
-	{
-		$evaluationMode = new ilNonEditableValueGUI($this->lng->txt('condition'));
-		$evaluationMode->setValue($this->lng->txt('qpl_skill_point_eval_by_quest_result'));
-		$this->addItem($evaluationMode);
+        $questSolutionCompareExpressions->setMinValue(1);
+        if ($this->isManipulationEnabled()) {
+            if ($this->getQuestion() instanceof iQuestionCondition) {
+                // #19192
+                $legendGUI = new ilAssLacLegendGUI($this->pageTemplate, $this->lng, $this->uiFactory);
+                $legendGUI->setQuestionOBJ($this->getQuestion());
+                $legenModal = $legendGUI->get();
 
-		$questResultSkillPoints = $this->buildResultSkillPointsInputField();
-		$evaluationMode->addSubItem($questResultSkillPoints);
-	}
-	
-	private function buildResultSkillPointsInputField()
-	{
-		$questResultSkillPoints = new ilNumberInputGUI($this->lng->txt('tst_comp_points'), 'q_res_skill_points');
-		$questResultSkillPoints->setRequired(true);
-		$questResultSkillPoints->setSize(4);
-		$questResultSkillPoints->setMinvalueShouldBeGreater(false);
-		$questResultSkillPoints->setMinValue(1);
-		$questResultSkillPoints->allowDecimals(false);
-		$questResultSkillPoints->setValue($this->assignment->getSkillPoints());
-		if( !$this->isManipulationEnabled() )
-		{
-			$questResultSkillPoints->setDisabled(true);
-		}
-		
-		return $questResultSkillPoints;
-	}
-	
-	private function questionSupportsSolutionCompare()
-	{
-		return (
-			$this->question instanceof iQuestionCondition
-		);
-	}
+                $legendToggleButton = $this->uiFactory
+                    ->button()
+                    ->shy($this->lng->txt('ass_lac_show_legend_btn'), '#')
+                    ->withOnClick($legenModal->getShowSignal());
+
+                $questSolutionCompareExpressions->setInfo($this->uiRenderer->render([
+                    $legendToggleButton,
+                    $legenModal
+                ]));
+            }
+        } else {
+            $questSolutionCompareExpressions->setDisabled(true);
+        }
+        $evalOptionLogicalAnswerCompare->addSubItem($questSolutionCompareExpressions);
+
+        $questResultSkillPoints = $this->buildResultSkillPointsInputField();
+        $evalOptionReachedQuestionPoints->addSubItem($questResultSkillPoints);
+    }
+
+    private function populateLimitedProperties(): void
+    {
+        $evaluationMode = new ilNonEditableValueGUI($this->lng->txt('condition'));
+        $evaluationMode->setValue($this->lng->txt('qpl_skill_point_eval_by_quest_result'));
+        $this->addItem($evaluationMode);
+
+        $questResultSkillPoints = $this->buildResultSkillPointsInputField();
+        $evaluationMode->addSubItem($questResultSkillPoints);
+    }
+
+    private function buildResultSkillPointsInputField(): ilNumberInputGUI
+    {
+        $questResultSkillPoints = new ilNumberInputGUI($this->lng->txt('tst_comp_points'), 'q_res_skill_points');
+        $questResultSkillPoints->setRequired(true);
+        $questResultSkillPoints->setSize(4);
+        $questResultSkillPoints->setMinvalueShouldBeGreater(false);
+        $questResultSkillPoints->setMinValue(1);
+        $questResultSkillPoints->allowDecimals(false);
+        $questResultSkillPoints->setValue($this->assignment->getSkillPoints());
+        if (!$this->isManipulationEnabled()) {
+            $questResultSkillPoints->setDisabled(true);
+        }
+
+        return $questResultSkillPoints;
+    }
+
+    private function questionSupportsSolutionCompare(): bool
+    {
+        return (
+            $this->question instanceof iQuestionCondition
+        );
+    }
 }

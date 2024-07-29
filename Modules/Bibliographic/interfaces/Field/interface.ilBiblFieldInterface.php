@@ -1,81 +1,49 @@
 <?php
 
 /**
- * Interface ilBiblEntryInterface
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
  *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Interface ilBiblEntryInterface
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
 interface ilBiblFieldInterface
 {
+    public const DATA_TYPE_RIS = 1;
+    public const DATA_TYPE_BIBTEX = 2;
 
-    const DATA_TYPE_RIS = 1;
-    const DATA_TYPE_BIBTEX = 2;
+    public function getId(): ?int;
 
+    public function setId(int $id): void;
 
-    /**
-     * @return int
-     */
-    public function getId();
+    public function getIdentifier(): string;
 
+    public function setIdentifier(string $identifier): void;
 
-    /**
-     * @param int $id
-     */
-    public function setId($id);
+    public function getPosition(): ?int;
 
+    public function setPosition(int $position): void;
 
-    /**
-     * @return string
-     */
-    public function getIdentifier();
+    public function isStandardField(): bool;
 
+    public function setIsStandardField(bool $is_standard_field): void;
 
-    /**
-     * @param string $identifier
-     */
-    public function setIdentifier($identifier);
+    public function getDataType(): int;
 
+    public function setDataType(int $data_type): void;
 
-    /**
-     * @return int
-     */
-    public function getPosition();
-
-
-    /**
-     * @param int $position
-     */
-    public function setPosition($position);
-
-
-    /**
-     * @return int
-     */
-    public function getIsStandardField();
-
-
-    /**
-     * @param int $is_standard_field
-     */
-    public function setIsStandardField($is_standard_field);
-
-
-    /**
-     * @return int
-     */
-    public function getDataType();
-
-
-    /**
-     * @param int $data_type
-     */
-    public function setDataType($data_type);
-
-
-    /**
-     * Stores the Object, creates a newone in Db if non existing or updates an existing
-     *
-     * @return void
-     */
-    public function store();
+    public function store(): void;
 }

@@ -1,17 +1,21 @@
-<div class="panel panel-secondary">
-	<div class="panel-heading ilHeader clearfix">
-		<h3 class="ilHeader panel-secondary-title">{TITLE}</h3>
+<div class="panel panel-secondary panel-flex">
+	<!-- BEGIN heading -->
+	<div class="panel-heading ilHeader">
+		<h2>{TITLE}</h2>
 		{ACTIONS}
 		<!-- BEGIN view_controls -->
 			{VIEW_CONTROL}
 		<!-- END view_controls -->
 	</div>
+	<!-- END heading -->
 
 	<div class="panel-body">
 		<!-- BEGIN group -->
 		{ITEM_GROUP}
 		<!-- END group -->
+		<!-- BEGIN legacy -->
 		{BODY_LEGACY}
+		<!-- END legacy -->
 	</div>
 	<!-- BEGIN footer -->
 	<div class="panel-footer ilBlockInfo">

@@ -1,56 +1,64 @@
 <?php
 
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
-include_once "Services/Object/classes/class.ilObjectListGUI.php";
+use ILIAS\PersonalWorkspace\StandardGUIRequest;
 
 /**
-* Class ilObjWorkspaceRootFolderListGUI
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* $Id: class.ilObjRootFolderListGUI.php 23764 2010-05-06 15:11:30Z smeyer $
-*
-* @extends ilObjectListGUI
-*/
+ * Class ilObjWorkspaceRootFolderListGUI
+ *
+ * @author Alexander Killing <killing@leifos.de>
+ */
 class ilObjWorkspaceRootFolderListGUI extends ilObjectListGUI
 {
-	/**
-	* initialisation
-	*/
-	function init()
-	{
-		$this->copy_enabled = false;
-		$this->delete_enabled = false;
-		$this->cut_enabled = false;
-		$this->subscribe_enabled = false;
-		$this->link_enabled = false;
-		$this->type = "root";
-		$this->gui_class_name = "ilobjworkspacerootfoldergui";
+    protected StandardGUIRequest $request;
 
-		// general commands array
-		include_once('./Modules/WorkspaceRootFolder/classes/class.ilObjWorkspaceRootFolderAccess.php');
-		$this->commands = ilObjWorkspaceRootFolderAccess::_getCommands();
-	}
+    public function init(): void
+    {
+        global $DIC;
 
-	/**
-	* Get command link url.
-	*
-	* @param	int			$a_ref_id		reference id
-	* @param	string		$a_cmd			command
-	*
-	*/
-	function getCommandLink($a_cmd)
-	{
-		$ilCtrl = $this->ctrl;
+        $this->copy_enabled = false;
+        $this->delete_enabled = false;
+        $this->cut_enabled = false;
+        $this->subscribe_enabled = false;
+        $this->link_enabled = false;
+        $this->type = "root";
+        $this->gui_class_name = "ilobjworkspacerootfoldergui";
+        $this->request = new StandardGUIRequest(
+            $DIC->http(),
+            $DIC->refinery()
+        );
 
-		// does this make any sense!?
-		$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $this->ref_id);
-		$cmd_link = $ilCtrl->getLinkTargetByClass("ilrepositorygui", $a_cmd);
-		$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $_GET["ref_id"]);
+        // general commands array
+        $this->commands = ilObjWorkspaceRootFolderAccess::_getCommands();
+    }
 
-		return $cmd_link;
-	}
+    /**
+     * Get command link url.
+     */
+    public function getCommandLink(string $cmd): string
+    {
+        $ilCtrl = $this->ctrl;
 
+        // does this make any sense!?
+        $ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $this->ref_id);
+        $cmd_link = $ilCtrl->getLinkTargetByClass("ilrepositorygui", $cmd);
+        $ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $this->request->getRefId());
 
-} // END class.ilObjWorkspaceRootFolderGUI
-?>
+        return $cmd_link;
+    }
+}

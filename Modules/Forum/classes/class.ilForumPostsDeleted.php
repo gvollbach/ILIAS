@@ -1,5 +1,22 @@
 <?php
-/* Copyright (c) 1998-2015 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilForumPostsDeleted
@@ -7,396 +24,237 @@
  */
 class ilForumPostsDeleted
 {
-	/**
-	 * @var int
-	 */
-	protected $deleted_id = 0;
-	/**
-	 * @var null
-	 */
-	protected $deleted_date = NULL;
-	/**
-	 * @var string
-	 */
-	protected $deleted_by = '';
+    private ilDBInterface $db;
+    protected int $deleted_id = 0;
+    protected string $deleted_date;
+    protected string $deleted_by = '';
+    protected string $forum_title = '';
+    protected string $thread_title = '';
+    protected string $post_title = '';
+    protected string $post_message = '';
+    protected string $post_date = '';
+    protected int $obj_id = 0;
+    protected int $ref_id = 0;
+    protected int $thread_id = 0;
+    protected int $forum_id = 0;
+    protected int $pos_display_user_id = 0;
+    protected string $pos_usr_alias = '';
+    protected bool $thread_deleted = false;
 
-	/**
-	 * @var string
-	 */
-	protected $forum_title = '';
-	/**
-	 * @var string
-	 */
-	protected $thread_title = '';
+    public function __construct(ilForumNotificationDataProvider $provider = null)
+    {
+        global $DIC;
 
-	/**
-	 * @var string
-	 */
-	protected $post_title = '';
-	/**
-	 * @var string
-	 */
-	protected $post_message = '';
+        $this->db = $DIC->database();
 
-	/**
-	 * @var string
-	 */
-	protected $post_date = '';
+        if ($provider !== null) {
+            if (
+                $provider->objPost->getUserAlias() && $provider->objPost->getDisplayUserId() === 0 &&
+                $provider->objPost->getPosAuthorId() === $DIC->user()->getId()
+            ) {
+                $this->setDeletedBy($provider->objPost->getUserAlias());
+            } else {
+                $user = $DIC->user();
+                $this->setDeletedBy($user->getLogin());
+            }
 
-	/**
-	 * @var int
-	 */
-	protected $obj_id = 0;
-	/**
-	 * @var int
-	 */
-	protected $ref_id = 0;
-	/**
-	 * @var int
-	 */
-	protected $thread_id = 0;
+            $this->setDeletedDate(date('Y-m-d H:i:s'));
+            $this->setForumTitle($provider->getForumTitle());
+            $this->setThreadTitle($provider->getThreadTitle());
+            $this->setPostTitle($provider->getPostTitle());
 
-	/**
-	 * @var int
-	 */
-	protected $forum_id = 0;
+            if ($provider->isPostCensored()) {
+                $this->setPostMessage($provider->getCensorshipComment());
+            } else {
+                $this->setPostMessage($provider->getPostMessage());
+            }
 
-	/**
-	 * @var int
-	 */
-	protected $pos_display_user_id = 0;
-	/**
-	 * @var string
-	 */
-	protected $pos_usr_alias = '';
+            $this->setPostDate($provider->getPostDate());
+            $this->setObjId($provider->getObjId());
+            $this->setRefId($provider->getRefId());
+            $this->setThreadId($provider->getThreadId());
+            $this->setForumId($provider->getForumId());
+            $this->setPosDisplayUserId($provider->getPosDisplayUserId());
+            $this->setPosUserAlias($provider->getPosUserAlias());
+        }
+    }
 
-	/**
-	 * @var bool
-	 */
-	protected $thread_deleted = false;
-	
-	private $user;
-	private $db;
+    public function insert(): void
+    {
+        $next_id = $this->db->nextId('frm_posts_deleted');
 
-	/**
-	 * @param ilObjForumNotificationDataProvider|NULL $provider
-	 */
-	public function __construct(ilObjForumNotificationDataProvider $provider = NULL)
-	{
-		global $DIC;
-		$this->user = $DIC->user();
-		$this->db = $DIC->database();
-		
-		if(is_object($provider))
-		{
-			if($provider->objPost->getUserAlias() && $provider->objPost->getDisplayUserId() == 0
-				&& $provider->objPost->getPosAuthorId() == $DIC->user()->getId())
-			{
-				$this->setDeletedBy($provider->objPost->getUserAlias());
-			}
-			else
-			{
-				$this->setDeletedBy($this->user->getLogin());	
-			}
-			
-			$this->setDeletedDate(date('Y-m-d H:i:s'));
-			$this->setForumTitle($provider->getForumTitle());
-			$this->setThreadTitle($provider->getThreadTitle());
-			$this->setPostTitle($provider->getPostTitle());
-			
-			if($provider->getPostCensored() == 1)
-			{
-				$this->setPostMessage($provider->getCensorshipComment());	
-			}	
-			else
-			{	
-				$this->setPostMessage($provider->getPostMessage());
-			}
-			
-			$this->setPostDate($provider->getPostDate());
-			$this->setObjId($provider->getObjId());
-			$this->setRefId($provider->getRefId());
-			$this->setThreadId($provider->getThreadId());
-			$this->setForumId($provider->getForumId());
-			$this->setPosDisplayUserId($provider->getPosDisplayUserId());
-			$this->setPosUserAlias($provider->getPosUserAlias());
-		}
-	}
+        $this->db->insert('frm_posts_deleted', [
+            'deleted_id' => ['integer', $next_id],
+            'deleted_date' => ['timestamp', $this->getDeletedDate()],
+            'deleted_by' => ['text', $this->getDeletedBy()],
+            'forum_title' => ['text', $this->getForumTitle()],
+            'thread_title' => ['text', $this->getThreadTitle()],
+            'post_title' => ['text', $this->getPostTitle()],
+            'post_message' => ['text', $this->getPostMessage()],
 
-	/**
-	 *
-	 */
-	public function insert()
-	{
-		$next_id = $this->db->nextId('frm_posts_deleted');
+            'post_date' => ['timestamp', $this->getPostDate()],
+            'obj_id' => ['integer', $this->getObjId()],
+            'ref_id' => ['integer', $this->getRefId()],
+            'thread_id' => ['integer', $this->getThreadId()],
+            'forum_id' => ['integer', $this->getForumId()],
+            'pos_display_user_id' => ['integer', $this->getPosDisplayUserId()],
+            'pos_usr_alias' => ['text', $this->getPosUserAlias()],
+            'is_thread_deleted' => ['integer', $this->isThreadDeleted()]
+        ]);
+    }
 
-		$this->db->insert('frm_posts_deleted', array(
-			'deleted_id'   => array('integer', $next_id),
-			'deleted_date' => array('timestamp', $this->getDeletedDate()),
-			'deleted_by'   => array('text', $this->getDeletedBy()),
-			'forum_title'  => array('text', $this->getForumTitle()),
-			'thread_title' => array('text', $this->getThreadTitle()),
-			'post_title'   => array('text', $this->getPostTitle()),
-			'post_message' => array('text', $this->getPostMessage()),
+    public function deleteNotifiedEntries(): void
+    {
+        $this->db->manipulateF('DELETE FROM frm_posts_deleted WHERE deleted_id > %s', ['integer'], [0]);
+    }
 
-			'post_date'    => array('timestamp', $this->getPostDate()),
-			'obj_id'       => array('integer', $this->getObjId()),
-			'ref_id'       => array('integer', $this->getRefId()),
-			'thread_id'    => array('integer', $this->getThreadId()),
-			'forum_id'	   => array('integer', $this->getForumId()),
-			'pos_display_user_id' => array('integer', $this->getPosDisplayUserId()),
-			'pos_usr_alias'		=> array('text', $this->getPosUserAlias()),
-			'is_thread_deleted'	=> array('integer', $this->isThreadDeleted())
-		));
-	}
+    public function getDeletedId(): int
+    {
+        return $this->deleted_id;
+    }
 
-	/**
-	 *
-	 */
-	public function deleteNotifiedEntries()
-	{
-		$this->db->manipulateF('DELETE FROM frm_posts_deleted WHERE deleted_id > %s', array('integer'), array(0));
-	}
+    public function setDeletedId(int $deleted_id): void
+    {
+        $this->deleted_id = $deleted_id;
+    }
 
+    public function getDeletedDate(): string
+    {
+        return $this->deleted_date;
+    }
 
-	//----------------// SETTER & GETTER //----------------// 
-	/**
-	 * @return int
-	 */
-	public function getDeletedId()
-	{
-		return $this->deleted_id;
-	}
+    public function setDeletedDate(string $deleted_date): void
+    {
+        $this->deleted_date = $deleted_date;
+    }
 
-	/**
-	 * @param int $deleted_id
-	 */
-	public function setDeletedId($deleted_id)
-	{
-		$this->deleted_id = $deleted_id;
-	}
+    public function getDeletedBy(): string
+    {
+        return $this->deleted_by;
+    }
 
-	/**
-	 * @return null
-	 */
-	public function getDeletedDate()
-	{
-		return $this->deleted_date;
-	}
+    public function setDeletedBy(string $deleted_by): void
+    {
+        $this->deleted_by = $deleted_by;
+    }
 
-	/**
-	 * @param null $deleted_date
-	 */
-	public function setDeletedDate($deleted_date)
-	{
-		$this->deleted_date = $deleted_date;
-	}
+    public function getForumTitle(): string
+    {
+        return $this->forum_title;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getDeletedBy()
-	{
-		return $this->deleted_by;
-	}
+    public function setForumTitle(string $forum_title): void
+    {
+        $this->forum_title = $forum_title;
+    }
 
-	/**
-	 * @param string $deleted_by
-	 */
-	public function setDeletedBy($deleted_by)
-	{
-		$this->deleted_by = $deleted_by;
-	}
+    public function getThreadTitle(): string
+    {
+        return $this->thread_title;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getForumTitle()
-	{
-		return $this->forum_title;
-	}
+    public function setThreadTitle(string $thread_title): void
+    {
+        $this->thread_title = $thread_title;
+    }
 
-	/**
-	 * @param string $forum_title
-	 */
-	public function setForumTitle($forum_title)
-	{
-		$this->forum_title = $forum_title;
-	}
+    public function getPostTitle(): string
+    {
+        return $this->post_title;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getThreadTitle()
-	{
-		return $this->thread_title;
-	}
+    public function setPostTitle(string $post_title): void
+    {
+        $this->post_title = $post_title;
+    }
 
-	/**
-	 * @param string $thread_title
-	 */
-	public function setThreadTitle($thread_title)
-	{
-		$this->thread_title = $thread_title;
-	}
+    public function getPostMessage(): string
+    {
+        return $this->post_message;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getPostTitle()
-	{
-		return $this->post_title;
-	}
+    public function setPostMessage(string $post_message): void
+    {
+        $this->post_message = $post_message;
+    }
 
-	/**
-	 * @param string $post_title
-	 */
-	public function setPostTitle($post_title)
-	{
-		$this->post_title = $post_title;
-	}
+    public function getPostDate(): string
+    {
+        return $this->post_date;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getPostMessage()
-	{
-		return $this->post_message;
-	}
+    public function setPostDate(string $post_date): void
+    {
+        $this->post_date = $post_date;
+    }
 
-	/**
-	 * @param string $post_message
-	 */
-	public function setPostMessage($post_message)
-	{
-		$this->post_message = $post_message;
-	}
+    public function getObjId(): int
+    {
+        return $this->obj_id;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getPostDate()
-	{
-		return $this->post_date;
-	}
+    public function setObjId(int $obj_id): void
+    {
+        $this->obj_id = $obj_id;
+    }
 
-	/**
-	 * @param string $post_date
-	 */
-	public function setPostDate($post_date)
-	{
-		$this->post_date = $post_date;
-	}
+    public function getRefId(): int
+    {
+        return $this->ref_id;
+    }
 
-	/**
-	 * @return int
-	 */
-	public function getObjId()
-	{
-		return $this->obj_id;
-	}
+    public function setRefId(int $ref_id): void
+    {
+        $this->ref_id = $ref_id;
+    }
 
-	/**
-	 * @param int $obj_id
-	 */
-	public function setObjId($obj_id)
-	{
-		$this->obj_id = $obj_id;
-	}
+    public function getThreadId(): int
+    {
+        return $this->thread_id;
+    }
 
-	/**
-	 * @return int
-	 */
-	public function getRefId()
-	{
-		return $this->ref_id;
-	}
+    public function setThreadId(int $thread_id): void
+    {
+        $this->thread_id = $thread_id;
+    }
 
-	/**
-	 * @param int $ref_id
-	 */
-	public function setRefId($ref_id)
-	{
-		$this->ref_id = $ref_id;
-	}
+    public function getForumId(): int
+    {
+        return $this->forum_id;
+    }
 
-	/**
-	 * @return int
-	 */
-	public function getThreadId()
-	{
-		return $this->thread_id;
-	}
+    public function setForumId(int $forum_id): void
+    {
+        $this->forum_id = $forum_id;
+    }
 
-	/**
-	 * @param int $thread_id
-	 */
-	public function setThreadId($thread_id)
-	{
-		$this->thread_id = $thread_id;
-	}
+    public function getPosDisplayUserId(): int
+    {
+        return $this->pos_display_user_id;
+    }
 
-	/**
-	 * @return int
-	 */
-	public function getForumId()
-	{
-		return $this->forum_id;
-	}
+    public function setPosDisplayUserId(int $pos_display_user_id): void
+    {
+        $this->pos_display_user_id = $pos_display_user_id;
+    }
 
-	/**
-	 * @param int $forum_id
-	 */
-	public function setForumId($forum_id)
-	{
-		$this->forum_id = $forum_id;
-	}
+    public function getPosUserAlias(): string
+    {
+        return $this->pos_usr_alias;
+    }
 
-	/**
-	 * @return int
-	 */
-	public function getPosDisplayUserId()
-	{
-		return $this->pos_display_user_id;
-	}
+    public function setPosUserAlias(string $pos_usr_alias): void
+    {
+        $this->pos_usr_alias = $pos_usr_alias;
+    }
 
-	/**
-	 * @param int $pos_display_user_id
-	 */
-	public function setPosDisplayUserId($pos_display_user_id)
-	{
-		$this->pos_display_user_id = $pos_display_user_id;
-	}
+    public function isThreadDeleted(): bool
+    {
+        return $this->thread_deleted;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getPosUserAlias()
-	{
-		return $this->pos_usr_alias;
-	}
-
-	/**
-	 * @param string $pos_usr_alias
-	 */
-	public function setPosUserAlias($pos_usr_alias)
-	{
-		$this->pos_usr_alias = $pos_usr_alias;
-	}
-
-	/**
-	 * @return boolean
-	 */
-	public function isThreadDeleted()
-	{
-		return $this->thread_deleted;
-	}
-
-	/**
-	 * @param boolean $thread_deleted
-	 */
-	public function setThreadDeleted($thread_deleted)
-	{
-		$this->thread_deleted = $thread_deleted;
-	}
+    public function setThreadDeleted(bool $thread_deleted): void
+    {
+        $this->thread_deleted = $thread_deleted;
+    }
 }

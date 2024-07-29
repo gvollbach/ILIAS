@@ -1,12 +1,32 @@
-<?php namespace ILIAS\MainMenu\Provider;
+<?php
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+namespace ILIAS\MainMenu\Provider;
+
+use ILIAS\DI\Container;
 use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Information\TypeInformation;
 use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Information\TypeInformationCollection;
 use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Renderer\ComplexItemRenderer;
-use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Renderer\LinkItemRenderer;
 use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Renderer\LinkListItemRenderer;
 use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Renderer\LostItemRenderer;
-use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Renderer\TopLinkItemRenderer;
+use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Renderer\SeparatorItemRenderer;
 use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Renderer\TopParentItemRenderer;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\hasAction;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\hasTitle;
@@ -28,25 +48,33 @@ use ilMMTypeHandlerLink;
 use ilMMTypeHandlerRepositoryLink;
 use ilMMTypeHandlerSeparator;
 use ilMMTypeHandlerTopLink;
+use ilObjMainMenuAccess;
+use ilMMTopLinkItemRenderer;
+use ilMMLinkItemRenderer;
+use ilMMRepositoryLinkItemRenderer;
 
 /**
  * Class CustomMainBarProvider
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
 class CustomMainBarProvider extends AbstractStaticMainMenuProvider implements StaticMainMenuProvider
 {
+    private \ilMainMenuAccess $mm_access;
+    protected Container $dic;
 
     /**
-     * @var \ILIAS\DI\Container
+     * @inheritDoc
      */
-    protected $dic;
-
+    public function __construct(Container $dic, \ilMainMenuAccess $access = null)
+    {
+        parent::__construct($dic);
+        $this->mm_access = $access ?? new ilObjMainMenuAccess();
+    }
 
     /**
      * @return TopParentItem[]
      */
-    public function getStaticTopItems() : array
+    public function getStaticTopItems(): array
     {
         /**
          * @var $item ilMMCustomItemStorage
@@ -59,11 +87,10 @@ class CustomMainBarProvider extends AbstractStaticMainMenuProvider implements St
         return $top_items;
     }
 
-
     /**
      * @return isItem[]
      */
-    public function getStaticSubItems() : array
+    public function getStaticSubItems(): array
     {
         /**
          * @var $item ilMMCustomItemStorage
@@ -76,20 +103,27 @@ class CustomMainBarProvider extends AbstractStaticMainMenuProvider implements St
         return $items;
     }
 
-
     /**
      * @param ilMMCustomItemStorage $storage
      * @param bool                  $register
-     *
      * @return isItem
      */
-    public function getSingleCustomItem(ilMMCustomItemStorage $storage, $register = false) : isItem
+    public function getSingleCustomItem(ilMMCustomItemStorage $storage, bool $register = false): isItem
     {
         $identification = $this->globalScreen()->identification()->core($this)->identifier($storage->getIdentifier());
 
         $item = $this->globalScreen()->mainBar()->custom($storage->getType(), $identification);
 
-        if ($item instanceof hasTitle && $storage->getDefaultTitle() !== '') {
+        $item = $item->withVisibilityCallable(
+            $this->mm_access->isCurrentUserAllowedToSeeCustomItem(
+                $storage,
+                function () use ($item) {
+                    return $item->isVisible();
+                }
+            )
+        );
+
+        if ($item instanceof hasTitle && !empty($storage->getDefaultTitle())) {
             $item = $item->withTitle($storage->getDefaultTitle());
         }
         if ($item instanceof hasAction) {
@@ -97,7 +131,7 @@ class CustomMainBarProvider extends AbstractStaticMainMenuProvider implements St
         }
         if ($item instanceof isChild) {
             $mm_item = ilMMItemStorage::find($identification->serialize());
-            $parent_identification = "";
+            $parent_identification = '';
             if ($mm_item instanceof ilMMItemStorage) {
                 $parent_identification = $mm_item->getParentIdentification();
             }
@@ -105,8 +139,8 @@ class CustomMainBarProvider extends AbstractStaticMainMenuProvider implements St
             if ($parent_identification) {
                 $item = $item->withParent(
                     $this->globalScreen()
-                        ->identification()
-                        ->fromSerializedIdentification($parent_identification)
+                         ->identification()
+                         ->fromSerializedIdentification($parent_identification)
                 );
             }
         }
@@ -118,47 +152,95 @@ class CustomMainBarProvider extends AbstractStaticMainMenuProvider implements St
         return $item;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function provideTypeInformation() : TypeInformationCollection
+    public function provideTypeInformation(): TypeInformationCollection
     {
         $c = new TypeInformationCollection();
         // TopParentItem
-        $c->add(new TypeInformation(TopParentItem::class, $this->translateType(TopParentItem::class), new TopParentItemRenderer()));
+        $c->add(
+            new TypeInformation(
+                TopParentItem::class,
+                $this->translateType(TopParentItem::class),
+                new TopParentItemRenderer()
+            )
+        );
         // TopLinkItem
-        $c->add(new TypeInformation(TopLinkItem::class, $this->translateType(TopLinkItem::class), new TopLinkItemRenderer(), new ilMMTypeHandlerTopLink()));
+        $c->add(
+            new TypeInformation(
+                TopLinkItem::class,
+                $this->translateType(TopLinkItem::class),
+                new ilMMTopLinkItemRenderer(),
+                new ilMMTypeHandlerTopLink()
+            )
+        );
         // Link
-        $c->add(new TypeInformation(Link::class, $this->translateType(Link::class), new LinkItemRenderer(), new ilMMTypeHandlerLink()));
+        $c->add(
+            new TypeInformation(
+                Link::class,
+                $this->translateType(Link::class),
+                new ilMMLinkItemRenderer(),
+                new ilMMTypeHandlerLink()
+            )
+        );
 
         // LinkList
-        $link_list = new TypeInformation(LinkList::class, $this->translateType(LinkList::class), new LinkListItemRenderer());
+        $link_list = new TypeInformation(
+            LinkList::class,
+            $this->translateType(LinkList::class),
+            new LinkListItemRenderer()
+        );
         $link_list->setCreationPrevented(true);
         $c->add($link_list);
+
         // Separator
-        $c->add(new TypeInformation(Separator::class, $this->translateType(Separator::class), null, new ilMMTypeHandlerSeparator(), $this->translateByline(Separator::class)));
+        $c->add(
+            new TypeInformation(
+                Separator::class,
+                $this->translateType(Separator::class),
+                new SeparatorItemRenderer(),
+                new ilMMTypeHandlerSeparator(),
+                $this->translateByline(Separator::class)
+            )
+        );
+
         // RepositoryLink
-        $c->add(new TypeInformation(RepositoryLink::class, $this->translateType(RepositoryLink::class), null, new ilMMTypeHandlerRepositoryLink()));
+        $c->add(
+            new TypeInformation(
+                RepositoryLink::class,
+                $this->translateType(RepositoryLink::class),
+                new ilMMRepositoryLinkItemRenderer(),
+                new ilMMTypeHandlerRepositoryLink()
+            )
+        );
+
         // Lost
-        $lost = new TypeInformation(Lost::class, $this->translateType(Lost::class), new LostItemRenderer());
+        $lost = new TypeInformation(
+            Lost::class,
+            $this->translateType(Lost::class),
+            new LostItemRenderer()
+        );
         $lost->setCreationPrevented(true);
         $c->add($lost);
+
         // Complex
-        $complex = new TypeInformation(Complex::class, $this->translateType(Complex::class), new ComplexItemRenderer());
+        $complex = new TypeInformation(
+            Complex::class,
+            $this->translateType(Complex::class),
+            new ComplexItemRenderer()
+        );
         $complex->setCreationPrevented(true);
         $c->add($complex);
 
         return $c;
     }
 
-
     /**
      * @param string $type
-     *
      * @return string
      */
-    private function translateType(string $type) : string
+    private function translateType(string $type): string
     {
         $last_part = substr(strrchr($type, "\\"), 1);
         $last_part = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $last_part));
@@ -166,13 +248,11 @@ class CustomMainBarProvider extends AbstractStaticMainMenuProvider implements St
         return $this->dic->language()->txt("type_" . strtolower($last_part));
     }
 
-
     /**
      * @param string $type
-     *
      * @return string
      */
-    private function translateByline(string $type) : string
+    private function translateByline(string $type): string
     {
         $last_part = substr(strrchr($type, "\\"), 1);
         $last_part = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $last_part));
@@ -180,11 +260,10 @@ class CustomMainBarProvider extends AbstractStaticMainMenuProvider implements St
         return $this->dic->language()->txt("type_" . strtolower($last_part) . "_info");
     }
 
-
     /**
      * @inheritDoc
      */
-    public function getProviderNameForPresentation() : string
+    public function getProviderNameForPresentation(): string
     {
         return "Custom";
     }

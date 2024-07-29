@@ -8,6 +8,8 @@ in this document are to be interpreted as described in
 **Table of Contents**
 
 * [Server Configuration](#web-server-configuration)
+* [Performance](#performance)
+* [ILIAS Configuration](#ilias-configuration)
 
 ## Web Server Configuration
 
@@ -62,3 +64,17 @@ location ~ \.php$ {
 
 [...]
 ```
+
+## Performance
+
+For best performance with a huge number of concurrent login requests we recommend
+the usage of `memcached` as session storage for the *SimpleSAMLphp* sessions.
+
+See:
+- https://simplesamlphp.org/docs/stable/simplesamlphp-maintenance.html#session-management
+- https://mantis.ilias.de/view.php?id=37725
+
+## ILIAS Configuration
+
+Please change your ILIAS configuration according to the `Superglobal` behaviour described in
+the [`HTTP README`](../../src/HTTP/README.md#dropinreplacements)

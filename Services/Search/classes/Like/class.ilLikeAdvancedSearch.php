@@ -1,203 +1,143 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2001 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
-
-include_once 'Services/Search/classes/class.ilAdvancedSearch.php';
 
 /**
-* Class ilLikeMetaDataSearch
-*
-* class for searching meta 
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+/**
 *
 * @author Stefan Meyer <smeyer.ilias@gmx.de>
-* @version $Id
-* 
 * @package ilias-search
 *
 */
 class ilLikeAdvancedSearch extends ilAdvancedSearch
 {
-	/**
-	 * Constructor
-	 * @return 
-	 */
-	public function __construct($qp)
-	{
-		parent::__construct($qp);
-	}
-	
-	function __createTaxonWhereCondition()
-	{
-		global $DIC;
+    public function __createTaxonWhereCondition(): string
+    {
+        if ($this->options['lom_taxon']) {
+            $where = " WHERE (";
 
-		$ilDB = $DIC['ilDB'];
-		
-		if($this->options['lom_taxon'])
-		{
-			$where = " WHERE (";
-			
-			$counter = 0;
-			foreach($this->query_parser->getQuotedWords() as $word)
-			{
-				if($counter++)
-				{
-					$where .= "OR";
-				}
-				
-				$where .= $ilDB->like('taxon','text','%'.$word.'%');
-			}
-			$where .= ') ';
-			return $where;
-		}
-		return '';
-	}
-	
-	function __createKeywordWhereCondition()
-	{
-		global $DIC;
+            $counter = 0;
+            foreach ($this->query_parser->getQuotedWords() as $word) {
+                if ($counter++) {
+                    $where .= "OR";
+                }
 
-		$ilDB = $DIC['ilDB'];
-		
-		$where = " WHERE (";
-		
-		$counter = 0;
-		foreach($this->query_parser->getQuotedWords() as $word)
-		{
-			if($counter++)
-			{
-				$where .= "OR";
-			}
-			
-			$where .= $ilDB->like('keyword','text','%'.$word.'%');
-		}
-		$where .= ') ';
-		return $where;
-	}
-	
-	function __createLifecycleWhereCondition()
-	{
-		global $DIC;
+                $where .= $this->db->like('taxon', 'text', '%' . $word . '%');
+            }
+            $where .= ') ';
+            return $where;
+        }
+        return '';
+    }
 
-		$ilDB = $DIC['ilDB'];
-		
-		if($this->options['lom_version'])
-		{
-			$where = " WHERE (";
-			
-			$counter = 0;
-			foreach($this->query_parser->getQuotedWords() as $word)
-			{
-				if($counter++)
-				{
-					$where .= "OR";
-				}
-				
-				$where .= $ilDB->like('meta_version','text','%'.$word.'%');
-			}
-			$where .= ') ';
-			return $where;
-		}
-		return '';
-	}
-	
-	function __createEntityWhereCondition()
-	{
-		global $DIC;
+    public function __createKeywordWhereCondition(): string
+    {
+        $where = " WHERE (";
 
-		$ilDB = $DIC['ilDB'];
+        $counter = 0;
+        foreach ($this->query_parser->getQuotedWords() as $word) {
+            if ($counter++) {
+                $where .= "OR";
+            }
 
-		if($this->options['lom_role_entry'])
-		{
-			$where = " WHERE (";
-			
-			$counter = 0;
-			foreach($this->query_parser->getQuotedWords() as $word)
-			{
-				if($counter++)
-				{
-					$where .= "OR";
-				}
-				
-				$where .= $ilDB->like('entity','text','%'.$word.'%');
-			}
-			$where .= ') ';
-			return $where;
-		}
-		return '';
-	}
+            $where .= $this->db->like('keyword', 'text', '%' . $word . '%');
+        }
+        $where .= ') ';
+        return $where;
+    }
 
-	function __createCoverageAndCondition()
-	{
-		global $DIC;
+    public function __createLifecycleWhereCondition(): string
+    {
+        if ($this->options['lom_version']) {
+            $where = " WHERE (";
 
-		$ilDB = $DIC['ilDB'];
+            $counter = 0;
+            foreach ($this->query_parser->getQuotedWords() as $word) {
+                if ($counter++) {
+                    $where .= "OR";
+                }
 
-		if($this->options['lom_coverage'])
-		{
-			$where = " AND (";
-			
-			$counter = 0;
-			foreach($this->query_parser->getQuotedWords() as $word)
-			{
-				if($counter++)
-				{
-					$where .= "OR";
-				}
-				
-				$where .= $ilDB->like('coverage','text','%'.$word.'%');
-			}
-			$where .= ') ';
-			return $where;
-		}
-		return '';
-	}
-	
-	function __createTitleDescriptionWhereCondition()
-	{
-		global $DIC;
+                $where .= $this->db->like('meta_version', 'text', '%' . $word . '%');
+            }
+            $where .= ') ';
+            return $where;
+        }
+        return '';
+    }
 
-		$ilDB = $DIC['ilDB'];
-		
-		$concat = $ilDB->concat(
-			array(
-				array('title','text'),
-				array('description','text')));
+    public function __createEntityWhereCondition(): string
+    {
+        if ($this->options['lom_role_entry']) {
+            $where = " WHERE (";
 
-		$where = " WHERE (";
+            $counter = 0;
+            foreach ($this->query_parser->getQuotedWords() as $word) {
+                if ($counter++) {
+                    $where .= "OR";
+                }
 
-		$counter = 0;
-		foreach($this->query_parser->getQuotedWords() as $word)
-		{
-			if($counter++)
-			{
-				$where .= "OR";
-			}
-			
-			$where .= $ilDB->like($concat,'text','%'.$word.'%');
-		}
-		$where .= ') ';
-		
-		return $where;
-	}		
-	
+                $where .= $this->db->like('entity', 'text', '%' . $word . '%');
+            }
+            $where .= ') ';
+            return $where;
+        }
+        return '';
+    }
 
+    public function __createCoverageAndCondition(): string
+    {
+        if ($this->options['lom_coverage']) {
+            $where = " AND (";
+
+            $counter = 0;
+            foreach ($this->query_parser->getQuotedWords() as $word) {
+                if ($counter++) {
+                    $where .= "OR";
+                }
+
+                $where .= $this->db->like('coverage', 'text', '%' . $word . '%');
+            }
+            $where .= ') ';
+            return $where;
+        }
+        return '';
+    }
+
+    public function __createObjectPropertiesWhereCondition(string ...$fields): string
+    {
+        $concat_array = [];
+        foreach ($fields as $field) {
+            $concat_array[] = [$field, 'text'];
+        }
+        $concat = $this->db->concat($concat_array);
+
+        $where = " WHERE (";
+
+        $counter = 0;
+        foreach ($this->query_parser->getQuotedWords() as $word) {
+            if ($counter++) {
+                $where .= "OR";
+            }
+
+            $where .= $this->db->like($concat, 'text', '%' . $word . '%');
+        }
+        $where .= ') ';
+
+        return $where;
+    }
 }

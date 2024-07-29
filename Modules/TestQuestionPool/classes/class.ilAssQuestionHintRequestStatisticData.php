@@ -1,82 +1,93 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Container for question hint request statistic data
  *
  * @author		Björn Heyser <bheyser@databay.de>
  * @version		$Id$
- * 
+ *
  * @package		Modules/TestQuestionPool
  */
 class ilAssQuestionHintRequestStatisticData
 {
-	/**
-	 * The sum of points deducted
-	 *
-	 * @var integer
-	 */
-	private $requestsPoints = null;
-	
-	/**
-	 * The number of hint requests
-	 *
-	 * @var integer
-	 */
-	private $requestsCount = null;
+    /**
+     * The sum of points deducted
+     *
+     * @var float
+     */
+    private $requestsPoints = null;
 
-	/**
-	 * Constructor
-	 */
-	public function __construct()
-	{
-		
-	}
+    /**
+     * The number of hint requests
+     *
+     * @var integer
+     */
+    private $requestsCount = null;
 
-	/**
-	 * Getter for requestsPonts
-	 * 
-	 * @access public
-	 * @return integer $requestsPoints
-	 */
-	public function getRequestsPoints()
-	{
-		return $this->requestsPoints;
-	}
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+    }
 
-	/**
-	 * Setter for requestsPonts
-	 * 
-	 * @access public
-	 * @param integer $requestsPoints
-	 */
-	public function setRequestsPoints($requestsPoints)
-	{
-		$this->requestsPoints = $requestsPoints;
-	}
+    /**
+     * Getter for requestsPoints
+     *
+     * @access public
+     * @return float $requestsPoints
+     */
+    public function getRequestsPoints(): ?float
+    {
+        return $this->requestsPoints;
+    }
 
-	/**
-	 * Getter for requestsCount
-	 * 
-	 * @access public
-	 * @return integer $requestsCount
-	 */
-	public function getRequestsCount()
-	{
-		return $this->requestsCount;
-	}
+    /**
+     * Setter for requestsPoints
+     *
+     * @access public
+     * @param float $requestsPoints
+     */
+    public function setRequestsPoints($requestsPoints): void
+    {
+        $this->requestsPoints = abs($requestsPoints);
+    }
 
-	/**
-	 * Setter for requestsCount
-	 * 
-	 * @access public
-	 * @param integer $requestsCount
-	 */
-	public function setRequestsCount($requestsCount)
-	{
-		$this->requestsCount = $requestsCount;
-	}
+    /**
+     * Getter for requestsCount
+     *
+     * @access public
+     * @return integer $requestsCount
+     */
+    public function getRequestsCount(): ?int
+    {
+        return $this->requestsCount;
+    }
 
-
+    /**
+     * Setter for requestsCount
+     *
+     * @access public
+     * @param integer $requestsCount
+     */
+    public function setRequestsCount($requestsCount): void
+    {
+        $this->requestsCount = $requestsCount;
+    }
 }
-

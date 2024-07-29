@@ -1,37 +1,54 @@
 <?php
-function ui()
+
+declare(strict_types=1);
+
+namespace ILIAS\UI\examples\Layout\Page\Standard;
+
+use ILIAS\UI\Component\MainControls\MainBar;
+use ILIAS\UI\Renderer;
+use ILIAS\DI\Container;
+
+function ui(): string
 {
     global $DIC;
     $f = $DIC->ui()->factory();
     $renderer = $DIC->ui()->renderer();
 
     $url = 'src/UI/examples/Layout/Page/Standard/ui.php?new_ui=1';
-    $btn = $f->button()->standard('See UI in fullscreen-mode', $url);
-    return $renderer->render($btn);
+    $page_demo = $f->link()->standard('See UI in fullscreen-mode', $url);
+
+    return $renderer->render([
+        $page_demo
+    ]);
 }
 
+global $DIC;
 
-if ($_GET['new_ui'] == '1') {
-    _initIliasForPreview();
+//Render Page Layout in Fullscreen mode
+if (basename($_SERVER["SCRIPT_FILENAME"]) == "ui.php") {
+    chdir('../../../../../../');
+    require_once("libs/composer/vendor/autoload.php");
+    \ilInitialisation::initILIAS();
+    $refinery = $DIC->refinery();
+    $request_wrapper = $DIC->http()->wrapper()->query();
+}
 
-    $f = $DIC->ui()->factory();
-    $renderer = $DIC->ui()->renderer();
+if (isset($request_wrapper) && isset($refinery) && $request_wrapper->has('new_ui') && $request_wrapper->retrieve('new_ui', $refinery->kindlyTo()->string()) == '1') {
+    echo renderFooterInFullscreenMode($DIC);
+}
 
-    $logo = $f->image()->responsive("src/UI/examples/Image/HeaderIconLarge.svg", "ILIAS");
+function renderFooterInFullscreenMode(Container $dic): string
+{
+    $f = $dic->ui()->factory();
+    $renderer = $dic->ui()->renderer();
+    $logo = $f->image()->responsive("templates/default/images/HeaderIcon.svg", "ILIAS");
+    $responsive_logo = $f->image()->responsive("templates/default/images/HeaderIconResponsive.svg", "ILIAS");
     $breadcrumbs = pagedemoCrumbs($f);
     $metabar = pagedemoMetabar($f);
-    $mainbar = pagedemoMainbar($f, $renderer)
-        ->withActive("pws")
-        /**
-         * You can also activate a tool initially, e.g.:
-         * ->withActive("tool2")
-         */
-        ;
+    $mainbar = pagedemoMainbar($f, $renderer);
     $footer = pagedemoFooter($f);
-
-    $entries = $mainbar->getEntries();
-    $tools = $mainbar->getToolEntries();
     $content = pagedemoContent($f, $renderer, $mainbar);
+    $tc = $dic->ui()->factory()->toast()->container();
 
     $page = $f->layout()->page()->standard(
         $content,
@@ -39,19 +56,20 @@ if ($_GET['new_ui'] == '1') {
         $mainbar,
         $breadcrumbs,
         $logo,
+        $responsive_logo,
+        "./templates/default/images/favicon.ico",
+        $tc,
         $footer,
         'UI PAGE DEMO', //page title
         'ILIAS', //short title
         'Std. Page Demo' //view title
     )
-    ->withUIDemo(true);
-    ;
+              ->withUIDemo(true);
 
-    echo $renderer->render($page);
+    return $renderer->render($page);
 }
 
-
-if ($_GET['replaced'] == '1') {
+if (isset($request_wrapper) && isset($refinery) && $request_wrapper->has('replaced') && $request_wrapper->retrieve('replaced', $refinery->kindlyTo()->string()) == '1') {
     echo('Helo. Content from RPC.');
     exit();
 }
@@ -59,29 +77,19 @@ if ($_GET['replaced'] == '1') {
 /**
  * Below are helpers for the construction of demo-content
  */
-
-function _initIliasForPreview()
-{
-    chdir('../../../../../../');
-    require_once("Services/Init/classes/class.ilInitialisation.php");
-    require_once('src/UI/examples/Layout/Page/Standard/ui.php');
-    ilInitialisation::initILIAS();
-}
-
 function pagedemoCrumbs($f)
 {
-    $crumbs = array(
+    $crumbs = [
         $f->link()->standard("entry1", '#'),
         $f->link()->standard("entry2", '#'),
         $f->link()->standard("entry3", '#'),
         $f->link()->standard("entry4", '#')
-    );
+    ];
     return $f->breadcrumbs($crumbs);
 }
 
-function pagedemoContent($f, $r, $mainbar)
+function pagedemoContent(\ILIAS\UI\Factory $f, Renderer $r, MainBar $mainbar): array
 {
-
     $tools = $mainbar->getToolEntries();
 
     $second_tool = array_values($tools)[1];
@@ -89,19 +97,18 @@ function pagedemoContent($f, $r, $mainbar)
     $replace_signal = $second_tool->getReplaceSignal()->withAsyncRenderUrl($url);
     $replace_btn = $f->button()->standard('replace contents in 2nd tool', $replace_signal);
 
-    $invisible_tool = array_values($tools)[2];
     $engage_signal = $mainbar->getEngageToolSignal(array_keys($tools)[2]);
     $invisible_tool_btn = $f->button()->standard('show the hidden tool', $engage_signal);
 
-    return array(
+    return [
         $f->panel()->standard(
             'Using Signals',
             $f->legacy(
                 "This button will replace the contents of the second tool-slate.<br />"
-                ."Goto Tools, second entry and click it.<br />"
-                .$r->render($replace_btn)
-                ."<br><br>This will unhide and activate another tool<br />"
-                .$r->render($invisible_tool_btn)
+                . "Goto Tools, second entry and click it.<br />"
+                . $r->render($replace_btn)
+                . "<br><br>This will unhide and activate another tool<br />"
+                . $r->render($invisible_tool_btn)
             )
         ),
 
@@ -117,12 +124,10 @@ function pagedemoContent($f, $r, $mainbar)
             'Demo Content 4',
             $f->legacy("some content<br>some content<br>some content<br>x.")
         )
-    );
+    ];
 }
 
-
-
-function pagedemoFooter($f)
+function pagedemoFooter(\ILIAS\UI\Factory $f): \ILIAS\UI\Component\MainControls\Footer
 {
     $df = new \ILIAS\Data\Factory();
     $text = 'Additional info:';
@@ -130,23 +135,19 @@ function pagedemoFooter($f)
     $links[] = $f->link()->standard("Goto ILIAS", "http://www.ilias.de");
     $links[] = $f->link()->standard("Goto ILIAS", "http://www.ilias.de");
 
-    $footer = $f->mainControls()->footer($links, $text)
-        ->withPermanentURL(
-            $df->uri(
-                $_SERVER['REQUEST_SCHEME'] .
-                '://' .
-                $_SERVER['SERVER_NAME'] .
-                ':' .
-                $_SERVER['SERVER_PORT'] .
-                $_SERVER['SCRIPT_NAME'] .
-                '?' .
-                $_SERVER['QUERY_STRING']
-            )
-        );
-    return $footer;
+    return $f->mainControls()->footer($links, $text)
+             ->withPermanentURL(
+                 $df->uri(
+                     ($_SERVER['REQUEST_SCHEME'] ?? "http") . '://'
+                     . ($_SERVER['SERVER_NAME'] ?? "localhost") . ':'
+                     . ($_SERVER['SERVER_PORT'] ?? "80")
+                     . ($_SERVER['SCRIPT_NAME'] ?? "") . '?'
+                     . ($_SERVER['QUERY_STRING'] ?? "")
+                 )
+             );
 }
 
-function pagedemoMetabar($f)
+function pagedemoMetabar(\ILIAS\UI\Factory $f): \ILIAS\UI\Component\MainControls\MetaBar
 {
     $help = $f->button()->bulky($f->symbol()->glyph()->help(), 'Help', '#');
     $user = $f->button()->bulky($f->symbol()->glyph()->user(), 'User', '#');
@@ -161,32 +162,23 @@ function pagedemoMetabar($f)
         $f->legacy('<p>some content</p>')
     );
 
-    $metabar = $f->mainControls()->metabar()
-        ->withAdditionalEntry('search', $search)
-        ->withAdditionalEntry('help', $help)
-        ->withAdditionalEntry('notes', $notes)
-        ->withAdditionalEntry('user', $user)
-        ;
-
-    return $metabar;
+    return $f->mainControls()->metaBar()
+             ->withAdditionalEntry('search', $search)
+             ->withAdditionalEntry('help', $help)
+             ->withAdditionalEntry('notes', $notes)
+             ->withAdditionalEntry('user', $user);
 }
 
-function pagedemoMainbar($f, $r)
+function pagedemoMainbar(\ILIAS\UI\Factory $f, Renderer $r): MainBar
 {
     $tools_btn = $f->button()->bulky(
         $f->symbol()->icon()->custom('./src/UI/examples/Layout/Page/Standard/grid.svg', ''),
         'Tools',
         '#'
     );
-    $more_btn = $f->button()->bulky(
-        $f->symbol()->icon()->standard('', ''),
-        'more',
-        '#'
-    );
 
-    $mainbar = $f->mainControls()->mainbar()
-        ->withToolsButton($tools_btn)
-        ->withMoreButton($more_btn);
+    $mainbar = $f->mainControls()->mainBar()
+        ->withToolsButton($tools_btn);
 
     $entries = [];
     $entries['repository'] = getDemoEntryRepository($f);
@@ -202,22 +194,20 @@ function pagedemoMainbar($f, $r)
 
     $tools = getDemoEntryTools($f);
 
-    $mainbar = $mainbar
+    return $mainbar
         ->withAdditionalToolEntry('tool1', $tools['tool1'], false, $f->button()->close())
         ->withAdditionalToolEntry('tool2', $tools['tool2'])
         ->withAdditionalToolEntry('tool3', $tools['tool3'], true, $f->button()->close())
         ->withAdditionalToolEntry('tool4', $tools['tool4'], false, $f->button()->close());
-
-    return $mainbar;
 }
 
 
-function getDemoEntryRepository($f)
+function getDemoEntryRepository(\ILIAS\UI\Factory $f): \ILIAS\UI\Component\MainControls\Slate\Combined
 {
     $symbol = $f->symbol()->icon()
         ->custom('./src/UI/examples/Layout/Page/Standard/layers.svg', '')
         ->withSize('small');
-    $slate = $f->maincontrols()->slate()->combined('Repository', $symbol, '');
+    $slate = $f->maincontrols()->slate()->combined('Repository', $symbol);
 
     $icon = $f->symbol()->icon()
         ->standard('', '')
@@ -232,14 +222,11 @@ function getDemoEntryRepository($f)
 
     $df = new \ILIAS\Data\Factory();
     $url = $df->uri(
-        $_SERVER['REQUEST_SCHEME'] .
-        '://' .
-        $_SERVER['SERVER_NAME'] .
-        ':' .
-        $_SERVER['SERVER_PORT'] .
-        $_SERVER['SCRIPT_NAME'] .
-        '?' .
-        $_SERVER['QUERY_STRING']
+        ($_SERVER['REQUEST_SCHEME'] ?? "http") . '://'
+        . ($_SERVER['SERVER_NAME'] ?? "localhost") . ':'
+        . ($_SERVER['SERVER_PORT'] ?? "80")
+        . ($_SERVER['SCRIPT_NAME'] ?? "") . '?'
+        . ($_SERVER['QUERY_STRING'] ?? "")
     );
     $link1 = $f->link()->bulky($icon, 'Favorites (Link)', $url);
     $link2 = $f->link()->bulky($icon, 'Courses (Link2)', $url);
@@ -253,18 +240,16 @@ function getDemoEntryRepository($f)
         ->withAdditionalEntry($link2)
         ->withAdditionalEntry($link3)
         ->withAdditionalEntry($button->withLabel('Study Programme'))
-        ->withAdditionalEntry($button->withLabel('Own Repository-Objects'))
-        ;
+        ->withAdditionalEntry($button->withLabel('Own Repository-Objects'));
 
     foreach (range(1, 20) as $cnt) {
-        $slate = $slate
-            ->withAdditionalEntry($button->withLabel('fillup ' . $cnt));
+        $slate = $slate->withAdditionalEntry($button->withLabel('fillup ' . $cnt));
     }
 
     return $slate;
 }
 
-function getDemoEntryPersonalWorkspace($f, $r)
+function getDemoEntryPersonalWorkspace(\ILIAS\UI\Factory $f, Renderer $r): \ILIAS\UI\Component\MainControls\Slate\Combined
 {
     $icon = $f->symbol()->icon()
         ->standard('', '')
@@ -282,7 +267,7 @@ function getDemoEntryPersonalWorkspace($f, $r)
         ->withSize('small');
 
     $slate = $f->maincontrols()->slate()
-        ->combined('Personal Workspace', $symbol, '');
+        ->combined('Personal Workspace', $symbol);
 
     $symbol = $f->symbol()->icon()
         ->custom('./src/UI/examples/Layout/Page/Standard/bookmarks.svg', '')
@@ -295,7 +280,7 @@ function getDemoEntryPersonalWorkspace($f, $r)
     $slate_bookmarks = $f->maincontrols()->slate()
         ->legacy('Bookmarks', $symbol, $bookmarks);
 
-    $slate = $slate
+    return $slate
         ->withAdditionalEntry($button->withLabel('Overview'))
         ->withAdditionalEntry($slate_bookmarks)
         ->withAdditionalEntry($button->withLabel('Calendar'))
@@ -306,64 +291,71 @@ function getDemoEntryPersonalWorkspace($f, $r)
         ->withAdditionalEntry($button->withLabel('Notes'))
         ->withAdditionalEntry($button->withLabel('News'))
         ->withAdditionalEntry($button->withLabel('Background Tasks'))
-        ->withAdditionalEntry($slate_bookmarks)
-        ;
-    return $slate;
+        ->withAdditionalEntry($slate_bookmarks);
 }
 
-function getDemoEntryAchievements($f)
+function getDemoEntryAchievements(\ILIAS\UI\Factory $f): \ILIAS\UI\Component\MainControls\Slate\Legacy
 {
     $symbol = $f->symbol()->icon()
         ->custom('./src/UI/examples/Layout/Page/Standard/achievements.svg', '')
         ->withSize('small');
-    $slate = $f->maincontrols()->slate()->legacy(
+    return $f->maincontrols()->slate()->legacy(
         'Achievements',
         $symbol,
         $f->legacy('content: Achievements')
     );
-    return $slate;
 }
 
-function getDemoEntryCommunication($f)
+function getDemoEntryCommunication(\ILIAS\UI\Factory $f): \ILIAS\UI\Component\MainControls\Slate\Legacy
 {
     $symbol = $f->symbol()->icon()
         ->custom('./src/UI/examples/Layout/Page/Standard/communication.svg', '')
         ->withSize('small');
-    $slate = $f->maincontrols()->slate()->legacy(
+    return $f->maincontrols()->slate()->legacy(
         'Communication',
         $symbol,
         $f->legacy('content: Communication')
     );
-    return $slate;
 }
 
-function getDemoEntryOrganisation($f)
+function getDemoEntryOrganisation(\ILIAS\UI\Factory $f): \ILIAS\UI\Component\MainControls\Slate\Combined
 {
     $symbol = $f->symbol()->icon()
         ->custom('./src/UI/examples/Layout/Page/Standard/organisation.svg', '')
         ->withSize('small');
-    $slate = $f->maincontrols()->slate()->legacy(
-        'Organisation',
-        $symbol,
-        $f->legacy('content: Organisation')
-    );
-    return $slate;
+
+    $sf = $f->maincontrols()->slate();
+    return $sf->combined('Organisation', $symbol)
+              ->withAdditionalEntry(
+                  $sf->combined('1', $symbol)
+                ->withAdditionalEntry($sf->combined('1.1', $symbol))
+                ->withAdditionalEntry(
+                    $sf->combined('1.2', $symbol)
+                        ->withAdditionalEntry($sf->combined('1.2.1', $symbol))
+                        ->withAdditionalEntry($sf->combined('1.2.2', $symbol))
+                )
+              )
+              ->withAdditionalEntry(
+                  $sf->combined('2', $symbol)
+                ->withAdditionalEntry($sf->combined('2.1', $symbol))
+              )
+              ->withAdditionalEntry($sf->combined('3', $symbol))
+              ->withAdditionalEntry($sf->combined('4', $symbol));
 }
 
-function getDemoEntryAdministration($f)
+function getDemoEntryAdministration(\ILIAS\UI\Factory $f): \ILIAS\UI\Component\MainControls\Slate\Legacy
 {
     $symbol = $f->symbol()->icon()
         ->custom('./src/UI/examples/Layout/Page/Standard/administration.svg', '')
         ->withSize('small');
-    $slate = $f->maincontrols()->slate()->legacy(
+    return $f->maincontrols()->slate()->legacy(
         'Administration',
         $symbol,
         $f->legacy('content: Administration')
     );
-    return $slate;
 }
 
-function getDemoEntryTools($f)
+function getDemoEntryTools(\ILIAS\UI\Factory $f): array
 {
     $tools = [];
 
@@ -373,7 +365,17 @@ function getDemoEntryTools($f)
     $slate = $f->maincontrols()->slate()->legacy(
         'Help',
         $symbol,
-        $f->legacy('<h2>tool 1</h2><p>Some Text for Tool 1 entry</p>')
+        $f->legacy('
+            <h2>Help</h2>
+            <p>
+                Some Text for help entry
+            </p>
+            <p>
+                <button onclick="alert(\'helo - tool 1 \');">Some Dummybutton</button>
+                <br>
+                <button onclick="alert(\'helo - tool 1, button 2 \');">some other dummybutton</button>
+            </p>
+        ')
     );
     $tools['tool1'] = $slate;
 
@@ -383,7 +385,16 @@ function getDemoEntryTools($f)
     $slate = $f->maincontrols()->slate()->legacy(
         'Editor',
         $symbol,
-        $f->legacy('<h2>tool 2</h2><p>Some Text for Tool 1 entry</p>')
+        $f->legacy('
+            <h2>Editor</h2>
+            <p>
+                Some Text for editor entry
+                <br><br>
+                <button onclick="alert(\'helo\');">Some Dummybutton</button>
+                <br><br>
+                end of tool.
+            </p>
+        ')
     );
     $tools['tool2'] = $slate;
 
@@ -408,7 +419,7 @@ function getDemoEntryTools($f)
     return $tools;
 }
 
-function loremIpsum() : string
+function loremIpsum(): string
 {
     return <<<EOT
 	<h2>Lorem ipsum</h2>

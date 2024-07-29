@@ -1,216 +1,135 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2006 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
 
-/** 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ */
+
+declare(strict_types=1);
+
+/**
 * @author Stefan Meyer <meyer@leifos.com>
-* @version $Id$
-* 
-* 
-* @ilCtrl_Calls 
-* @ingroup ServicesWebServicesECS 
 */
-
 class ilECSParticipant
 {
-	protected $json_obj;
-	protected $cid;
-	protected $mid;
-	protected $email;
-	protected $certid;
-	protected $dns;
-	protected $description;
-	protected $participantname;
-	protected $is_self;
-	
-	/**
-	 * Constructor
-	 *
-	 * @access public
-	 * @param
-	 * 
-	 */
-	public function __construct($json_obj,$a_cid)
-	{
-		$this->json_obj = $json_obj;
-		$this->cid = $a_cid;
-		$this->read();		 	
-	}
-	
-	/**
-	 * get community id
-	 *
-	 * @access public
-	 * 
-	 */
-	public function getCommunityId()
-	{
-	 	return $this->cid;
-	}
-	
-	/**
-	 * get mid
-	 *
-	 * @access public
-	 * @param
-	 * 
-	 */
-	public function getMID()
-	{
-	 	return $this->mid; 
-	}
-	
-	/**
-	 * get email
-	 *
-	 * @access public
-	 * 
-	 */
-	public function getEmail()
-	{
-	 	return $this->email;
-	}
+    private int $cid;
+    private int $pid;
+    private int $mid;
+    private string $email;
+    private string $dns;
+    private string $description;
+    private string $participantname;
+    private bool $is_self;
 
-	
-	/**
-	 * get dns
-	 *
-	 * @access public
-	 * @param
-	 * 
-	 */
-	public function getDNS()
-	{
-	 	return $this->dns;
-	}
-	
-	/**
-	 * get description
-	 *
-	 * @access public
-	 * 
-	 */
-	public function getDescription()
-	{
-	 	return $this->description;
-	}
+    private ilECSOrganisation $org;
 
-	/**
-	 * get participant name
-	 *
-	 * @access public
-	 * 
-	 */
-	public function getParticipantName()
-	{
-	 	return $this->participantname;
-	}
-	
-	/**
-	 * get abbreviation of participant
-	 *
-	 * @access public
-	 * 
-	 */
-	public function getAbbreviation()
-	{
-	 	return $this->abr;
-	}
-	
-	/**
-	 * is publishable (enabled and mid with own cert id)
-	 *
-	 * @access public
-	 * @param
-	 * 
-	 */
-	public function isPublishable()
-	{
-	 	return $this->isSelf();
-	}
-	
-	/**
-	 * is self
-	 *
-	 * @access public
-	 * @param
-	 * 
-	 */
-	public function isSelf()
-	{
-		return (bool) $this->is_self;
-	}
-	
-	
-	/**
-	 * is Enabled
-	 *
-	 * @access public
-	 * 
-	 */
-	public function isEnabled()
-	{
-	 	$GLOBALS['DIC']['ilLog']->write(__METHOD__.': Using deprecated call');
-		$GLOBALS['DIC']['ilLog']->logStack();
-		return false;
-	}
+    public function __construct(object $json_obj, int $a_cid)
+    {
+        $this->cid = $a_cid;
+        $this->read($json_obj);
+    }
 
-	/**
-	 * Get organisation
-	 * @return ilECSOrganisation $org
-	 */
-	public function getOrganisation()
-	{
-		return $this->org;
-	}
+    /**
+     * get community id
+     */
+    public function getCommunityId(): int
+    {
+        return $this->cid;
+    }
 
-	/**
-	 * Read
-	 *
-	 * @access private
-	 * 
-	 */
-	private function read()
-	{
-	 	global $DIC;
+    /**
+     * get mid
+     */
+    public function getMID(): int
+    {
+        return $this->mid;
+    }
 
-	 	$ilLog = $DIC['ilLog'];
+    /**
+     * get email
+     */
+    public function getEmail(): string
+    {
+        return $this->email;
+    }
 
-	 	$this->mid = $this->json_obj->mid;
-		$this->email = $this->json_obj->email;
-		#$this->certid = hexdec($this->json_obj->certid);
-		$this->dns = $this->json_obj->dns;
-	 	$this->description = $this->json_obj->description;
 
-	 	$this->participantname = $this->json_obj->name;
-		$this->is_self = $this->json_obj->itsyou;
+    /**
+     * get dns
+     */
+    public function getDNS(): string
+    {
+        return $this->dns;
+    }
 
-		include_once './Services/WebServices/ECS/classes/class.ilECSOrganisation.php';
-		$this->org = new ilECSOrganisation();
-		if(is_object($this->json_obj->org))
-		{
-			$this->org->loadFromJson($this->json_obj->org);
-		}
-		return true;
-	}
+    /**
+     * get description
+     */
+    public function getDescription(): string
+    {
+        return $this->description;
+    }
+
+    /**
+     * get participant name
+     */
+    public function getParticipantName(): string
+    {
+        return $this->participantname;
+    }
+
+    /**
+     * Get pid
+     */
+    public function getPid(): int
+    {
+        return $this->pid;
+    }
+
+    /**
+     * is self
+     */
+    public function isSelf(): bool
+    {
+        return $this->is_self;
+    }
+
+    /**
+     * Get organisation
+     * @return ilECSOrganisation $org
+     */
+    public function getOrganisation(): ilECSOrganisation
+    {
+        return $this->org;
+    }
+
+    /**
+     * Read
+     */
+    private function read(object $json_obj): void
+    {
+        $this->pid = $json_obj->pid;
+        $this->mid = $json_obj->mid;
+        $this->email = $json_obj->email;
+        $this->dns = $json_obj->dns;
+        $this->description = $json_obj->description;
+
+        $this->participantname = $json_obj->name;
+        $this->is_self = $json_obj->itsyou;
+
+        $this->org = new ilECSOrganisation();
+        if (is_object($json_obj->org)) {
+            $this->org->loadFromJson($json_obj->org);
+        }
+    }
 }
-?>

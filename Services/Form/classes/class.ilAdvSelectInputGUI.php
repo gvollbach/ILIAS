@@ -1,143 +1,136 @@
 <?php
 
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
 
 /**
-* This class represents an advanced selection list property in a property form.
-* It can hold graphical selection items, uses javascript and falls back
-* to a normal selection list, when javascript is disabled.
-*
-* @author Alex Killing <alex.killing@gmx.de> 
-* @version $Id$
-* @ingroup	ServicesForm
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * This class represents an advanced selection list property in a property form.
+ * It can hold graphical selection items, uses javascript and falls back
+ * to a normal selection list, when javascript is disabled.
+ *
+ * @author Alexander Killing <killing@leifos.de>
+ */
 class ilAdvSelectInputGUI extends ilFormPropertyGUI
 {
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+    protected array $options = array();
+    protected string $value = "";
 
-	protected $options = array();
-	protected $value;
-	
-	/**
-	* Constructor
-	*
-	* @param	string	$a_title	Title
-	* @param	string	$a_postvar	Post Variable
-	*/
-	function __construct($a_title = "", $a_postvar = "")
-	{
-		global $DIC;
+    public function __construct(
+        string $a_title = "",
+        string $a_postvar = ""
+    ) {
+        global $DIC;
 
-		$this->lng = $DIC->language();
-		parent::__construct($a_title, $a_postvar);
-		$this->setType("advselect");
-	}
+        $this->lng = $DIC->language();
+        parent::__construct($a_title, $a_postvar);
+        $this->setType("advselect");
+    }
 
-	/**
-	* Add an Options.
-	*
-	* @param	array	$a_options	Options. Array ("value" => "option_html")
-	*/
-	function addOption($a_value, $a_text, $a_html = "")
-	{
-		$this->options[$a_value] = array("value" => $a_value,
-			"txt" => $a_text, "html" => $a_html);
-	}
+    public function addOption(
+        string $a_value,
+        string $a_text,
+        string $a_html = ""
+    ): void {
+        $this->options[$a_value] = array("value" => $a_value,
+            "txt" => $a_text, "html" => $a_html);
+    }
 
-	/**
-	* Get Options.
-	*
-	* @return	array	Options. Array ("value" => "option_html")
-	*/
-	function getOptions()
-	{
-		return $this->options;
-	}
+    public function getOptions(): array
+    {
+        return $this->options;
+    }
 
-	/**
-	* Set Value.
-	*
-	* @param	string	$a_value	Value
-	*/
-	function setValue($a_value)
-	{
-		$this->value = $a_value;
-	}
+    public function setValue(string $a_value): void
+    {
+        $this->value = $a_value;
+    }
 
-	/**
-	* Get Value.
-	*
-	* @return	string	Value
-	*/
-	function getValue()
-	{
-		return $this->value;
-	}
-	
-	/**
-	* Set value by array
-	*
-	* @param	array	$a_values	value array
-	*/
-	function setValueByArray($a_values)
-	{
-		$this->setValue($a_values[$this->getPostVar()]);
-	}
+    public function getValue(): string
+    {
+        return $this->value;
+    }
 
-	/**
-	* Check input, strip slashes etc. set alert, if input is not ok.
-	*
-	* @return	boolean		Input ok, true/false
-	*/	
-	function checkInput()
-	{
-		$lng = $this->lng;
-		
-		$_POST[$this->getPostVar()] = 
-			ilUtil::stripSlashes($_POST[$this->getPostVar()]);
-		if ($this->getRequired() && trim($_POST[$this->getPostVar()]) == "")
-		{
-			$this->setAlert($lng->txt("msg_input_is_required"));
+    public function setValueByArray(array $a_values): void
+    {
+        $this->setValue($a_values[$this->getPostVar()] ?? "");
+    }
 
-			return false;
-		}
-		return true;
-	}
+    public function checkInput(): bool
+    {
+        $lng = $this->lng;
 
-	/**
-	* Insert property html
-	*
-	* @return	int	Size
-	*/
-	function insert($a_tpl)
-	{
-		include_once("./Services/UIComponent/AdvancedSelectionList/classes/class.ilAdvancedSelectionListGUI.php");
-		$selection = new ilAdvancedSelectionListGUI();
-		$selection->setFormSelectMode($this->getPostVar(), "", false,
-			"", "", "",
-			"", "", "", "");
-		$selection->setId($this->getPostVar());
-		$selection->setHeaderIcon(ilAdvancedSelectionListGUI::DOWN_ARROW_DARK);
-		$selection->setSelectedValue($this->getValue());
-		$selection->setUseImages(false);
-		$selection->setOnClickMode(ilAdvancedSelectionListGUI::ON_ITEM_CLICK_FORM_SELECT);
+        if ($this->getRequired() && trim($this->str($this->getPostVar())) == "") {
+            $this->setAlert($lng->txt("msg_input_is_required"));
+            return false;
+        }
+        return true;
+    }
 
-		foreach($this->getOptions() as $option)
-		{
-			$selection->addItem($option["txt"], $option["value"], "",
-				"", $option["value"], "", $option["html"]);
-			if ($this->getValue() == $option["value"])
-			{
-				$selection->setListTitle($option["txt"]);
-			}
-		}
-		
-		$a_tpl->setCurrentBlock("prop_generic");
-		$a_tpl->setVariable("PROP_GENERIC", $selection->getHTML());
-		$a_tpl->parseCurrentBlock();
-	}
+    public function getInput(): string
+    {
+        return $this->str($this->getPostVar());
+    }
 
+    protected function getAdvSelection(): ilAdvancedSelectionListGUI
+    {
+        $selection = new ilAdvancedSelectionListGUI();
+        $selection->setFormSelectMode(
+            $this->getPostVar(),
+            "",
+            false,
+            "",
+            "",
+            "",
+            ""
+        );
+        $selection->setId($this->getPostVar());
+        $selection->setHeaderIcon(ilAdvancedSelectionListGUI::DOWN_ARROW_DARK);
+        $selection->setSelectedValue($this->getValue());
+        $selection->setUseImages(false);
+        $selection->setOnClickMode(ilAdvancedSelectionListGUI::ON_ITEM_CLICK_FORM_SELECT);
+
+        foreach ($this->getOptions() as $option) {
+            $selection->addItem(
+                $option["txt"],
+                $option["value"],
+                "",
+                "",
+                $option["value"],
+                "",
+                $option["html"]
+            );
+            if ($this->getValue() == $option["value"]) {
+                $selection->setListTitle($option["txt"]);
+            }
+        }
+        return $selection;
+    }
+
+    public function insert(ilTemplate $a_tpl): void
+    {
+        $selection = $this->getAdvSelection();
+        $a_tpl->setCurrentBlock("prop_generic");
+        $a_tpl->setVariable("PROP_GENERIC", $selection->getHTML());
+        $a_tpl->parseCurrentBlock();
+    }
+
+    public function getOnloadCode(): array
+    {
+        return $this->getAdvSelection()->getOnloadCode();
+    }
 }

@@ -1,6 +1,21 @@
 <?php
 
-/* Copyright (c) 1998-2017 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
 
 /**
  * Skills for container (course/group) (top gui class)
@@ -11,133 +26,107 @@
  */
 class ilContainerSkillGUI
 {
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    protected ilCtrl $ctrl;
+    protected ilTabsGUI $tabs;
+    protected ilLanguage $lng;
+    protected ilContainerGUI $container_gui;
+    protected ilContainer $container;
+    protected ilAccessHandler $access;
+    protected ilSkillManagementSettings $skmg_settings;
+    protected int $ref_id = 0;
 
-	/**
-	 * @var ilTabsGUI
-	 */
-	protected $tabs;
+    public function __construct(ilContainerGUI $a_container_gui)
+    {
+        global $DIC;
 
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+        $this->ctrl = $DIC->ctrl();
+        $this->tabs = $DIC->tabs();
+        $this->lng = $DIC->language();
+        $this->access = $DIC->access();
 
-	/**
-	 * @var ilContainerGUI
-	 */
-	protected $container_gui;
+        $this->container_gui = $a_container_gui;
+        /* @var $obj ilContainer */
+        $obj = $this->container_gui->getObject();
+        $this->container = $obj;
+        $this->ref_id = $this->container->getRefId();
+        $this->skmg_settings = new ilSkillManagementSettings();
+    }
 
+    public function executeCommand(): void
+    {
+        $ctrl = $this->ctrl;
 
-	/**
-	 * @var ilContainer
-	 */
-	protected $container;
+        $next_class = $this->ctrl->getNextClass($this);
+        $cmd = $this->ctrl->getCmd("show");
 
-	/**
-	 * @var ilAccessHandler
-	 */
-	protected $access;
+        $this->addTabs();
 
-	/**
-	 * Constructor
-	 *
-	 * @param
-	 */
-	function __construct($a_container_gui)
-	{
-		global $DIC;
+        switch ($next_class) {
+            case "ilcontskillpresentationgui":
+                if ($this->access->checkAccess("read", "", $this->ref_id)) {
+                    $gui = new ilContSkillPresentationGUI($this->container_gui);
+                    $ctrl->forwardCommand($gui);
+                }
+                break;
 
-		$this->ctrl = $DIC->ctrl();
-		$this->tabs = $DIC->tabs();
-		$this->lng = $DIC->language();
-		$this->access = $DIC->access();
+            case "ilcontskilladmingui":
+                if ($this->access->checkAccess("write", "", $this->ref_id) || $this->access->checkAccess("grade", "", $this->ref_id)) {
+                    $gui = new ilContSkillAdminGUI($this->container_gui);
+                    $ctrl->forwardCommand($gui);
+                }
+                break;
 
-		$this->container_gui = $a_container_gui;
-		$this->container = $a_container_gui->object;
-		$this->ref_id = $this->container->getRefId();
-	}
+            default:
+                /*if (in_array($cmd, array("show")))
+                {
+                    $this->$cmd();
+                }*/
+        }
+    }
 
-	/**
-	 * Execute command
-	 */
-	function executeCommand()
-	{
-		$ctrl = $this->ctrl;
+    public function addTabs(): void
+    {
+        $tabs = $this->tabs;
+        $lng = $this->lng;
+        $ctrl = $this->ctrl;
 
-		$next_class = $this->ctrl->getNextClass($this);
-		$cmd = $this->ctrl->getCmd("show");
+        if ($this->access->checkAccess("read", "", $this->ref_id)) {
+            $tabs->addSubTab(
+                "list",
+                $lng->txt("cont_skill_show"),
+                $ctrl->getLinkTargetByClass("ilContSkillPresentationGUI", "")
+            );
+        }
 
-		$this->addTabs();
+        if ($this->access->checkAccess("grade", "", $this->ref_id)) {
+            $tabs->addSubTab(
+                "members",
+                $lng->txt("cont_skill_members"),
+                $ctrl->getLinkTargetByClass("ilContSkillAdminGUI", "listMembers")
+            );
+        }
 
-		switch ($next_class)
-		{
-			case "ilcontskillpresentationgui":
-				if ($this->access->checkAccess("read", "", $this->ref_id))
-				{
-					include_once("./Services/Container/Skills/classes/class.ilContSkillPresentationGUI.php");
-					$gui = new ilContSkillPresentationGUI($this->container_gui);
-					$ctrl->forwardCommand($gui);
-				}
-				break;
+        if ($this->access->checkAccess("write", "", $this->ref_id)) {
+            $tabs->addSubTab(
+                "competences",
+                $lng->txt("cont_skill_assigned_comp"),
+                $ctrl->getLinkTargetByClass("ilContSkillAdminGUI", "listCompetences")
+            );
 
-			case "ilcontskilladmingui":
-				if ($this->access->checkAccess("write", "", $this->ref_id) || $this->access->checkAccess("grade", "", $this->ref_id))
-				{
-					include_once("./Services/Container/Skills/classes/class.ilContSkillAdminGUI.php");
-					$gui = new ilContSkillAdminGUI($this->container_gui);
-					$ctrl->forwardCommand($gui);
-				}
-				break;
+            if ($this->skmg_settings->getLocalAssignmentOfProfiles()
+                || $this->skmg_settings->getAllowLocalProfiles()) {
+                $tabs->addSubTab(
+                    "profiles",
+                    $lng->txt("cont_skill_assigned_profiles"),
+                    $ctrl->getLinkTargetByClass("ilContSkillAdminGUI", "listProfiles")
+                );
+            }
 
-			default:
-				/*if (in_array($cmd, array("show")))
-				{
-					$this->$cmd();
-				}*/
-		}
-	}
-
-	/**
-	 * Add tabs
-	 *
-	 * @param
-	 */
-	function addTabs()
-	{
-		$tabs = $this->tabs;
-		$lng = $this->lng;
-		$ctrl = $this->ctrl;
-
-		if ($this->access->checkAccess("read", "", $this->ref_id))
-		{
-			$tabs->addSubTab("list",
-				$lng->txt("cont_skill_show"),
-				$ctrl->getLinkTargetByClass("ilContSkillPresentationGUI", ""));
-		}
-
-		if ($this->access->checkAccess("grade", "", $this->ref_id))
-		{
-			$tabs->addSubTab("members",
-				$lng->txt("cont_skill_members"),
-				$ctrl->getLinkTargetByClass("ilContSkillAdminGUI", "listMembers"));
-		}
-
-		if ($this->access->checkAccess("write", "", $this->ref_id))
-		{
-			$tabs->addSubTab("competences",
-				$lng->txt("cont_skill_assigned_comp"),
-				$ctrl->getLinkTargetByClass("ilContSkillAdminGUI", "listCompetences"));
-
-			$tabs->addSubTab("settings",
-				$lng->txt("settings"),
-				$ctrl->getLinkTargetByClass("ilContSkillAdminGUI", "settings"));
-		}
-	}
-
+            $tabs->addSubTab(
+                "settings",
+                $lng->txt("settings"),
+                $ctrl->getLinkTargetByClass("ilContSkillAdminGUI", "settings")
+            );
+        }
+    }
 }
-
-?>

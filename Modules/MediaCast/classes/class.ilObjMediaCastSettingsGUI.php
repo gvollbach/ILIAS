@@ -1,242 +1,221 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2009 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
-include_once("./Services/Object/classes/class.ilObjectGUI.php");
-
 
 /**
-* Media Cast Settings.
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* @version $Id$
-*
-* @ilCtrl_Calls ilObjMediaCastSettingsGUI: ilPermissionGUI
-* @ilCtrl_IsCalledBy ilObjMediaCastSettingsGUI: ilAdministrationGUI
-*
-* @ingroup ModulesMediaCast
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\MediaCast\StandardGUIRequest;
+
+/**
+ * Media Cast Settings.
+ * @author Alexander Killing <killing@leifos.de>
+ * @ilCtrl_Calls ilObjMediaCastSettingsGUI: ilPermissionGUI
+ * @ilCtrl_IsCalledBy ilObjMediaCastSettingsGUI: ilAdministrationGUI
+ */
 class ilObjMediaCastSettingsGUI extends ilObjectGUI
 {
+    protected StandardGUIRequest $mc_request;
+    protected ilMediaCastSettings $mc_settings;
 
-	/**
-	 * @var ilErrorHandling
-	 */
-	protected $error;
+    /**
+     * @param mixed $a_data
+     */
+    public function __construct(
+        $a_data,
+        int $a_id,
+        bool $a_call_by_reference = true,
+        bool $a_prepare_output = true
+    ) {
+        global $DIC;
+        $this->access = $DIC->access();
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        $this->type = 'mcts';
+        parent::__construct($a_data, $a_id, $a_call_by_reference, $a_prepare_output);
 
-    private static $ERROR_MESSAGE;
-	/**
-	 * Contructor
-	 *
-	 * @access public
-	 */
-	public function __construct($a_data, $a_id, $a_call_by_reference = true, $a_prepare_output = true)
-	{
-		global $DIC;
-		$this->error = $DIC["ilErr"];
-		$this->access = $DIC->access();
-		$this->ctrl = $DIC->ctrl();
-		$this->lng = $DIC->language();
-		$this->type = 'mcts';
-		parent::__construct($a_data, $a_id, $a_call_by_reference, $a_prepare_output);
+        $this->lng->loadLanguageModule('mcst');
+        $this->mc_settings = ilMediaCastSettings::_getInstance();
+        $this->mc_request = $DIC->mediaCast()
+            ->internal()
+            ->gui()
+            ->standardRequest();
+    }
 
-		$this->lng->loadLanguageModule('mcst');
-		$this->initMediaCastSettings();
-	}
+    public function executeCommand(): void
+    {
+        $next_class = $this->ctrl->getNextClass($this);
+        $cmd = $this->ctrl->getCmd();
 
-	/**
-	 * Execute command
-	 *
-	 * @access public
-	 *
-	 */
-	public function executeCommand()
-	{
-		$next_class = $this->ctrl->getNextClass($this);
-		$cmd = $this->ctrl->getCmd();
+        $this->prepareOutput();
 
-		$this->prepareOutput();
+        if (!$this->rbac_system->checkAccess("visible,read", $this->object->getRefId())) {
+            throw new ilPermissionException($this->lng->txt('no_permission'));
+        }
 
-		if (!$this->rbacsystem->checkAccess("visible,read", $this->object->getRefId()))
-		{
-			$this->error->raiseError($this->lng->txt('no_permission'),$this->error->WARNING);
-		}
+        switch ($next_class) {
+            case 'ilpermissiongui':
+                $this->tabs_gui->setTabActive('perm_settings');
+                $perm_gui = new ilPermissionGUI($this);
+                $this->ctrl->forwardCommand($perm_gui);
+                break;
 
-		switch($next_class)
-		{
-			case 'ilpermissiongui':
-				$this->tabs_gui->setTabActive('perm_settings');
-				include_once("Services/AccessControl/classes/class.ilPermissionGUI.php");
-				$perm_gui = new ilPermissionGUI($this);
-				$this->ctrl->forwardCommand($perm_gui);
-				break;
+            default:
+                if (!$cmd || $cmd == 'view') {
+                    $cmd = "editSettings";
+                }
 
-			default:
-				if(!$cmd || $cmd == 'view')
-				{
-					$cmd = "editSettings";
-				}
+                $this->$cmd();
+                break;
+        }
+    }
 
-				$this->$cmd();
-				break;
-		}
-		return true;
-	}
+    public function getAdminTabs(): void
+    {
+        $rbac_system = $this->rbac_system;
 
-	/**
-	 * Get tabs
-	 *
-	 * @access public
-	 *
-	 */
-	public function getAdminTabs()
-	{
-		$rbacsystem = $this->rbacsystem;
-		$ilAccess = $this->access;
+        if ($rbac_system->checkAccess("visible,read", $this->object->getRefId())) {
+            $this->tabs_gui->addTarget(
+                "mcst_edit_settings",
+                $this->ctrl->getLinkTarget($this, "editSettings"),
+                array("editSettings", "view")
+            );
+        }
 
-		if ($rbacsystem->checkAccess("visible,read",$this->object->getRefId()))
-		{
-			$this->tabs_gui->addTarget("mcst_edit_settings",
-				$this->ctrl->getLinkTarget($this, "editSettings"),
-				array("editSettings", "view"));
-		}
+        if ($rbac_system->checkAccess('edit_permission', $this->object->getRefId())) {
+            $this->tabs_gui->addTarget(
+                "perm_settings",
+                $this->ctrl->getLinkTargetByClass('ilpermissiongui', "perm"),
+                array(),
+                'ilpermissiongui'
+            );
+        }
+    }
 
-		if ($rbacsystem->checkAccess('edit_permission',$this->object->getRefId()))
-		{
-			$this->tabs_gui->addTarget("perm_settings",
-				$this->ctrl->getLinkTargetByClass('ilpermissiongui',"perm"),
-				array(),'ilpermissiongui');
-		}
-	}
+    public function editSettings(): void
+    {
+        $this->tabs_gui->setTabActive('mcst_edit_settings');
+        $this->initFormSettings();
+    }
 
-	/**
-	* Edit mediacast settings.
-	*/
-	public function editSettings()
-	{
-		$this->tabs_gui->setTabActive('mcst_edit_settings');		
-		$this->initFormSettings();
-		return true;
-	}
+    public function saveSettings(): void
+    {
+        $ilCtrl = $this->ctrl;
+        $ilAccess = $this->access;
+        $purposeSuffixes = [];
+        $form = $this->getForm();
 
-	/**
-	* Save mediacast settings
-	*/
-	public function saveSettings()
-	{
-		$ilCtrl = $this->ctrl;
-		$ilAccess = $this->access;
-		
-		if ($ilAccess->checkAccess("write", "", $this->object->getRefId()))
-		{
-			foreach ($this->settings->getPurposeSuffixes() as $purpose => $filetypes) {
-				$purposeSuffixes[$purpose] = explode(",", preg_replace("/[^\w,]/", "", strtolower($_POST[$purpose])));			
-			}
+        if ($ilAccess->checkAccess("write", "", $this->object->getRefId())) {
+            /*
+            foreach ($this->mc_settings->getPurposeSuffixes() as $purpose => $filetypes) {
+                $purposeSuffixes[$purpose] = explode(",", preg_replace("/[^\w,]/", "", strtolower($this->mc_request->getSettingsPurpose($purpose))));
+            }*/
 
-			$this->settings->setPurposeSuffixes($purposeSuffixes);
-			$this->settings->setDefaultAccess ($_POST["defaultaccess"]);
-			$this->settings->setMimeTypes (explode(",", $_POST["mimetypes"]));
+            if ($form->checkInput()) {
+                //$this->mc_settings->setPurposeSuffixes($purposeSuffixes);
+                $this->mc_settings->setDefaultAccess($form->getInput("defaultaccess"));
+                //$this->mc_settings->setMimeTypes(explode(",", $form->getInput("mimetypes")));
+                $this->mc_settings->setVideoCompletionThreshold((int) $form->getInput("video_completion_threshold"));
 
-			$this->settings->save();
+                $this->mc_settings->save();
 
-			ilUtil::sendSuccess($this->lng->txt("settings_saved"),true);
-		}
-		
-		$ilCtrl->redirect($this, "view");
-	}
+                $this->tpl->setOnScreenMessage('success', $this->lng->txt("settings_saved"), true);
+            } else {
+                $form->setValuesByPost();
+                $this->initFormSettings($form);
+                return;
+            }
+        }
+        $this->initMediaCastSettings();
+        $ilCtrl->redirect($this, "view");
+    }
 
-	/**
-	* Save mediacast settings
-	*/
-	public function cancel()
-	{
-		$ilCtrl = $this->ctrl;
-		
-		$ilCtrl->redirect($this, "view");
-	}
-	
-	/**
-	 * iniitialize settings storage for media cast
-	 *
-	 */
-	protected function initMediaCastSettings()
-	{
-		include_once('Modules/MediaCast/classes/class.ilMediaCastSettings.php');
-		$this->settings = ilMediaCastSettings::_getInstance();
-	}
-	
-	/**
-	 * Init settings property form
-	 *
-	 * @access protected
-	 */
-	protected function initFormSettings()
-	{
-		$lng = $this->lng;
-		$ilAccess = $this->access;
-		include_once('Services/Form/classes/class.ilPropertyFormGUI.php');
-		
-		$form = new ilPropertyFormGUI();
-		$form->setFormAction($this->ctrl->getFormAction($this));
-		$form->setTitle($this->lng->txt('settings'));
-		
-		if ($ilAccess->checkAccess("write", "", $this->object->getRefId()))
-		{
-			$form->addCommandButton('saveSettings',$this->lng->txt('save'));
-			$form->addCommandButton('cancel',$this->lng->txt('cancel'));
-		}
+    public function cancel(): void
+    {
+        $ilCtrl = $this->ctrl;
+        $ilCtrl->redirect($this, "view");
+    }
 
-		//Default Visibility
-		$radio_group = new ilRadioGroupInputGUI($lng->txt("mcst_default_visibility"), "defaultaccess");
-		$radio_option = new ilRadioOption($lng->txt("mcst_visibility_users"), "users");
-		$radio_group->addOption($radio_option);
-		$radio_option = new ilRadioOption($lng->txt("mcst_visibility_public"), "public");
-		$radio_group->addOption($radio_option);
-		$radio_group->setInfo($lng->txt("mcst_news_item_visibility_info"));
-		$radio_group->setRequired(false);
-		$radio_group->setValue($this->settings->getDefaultAccess());
-		#$ch->addSubItem($radio_group);
-		$form->addItem($radio_group);
+    protected function initMediaCastSettings(): void
+    {
+        $this->mc_settings = ilMediaCastSettings::_getInstance();
+    }
 
+    protected function getForm(): ilPropertyFormGUI
+    {
+        $lng = $this->lng;
+        $ilAccess = $this->access;
 
-		foreach ($this->settings->getPurposeSuffixes() as $purpose => $filetypes)
-		{
-			if ($purpose != "VideoAlternative")
-			{
-				$text = new ilTextInputGUI($lng->txt("mcst_".strtolower($purpose)."_settings_title"),$purpose);
-				$text->setValue(implode(",",$filetypes));
-				$text->setInfo($lng->txt("mcst_".strtolower($purpose)."_settings_info"));
-				$form->addItem($text);
-			}
-		}
-		
-		$text = new ilTextAreaInputGUI($lng->txt("mcst_mimetypes"), "mimetypes");
-		$text->setInfo($lng->txt("mcst_mimetypes_info"));
-		$text->setCols(120);
-		$text->setRows(10);
-		if (is_array($this->settings->getMimeTypes()))
-			$text->setValue(implode(",",$this->settings->getMimeTypes()));		
-		$form->addItem($text);
-		
-		$this->tpl->setContent($form->getHTML());
-	}
+        $form = new ilPropertyFormGUI();
+        $form->setFormAction($this->ctrl->getFormAction($this));
+        $form->setTitle($this->lng->txt('settings'));
+
+        if ($ilAccess->checkAccess("write", "", $this->object->getRefId())) {
+            $form->addCommandButton('saveSettings', $this->lng->txt('save'));
+            $form->addCommandButton('cancel', $this->lng->txt('cancel'));
+        }
+
+        //Default Visibility
+        $radio_group = new ilRadioGroupInputGUI($lng->txt("mcst_default_visibility"), "defaultaccess");
+        $radio_option = new ilRadioOption($lng->txt("mcst_visibility_users"), "users");
+        $radio_group->addOption($radio_option);
+        $radio_option = new ilRadioOption($lng->txt("mcst_visibility_public"), "public");
+        $radio_group->addOption($radio_option);
+        $radio_group->setInfo($lng->txt("mcst_news_item_visibility_info"));
+        $radio_group->setRequired(false);
+        $radio_group->setValue($this->mc_settings->getDefaultAccess());
+        #$ch->addSubItem($radio_group);
+        $form->addItem($radio_group);
+
+        // video completion threshold
+        $ti = new ilNumberInputGUI($lng->txt("mcst_video_completion_threshold"), "video_completion_threshold");
+        $ti->setMaxLength(3);
+        $ti->setSize(3);
+        $ti->setSuffix("%");
+        $ti->setMaxValue(100);
+        $ti->setMinValue(0);
+        $ti->setInfo($lng->txt("mcst_video_completion_threshold_info"));
+        $ti->setValue($this->mc_settings->getVideoCompletionThreshold());
+        $form->addItem($ti);
+
+        /*
+        foreach ($this->mc_settings->getPurposeSuffixes() as $purpose => $filetypes) {
+            if ($purpose !== "VideoAlternative") {
+                $text = new ilTextInputGUI($lng->txt("mcst_" . strtolower($purpose) . "_settings_title"), $purpose);
+                $text->setValue(implode(",", $filetypes));
+                $text->setInfo($lng->txt("mcst_" . strtolower($purpose) . "_settings_info"));
+                $form->addItem($text);
+            }
+        }
+
+        $text = new ilTextAreaInputGUI($lng->txt("mcst_mimetypes"), "mimetypes");
+        $text->setInfo($lng->txt("mcst_mimetypes_info"));
+        $text->setCols(120);
+        $text->setRows(10);
+        if (is_array($this->mc_settings->getMimeTypes())) {
+            $text->setValue(implode(",", $this->mc_settings->getMimeTypes()));
+        }
+        $form->addItem($text);*/
+
+        return $form;
+    }
+
+    protected function initFormSettings(?ilPropertyFormGUI $form = null): void
+    {
+        if (!$form) {
+            $form = $this->getForm();
+        }
+        $this->tpl->setContent($form->getHTML());
+    }
 }
-?>

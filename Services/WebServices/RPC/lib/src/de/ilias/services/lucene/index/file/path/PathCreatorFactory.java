@@ -22,9 +22,10 @@
 
 package de.ilias.services.lucene.index.file.path;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import de.ilias.services.object.ObjectDefinitionException;
+import org.apache.logging.log4j.Logger;
 
 /**
  * 
@@ -34,7 +35,7 @@ import de.ilias.services.object.ObjectDefinitionException;
  */
 public class PathCreatorFactory {
 	
-	private static Logger logger = Logger.getLogger(PathCreator.class);
+	private static Logger logger = LogManager.getLogger(PathCreator.class);
 	
 	public static PathCreator factory(String name) throws ObjectDefinitionException {
 		
@@ -58,6 +59,9 @@ public class PathCreatorFactory {
 		}
 		if(name.equalsIgnoreCase("MailAttachmentPathCreator")) {
 			return (PathCreator) new MailAttachmentPathCreator();
+		}
+		if(name.equalsIgnoreCase("FileObjectPathCreator7")) {
+			return (PathCreator) new FileObjectPathCreator7();
 		}
 		
 		throw new ObjectDefinitionException("Invalid path creator name given: " + name);

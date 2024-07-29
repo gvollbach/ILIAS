@@ -1,5 +1,22 @@
-<?php declare(strict_types=1);
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+<?php
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 use ILIAS\UI\Factory;
 use ILIAS\UI\Renderer;
@@ -10,51 +27,28 @@ use ILIAS\UI\Renderer;
  */
 class ilTermsOfServiceDocumentTableGUI extends ilTermsOfServiceTableGUI
 {
-    /** @var ILIAS\UI\Factory */
-    protected $uiFactory;
-
-    /** @var ILIAS\UI\Renderer */
-    protected $uiRenderer;
-
-    /** @var $bool */
-    protected $isEditable = false;
-
-    /** @var int */
-    protected $factor = 10;
-
-    /** @var int */
-    protected $i = 1;
-
-    /** @var int */
-    protected $numRenderedCriteria = 0;
-
-    /** @var ilTermsOfServiceCriterionTypeFactoryInterface */
-    protected $criterionTypeFactory;
-
+    protected Factory $uiFactory;
+    protected Renderer $uiRenderer;
+    protected bool $isEditable = false;
+    protected int $factor = 10;
+    protected int $i = 1;
+    protected int $numRenderedCriteria = 0;
+    protected ilTermsOfServiceCriterionTypeFactoryInterface $criterionTypeFactory;
     /** @var ILIAS\UI\Component\Component[] */
-    protected $uiComponents = [];
+    protected array $uiComponents = [];
 
-    /**
-     * ilTermsOfServiceDocumentTableGUI constructor.
-     * @param ilTermsOfServiceControllerEnabled             $a_parent_obj
-     * @param string                                        $command
-     * @param ilTermsOfServiceCriterionTypeFactoryInterface $criterionTypeFactory
-     * @param Factory                             $uiFactory
-     * @param Renderer                            $uiRenderer
-     * @param bool                                          $isEditable
-     */
     public function __construct(
         ilTermsOfServiceControllerEnabled $a_parent_obj,
         string $command,
         ilTermsOfServiceCriterionTypeFactoryInterface $criterionTypeFactory,
-        ILIAS\UI\Factory $uiFactory,
-        ILIAS\UI\Renderer $uiRenderer,
+        Factory $uiFactory,
+        Renderer $uiRenderer,
         bool $isEditable = false
     ) {
         $this->criterionTypeFactory = $criterionTypeFactory;
-        $this->uiFactory            = $uiFactory;
-        $this->uiRenderer           = $uiRenderer;
-        $this->isEditable           = $isEditable;
+        $this->uiFactory = $uiFactory;
+        $this->uiRenderer = $uiRenderer;
+        $this->isEditable = $isEditable;
 
         $this->setId('tos_documents');
         $this->setFormName('tos_documents');
@@ -79,10 +73,7 @@ class ilTermsOfServiceDocumentTableGUI extends ilTermsOfServiceTableGUI
         }
     }
 
-    /**
-     * @inheritdoc
-     */
-    protected function getColumnDefinition() : array
+    protected function getColumnDefinition(): array
     {
         $i = 0;
 
@@ -90,102 +81,93 @@ class ilTermsOfServiceDocumentTableGUI extends ilTermsOfServiceTableGUI
 
         if ($this->isEditable) {
             $columns[++$i] = [
-                'field'       => 'chb',
-                'txt'         => '',
-                'default'     => true,
-                'optional'    => false,
-                'sortable'    => false,
+                'field' => 'chb',
+                'txt' => '',
+                'default' => true,
+                'optional' => false,
+                'sortable' => false,
                 'is_checkbox' => true,
-                'width'       => '1%'
+                'width' => '1%'
             ];
         }
 
         $columns[++$i] = [
-            'field'    => 'sorting',
-            'txt'      => $this->lng->txt('tos_tbl_docs_head_sorting'),
-            'default'  => true,
+            'field' => 'sorting',
+            'txt' => $this->lng->txt('tos_tbl_docs_head_sorting'),
+            'default' => true,
             'optional' => false,
             'sortable' => false,
-            'width'    => '5%'
+            'width' => '5%'
         ];
 
         $columns[++$i] = [
-            'field'    => 'title',
-            'txt'      => $this->lng->txt('tos_tbl_docs_head_title'),
-            'default'  => true,
+            'field' => 'title',
+            'txt' => $this->lng->txt('tos_tbl_docs_head_title'),
+            'default' => true,
             'optional' => false,
             'sortable' => false,
-            'width'    => '25%'
+            'width' => '25%'
         ];
 
         $columns[++$i] = [
-            'field'    => 'creation_ts',
-            'txt'      => $this->lng->txt('tos_tbl_docs_head_created'),
-            'default'  => true,
+            'field' => 'creation_ts',
+            'txt' => $this->lng->txt('tos_tbl_docs_head_created'),
+            'default' => true,
             'optional' => true,
             'sortable' => false
         ];
 
         $columns[++$i] = [
-            'field'    => 'modification_ts',
-            'txt'      => $this->lng->txt('tos_tbl_docs_head_last_change'),
-            'default'  => true,
+            'field' => 'modification_ts',
+            'txt' => $this->lng->txt('tos_tbl_docs_head_last_change'),
+            'default' => true,
             'optional' => true,
             'sortable' => false
         ];
 
         $columns[++$i] = [
-            'field'    => 'criteria',
-            'txt'      => $this->lng->txt('tos_tbl_docs_head_criteria'),
-            'default'  => true,
+            'field' => 'criteria',
+            'txt' => $this->lng->txt('tos_tbl_docs_head_criteria'),
+            'default' => true,
             'optional' => false,
             'sortable' => false
         ];
 
         if ($this->isEditable) {
             $columns[++$i] = [
-                'field'    => 'actions',
-                'txt'      => $this->lng->txt('actions'),
-                'default'  => true,
+                'field' => 'actions',
+                'txt' => $this->lng->txt('actions'),
+                'default' => true,
                 'optional' => false,
                 'sortable' => false,
-                'width'    => '10%'
+                'width' => '10%'
             ];
-        };
+        }
 
         return $columns;
     }
 
-    /**
-     * @param array $data
-     * @return array
-     */
-    protected function preProcessData(array &$data) : void 
+    protected function preProcessData(array &$data): void
     {
         foreach ($data['items'] as $key => $document) {
             /** @var ilTermsOfServiceDocument $document */
 
             $data['items'][$key] = [
-                'id'                  => $document->getId(),
-                'title'               => $document->getTitle(),
-                'creation_ts'         => $document->getCreationTs(),
-                'modification_ts'     => $document->getModificationTs(),
-                'text'                => $document->getText(),
-                'criteria'            => '',
+                'id' => $document->getId(),
+                'title' => $document->getTitle(),
+                'creation_ts' => $document->getCreationTs(),
+                'modification_ts' => $document->getModificationTs(),
+                'text' => $document->getText(),
+                'criteria' => '',
                 'criteriaAssignments' => $document->criteria()
             ];
         }
     }
 
-    /**
-     * @inheritdoc
-     * @throws ilDateTimeException
-     * @throws ilTermsOfServiceCriterionTypeNotFoundException
-     */
-    protected function formatCellValue(string $column, array $row) : string
+    protected function formatCellValue(string $column, array $row): string
     {
         if (in_array($column, ['creation_ts', 'modification_ts'])) {
-            return \ilDatePresentation::formatDate(new \ilDateTime($row[$column], IL_CAL_UNIX));
+            return ilDatePresentation::formatDate(new ilDateTime($row[$column], IL_CAL_UNIX));
         } elseif ('sorting' === $column) {
             return $this->formatSorting($row);
         } elseif ('title' === $column) {
@@ -193,7 +175,7 @@ class ilTermsOfServiceDocumentTableGUI extends ilTermsOfServiceTableGUI
         } elseif ('actions' === $column) {
             return $this->formatActionsDropDown($column, $row);
         } elseif ('chb' === $column) {
-            return \ilUtil::formCheckbox(false, 'tos_id[]', $row['id']);
+            return ilLegacyFormElementsUtil::formCheckbox(false, 'tos_id[]', (string) $row['id']);
         } elseif ('criteria' === $column) {
             return $this->formatCriterionAssignments($column, $row);
         }
@@ -201,12 +183,7 @@ class ilTermsOfServiceDocumentTableGUI extends ilTermsOfServiceTableGUI
         return parent::formatCellValue($column, $row);
     }
 
-    /**
-     * @param string $column
-     * @param array  $row
-     * @return string
-     */
-    protected function formatActionsDropDown(string $column, array $row) : string
+    protected function formatActionsDropDown(string $column, array $row): string
     {
         if (!$this->isEditable) {
             return '';
@@ -227,7 +204,8 @@ class ilTermsOfServiceDocumentTableGUI extends ilTermsOfServiceTableGUI
                 $this->lng->txt('tos_doc_delete'),
                 $this->lng->txt('tos_sure_delete_documents_s'),
                 $this->ctrl->getFormAction($this->getParentObject(), 'deleteDocument')
-            );
+            )
+            ->withActionButtonLabel('deleteDocument');
 
         $deleteBtn = $this->uiFactory
             ->button()
@@ -253,13 +231,7 @@ class ilTermsOfServiceDocumentTableGUI extends ilTermsOfServiceTableGUI
         return $this->uiRenderer->render([$dropDown]);
     }
 
-    /**
-     * @param string $column
-     * @param array  $row
-     * @return string
-     * @throws ilTermsOfServiceCriterionTypeNotFoundException
-     */
-    protected function formatCriterionAssignments(string $column, array $row) : string
+    protected function formatCriterionAssignments(string $column, array $row): string
     {
         $items = [];
 
@@ -268,7 +240,7 @@ class ilTermsOfServiceDocumentTableGUI extends ilTermsOfServiceTableGUI
         }
 
         foreach ($row['criteriaAssignments'] as $criterion) {
-            /** @var $criterion ilTermsOfServiceDocumentCriterionAssignment */
+            /** @var ilTermsOfServiceDocumentCriterionAssignment $criterion */
 
             $this->ctrl->setParameter($this->getParentObject(), 'tos_id', $row['id']);
             $this->ctrl->setParameter($this->getParentObject(), 'crit_id', $criterion->getId());
@@ -286,7 +258,8 @@ class ilTermsOfServiceDocumentTableGUI extends ilTermsOfServiceTableGUI
                     $this->lng->txt('tos_doc_detach_crit_confirm_title'),
                     $this->lng->txt('tos_doc_sure_detach_crit'),
                     $this->ctrl->getFormAction($this->getParentObject(), 'detachCriterionAssignment')
-                );
+                )
+                ->withActionButtonLabel('detachCriterionAssignment');
 
             $deleteBtn = $this->uiFactory
                 ->button()
@@ -298,7 +271,7 @@ class ilTermsOfServiceDocumentTableGUI extends ilTermsOfServiceTableGUI
                 ->standard([$editBtn, $deleteBtn]);
 
             $criterionType = $this->criterionTypeFactory->findByTypeIdent($criterion->getCriterionId(), true);
-            $typeGui       = $criterionType->ui($this->lng);
+            $typeGui = $criterionType->ui($this->lng);
 
             $items[implode(' ', [
                 $typeGui->getIdentPresentation(),
@@ -330,12 +303,7 @@ class ilTermsOfServiceDocumentTableGUI extends ilTermsOfServiceTableGUI
         ]);
     }
 
-    /**
-     * @param string $column
-     * @param array  $row
-     * @return string
-     */
-    protected function formatTitle(string $column, array $row) : string
+    protected function formatTitle(string $column, array $row): string
     {
         $modal = $this->uiFactory
             ->modal()
@@ -349,11 +317,7 @@ class ilTermsOfServiceDocumentTableGUI extends ilTermsOfServiceTableGUI
         return $this->uiRenderer->render([$titleLink, $modal]);
     }
 
-    /**
-     * @param array $row
-     * @return string
-     */
-    protected function formatSorting(array $row) : string
+    protected function formatSorting(array $row): string
     {
         $value = ($this->i++) * $this->factor;
         if (!$this->isEditable) {
@@ -368,10 +332,7 @@ class ilTermsOfServiceDocumentTableGUI extends ilTermsOfServiceTableGUI
         return $sortingField->render();
     }
 
-    /**
-     * @inheritDoc
-     */
-    public function getHTML()
+    public function getHTML(): string
     {
         return parent::getHTML() . $this->uiRenderer->render($this->uiComponents);
     }

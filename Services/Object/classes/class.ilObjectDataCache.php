@@ -1,361 +1,337 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+declare(strict_types=1);
 
 /**
-* class ilObjectDataCache
-*
-* @author Stefan Meyer <meyer@leifos.com>
-* @version $Id$
-*
-* This class caches some properties of the object_data table. Like title description owner obj_id
-*
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * class ilObjectDataCache
+ *
+ * @author Stefan Meyer <meyer@leifos.com>
+ * @version $Id$
+ *
+ * This class caches some properties of the object_data table. Like title description owner obj_id
+ */
 class ilObjectDataCache
 {
+    protected ilDBInterface $db;
 
-	var $db = null;
-	var $reference_cache = array();
-	var $object_data_cache = array();
-	var $description_trans = array();
+    /** @var array<int, bool> */
+    protected array $trans_loaded = [];
+    protected array $reference_cache = [];
+    protected array $object_data_cache = [];
+    protected array $description_trans = [];
 
-	function __construct()
-	{
-		global $DIC;
+    public function __construct()
+    {
+        global $DIC;
+        $this->db = $DIC->database();
+    }
 
-		$ilDB = $DIC->database();
+    public function deleteCachedEntry(int $obj_id): void
+    {
+        if (isset($this->object_data_cache[$obj_id])) {
+            unset($this->object_data_cache[$obj_id]);
+        }
+    }
 
-		$this->db = $ilDB;
-	}
+    public function lookupObjId(int $ref_id): int
+    {
+        if (!$this->__isReferenceCached($ref_id)) {
+            $obj_id = $this->__storeReference($ref_id);
+            $this->__storeObjectData($obj_id);
+        }
 
-	function deleteCachedEntry($a_obj_id)
-	{
-		unset($this->object_data_cache[$a_obj_id]);
-	}
+        return (int) ($this->reference_cache[$ref_id] ?? 0);
+    }
 
-	function lookupObjId($a_ref_id)
-	{
-		if(!$this->__isReferenceCached($a_ref_id))
-		{
-//echo"-objidmissed-$a_ref_id-";
-			$obj_id = $this->__storeReference($a_ref_id);
-			$this->__storeObjectData($obj_id);
-		}
-		return (int) @$this->reference_cache[$a_ref_id];
-	}
+    public function lookupTitle(int $obj_id): string
+    {
+        if (!$this->__isObjectCached($obj_id)) {
+            $this->__storeObjectData($obj_id);
+        }
 
-	function lookupTitle($a_obj_id)
-	{
-		if(!$this->__isObjectCached($a_obj_id))
-		{
-			$this->__storeObjectData($a_obj_id);
-		}
-		return @$this->object_data_cache[$a_obj_id]['title'];
-	}
+        return (string) ($this->object_data_cache[$obj_id]['title'] ?? '');
+    }
 
-	function lookupType($a_obj_id)
-	{
-		if(!$this->__isObjectCached($a_obj_id))
-		{
-//echo"-typemissed-$a_obj_id-";
-			$this->__storeObjectData($a_obj_id);
-		}
-		return @$this->object_data_cache[$a_obj_id]['type'];
-	}
+    public function lookupType(int $obj_id): string
+    {
+        if (!$this->__isObjectCached($obj_id)) {
+            $this->__storeObjectData($obj_id);
+        }
 
-	function lookupOwner($a_obj_id)
-	{
-		if(!$this->__isObjectCached($a_obj_id))
-		{
-			$this->__storeObjectData($a_obj_id);
-		}
-		return @$this->object_data_cache[$a_obj_id]['owner'];
-	}
+        return (string) ($this->object_data_cache[$obj_id]['type'] ?? '');
+    }
 
-	function lookupDescription($a_obj_id)
-	{
-		if(!$this->__isObjectCached($a_obj_id))
-		{
-			$this->__storeObjectData($a_obj_id);
-		}
-		return @$this->object_data_cache[$a_obj_id]['description'];
-	}
+    public function lookupOwner(int $obj_id): int
+    {
+        if (!$this->__isObjectCached($obj_id)) {
+            $this->__storeObjectData($obj_id);
+        }
 
-	function lookupLastUpdate($a_obj_id)
-	{
-		if(!$this->__isObjectCached($a_obj_id))
-		{
-			$this->__storeObjectData($a_obj_id);
-		}
-		return @$this->object_data_cache[$a_obj_id]['last_update'];
-	}
+        return (int) ($this->object_data_cache[$obj_id]['owner'] ?? 0);
+    }
 
-	/**
-	 * Check if supports centralized offline handling and is offline
-	 * @param $a_obj_id
-	 * @return bool
-	 */
-	public function lookupOfflineStatus($a_obj_id)
-	{
-		if(!$this->__isObjectCached($a_obj_id))
-		{
-			$this->__storeObjectData($a_obj_id);
-		}
-		return (bool) $this->object_data_cache[$a_obj_id]['offline'];
-	}
+    public function lookupDescription(int $obj_id): string
+    {
+        if (!$this->__isObjectCached($obj_id)) {
+            $this->__storeObjectData($obj_id);
+        }
 
-	// PRIVATE
+        return (string) ($this->object_data_cache[$obj_id]['description'] ?? '');
+    }
 
-	/**
-	* checks whether an reference id is already in cache or not 
-	*
-	* @access	private
-	* @param	int			$a_ref_id				reference id
-	* @return	boolean
-	*/
-	function __isReferenceCached($a_ref_id)
-	{
-		#return false;
-		#static $cached = 0;
-		#static $not_cached = 0;
+    public function lookupLastUpdate(int $obj_id): string
+    {
+        if (!$this->__isObjectCached($obj_id)) {
+            $this->__storeObjectData($obj_id);
+        }
+        return (string) ($this->object_data_cache[$obj_id]['last_update']);
+    }
 
-		if(@$this->reference_cache[$a_ref_id])
-		{
-			#echo "Reference ". ++$cached ."cached<br>";
-			return true;
-		}
-		#echo "Reference ". ++$not_cached ." not cached<br>";
-		return false;
-		
-	}
+    /**
+     * Check if supports centralized offline handling and is offline
+     */
+    public function lookupOfflineStatus(int $obj_id): bool
+    {
+        if (!$this->__isObjectCached($obj_id)) {
+            $this->__storeObjectData($obj_id);
+        }
 
-	/**
-	* checks whether an object is aleady in cache or not 
-	*
-	* @access	private
-	* @param	int			$a_obj_id				object id
-	* @return	boolean
-	*/
-	function __isObjectCached($a_obj_id)
-	{
-		static $cached = 0;
-		static $not_cached = 0;
-			
+        return (bool) ($this->object_data_cache[$obj_id]['offline'] ?? false);
+    }
 
-		if(@$this->object_data_cache[$a_obj_id])
-		{
-			#echo "Object ". ++$cached ."cached<br>";
-			return true;
-		}
-		#echo "Object ". ++$not_cached ." not cached<br>";
-		return false;
-	}
+    // PRIVATE
 
+    /**
+     * checks whether a reference id is already in cache or not
+     */
+    private function __isReferenceCached(int $ref_id): bool
+    {
+        if (isset($this->reference_cache[$ref_id])) {
+            return true;
+        }
 
-	/**
-	* Stores Reference in cache.
-	* Maybe it could be useful to find all references of that object andd store them also in the cache.
-	* But this would be an extra query.
-	*
-	* @access	private
-	* @param	int			$a_ref_id				reference id
-	* @return	int			$obj_id
-	*/
-	function __storeReference($a_ref_id)
-	{
-		$ilDB = $this->db;
-		
-		$query = "SELECT obj_id FROM object_reference WHERE ref_id = ".$ilDB->quote($a_ref_id,'integer');
-		$res = $this->db->query($query);
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_ASSOC))
-		{
-			$this->reference_cache[$a_ref_id] = $row['obj_id'];
-		}
-		return (int) @$this->reference_cache[$a_ref_id];
-	}
+        return false;
+    }
 
-	/**
-	* Stores object data in cache
-	*
-	* @access	private
-	* @param	int			$a_obj_id				object id
-	* @return	bool
-	*/
-	function __storeObjectData($a_obj_id, $a_lang = "")
-	{
-		global $DIC;
+    /**
+     * checks whether an object is already in cache or not
+     */
+    private function __isObjectCached(int $obj_id): bool
+    {
+        if (isset($this->object_data_cache[$obj_id])) {
+            return true;
+        }
 
-		$ilDB = $this->db;
-		$objDefinition = $DIC["objDefinition"];
-		$ilUser = $DIC["ilUser"];
-		
-		if (is_object($ilUser) && $a_lang == "")
-		{
-			$a_lang = $ilUser->getLanguage();
-		}
+        return false;
+    }
 
-		$query = "SELECT * FROM object_data WHERE obj_id = ".
-			$ilDB->quote($a_obj_id ,'integer');
-		$res = $this->db->query($query);
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			$this->object_data_cache[$a_obj_id]['title'] = $row->title;
-			$this->object_data_cache[$a_obj_id]['description'] = $row->description;
-			$this->object_data_cache[$a_obj_id]['type'] = $row->type;
-			$this->object_data_cache[$a_obj_id]['owner'] = $row->owner;
-			$this->object_data_cache[$a_obj_id]['last_update'] = $row->last_update;
-			$this->object_data_cache[$a_obj_id]['offline'] = $row->offline;
-			
-			if (is_object($objDefinition))
-			{
-				$translation_type = $objDefinition->getTranslationType($row->type);
-			}
+    /**
+     * Stores Reference in cache.
+     * Maybe it could be useful to find all references of that object and store them also in the cache.
+     * But this would be an extra query.
+     */
+    private function __storeReference(int $ref_id): int
+    {
+        $sql =
+            "SELECT obj_id" . PHP_EOL
+            . "FROM object_reference" . PHP_EOL
+            . "WHERE ref_id = " . $this->db->quote($ref_id, 'integer') . PHP_EOL
+        ;
+        $result = $this->db->query($sql);
+        while ($row = $result->fetchRow(ilDBConstants::FETCHMODE_ASSOC)) {
+            $this->reference_cache[$ref_id] = (int) $row['obj_id'];
+        }
 
-			if ($translation_type == "db")
-			{
-				if (!$this->trans_loaded[$a_obj_id])
-				{
-					$q = "SELECT title,description FROM object_translation ".
-						 "WHERE obj_id = ".$ilDB->quote($a_obj_id,'integer')." ".
-						 "AND lang_code = ".$ilDB->quote($a_lang,'text')." ".
-						 "AND NOT lang_default = 1";
-					$r = $ilDB->query($q);
+        return (int) ($this->reference_cache[$ref_id] ?? 0);
+    }
 
-					$row = $r->fetchRow(ilDBConstants::FETCHMODE_OBJECT);
-					if ($row)
-					{
-						$this->object_data_cache[$a_obj_id]['title'] = $row->title;
-						$this->object_data_cache[$a_obj_id]['description'] = $row->description;
-						$this->description_trans[] = $a_obj_id;
-					}
-					$this->trans_loaded[$a_obj_id] = true;
-				}
-			}
-		}
-		
-		return true;
-	}
-	
-	function isTranslatedDescription($a_obj_id)
-	{
-		return (is_array($this->description_trans) &&
-			in_array($a_obj_id, $this->description_trans));
-	}
-	
-	/**
-	* Stores object data in cache
-	*
-	* @access	private
-	* @param	int			$a_obj_id				object id
-	* @return	bool
-	*/
-	function preloadObjectCache($a_obj_ids, $a_lang = "")
-	{
-		global $DIC;
+    /**
+     * Stores object data in cache
+     */
+    private function __storeObjectData(int $obj_id): void
+    {
+        global $DIC;
 
-		$ilDB = $this->db;
-		$objDefinition = $DIC["objDefinition"];
-		$ilUser = $DIC["ilUser"];
+        $obj_definition = $DIC["objDefinition"];
+        $user = $DIC["ilUser"];
 
-		if (is_object($ilUser) && $a_lang == "")
-		{
-			$a_lang = $ilUser->getLanguage();
-		}
-		if (!is_array($a_obj_ids)) return;
-		if (count($a_obj_ids) == 0) return;
-		
-		
-		$query = "SELECT * FROM object_data ".
-			"WHERE ".$ilDB->in('obj_id',$a_obj_ids,false,'integer');
-		$res = $ilDB->query($query);
-		$db_trans = array();
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
+        $sql =
+            "SELECT object_data.obj_id, object_data.type, object_data.title, object_data.description, " . PHP_EOL
+            . "object_data.owner, object_data.create_date, object_data.last_update, object_data.import_id, " . PHP_EOL
+            . "object_data.offline, object_description.description as long_description " . PHP_EOL
+            . "FROM object_data LEFT JOIN object_description ON object_data.obj_id = object_description.obj_id " . PHP_EOL
+            . "WHERE object_data.obj_id = " . $this->db->quote($obj_id, 'integer') . PHP_EOL
+        ;
+        $res = $this->db->query($sql);
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $this->object_data_cache[$obj_id]['title'] = $row->title;
+            $this->object_data_cache[$obj_id]['description'] = $row->description;
+            if ($row->long_description !== null) {
+                $this->object_data_cache[$row->obj_id]['description'] = $row->long_description;
+            }
+            $this->object_data_cache[$obj_id]['type'] = $row->type;
+            $this->object_data_cache[$obj_id]['owner'] = $row->owner;
+            $this->object_data_cache[$obj_id]['last_update'] = $row->last_update;
+            $this->object_data_cache[$obj_id]['offline'] = $row->offline;
 
-			// this if fixes #9960
-			if (!$this->trans_loaded[$row->obj_id])
-			{
-				$this->object_data_cache[$row->obj_id]['title'] = $row->title;
-				$this->object_data_cache[$row->obj_id]['description'] = $row->description;
-			}
-			$this->object_data_cache[$row->obj_id]['type'] = $row->type;
-			$this->object_data_cache[$row->obj_id]['owner'] = $row->owner;
-			$this->object_data_cache[$row->obj_id]['last_update'] = $row->last_update;
-			$this->object_data_cache[$row->obj_id]['offline'] = $row->offline;
+            $translation_type = $obj_definition->getTranslationType($row->type);
 
-			if (is_object($objDefinition))
-			{
-				$translation_type = $objDefinition->getTranslationType($row->type);
-			}
+            if ($translation_type === "db" && !isset($this->trans_loaded[$obj_id])) {
+                $sql =
+                    "SELECT title, description" . PHP_EOL
+                    . "FROM object_translation" . PHP_EOL
+                    . "WHERE obj_id = " . $this->db->quote($obj_id, 'integer') . PHP_EOL
+                    . "AND lang_code = " . $this->db->quote($user->getLanguage(), 'text') . PHP_EOL
+                ;
+                $trans_res = $this->db->query($sql);
 
-			if ($translation_type == "db")
-			{
-				$db_trans[$row->obj_id] = $row->obj_id;
-			}
-		}
-		if (count($db_trans) > 0)
-		{
-			$this->preloadTranslations($db_trans, $a_lang);
-		}
-	}
+                $trans_row = $trans_res->fetchRow(ilDBConstants::FETCHMODE_OBJECT);
+                if ($trans_row) {
+                    $this->object_data_cache[$obj_id]['title'] = $trans_row->title;
+                    $this->object_data_cache[$obj_id]['description'] = $trans_row->description;
+                    $this->description_trans[] = $obj_id;
+                }
+                $this->trans_loaded[$obj_id] = true;
+            }
+        }
+    }
 
-	/**
-	 * Preload translation informations
-	 *
-	 * @param	array	$a_obj_ids		array of object ids
-	 */
-	function preloadTranslations($a_obj_ids, $a_lang)
-	{
-		$ilDB = $this->db;
+    public function isTranslatedDescription(int $obj_id): bool
+    {
+        return in_array($obj_id, $this->description_trans);
+    }
 
-		$obj_ids = array();
-		foreach ($a_obj_ids as $id)
-		{
-			// do not load an id more than one time
-			if (!$this->trans_loaded[$id])
-			{
-				$obj_ids[] = $id;
-				$this->trans_loaded[$id] = true;
-			}
-		}
-		if (count($obj_ids) > 0)
-		{
-			$q = "SELECT obj_id, title, description FROM object_translation ".
-				 "WHERE ".$ilDB->in('obj_id', $obj_ids, false, 'integer')." ".
-				 "AND lang_code = ".$ilDB->quote($a_lang, 'text')." ".
-				 "AND NOT lang_default = 1";
-			$r = $ilDB->query($q);
-			while ($row2 = $r->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-			{
-				$this->object_data_cache[$row2->obj_id]['title'] = $row2->title;
-				$this->object_data_cache[$row2->obj_id]['description'] = $row2->description;
-				$this->description_trans[] = $row2->obj_id;
-			}
-		}
-	}
+    /**
+     * Stores object data in cache
+     * @param int[] $obj_ids
+     * @param string $lang
+     */
+    public function preloadObjectCache(array $obj_ids, string $lang = ''): void
+    {
+        global $DIC;
 
-	function preloadReferenceCache($a_ref_ids, $a_incl_obj = true)
-	{
-		$ilDB = $this->db;
-		
-		if (!is_array($a_ref_ids)) return;
-		if (count($a_ref_ids) == 0) return;
-		
-		$query = "SELECT ref_id, obj_id FROM object_reference ".
-			"WHERE ".$ilDB->in('ref_id',$a_ref_ids,false,'integer');
-		$res = $ilDB->query($query);
-		
-		$obj_ids = array();
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_ASSOC))
-		{
-			$this->reference_cache[$row['ref_id']] = $row['obj_id'];
-//echo "<br>store_ref-".$row['ref_id']."-".$row['obj_id']."-";
-			$obj_ids[] = $row['obj_id'];
-		}
-		if ($a_incl_obj)
-		{
-			$this->preloadObjectCache($obj_ids);
-		}
-	}
+        $obj_definition = $DIC["objDefinition"];
+        $user = $DIC["ilUser"];
 
+        if ($lang == "") {
+            $lang = $user->getLanguage();
+        }
+
+        if ($obj_ids === []) {
+            return;
+        }
+
+        $sql =
+            "SELECT object_data.obj_id, object_data.type, object_data.title, object_data.description, " . PHP_EOL
+            . "object_data.owner, object_data.create_date, object_data.last_update, object_data.import_id, " . PHP_EOL
+            . "object_data.offline, object_description.description as long_description " . PHP_EOL
+            . "FROM object_data LEFT JOIN object_description ON object_data.obj_id = object_description.obj_id " . PHP_EOL
+            . "WHERE " . $this->db->in('object_data.obj_id', $obj_ids, false, 'integer') . PHP_EOL
+        ;
+        $res = $this->db->query($sql);
+        $db_trans = [];
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $obj_id = (int) $row->obj_id;
+
+            if (!isset($this->trans_loaded[$obj_id])) {
+                $this->object_data_cache[$obj_id]['title'] = $row->title;
+                $this->object_data_cache[$obj_id]['description'] = $row->description;
+                if ($row->long_description !== null) {
+                    $this->object_data_cache[$row->obj_id]['description'] = $row->long_description;
+                }
+            }
+            $this->object_data_cache[$obj_id]['type'] = $row->type;
+            $this->object_data_cache[$obj_id]['owner'] = $row->owner;
+            $this->object_data_cache[$obj_id]['last_update'] = $row->last_update;
+            $this->object_data_cache[$obj_id]['offline'] = $row->offline;
+
+            $translation_type = $obj_definition->getTranslationType($row->type);
+
+            if ($translation_type === "db") {
+                $db_trans[$obj_id] = $obj_id;
+            }
+        }
+
+        if (count($db_trans) > 0) {
+            $this->preloadTranslations($db_trans, $lang);
+        }
+    }
+
+    /**
+     * Preload translation information
+     * @param int[] $obj_ids
+     * @param string $lang
+     */
+    public function preloadTranslations(array $obj_ids, string $lang): void
+    {
+        $ids = [];
+        foreach ($obj_ids as $id) {
+            // do not load an id more than one time
+            if (!isset($this->trans_loaded[$id])) {
+                $ids[] = $id;
+                $this->trans_loaded[$id] = true;
+            }
+        }
+
+        if ($ids !== []) {
+            $sql =
+                "SELECT obj_id, title, description" . PHP_EOL
+                . "FROM object_translation" . PHP_EOL
+                . "WHERE " . $this->db->in('obj_id', $ids, false, 'integer') . PHP_EOL
+                . "AND lang_code = " . $this->db->quote($lang, 'text') . PHP_EOL
+            ;
+            $result = $this->db->query($sql);
+            while ($row = $result->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+                $obj_id = (int) $row->obj_id;
+
+                $this->object_data_cache[$obj_id]['title'] = $row->title;
+                $this->object_data_cache[$obj_id]['description'] = $row->description;
+                $this->description_trans[] = $obj_id;
+            }
+        }
+    }
+
+    /**
+     * @param int[] $ref_ids
+     * @param bool $incl_obj
+     */
+    public function preloadReferenceCache(array $ref_ids, bool $incl_obj = true): void
+    {
+        if ($ref_ids === []) {
+            return;
+        }
+
+        $sql =
+            "SELECT ref_id, obj_id" . PHP_EOL
+            . "FROM object_reference" . PHP_EOL
+            . "WHERE " . $this->db->in('ref_id', $ref_ids, false, 'integer') . PHP_EOL
+        ;
+        $res = $this->db->query($sql);
+
+        $obj_ids = [];
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_ASSOC)) {
+            $this->reference_cache[(int) $row['ref_id']] = (int) $row['obj_id'];
+            $obj_ids[] = (int) $row['obj_id'];
+        }
+
+        if ($incl_obj) {
+            $this->preloadObjectCache($obj_ids);
+        }
+    }
 }
-?>

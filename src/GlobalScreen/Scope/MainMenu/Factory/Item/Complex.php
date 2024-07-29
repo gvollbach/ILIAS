@@ -1,70 +1,74 @@
-<?php namespace ILIAS\GlobalScreen\Scope\MainMenu\Factory\Item;
+<?php
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+namespace ILIAS\GlobalScreen\Scope\MainMenu\Factory\Item;
+
+use Closure;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\AbstractChildItem;
-use ILIAS\GlobalScreen\Scope\MainMenu\Factory\hasAsyncContent;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\hasContent;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\hasSymbol;
+use ILIAS\GlobalScreen\Scope\MainMenu\Factory\hasSymbolTrait;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\hasTitle;
+use ILIAS\GlobalScreen\Scope\MainMenu\Factory\isChild;
+use ILIAS\GlobalScreen\Scope\MainMenu\Factory\isInterchangeableItem;
+use ILIAS\GlobalScreen\Scope\MainMenu\Factory\isInterchangeableItemTrait;
+use ILIAS\GlobalScreen\Scope\MainMenu\Factory\supportsAsynchronousLoading;
+use ILIAS\GlobalScreen\Scope\SymbolDecoratorTrait;
 use ILIAS\UI\Component\Component;
-use ILIAS\UI\Component\Symbol\Symbol;
-use ILIAS\UI\Component\Symbol\Glyph;
-use ILIAS\UI\Component\Symbol\Icon;
 
 /**
  * Class Complex
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
-class Complex extends AbstractChildItem implements hasAsyncContent, hasContent, hasTitle, hasSymbol
+class Complex extends AbstractChildItem implements
+    hasContent,
+    hasTitle,
+    hasSymbol,
+    supportsAsynchronousLoading,
+    isInterchangeableItem,
+    isChild
 {
+    use SymbolDecoratorTrait;
+    use hasSymbolTrait;
+    use isInterchangeableItemTrait;
 
-    /**
-     * @var
-     */
-    private $content;
-    /**
-     * @var string
-     */
-    private $async_content_url = '';
-    /**
-     * @var string
-     */
-    private $title = '';
-    /**
-     * @var Symbol
-     */
-    private $symbol;
-
+    private ?Closure $content_wrapper = null;
+    private ?Component $content = null;
+    private string $title = '';
+    private bool $supports_async_loading = false;
 
     /**
      * @inheritDoc
      */
-    public function getAsyncContentURL() : string
-    {
-        return $this->async_content_url;
-    }
-
-
-    /**
-     * @param string $async_content_url
-     *
-     * @return Complex
-     */
-    public function withAsyncContentURL(string $async_content_url) : hasAsyncContent
+    public function withContentWrapper(Closure $content_wrapper): hasContent
     {
         $clone = clone($this);
-        $clone->async_content_url = $async_content_url;
+        $clone->content_wrapper = $content_wrapper;
 
         return $clone;
     }
 
-
     /**
-     * @param Component $ui_component
-     *
-     * @return Complex
+     * @inheritDoc
      */
-    public function withContent(Component $ui_component) : hasContent
+    public function withContent(Component $ui_component): hasContent
     {
         $clone = clone($this);
         $clone->content = $ui_component;
@@ -72,22 +76,25 @@ class Complex extends AbstractChildItem implements hasAsyncContent, hasContent, 
         return $clone;
     }
 
-
     /**
-     * @return Component
+     * @inheritDoc
      */
-    public function getContent() : Component
+    public function getContent(): Component
     {
+        if ($this->content_wrapper !== null) {
+            $wrapper = $this->content_wrapper;
+
+            return $wrapper();
+        }
+
         return $this->content;
     }
 
-
     /**
      * @param string $title
-     *
      * @return Complex
      */
-    public function withTitle(string $title) : hasTitle
+    public function withTitle(string $title): hasTitle
     {
         $clone = clone($this);
         $clone->title = $title;
@@ -95,48 +102,30 @@ class Complex extends AbstractChildItem implements hasAsyncContent, hasContent, 
         return $clone;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function getTitle() : string
+    public function getTitle(): string
     {
         return $this->title;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function withSymbol(Symbol $symbol) : hasSymbol
+    public function withSupportsAsynchronousLoading(bool $supported): supportsAsynchronousLoading
     {
-        // bugfix mantis 25526: make aria labels mandatory
-        if(($symbol instanceof Icon\Icon || $symbol instanceof Glyph\Glyph)
-            && ($symbol->getAriaLabel() === "")) {
-            throw new \LogicException("the symbol's aria label MUST be set to ensure accessibility");
-        }
-
         $clone = clone($this);
-        $clone->symbol = $symbol;
+        $clone->supports_async_loading = $supported;
 
         return $clone;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function getSymbol() : Symbol
+    public function supportsAsynchronousLoading(): bool
     {
-        return $this->symbol;
-    }
-
-
-    /**
-     * @inheritDoc
-     */
-    public function hasSymbol() : bool
-    {
-        return $this->symbol instanceof Symbol;
+        return $this->supports_async_loading;
     }
 }

@@ -1,91 +1,95 @@
 <?php
-/* Copyright (c) 2016 Stefan Hecken, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Settings for the error protcoll system
  *
  * @author Stefan Hecken <stefan.hecken@concepts-and-training.de>
  */
-class ilLoggingErrorSettings {
-	protected $folder;
-	protected $mail;
+class ilLoggingErrorSettings
+{
+    protected string $folder = '';
+    protected string $mail = '';
+    protected ?ilIniFile $ilias_ini = null;
+    protected ?ilIniFile $gClientIniFile = null;
 
-	protected function __construct() {
-		global $DIC;
+    protected function __construct()
+    {
+        global $DIC;
 
-		$ilIliasIniFile = $DIC['ilIliasIniFile'];
-		// temporary bugfix for global usage
-		if($DIC->offsetExists('ini'))
-		{
-			$ini = $DIC['ini'];
-		}
+        if ($DIC->offsetExists('ilIliasIniFile')) {
+            $this->ilias_ini = $DIC->iliasIni();
+        } elseif ($DIC->offsetExists('ini')) {
+            $this->ilias_ini = $DIC['ini'];
+        }
+        if ($DIC->offsetExists('ilClientIniFile')) {
+            $this->gClientIniFile = $DIC->clientIni();
+        }
+        $this->read();
+    }
 
-		$ilClientIniFile = null;
-		if (isset($DIC['ilClientIniFile'])) {
-			$ilClientIniFile = $DIC['ilClientIniFile'];
-		}
+    public static function getInstance(): ilLoggingErrorSettings
+    {
+        return new ilLoggingErrorSettings();
+    }
 
-		//realy not nice but necessary to initalize logger at setup
-		//ilias_ini is named only as $ini in inc.setup_header.php
-		if(!$ilIliasIniFile) {
-			if(!$ini) {
-				throw new Exception("No ILIAS ini");
-			} else {
-				$this->ilias_ini = $ini;
-			}
-		} else {
-			$this->ilias_ini = $ilIliasIniFile;
-		}
+    protected function setFolder(string $folder): void
+    {
+        $this->folder = $folder;
+    }
 
-		if($ilClientIniFile !== null) {
-			$this->gClientIniFile = $ilClientIniFile;
-		}
+    public function setMail(string $mail): void
+    {
+        $this->mail = $mail;
+    }
 
-		$this->folder = null;
-		$this->mail = null;
+    public function folder(): string
+    {
+        return $this->folder;
+    }
 
-		$this->read();
-	}
+    public function mail(): string
+    {
+        return $this->mail;
+    }
 
-	public static function getInstance() {
-		return new ilLoggingErrorSettings();
-	}
+    /**
+     * reads the values from ilias.ini.php
+     */
+    protected function read(): void
+    {
+        if ($this->ilias_ini instanceof ilIniFile) {
+            $this->setFolder((string) $this->ilias_ini->readVariable("log", "error_path"));
+        }
+        if ($this->gClientIniFile instanceof \ilIniFile) {
+            $this->setMail((string) $this->gClientIniFile->readVariable("log", "error_recipient"));
+        }
+    }
 
-	protected function setFolder($folder) {
-		$this->folder = $folder;
-	}
-
-	public function setMail($mail) {
-		$this->mail = $mail;
-	}
-
-	public function folder() {
-		return $this->folder;
-	}
-
-	public function mail() {
-		return $this->mail;
-	}
-
-	/**
-	 * reads the values from ilias.ini.php
-	 */
-	protected function read() {
-		$this->setFolder($this->ilias_ini->readVariable("log","error_path"));
-
-		if ($this->gClientIniFile instanceof \ilIniFile) {
-			$this->setMail($this->gClientIniFile->readVariable("log","error_recipient"));
-		}
-	}
-
-	/**
-	 * writes mail recipient into client.ini.php
-	 */
-	public function update() {
-		if ($this->gClientIniFile instanceof \ilIniFile) {
-			$this->gClientIniFile->addGroup("log");
-			$this->gClientIniFile->setVariable("log", "error_recipient", trim($this->mail()));
-			$this->gClientIniFile->write();
-		}
-	}
+    /**
+     * writes mail recipient into client.ini.php
+     */
+    public function update(): void
+    {
+        if ($this->gClientIniFile instanceof \ilIniFile) {
+            $this->gClientIniFile->addGroup("log");
+            $this->gClientIniFile->setVariable("log", "error_recipient", trim($this->mail()));
+            $this->gClientIniFile->write();
+        }
+    }
 }

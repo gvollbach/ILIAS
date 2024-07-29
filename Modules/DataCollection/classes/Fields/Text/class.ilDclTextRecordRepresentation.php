@@ -1,76 +1,111 @@
 <?php
 
 /**
- * Class ilDclTextFieldRepresentation
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
  *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Class ilDclTextFieldRepresentation
  * @author  Michael Herren <mh@studer-raimann.ch>
  * @version 1.0.0
  */
 class ilDclTextRecordRepresentation extends ilDclBaseRecordRepresentation
 {
+    public const LINK_MAX_LENGTH = 40;
 
-    const LINK_MAX_LENGTH = 40;
-
-
-    /**
-     * Outputs html of a certain field
-     *
-     * @param mixed     $value
-     * @param bool|true $link
-     *
-     * @return string
-     */
-    public function getHTML($link = true)
+    public function getHTML(bool $link = true, array $options = []): string
     {
         $value = $this->getRecordField()->getValue();
+
+        $ref_id = $this->http->wrapper()->query()->retrieve('ref_id', $this->refinery->kindlyTo()->int());
+        $views = $this->getRecord()->getTable()->getVisibleTableViews($ref_id, true, $this->user->getId());
 
         //Property URL
         $field = $this->getField();
         if ($field->hasProperty(ilDclBaseFieldModel::PROP_URL)) {
             if (is_array($value)) {
-                $link = $value['link'];
-                $link_value = $value['title'] ? $value['title'] : $this->shortenLink($link);
+                $link = (string) $value['link'];
+                $link_value = $value['title'] ?: $this->shortenLink($link);
             } else {
-                $link = $value;
-                $link_value = $this->shortenLink($value);
+                $link = (string) $value;
+                $link_value = $this->shortenLink($link);
             }
 
             if (substr($link, 0, 3) === 'www') {
-                $link = 'http://' . $link;
+                $link = 'https://' . $link;
             }
 
-            if (preg_match("/^[a-z0-9!#$%&'*+=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i", $link)) {
+            if (preg_match(
+                "/^[a-z0-9!#$%&'*+=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i",
+                $link
+            )) {
                 $link = "mailto:" . $link;
             } elseif (!(preg_match('~(^(news|(ht|f)tp(s?)\://){1}\S+)~i', $link))) {
                 return $link;
             }
 
-            $html = "<a rel='noopener' target='_blank' href='" . htmlspecialchars($link, ENT_QUOTES) . "'>" . htmlspecialchars($link_value, ENT_QUOTES) . "</a>";
-        } elseif ($field->hasProperty(ilDclBaseFieldModel::PROP_LINK_DETAIL_PAGE_TEXT) && $link && ilDclDetailedViewDefinition::isActive($_GET['tableview_id'])) {
+            $html = "<a rel='noopener' target='_blank' href='" . htmlspecialchars(
+                $link,
+                ENT_QUOTES
+            ) . "'>" . htmlspecialchars($link_value, ENT_QUOTES) . "</a>";
+        } elseif ($field->hasProperty(ilDclBaseFieldModel::PROP_LINK_DETAIL_PAGE_TEXT) && $link && $views !== []) {
+            $view = array_shift($views);
+            if ($this->http->wrapper()->query()->has('tableview_id')) {
+                $tableview_id = $this->http->wrapper()->query()->retrieve('tableview_id', $this->refinery->kindlyTo()->int());
+                foreach ($views as $v) {
+                    if ($v->getId() === $tableview_id) {
+                        $view = $tableview_id;
+                        break;
+                    }
+                }
+            }
+
             $this->ctrl->clearParametersByClass("ilDclDetailedViewGUI");
-            $this->ctrl->setParameterByClass('ilDclDetailedViewGUI', 'record_id', $this->getRecordField()->getRecord()->getId());
-            $this->ctrl->setParameterByClass('ilDclDetailedViewGUI', 'tableview_id', $_GET['tableview_id']);
-            $html = '<a href="' . $this->ctrl->getLinkTargetByClass("ilDclDetailedViewGUI", 'renderRecord') . '">' . $value . '</a>';
+            $this->ctrl->setParameterByClass(
+                'ilDclDetailedViewGUI',
+                'record_id',
+                $this->getRecordField()->getRecord()->getId()
+            );
+
+            $this->ctrl->setParameterByClass(ilDclDetailedViewGUI::class, 'table_id', $this->getRecord()->getTableId());
+            $this->ctrl->setParameterByClass(ilDclDetailedViewGUI::class, 'tableview_id', $view->getId());
+            $html = '<a href="' . $this->ctrl->getLinkTargetByClass(
+                "ilDclDetailedViewGUI",
+                'renderRecord'
+            ) . '">' . $value . '</a>';
         } else {
-            $html = (is_array($value) && isset($value['link'])) ? $value['link'] : $value;
+            $html = (is_array($value) && isset($value['link'])) ? $value['link'] : nl2br((string) $value);
+        }
+
+        if (!$html) {
+            $html = "";
         }
 
         return $html;
     }
 
-
     /**
      * This method shortens a link. The http(s):// and the www part are taken away. The rest will be shortened to sth similar to:
      * "somelink.de/lange...gugus.html".
-     *
-     * @param $value The link in it's original form.
-     *
+     * @param string $value The link in it's original form.
      * @return string The shortened link
      */
-    protected function shortenLink($value)
+    protected function shortenLink(string $value): string
     {
         if (strlen($value) > self::LINK_MAX_LENGTH) {
-            if (substr($value, 0, 7) == "http://") {
+            if (substr($value, 0, 7) == "https://") {
                 $value = substr($value, 7);
             }
             if (substr($value, 0, 8) == "https://") {
@@ -91,23 +126,19 @@ class ilDclTextRecordRepresentation extends ilDclBaseRecordRepresentation
         return $link;
     }
 
-
-    /**
-     * @inheritDoc
-     */
-    public function fillFormInput($form)
+    public function fillFormInput(ilPropertyFormGUI $form): void
     {
         $input_field = $form->getItemByPostVar('field_' . $this->getField()->getId());
         $raw_input = $this->getFormInput();
 
         $value = is_array($raw_input) ? $raw_input['link'] : $raw_input;
-        $field_values = array();
+        $field_values = [];
         if ($this->getField()->getProperty(ilDclBaseFieldModel::PROP_URL)) {
             $field_values["field_" . $this->getRecordField()->getField()->getId() . "_title"] = (isset($raw_input['title'])) ? $raw_input['title'] : '';
         }
 
         if ($this->getField()->hasProperty(ilDclBaseFieldModel::PROP_TEXTAREA)) {
-            $breaks = array("<br />");
+            $breaks = ["<br />"];
             $value = str_ireplace($breaks, "", $value);
         }
 

@@ -1,420 +1,450 @@
 <?php
 
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-
-include_once './Services/Tracking/classes/class.ilLearningProgressBaseGUI.php';
-include_once './Services/Tracking/classes/class.ilLPStatusWrapper.php';
-include_once 'Services/Search/classes/class.ilUserFilterGUI.php';
+declare(strict_types=0);
 
 /**
-* Class ilObjUserTrackingGUI
-*
-* @author Stefan Meyer <smeyer.ilias@gmx.de>
-*
-* @version $Id$
-*
-* @ilCtrl_Calls ilLPListOfObjectsGUI: ilUserFilterGUI, ilTrUserObjectsPropsTableGUI, ilTrSummaryTableGUI, ilTrObjectUsersPropsTableGUI, ilTrMatrixTableGUI
-*
-* @package ilias-tracking
-*
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Class ilObjUserTrackingGUI
+ * @author       Stefan Meyer <smeyer.ilias@gmx.de>
+ * @ilCtrl_Calls ilLPListOfObjectsGUI: ilUserFilterGUI, ilTrUserObjectsPropsTableGUI, ilTrSummaryTableGUI, ilTrObjectUsersPropsTableGUI, ilTrMatrixTableGUI
+ * @package      ilias-tracking
+ */
 class ilLPListOfObjectsGUI extends ilLearningProgressBaseGUI
 {
-	var $details_id = 0;
-	var $details_type = '';
-	var $details_mode = 0;
+    protected int $details_id = 0;
+    protected int $details_obj_id = 0;
+    protected string $details_type = '';
+    protected int $details_mode = 0;
 
-	function __construct($a_mode,$a_ref_id)
-	{		
-		parent::__construct($a_mode,$a_ref_id);
-		
-		// Set item id for details
-		$this->__initDetails((int) $_REQUEST['details_id']);
-	}
-	/**
-	* execute command
-	*/
-	function executeCommand()
-	{
-		global $DIC;
+    public function __construct(int $a_mode, int $a_ref_id)
+    {
+        parent::__construct($a_mode, $a_ref_id);
+        $this->__initDetails(
+            $this->initDetailsIdFromRequest($this->getRefId())
+        );
+    }
 
-		$ilUser = $DIC['ilUser'];
+    protected function initUserDetailsIdFromQuery(): int
+    {
+        if ($this->http->wrapper()->query()->has('userdetails_id')) {
+            return $this->http->wrapper()->query()->retrieve(
+                'userdetails_id',
+                $this->refinery->kindlyTo()->int()
+            );
+        }
+        return 0;
+    }
 
-		$this->ctrl->setReturn($this, "");
+    protected function initUserIdFromRequest(): int
+    {
+        if ($this->initUserIdFromQuery()) {
+            return $this->initUserIdFromQuery();
+        }
+        if ($this->http->wrapper()->post()->has('user_id')) {
+            return $this->http->wrapper()->post()->retrieve(
+                'user_id',
+                $this->refinery->kindlyTo()->int()
+            );
+        }
+        return 0;
+    }
 
-		switch($this->ctrl->getNextClass())
-		{
-			case 'iltruserobjectspropstablegui':
-				$user_id = (int)$_GET["user_id"];
-				$this->ctrl->setParameter($this, "user_id", $user_id);
+    protected function initDetailsIdFromRequest(int $default_id): int
+    {
+        if ($this->http->wrapper()->query()->has('details_id')) {
+            return $this->http->wrapper()->query()->retrieve(
+                'details_id',
+                $this->refinery->kindlyTo()->int()
+            );
+        }
+        if ($this->http->wrapper()->post()->has('details_id')) {
+            return $this->http->wrapper()->post()->retrieve(
+                'details_id',
+                $this->refinery->kindlyTo()->int()
+            );
+        }
+        return $default_id;
+    }
 
-				$this->ctrl->setParameter($this, "details_id", $this->details_id);
+    public function executeCommand(): void
+    {
+        $this->ctrl->setReturn($this, "");
 
-				include_once("./Services/Tracking/classes/repository_statistics/class.ilTrUserObjectsPropsTableGUI.php");
-				$table_gui = new ilTrUserObjectsPropsTableGUI($this, "userDetails",
-					$user_id, $this->details_obj_id, $this->details_id);
-				$this->ctrl->forwardCommand($table_gui);
-				break;
-			
-			case 'iltrsummarytablegui':
-				$cmd = "showObjectSummary";
-				if(!$this->details_id)
-				{
-					$this->details_id = ROOT_FOLDER_ID;
-					$cmd =  "show";
-				}
-				include_once './Services/Tracking/classes/repository_statistics/class.ilTrSummaryTableGUI.php';
-			    $table_gui = new ilTrSummaryTableGUI($this, $cmd, $this->details_id);
-				$this->ctrl->forwardCommand($table_gui);
-				break;
+        switch ($this->ctrl->getNextClass()) {
+            case 'iltruserobjectspropstablegui':
+                $user_id = $this->initUserIdFromQuery();
+                $this->ctrl->setParameter($this, "user_id", $user_id);
 
-			case 'iltrmatrixtablegui':
-				include_once './Services/Tracking/classes/repository_statistics/class.ilTrMatrixTableGUI.php';
-			    $table_gui = new ilTrMatrixTableGUI($this, "showUserObjectMatrix", $this->details_id);
-				$this->ctrl->forwardCommand($table_gui);
-				break;
+                $this->ctrl->setParameter(
+                    $this,
+                    "details_id",
+                    $this->details_id
+                );
 
-			case 'iltrobjectuserspropstablegui':
-				$this->ctrl->setParameter($this, "details_id", $this->details_id);
-			
-				include_once './Services/Tracking/classes/repository_statistics/class.ilTrObjectUsersPropsTableGUI.php';
-			    $table_gui = new ilTrObjectUsersPropsTableGUI($this, "details", $this->details_obj_id, $this->details_id);
-				$this->ctrl->forwardCommand($table_gui);
-				break;
+                $table_gui = new ilTrUserObjectsPropsTableGUI(
+                    $this,
+                    "userDetails",
+                    $user_id,
+                    $this->details_obj_id,
+                    $this->details_id
+                );
+                $this->ctrl->forwardCommand($table_gui);
+                break;
 
-			default:
-			    $cmd = $this->__getDefaultCommand();
-				$this->$cmd();
-		}
+            case 'iltrsummarytablegui':
+                $cmd = "showObjectSummary";
+                if (!$this->details_id) {
+                    $this->details_id = ROOT_FOLDER_ID;
+                    $cmd = "show";
+                }
+                $table_gui = new ilTrSummaryTableGUI(
+                    $this,
+                    $cmd,
+                    $this->details_id
+                );
+                $this->ctrl->forwardCommand($table_gui);
+                break;
 
-		return true;
-	}
+            case 'iltrmatrixtablegui':
+                $table_gui = new ilTrMatrixTableGUI(
+                    $this,
+                    "showUserObjectMatrix",
+                    $this->details_id
+                );
+                $this->ctrl->forwardCommand($table_gui);
+                break;
 
-	function updateUser()
-	{
-		global $DIC;
+            case 'iltrobjectuserspropstablegui':
+                $this->ctrl->setParameter(
+                    $this,
+                    "details_id",
+                    $this->details_id
+                );
 
-		$rbacsystem = $DIC['rbacsystem'];
-		
-		if(isset($_GET["userdetails_id"]))
-		{
-			$parent = $this->details_id;
-			$this->__initDetails((int)$_GET["userdetails_id"]);
-		}
-		
-		include_once './Services/Tracking/classes/class.ilLearningProgressAccess.php';
-		if(!ilLearningProgressAccess::checkPermission('edit_learning_progress', $this->details_id))
-		{
-			ilUtil::sendFailure($this->lng->txt("permission_denied"), true);
-			$this->ctrl->returnToParent($this);
-		}
-		
-		$this->__updateUser($_REQUEST['user_id'], $this->details_obj_id);
-		ilUtil::sendSuccess($this->lng->txt('trac_update_edit_user'), true);
-						
-		$this->ctrl->setParameter($this, "details_id", $this->details_id); // #15043
-		
-		// #14993
-		if(!isset($_GET["userdetails_id"]))
-		{
-			$this->ctrl->redirect($this, "details"); 
-		}
-		else
-		{
-			$this->ctrl->setParameter($this, "userdetails_id", (int)$_GET["userdetails_id"]); 
-			$this->ctrl->redirect($this, "userdetails"); 
-		}		 		
-	}
+                $table_gui = new ilTrObjectUsersPropsTableGUI(
+                    $this,
+                    "details",
+                    $this->details_obj_id,
+                    $this->details_id
+                );
+                $this->ctrl->forwardCommand($table_gui);
+                break;
 
-	function editUser()
-	{
-		global $DIC;
+            default:
+                $cmd = $this->__getDefaultCommand();
+                $this->$cmd();
+        }
+    }
 
-		$ilObjDataCache = $DIC['ilObjDataCache'];
-		$rbacsystem = $DIC['rbacsystem'];
+    public function updateUser()
+    {
+        $details_id = $this->initUserDetailsIdFromQuery();
+        if ($details_id) {
+            $parent = $this->details_id;
+            $this->__initDetails($details_id);
+        }
 
-		$parent_id = $this->details_id;
-		if(isset($_GET["userdetails_id"]))
-		{
-			$this->__initDetails((int)$_GET["userdetails_id"]);
-			$sub_id = $this->details_id;
-			$cancel = "userdetails";
-		}
-		else
-		{
-			$sub_id = NULL;
-			$cancel = "details";
-		}
-		
-		include_once './Services/Tracking/classes/class.ilLearningProgressAccess.php';
-		if(!ilLearningProgressAccess::checkPermission('edit_learning_progress', $this->details_id))
-		{
-			ilUtil::sendFailure($this->lng->txt("permission_denied"), true);
-			$this->ctrl->returnToParent($this);
-		}
+        if (!ilLearningProgressAccess::checkPermission(
+            'edit_learning_progress',
+            $this->details_id
+        )) {
+            $this->tpl->setOnScreenMessage(
+                'failure',
+                $this->lng->txt("permission_denied"),
+                true
+            );
+            $this->ctrl->returnToParent($this);
+        }
 
-		include_once("./Services/InfoScreen/classes/class.ilInfoScreenGUI.php");
-		$info = new ilInfoScreenGUI($this);
-		$info->setFormAction($this->ctrl->getFormAction($this));
-		$this->__showObjectDetails($info, $this->details_obj_id);
-		$this->__appendUserInfo($info, (int)$_GET['user_id']);
-		// $this->__appendLPDetails($info,$this->details_obj_id,(int)$_GET['user_id']);
+        $this->__updateUser(
+            $this->initUserIdFromRequest(),
+            $this->details_obj_id
+        );
+        $this->tpl->setOnScreenMessage(
+            'success',
+            $this->lng->txt('trac_update_edit_user'),
+            true
+        );
 
-		$this->tpl->setVariable("ADM_CONTENT", $this->__showEditUser((int)$_GET['user_id'], $parent_id, $cancel, $sub_id)."<br />".$info->getHTML());
-	}
+        $this->ctrl->setParameter(
+            $this,
+            "details_id",
+            $this->details_id
+        ); // #15043
 
-	function details()
-	{
-		global $DIC;
+        // #14993
+        if (!$details_id) {
+            $this->ctrl->redirect($this, "details");
+        } else {
+            $this->ctrl->setParameter($this, "userdetails_id", $details_id);
+            $this->ctrl->redirect($this, "userdetails");
+        }
+    }
 
-		$ilToolbar = $DIC['ilToolbar'];
+    public function editUser(): void
+    {
+        $cancel = '';
+        $parent_id = $this->details_id;
+        $details_id = $this->initUserDetailsIdFromQuery();
+        if ($details_id) {
+            $this->__initDetails($details_id);
+            $sub_id = $this->details_id;
+            $cancel = "userdetails";
+        } else {
+            $sub_id = null;
+            $cancel = "details";
+        }
 
-		$this->tpl->addBlockFile('ADM_CONTENT','adm_content','tpl.lp_loo.html','Services/Tracking');
+        if (!ilLearningProgressAccess::checkPermission(
+            'edit_learning_progress',
+            $this->details_id
+        )) {
+            $this->tpl->setOnScreenMessage(
+                'failure',
+                $this->lng->txt("permission_denied"),
+                true
+            );
+            $this->ctrl->returnToParent($this);
+        }
 
-		// Show back button
-		if($this->getMode() == self::LP_CONTEXT_PERSONAL_DESKTOP or
-		   $this->getMode() == self::LP_CONTEXT_ADMINISTRATION)
-		{
-			$print_view = false;
-			
-			$ilToolbar->addButton($this->lng->txt('trac_view_list'),
-				$this->ctrl->getLinkTarget($this,'show'));
-		}		
-		else
-		{
-			/*
-			$print_view = (bool)$_GET['prt'];
-			if(!$print_view)
-			{
-				$ilToolbar->setFormAction($this->ctrl->getFormAction($this));
-				$this->ctrl->setParameter($this, 'prt', 1);
-				$ilToolbar->addButton($this->lng->txt('print_view'),$this->ctrl->getLinkTarget($this,'details'), '_blank');
-				$this->ctrl->setParameter($this, 'prt', '');
-			}			 
-			*/
-		}
+        $info = new ilInfoScreenGUI($this);
+        $info->setFormAction($this->ctrl->getFormAction($this));
+        $this->__showObjectDetails($info, $this->details_obj_id);
 
-		include_once("./Services/InfoScreen/classes/class.ilInfoScreenGUI.php");
-		$info = new ilInfoScreenGUI($this);
-		$info->setFormAction($this->ctrl->getFormAction($this));
-		if($this->__showObjectDetails($info, $this->details_obj_id))
-		{
-			$this->tpl->setCurrentBlock("info");
-			$this->tpl->setVariable("INFO_TABLE",$info->getHTML());
-			$this->tpl->parseCurrentBlock();
-		}
+        $user_id = $this->initUserIdFromQuery();
+        $this->tpl->setVariable(
+            "ADM_CONTENT",
+            $this->__showEditUser(
+                $user_id,
+                $parent_id,
+                strlen($cancel) > 0 ? $cancel : null,
+                $sub_id ?? 0
+            ) . "<br />" . $info->getHTML()
+        );
+    }
 
-		$this->__showUsersList($print_view);
-	}
+    public function details(): void
+    {
+        $this->tpl->addBlockFile(
+            'ADM_CONTENT',
+            'adm_content',
+            'tpl.lp_loo.html',
+            'Services/Tracking'
+        );
 
-	function __showUsersList($a_print_view = false)
-	{
-		if($this->isAnonymized())
-		{
-			ilUtil::sendFailure($this->lng->txt('permission_denied'));
-			return;
-		}
+        // Show back button
+        if ($this->getMode() == self::LP_CONTEXT_PERSONAL_DESKTOP or
+            $this->getMode() == self::LP_CONTEXT_ADMINISTRATION) {
+            $this->toolbar->addButton(
+                $this->lng->txt('trac_view_list'),
+                $this->ctrl->getLinkTarget($this, 'show')
+            );
+        }
 
-		$this->ctrl->setParameter($this, "details_id", $this->details_id);
+        $info = new ilInfoScreenGUI($this);
+        $info->setFormAction($this->ctrl->getFormAction($this));
+        if ($this->__showObjectDetails($info, $this->details_obj_id)) {
+            $this->tpl->setCurrentBlock("info");
+            $this->tpl->setVariable("INFO_TABLE", $info->getHTML());
+            $this->tpl->parseCurrentBlock();
+        }
+        $this->__showUsersList();
+    }
 
-		include_once "Services/Tracking/classes/repository_statistics/class.ilTrObjectUsersPropsTableGUI.php";
-		$gui = new ilTrObjectUsersPropsTableGUI($this, "details", $this->details_obj_id, $this->details_id, $a_print_view);
-		
-		$this->tpl->setVariable("LP_OBJECTS", $gui->getHTML());
-		$this->tpl->setVariable("LEGEND", $this->__getLegendHTML());
+    public function __showUsersList($a_print_view = false): void
+    {
+        if ($this->isAnonymized()) {
+            $this->tpl->setOnScreenMessage(
+                'failure',
+                $this->lng->txt('permission_denied')
+            );
+            return;
+        }
+        $this->ctrl->setParameter($this, "details_id", $this->details_id);
+        $gui = new ilTrObjectUsersPropsTableGUI(
+            $this,
+            "details",
+            $this->details_obj_id,
+            $this->details_id,
+            $a_print_view
+        );
 
-		/*
-		if($a_print_view)
-		{
-			echo $this->tpl->getSpecial("DEFAULT", false, false, false, false, false, false);
-			exit();
-		}		 
-		*/
-	}
+        $this->tpl->setVariable("LP_OBJECTS", $gui->getHTML());
+        $this->tpl->setVariable("LEGEND", $this->__getLegendHTML());
+    }
 
-	function userDetails()
-	{
-		global $DIC;
+    public function userDetails(): void
+    {
+        if ($this->isAnonymized()) {
+            $this->tpl->setOnScreenMessage(
+                'failure',
+                $this->lng->txt('permission_denied')
+            );
+            return;
+        }
 
-		$ilObjDataCache = $DIC['ilObjDataCache'];
-		$ilToolbar = $DIC['ilToolbar'];
+        $this->ctrl->setParameter($this, "details_id", $this->details_id);
 
-		if($this->isAnonymized())
-		{
-			ilUtil::sendFailure($this->lng->txt('permission_denied'));
-			return;
-		}
+        $print_view = false;
+        if ($this->http->wrapper()->query()->has('prt')) {
+            $print_view = $this->http->wrapper()->query()->retrieve(
+                'prt',
+                $this->refinery->kindlyTo()->bool()
+            );
+        }
+        if (!$print_view) {
+            // Show back button
+            $this->toolbar->addButton(
+                $this->lng->txt('trac_view_list'),
+                $this->ctrl->getLinkTarget(
+                    $this,
+                    'details'
+                )
+            );
+        }
 
-		$this->ctrl->setParameter($this, "details_id", $this->details_id);
+        $user_id = $this->initUserIdFromQuery();
+        $this->ctrl->setParameter($this, "user_id", $user_id);
+        $this->tpl->addBlockFile(
+            'ADM_CONTENT',
+            'adm_content',
+            'tpl.lp_loo.html',
+            'Services/Tracking'
+        );
 
-		$print_view = (bool)$_GET['prt'];
-		if(!$print_view)
-		{
-			// Show back button
-			$ilToolbar->addButton($this->lng->txt('trac_view_list'), $this->ctrl->getLinkTarget($this,'details'));
-		}
+        $info = new ilInfoScreenGUI($this);
+        $info->setFormAction($this->ctrl->getFormAction($this));
+        $this->__showObjectDetails($info, $this->details_obj_id);
+        // $this->__appendLPDetails($info,$this->details_obj_id,$user_id);
+        $this->tpl->setVariable("INFO_TABLE", $info->getHTML());
 
-		$user_id = (int)$_GET["user_id"];
-		$this->ctrl->setParameter($this, "user_id", $user_id);
+        $table = new ilTrUserObjectsPropsTableGUI(
+            $this,
+            "userDetails",
+            $user_id,
+            $this->details_obj_id,
+            $this->details_id,
+            $print_view
+        );
+        $this->tpl->setVariable('LP_OBJECTS', $table->getHTML());
+        $this->tpl->setVariable('LEGEND', $this->__getLegendHTML());
+    }
 
-		/*
-		if(!$print_view)
-		{
-			$this->ctrl->setParameter($this, 'prt', 1);
-			$ilToolbar->addButton($this->lng->txt('print_view'),$this->ctrl->getLinkTarget($this,'userDetails'), '_blank');
-			$this->ctrl->setParameter($this, 'prt', '');
-		};
-		*/
-		
-		$this->tpl->addBlockFile('ADM_CONTENT','adm_content','tpl.lp_loo.html','Services/Tracking');
+    public function show(): void
+    {
+        $this->ctrl->setParameter($this, 'offset', 0);
 
-		include_once("./Services/InfoScreen/classes/class.ilInfoScreenGUI.php");
-		$info = new ilInfoScreenGUI($this);
-		$info->setFormAction($this->ctrl->getFormAction($this));
-		$this->__showObjectDetails($info, $this->details_obj_id);
-		$this->__appendUserInfo($info, $user_id);
-		// $this->__appendLPDetails($info,$this->details_obj_id,$user_id);
-		$this->tpl->setVariable("INFO_TABLE",$info->getHTML());
+        // Show only detail of current repository item if called from repository
+        switch ($this->getMode()) {
+            case self::LP_CONTEXT_REPOSITORY:
+                $this->__initDetails($this->getRefId());
+                $this->details();
+                return;
+        }
+        $this->__listObjects();
+    }
 
-		include_once("./Services/Tracking/classes/repository_statistics/class.ilTrUserObjectsPropsTableGUI.php");
-		$table = new ilTrUserObjectsPropsTableGUI($this, "userDetails", $user_id,
-			$this->details_obj_id, $this->details_id, $print_view);
-		$this->tpl->setVariable('LP_OBJECTS', $table->getHTML());
-		$this->tpl->setVariable('LEGEND', $this->__getLegendHTML());
+    public function __listObjects(): void
+    {
+        $this->tpl->addBlockFile(
+            'ADM_CONTENT',
+            'adm_content',
+            'tpl.lp_list_objects.html',
+            'Services/Tracking'
+        );
 
-		/*
-		if($print_view)
-		{
-			echo $this->tpl->get("DEFAULT", false, false, false, false, false, false);
-			exit();
-		}		 
-		*/
-	}
+        $lp_table = new ilTrSummaryTableGUI($this, "", ROOT_FOLDER_ID);
 
-	function show()
-	{
-		// Clear table offset
-		$this->ctrl->saveParameter($this,'offset',0);
+        $this->tpl->setVariable("LP_OBJECTS", $lp_table->getHTML());
+        if ($lp_table->isStatusShown()) {
+            $this->tpl->setVariable('LEGEND', $this->__getLegendHTML(ilLPStatusIcons::ICON_VARIANT_SHORT));
+        }
+    }
 
-		// Show only detail of current repository item if called from repository
-		switch($this->getMode())
-		{
-			case self::LP_CONTEXT_REPOSITORY:
-				$this->__initDetails($this->getRefId());
-				$this->details();
-				return true;
-		}
+    public function __initDetails(int $a_details_id): void
+    {
+        if (!$a_details_id) {
+            $a_details_id = $this->getRefId();
+        }
+        if ($a_details_id) {
+            $this->details_id = $a_details_id;
+            $this->details_obj_id = $this->ilObjectDataCache->lookupObjId(
+                $this->details_id
+            );
+            $this->details_type = $this->ilObjectDataCache->lookupType(
+                $this->details_obj_id
+            );
 
-		$this->__listObjects();
-	}
+            $olp = ilObjectLP::getInstance($this->details_obj_id);
+            $this->details_mode = $olp->getCurrentMode();
+        }
+    }
 
-	function __listObjects()
-	{
-		global $DIC;
+    /**
+     * Show object-based summarized tracking data
+     */
+    public function showObjectSummary(): void
+    {
+        $table = new ilTrSummaryTableGUI(
+            $this,
+            "showObjectSummary",
+            $this->getRefId(),
+            false
+        );
+        $content = $table->getHTML();
+        if ($table->isStatusShown()) {
+            $content .= $this->__getLegendHTML(ilLPStatusIcons::ICON_VARIANT_SHORT);
+        }
+        $this->tpl->setContent($content);
+    }
 
-		$ilUser = $DIC['ilUser'];
-		$ilObjDataCache = $DIC['ilObjDataCache'];
+    /**
+     * Show object user matrix
+     */
+    public function showUserObjectMatrix(): void
+    {
+        if ($this->isAnonymized()) {
+            $this->tpl->setOnScreenMessage(
+                'failure',
+                $this->lng->txt('permission_denied')
+            );
+            return;
+        }
+        $this->tpl->addBlockFile(
+            'ADM_CONTENT',
+            'adm_content',
+            'tpl.lp_loo.html',
+            'Services/Tracking'
+        );
+        $info = new ilInfoScreenGUI($this);
+        $info->setFormAction($this->ctrl->getFormAction($this));
+        if ($this->__showObjectDetails($info, $this->details_obj_id)) {
+            $this->tpl->setCurrentBlock("info");
+            $this->tpl->setVariable("INFO_TABLE", $info->getHTML());
+            $this->tpl->parseCurrentBlock();
+        }
 
-		$this->tpl->addBlockFile('ADM_CONTENT','adm_content','tpl.lp_list_objects.html','Services/Tracking');
-
-		include_once("./Services/Tracking/classes/repository_statistics/class.ilTrSummaryTableGUI.php");
-		$lp_table = new ilTrSummaryTableGUI($this, "", ROOT_FOLDER_ID);
-		
-		$this->tpl->setVariable("LP_OBJECTS", $lp_table->getHTML());
-		$this->tpl->setVariable('LEGEND', $this->__getLegendHTML());
-	}
-
-	function __initDetails($a_details_id)
-	{
-		global $DIC;
-
-		$ilObjDataCache = $DIC['ilObjDataCache'];
-
-		if(!$a_details_id)
-		{
-			$a_details_id = $this->getRefId();
-		}
-		if($a_details_id)
-		{
-			$_GET['details_id'] = $a_details_id;
-			$this->details_id = $a_details_id;
-			$this->details_obj_id = $ilObjDataCache->lookupObjId($this->details_id);
-			$this->details_type = $ilObjDataCache->lookupType($this->details_obj_id);
-			
-			include_once 'Services/Object/classes/class.ilObjectLP.php';
-			$olp = ilObjectLP::getInstance($this->details_obj_id);													
-			$this->details_mode = $olp->getCurrentMode();
-		}
-	}
-
-	/**
-	 * Show object-based summarized tracking data
-	 */
-	function showObjectSummary()
-	{
-		global $DIC;
-
-		$tpl = $DIC['tpl'];
-		$ilToolbar = $DIC['ilToolbar'];
-
-		/*
-		$print_view = (bool)$_GET['prt'];
-		if(!$print_view)
-		{
-			$ilToolbar->setFormAction($this->ctrl->getFormAction($this));
-			$this->ctrl->setParameter($this, 'prt', 1);
-			$ilToolbar->addButton($this->lng->txt('print_view'),$this->ctrl->getLinkTarget($this,'showObjectSummary'), '_blank');
-			$this->ctrl->setParameter($this, 'prt', '');
-		}		 
-		*/
-
-		include_once("./Services/Tracking/classes/repository_statistics/class.ilTrSummaryTableGUI.php");
-		$table = new ilTrSummaryTableGUI($this, "showObjectSummary", $this->getRefId(), $print_view);
-		if(!$print_view)
-		{
-			$tpl->setContent($table->getHTML());
-		}
-		else
-		{
-			$tpl->setVariable("ADM_CONTENT", $table->getHTML());
-			echo $tpl->getSpecial("DEFAULT", false, false, false, false, false, false);
-			exit();
-		}
-	}
-
-	/**
-	 * Show object user matrix
-	 */
-	function showUserObjectMatrix()
-	{
-		global $DIC;
-
-		$tpl = $DIC['tpl'];
-
-		if($this->isAnonymized())
-		{
-			ilUtil::sendFailure($this->lng->txt('permission_denied'));
-			return;
-		}
-		
-
-		$this->tpl->addBlockFile('ADM_CONTENT','adm_content','tpl.lp_loo.html','Services/Tracking');
-
-		include_once("./Services/InfoScreen/classes/class.ilInfoScreenGUI.php");
-		$info = new ilInfoScreenGUI($this);
-		$info->setFormAction($this->ctrl->getFormAction($this));
-		if($this->__showObjectDetails($info, $this->details_obj_id))
-		{
-			$this->tpl->setCurrentBlock("info");
-			$this->tpl->setVariable("INFO_TABLE",$info->getHTML());
-			$this->tpl->parseCurrentBlock();
-		}
-
-		include_once("./Services/Tracking/classes/repository_statistics/class.ilTrMatrixTableGUI.php");
-		$table = new ilTrMatrixTableGUI($this, "showUserObjectMatrix", $this->getRefId());
-		$this->tpl->setVariable('LP_OBJECTS', $table->getHTML());
-		$this->tpl->setVariable('LEGEND', $this->__getLegendHTML());
-	}
+        $table = new ilTrMatrixTableGUI(
+            $this,
+            "showUserObjectMatrix",
+            $this->getRefId()
+        );
+        $this->tpl->setVariable('LP_OBJECTS', $table->getHTML());
+        $this->tpl->setVariable('LEGEND', $this->__getLegendHTML());
+    }
 }
-?>

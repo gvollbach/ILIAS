@@ -1,66 +1,58 @@
 <?php
-/* Copyright (c) 1998-2017 ILIAS open source, Extended GPL, see docs/LICENSE */
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ *      https://www.ilias.de
+ *      https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 
-
-/**
- * Class ilPDSelectedItemsBlockSelectedItemsViewGUI
- */
 class ilPDSelectedItemsBlockSelectedItemsViewGUI extends ilPDSelectedItemsBlockViewGUI
 {
-	/**
-	 * @inheritdoc
-	 */
-	public function getGroups()
-	{
-		if($this->viewSettings->isSortedByLocation())
-		{
-			return $this->groupItemsByLocation();
-		}
+    public function getGroups(): array
+    {
+        if ($this->viewSettings->isSortedByLocation()) {
+            return $this->groupItemsByLocation();
+        } elseif ($this->viewSettings->isSortedByAlphabet()) {
+            return $this->sortItemsByAlphabetInOneGroup();
+        }
 
-		return $this->groupItemsByType();
-	}
+        return $this->groupItemsByType();
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getScreenId()
-	{
-		return 'sel_items';
-	}
+    public function getScreenId(): string
+    {
+        return 'sel_items';
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getTitle()
-	{
-		return $this->lng->txt('pd_my_offers');
-	}
+    public function getTitle(): string
+    {
+        return $this->lng->txt('dash_favourites');
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function supportsSelectAll()
-	{
-		return true;
-	}
+    public function supportsSelectAll(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getIntroductionHtml()
-	{
-		$tpl = new ilTemplate('tpl.dashboard_intro.html', true, true, 'Services/Dashboard');
-		$tpl->setVariable('IMG_PD_LARGE', ilObject::_getIcon('', 'big', 'pd'));
-		$tpl->setVariable('TXT_WELCOME', $this->lng->txt('pdesk_intro'));
-		//$tpl->setVariable("TXT_INTRO_1", sprintf($this->lng->txt('pdesk_intro2'), $this->lng->txt('rep_add_to_favourites')));
-		
-		require_once 'Services/Link/classes/class.ilLink.php';
-		$tpl->setVariable('TXT_INTRO_2', sprintf(
-			$this->lng->txt('pdesk_intro3'),
-			'<a href="' . ilLink::_getStaticLink(1,'root', true) . '">' . $this->getRepositoryTitle() . '</a>'
-		));
-		$tpl->setVariable('TXT_INTRO_3', $this->lng->txt('pdesk_intro4'));
+    public function getIntroductionHtml(): string
+    {
+        $tpl = new ilTemplate('tpl.dashboard_intro.html', true, true, 'Services/Dashboard');
+        $tpl->setVariable('IMG_PD_LARGE', ilObject::_getIcon(0, 'big', 'pd'));
+        $tpl->setVariable('TXT_WELCOME', $this->lng->txt('pdesk_intro'));
 
-		return $tpl->get();
-	}
+        $tpl->setVariable('TXT_INTRO_2', sprintf(
+            $this->lng->txt('pdesk_intro3'),
+            '<a href="' . ilLink::_getStaticLink(1, 'root', true) . '">' . $this->getRepositoryTitle() . '</a>'
+        ));
+        $tpl->setVariable('TXT_INTRO_3', $this->lng->txt('pdesk_intro4'));
+
+        return $tpl->get();
+    }
 }

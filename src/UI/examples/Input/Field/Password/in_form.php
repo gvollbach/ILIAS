@@ -1,4 +1,9 @@
 <?php
+
+declare(strict_types=1);
+
+namespace ILIAS\UI\examples\Input\Field\Password;
+
 /**
  * Example of how to process passwords.
  * Note that the value of Password is a Data\Password, not a string-primitive.
@@ -16,7 +21,7 @@ function in_form()
         ->withRevelation(true);
 
     //Step 2: Define the form and attach the field.
-    $form = $ui->input()->container()->form()->standard('#', ['password'=>$pwd_input]);
+    $form = $ui->input()->container()->form()->standard('#', ['password' => $pwd_input]);
 
     //Step 3: Define some data processing.
     $result = '';

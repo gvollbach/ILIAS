@@ -1,5 +1,22 @@
-<?php declare(strict_types=1);
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+<?php
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Interface ilTermsOfServiceLogicalAndDocumentCriteriaEvaluation
@@ -7,45 +24,39 @@
  */
 class ilTermsOfServiceLogicalAndDocumentCriteriaEvaluation implements ilTermsOfServiceDocumentCriteriaEvaluation
 {
-    /** @var ilTermsOfServiceCriterionTypeFactoryInterface */
-    protected $criterionTypeFactory;
+    protected ilTermsOfServiceCriterionTypeFactoryInterface $criterionTypeFactory;
+    protected ilObjUser $user;
+    protected ilLogger $log;
 
-    /** @var ilObjUser */
-    protected $user;
-
-    /** @var ilLogger */
-    protected $log;
-
-    /**
-     * ilTermsOfServiceDocumentLogicalAndCriteriaEvaluation constructor.
-     * @param ilTermsOfServiceCriterionTypeFactoryInterface $criterionTypeFactory
-     * @param ilObjUser                                     $user
-     * @param ilLogger                                      $log
-     */
     public function __construct(
         ilTermsOfServiceCriterionTypeFactoryInterface $criterionTypeFactory,
         ilObjUser $user,
         ilLogger $log
     ) {
         $this->criterionTypeFactory = $criterionTypeFactory;
-        $this->user                 = $user;
-        $this->log                  = $log;
+        $this->user = $user;
+        $this->log = $log;
     }
 
-    /**
-     * @inheritdoc
-     */
-    public function evaluate(ilTermsOfServiceSignableDocument $document) : bool
+    public function withContextUser(ilObjUser $user): ilTermsOfServiceDocumentCriteriaEvaluation
+    {
+        $clone = clone $this;
+        $clone->user = $user;
+
+        return $clone;
+    }
+
+    public function evaluate(ilTermsOfServiceSignableDocument $document): bool
     {
         $this->log->debug(sprintf(
             'Evaluating criteria for document "%s" (id: %s) and user "%s" (id: %s)',
-            $document->title(), $document->id(),
-            $this->user->getLogin(), $this->user->getId()
+            $document->title(),
+            $document->id(),
+            $this->user->getLogin(),
+            $this->user->getId()
         ));
 
         foreach ($document->criteria() as $criterionAssignment) {
-            /** @var $criterionAssignment ilTermsOfServiceEvaluableCriterion */
-
             $criterionType = $this->criterionTypeFactory->findByTypeIdent($criterionAssignment->getCriterionId(), true);
 
             $result = $criterionType->evaluate($this->user, $criterionAssignment->getCriterionValue());

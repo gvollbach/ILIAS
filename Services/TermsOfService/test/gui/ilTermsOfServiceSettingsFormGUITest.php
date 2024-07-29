@@ -1,5 +1,22 @@
-<?php declare(strict_types=1);
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+<?php
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilTermsOfServiceSettingsFormGUITest
@@ -7,53 +24,60 @@
  */
 class ilTermsOfServiceSettingsFormGUITest extends ilTermsOfServiceBaseTest
 {
-    /**
-     * @throws ReflectionException
-     */
-    public function testFormCanBeProperlyBuilt() : void
+    public function testFormCanBeProperlyBuilt(): void
     {
         $tos = $this->getMockBuilder(ilObjTermsOfService::class)->disableOriginalConstructor()->getMock();
 
         $tos
-            ->expects($this->any())
             ->method('getStatus')
             ->willReturn(true);
 
+        $lng = $this->getLanguageMock();
+
+        $lng
+            ->method('txt')
+            ->willReturn('translation');
+
+        $this->setGlobalVariable('lng', $lng);
+
         $form = new ilTermsOfServiceSettingsFormGUI(
             $tos,
-            '', 'save', true
+            '',
+            'save',
+            true
         );
 
         $this->assertCount(1, $form->getCommandButtons(), 'Failed asserting save button is given if form is editable');
         $this->assertArrayHasKey(
-            0, $form->getCommandButtons(),
+            0,
+            $form->getCommandButtons(),
             'Failed asserting save button ist given if form is editable'
         );
-        $this->assertEquals(
-            'save', $form->getCommandButtons()[0]['cmd'],
+        $this->assertSame(
+            'save',
+            $form->getCommandButtons()[0]['cmd'],
             'Failed asserting save button ist given if form is editable'
         );
 
         $form = new ilTermsOfServiceSettingsFormGUI(
             $tos,
-            '', 'save', false
+            '',
+            'save',
+            false
         );
 
         $this->assertCount(
-            0, $form->getCommandButtons(),
+            0,
+            $form->getCommandButtons(),
             'Failed asserting no button is given if form is not editable'
         );
     }
 
-    /**
-     * @throws ReflectionException
-     */
-    public function testFormCanBeSavedWithDisabledService() : void
+    public function testFormCanBeSavedWithDisabledService(): void
     {
         $tos = $this->getMockBuilder(ilObjTermsOfService::class)->disableOriginalConstructor()->getMock();
 
         $tos
-            ->expects($this->any())
             ->method('getStatus')
             ->willReturn(false);
 
@@ -69,7 +93,7 @@ class ilTermsOfServiceSettingsFormGUITest extends ilTermsOfServiceBaseTest
                          'save',
                          true
                      ])
-                     ->setMethods(['checkInput', 'getInput'])
+                     ->onlyMethods(['checkInput', 'getInput'])
                      ->getMock();
 
         $form
@@ -82,10 +106,6 @@ class ilTermsOfServiceSettingsFormGUITest extends ilTermsOfServiceBaseTest
             ->method('getInput')
             ->willReturn(0);
 
-        $_POST = [
-            'tos_status' => 1
-        ];
-
         $form->setCheckInputCalled(true);
 
         $this->assertTrue($form->saveObject());
@@ -93,15 +113,11 @@ class ilTermsOfServiceSettingsFormGUITest extends ilTermsOfServiceBaseTest
         $this->assertEmpty($form->getTranslatedError());
     }
 
-    /**
-     * @throws ReflectionException
-     */
-    public function testFormCanBeSavedWithEnabledServiceWhenAtLeastOneDocumentExists() : void
+    public function testFormCanBeSavedWithEnabledServiceWhenAtLeastOneDocumentExists(): void
     {
         $tos = $this->getMockBuilder(ilObjTermsOfService::class)->disableOriginalConstructor()->getMock();
 
         $tos
-            ->expects($this->any())
             ->method('getStatus')
             ->willReturn(false);
 
@@ -117,7 +133,7 @@ class ilTermsOfServiceSettingsFormGUITest extends ilTermsOfServiceBaseTest
                          'save',
                          true
                      ])
-                     ->setMethods(['checkInput', 'getInput'])
+                     ->onlyMethods(['checkInput', 'getInput'])
                      ->getMock();
 
         $form
@@ -126,17 +142,13 @@ class ilTermsOfServiceSettingsFormGUITest extends ilTermsOfServiceBaseTest
             ->willReturn(true);
 
         $form
-            ->expects($this->exactly(2))
+            ->expects($this->exactly(3))
             ->method('getInput')
             ->willReturn(1);
 
-        $_POST = [
-            'tos_status' => 1
-        ];
-
         $form->setCheckInputCalled(true);
 
-        $documentConnector = $this->getMockBuilder(arConnector::class)->getMock();#
+        $documentConnector = $this->getMockBuilder(arConnector::class)->getMock();
 
         $documentConnector
             ->expects($this->once())
@@ -150,15 +162,11 @@ class ilTermsOfServiceSettingsFormGUITest extends ilTermsOfServiceBaseTest
         $this->assertEmpty($form->getTranslatedError());
     }
 
-    /**
-     * @throws ReflectionException
-     */
-    public function testFormCannotBeSavedWithEnabledServiceWhenNoDocumentsExistAndServiceIsCurrentlyDisabled() : void
+    public function testFormCannotBeSavedWithEnabledServiceWhenNoDocumentsExistAndServiceIsCurrentlyDisabled(): void
     {
         $lng = $this->getLanguageMock();
 
         $lng
-            ->expects($this->any())
             ->method('txt')
             ->willReturn('translation');
 
@@ -167,7 +175,6 @@ class ilTermsOfServiceSettingsFormGUITest extends ilTermsOfServiceBaseTest
         $tos = $this->getMockBuilder(ilObjTermsOfService::class)->disableOriginalConstructor()->getMock();
 
         $tos
-            ->expects($this->any())
             ->method('getStatus')
             ->willReturn(false);
 
@@ -182,7 +189,7 @@ class ilTermsOfServiceSettingsFormGUITest extends ilTermsOfServiceBaseTest
                          'save',
                          true
                      ])
-                     ->setMethods(['checkInput', 'getInput'])
+                     ->onlyMethods(['checkInput', 'getInput'])
                      ->getMock();
 
         $form
@@ -194,10 +201,6 @@ class ilTermsOfServiceSettingsFormGUITest extends ilTermsOfServiceBaseTest
             ->expects($this->once())
             ->method('getInput')
             ->willReturn(1);
-
-        $_POST = [
-            'tos_status' => 1
-        ];
 
         $form->setCheckInputCalled(true);
 
@@ -215,15 +218,11 @@ class ilTermsOfServiceSettingsFormGUITest extends ilTermsOfServiceBaseTest
         $this->assertNotEmpty($form->getTranslatedError());
     }
 
-    /**
-     * @throws ReflectionException
-     */
-    public function testFormCanBeSavedWithEnabledServiceWhenNoDocumentsExistButServiceIsAlreadyEnabled() : void
+    public function testFormCanBeSavedWithEnabledServiceWhenNoDocumentsExistButServiceIsAlreadyEnabled(): void
     {
         $tos = $this->getMockBuilder(ilObjTermsOfService::class)->disableOriginalConstructor()->getMock();
 
         $tos
-            ->expects($this->any())
             ->method('getStatus')
             ->willReturn(true);
 
@@ -238,7 +237,7 @@ class ilTermsOfServiceSettingsFormGUITest extends ilTermsOfServiceBaseTest
                          'save',
                          true
                      ])
-                     ->setMethods(['checkInput', 'getInput'])
+                     ->onlyMethods(['checkInput', 'getInput'])
                      ->getMock();
 
         $form
@@ -247,13 +246,9 @@ class ilTermsOfServiceSettingsFormGUITest extends ilTermsOfServiceBaseTest
             ->willReturn(true);
 
         $form
-            ->expects($this->exactly(2))
+            ->expects($this->exactly(3))
             ->method('getInput')
             ->willReturn(1);
-
-        $_POST = [
-            'tos_status' => 1
-        ];
 
         $form->setCheckInputCalled(true);
 

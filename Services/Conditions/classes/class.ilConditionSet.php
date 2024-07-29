@@ -1,112 +1,102 @@
 <?php
 
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ *     https://www.ilias.de
+ *     https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 
 /**
  * Condition set
- *
- * Note: This object currently focuses on repository objects as targets. It does not make use of the SHARED_CONDITIONS mode (ref_handling will be 1 for these items).
- *
- * @author killing@leifos.de
+ * Note: This object currently focuses on repository objects as targets. It does not make use of the
+ * SHARED_CONDITIONS mode (ref_handling will be 1 for these items).
+ * @author  killing@leifos.de
  * @ingroup ServicesConditions
  */
 class ilConditionSet
 {
-	/**
-	 * @var bool
-	 */
-	protected $hidden_status;
+    protected ?bool $hidden_status = null;
+    protected ?bool $all_obligatory = null;
+    /**
+     * @var ilCondition[]
+     */
+    protected array $conditions;
+    protected ?int $num_obligatory = null;
 
-	/**
-	 * @var bool
-	 */
-	protected $all_obligatory;
+    /**
+     * @param ilCondition[]
+     */
+    public function __construct(array $conditions)
+    {
+        $this->conditions = $conditions;
+    }
 
-	/**
-	 * @var ilCondition[]
-	 */
-	protected $conditions;
+    /**
+     * @return ilCondition[]
+     */
+    public function getConditions(): array
+    {
+        return $this->conditions;
+    }
 
-	/**
-	 * @var int
-	 */
-	protected $num_obligatory;
+    /**
+     * Set hidden status (trigger objects should be hidden in presentation)
+     */
+    public function withHiddenStatus(bool $hidden_status): ilConditionSet
+    {
+        $clone = clone $this;
+        $clone->hidden_status = $hidden_status;
+        return $clone;
+    }
 
-	/**
-	 * Constructor
-	 */
-	public function __construct(array $conditions)
-	{
-		$this->conditions = $conditions;
-	}
+    public function getHiddenStatus(): ?bool
+    {
+        return $this->hidden_status;
+    }
 
-	/**
-	 * Get conditions
-	 *
-	 * @return ilCondition[] conditions
-	 */
-	public function getConditions() {
-		return $this->conditions;
-	}
+    /**
+     * Set all conditions being obligatory (standard behaviour)
+     */
+    public function withAllObligatory(): ilConditionSet
+    {
+        $clone = clone $this;
+        $clone->all_obligatory = true;
+        return $clone;
+    }
 
-	/**
-	 * Set hidden status (trigger objects should be hidden in presentation)
-	 *
-	 * @param bool $hidden_status hidden status
-	 * @return self
-	 */
-	public function withHiddenStatus($hidden_status) {
-		$clone = clone $this;
-		$clone->hidden_status = $hidden_status;
-		return $clone;
-	}
+    public function getAllObligatory(): ?bool
+    {
+        return $this->all_obligatory;
+    }
 
-	/**
-	 * Get hidden status
-	 *
-	 * @return bool hidden status
-	 */
-	public function getHiddenStatus() {
-		return $this->hidden_status;
-	}
+    /**
+     * Set number of obligatory conditions
+     */
+    public function withNumObligatory(int $num_obligatory): ilConditionSet
+    {
+        $clone = clone $this;
+        $clone->num_obligatory = $num_obligatory;
+        return $clone;
+    }
 
-	/**
-	 * Set all conditions being obligatory (standard behaviour)
-	 */
-	public function withAllObligatory() {
-		$clone = clone $this;
-		$clone->all_obligatory = true;
-		return $clone;
-	}
-
-	/**
-	 * Get with all obligatory
-	 *
-	 * @return bool with all obligatory
-	 */
-	public function getAllObligatory() {
-		return $this->all_obligatory;
-	}
-
-	/**
-	 * Set number of obligatory conditions
-	 *
-	 * @param int $num_obligatory number of obligatory conditions
-	 * @return self
-	 */
-	public function withNumObligatory($num_obligatory) {
-		$clone = clone $this;
-		$clone->num_obligatory = $num_obligatory;
-		return $clone;
-	}
-	
-	/**
-	 * Get number of obligatory conditions
-	 *
-	 * @return int number of obligatory conditions
-	 */
-	public function getNumObligatory() {
-		return $this->num_obligatory;
-	}
-	
+    /**
+     * Get number of obligatory conditions
+     */
+    public function getNumObligatory(): ?int
+    {
+        return $this->num_obligatory;
+    }
 }

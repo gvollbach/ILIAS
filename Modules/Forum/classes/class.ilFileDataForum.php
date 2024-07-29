@@ -1,513 +1,354 @@
 <?php
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
-* This class handles all operations on files for the forum object.
-*  
-* @author	Stefan Meyer <meyer@leifos.com>
-* @version $Id$
-* 
-* @ingroup ModulesForum
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+/**
+ * This class handles all operations on files for the forum object.
+ * @author    Stefan Meyer <meyer@leifos.com>
+ * @ingroup   ModulesForum
+ */
 class ilFileDataForum extends ilFileData
 {
-	/**
-	* obj_id
-	* @var integer obj_id of exercise object
-	* @access private
-	*/
-	var $obj_id;
-	var $pos_id;
+    private const FORUM_PATH = 'forum';
 
-	/**
-	* path of exercise directory
-	* @var string path
-	* @access private
-	*/
-	var $forum_path;
-	
-	private $error; 
+    private int $obj_id;
+    private int $pos_id;
+    private string $forum_path;
+    private ilErrorHandling $error;
+    private ilGlobalTemplateInterface $main_tpl;
 
-	/**
-	* Constructor
-	* call base constructors
-	* checks if directory is writable and sets the optional obj_id
-	* @param integereger obj_id
-	* @access	public
-	*/
-	public function __construct($a_obj_id = 0,$a_pos_id = 0)
-	{
-		global $DIC;
-		$this->error = $DIC['ilErr'];
-		
-		define('FORUM_PATH', 'forum');
-		parent::__construct();
-		$this->forum_path = parent::getPath()."/".FORUM_PATH;
-		
-		// IF DIRECTORY ISN'T CREATED CREATE IT
-		if(!$this->__checkPath())
-		{
-			$this->__initDirectory();
-		}
-		$this->obj_id = $a_obj_id;
-		$this->pos_id = $a_pos_id;
-	}
+    public function __construct(int $a_obj_id = 0, int $a_pos_id = 0)
+    {
+        global $DIC;
+        $this->main_tpl = $DIC->ui()->mainTemplate();
 
-	function getObjId()
-	{
-		return $this->obj_id;
-	}
-	function getPosId()
-	{
-		return $this->pos_id;
-	}
-	function setPosId($a_id)
-	{
-		$this->pos_id = $a_id;
-	}
-	/**
-	* get forum path 
-	* @access	public
-	* @return string path
-	*/
-	function getForumPath()
-	{
-		return $this->forum_path;
-	}
+        $this->error = $DIC['ilErr'];
 
-	/**
-	 * @return array
-	 */
-	public function getFiles()
-	{
-		$files = array();
+        parent::__construct();
+        $this->forum_path = $this->getPath() . '/' . self::FORUM_PATH;
 
-		foreach(new DirectoryIterator($this->forum_path) as $file)
-		{
-			/**
-			 * @var $file SplFileInfo
-			 */
-			
-			if($file->isDir())
-			{
-				continue;
-			}
+        if (!$this->checkForumPath()) {
+            $this->initDirectory();
+        }
+        $this->obj_id = $a_obj_id;
+        $this->pos_id = $a_pos_id;
+    }
 
-			list($obj_id, $rest) = explode('_',  $file->getFilename(), 2);
-			if($obj_id == $this->obj_id)
-			{
-				$files[] = array(
-					'path'  => $file->getPathname(),
-					'md5'   => md5($this->obj_id . '_' . $this->pos_id . '_' . $rest),
-					'name'  => $rest,
-					'size'  => $file->getSize(),
-					'ctime' => date('Y-m-d H:i:s', $file->getCTime())
-				);
-			}
-		}
+    public function getObjId(): int
+    {
+        return $this->obj_id;
+    }
 
-		return $files;
-	}
+    public function getPosId(): int
+    {
+        return $this->pos_id;
+    }
 
-	/**
-	 * @return array
-	 */
-	public function getFilesOfPost()
-	{
-		$files = array();
+    public function setPosId(int $a_id): void
+    {
+        $this->pos_id = $a_id;
+    }
 
-		foreach(new DirectoryIterator($this->forum_path) as $file)
-		{
-			/**
-			 * @var $file SplFileInfo
-			 */
+    public function getForumPath(): string
+    {
+        return $this->forum_path;
+    }
 
-			if($file->isDir())
-			{
-				continue;
-			}
+    /**
+     * @return array{path: string, md5: string, name: string, size: int, ctime: string}[]
+     */
+    public function getFiles(): array
+    {
+        $directory_iterator = new DirectoryIterator($this->forum_path);
+        $filter_iterator = new RegexIterator($directory_iterator, "/^{$this->obj_id}_(.+)$/");
 
-			list($obj_id, $rest) = explode('_',  $file->getFilename(), 2);
-			if($obj_id == $this->obj_id)
-			{
-				list($pos_id, $rest) = explode('_', $rest, 2);
-				if($pos_id == $this->getPosId())
-				{
-					$files[$rest] = array(
-						'path'  => $file->getPathname(),
-						'md5'   => md5($this->obj_id . '_' . $this->pos_id . '_' . $rest),
-						'name'  => $rest,
-						'size'  => $file->getSize(),
-						'ctime' => date('Y-m-d H:i:s', $file->getCTime())
-					);
-				}
-			}
-		}
+        $files = [];
+        foreach ($filter_iterator as $file) {
+            /** @var SplFileInfo $file */
+            if (!$file->isFile()) {
+                continue;
+            }
 
-		return $files;
-	}
+            [$obj_id, $rest] = explode('_', $file->getFilename(), 2);
+            if ((int) $obj_id === $this->obj_id) {
+                $files[] = [
+                    'path' => $file->getPathname(),
+                    'md5' => md5($this->obj_id . '_' . $rest),
+                    'name' => $rest,
+                    'size' => $file->getSize(),
+                    'ctime' => date('Y-m-d H:i:s', $file->getCTime())
+                ];
+            }
+        }
 
-	/**
-	 * @param int $a_new_frm_id
-	 * @return bool
-	 */
-	public function moveFilesOfPost($a_new_frm_id = 0)
-	{
-		if((int)$a_new_frm_id)
-		{
-			foreach(new DirectoryIterator($this->forum_path) as $file)
-			{
-				/**
-				 * @var $file SplFileInfo
-				 */
+        return $files;
+    }
 
-				if($file->isDir())
-				{
-					continue;
-				}
+    /**
+     * @return array<string, array{path: string, md5: string, name: string, size: int, ctime: string}>
+     */
+    public function getFilesOfPost(): array
+    {
+        $directoryIterator = new DirectoryIterator($this->forum_path);
+        $filterIterator = new RegexIterator($directoryIterator, "/^{$this->obj_id}_{$this->getPosId()}_(.+)$/");
 
-				list($obj_id, $rest) = explode('_', $file->getFilename(), 2);
-				if($obj_id == $this->obj_id)
-				{
-					list($pos_id, $rest) = explode('_', $rest, 2);
-					if($pos_id == $this->getPosId())
-					{
-						\ilFileUtils::rename(
-							$file->getPathname(),
-							$this->forum_path . '/'  . $a_new_frm_id . '_' . $this->pos_id . '_' . $rest
-						);
-					}
-				}
-			}
-	
-			return true;
-		}
+        $files = array();
+        foreach ($filterIterator as $file) {
+            if ($file->isFile()) {
+                list($obj_id, $pos_id, $rest) = explode('_', $file->getFilename(), 3);
+                $files[$rest] = array(
+                    'path' => $file->getPathname(),
+                    'md5' => md5($this->obj_id . '_' . $this->pos_id . '_' . $rest),
+                    'name' => $rest,
+                    'size' => $file->getSize(),
+                    'ctime' => date('Y-m-d H:i:s', $file->getCTime())
+                );
+            }
+        }
 
-		return false;
-	}
+        return $files;
+    }
 
-	function ilClone($a_new_obj_id,$a_new_pos_id)
-	{
-		foreach($this->getFilesOfPost() as $file)
-		{
-			@copy($this->getForumPath()."/".$this->obj_id."_".$this->pos_id."_".$file["name"],
-				  $this->getForumPath()."/".$a_new_obj_id."_".$a_new_pos_id."_".$file["name"]);
-		}
-		return true;
-	}
-	function delete()
-	{
-		foreach($this->getFiles() as $file)
-		{
-			if(file_exists($this->getForumPath()."/".$this->getObjId()."_".$file["name"]))
-			{
-				unlink($this->getForumPath()."/".$this->getObjId()."_".$file["name"]);
-			}
-		}
-		return true;
-	}
+    public function moveFilesOfPost(int $a_new_frm_id = 0): bool
+    {
+        if ($a_new_frm_id) {
+            $directory_iterator = new DirectoryIterator($this->forum_path);
+            $filter_iterator = new RegexIterator($directory_iterator, "/^{$this->obj_id}_(\d+)_(.+)$/");
 
-	/**
-	 * 
-	 * Store uploaded files in filesystem
-	 * 
-	 * @param	array	$files	Copy of $_FILES array,
-	 * @access	public
-	 * @return	bool
-	 * 
-	 */
-	function storeUploadedFile($files)
-	{
-		if(isset($files['name']) && is_array($files['name']))
-		{
-			foreach($files['name'] as $index => $name)
-			{
-				// remove trailing '/'
-				$name = rtrim($name, '/');
+            foreach ($filter_iterator as $file) {
+                /** @var SplFileInfo $file */
+                if (!$file->isFile()) {
+                    continue;
+                }
 
-				$filename = ilUtil::_sanitizeFilemame($name);				
-				$temp_name = $files['tmp_name'][$index];
-				$error = $files['error'][$index];
-				
-				if(strlen($filename) && strlen($temp_name) && $error == 0)
-				{				
-					$path = $this->getForumPath().'/'.$this->obj_id.'_'.$this->pos_id.'_'.$filename;
-					
-					$this->__rotateFiles($path);
-					ilUtil::moveUploadedFile($temp_name, $filename, $path);				
-				}
-			}
-			
-			return true;
-		}
-		else if(isset($files['name']) && is_string($files['name']))
-		{
-			// remove trailing '/'
-			$files['name'] = rtrim($files['name'], '/');
-				
-			$filename = ilUtil::_sanitizeFilemame($files['name']);
-			$temp_name = $files['tmp_name'];
-			
-			$path = $this->getForumPath().'/'.$this->obj_id.'_'.$this->pos_id.'_'.$filename;
-			
-			$this->__rotateFiles($path);
-			ilUtil::moveUploadedFile($temp_name, $filename, $path);
-			
-			return true;
-		}
-		
-		return false;
-	}
-	/**
-	* unlink files: expects an array of filenames e.g. array('foo','bar')
-	* @param array filenames to delete
-	* @access	public
-	* @return string error message with filename that couldn't be deleted
-	*/
-	function unlinkFiles($a_filenames)
-	{
-		if(is_array($a_filenames))
-		{
-			foreach($a_filenames as $file)
-			{
-				if(!$this->unlinkFile($file))
-				{
-					return $file;
-				}
-			}
-		}
-		return '';
-	}
-	/**
-	* unlink one uploaded file expects a filename e.g 'foo'
-	* @param string filename to delete
-	* @access	public
-	* @return bool
-	*/
-	function unlinkFile($a_filename)
-	{
-		if(file_exists($this->forum_path.'/'.$this->obj_id.'_'.$this->pos_id.'_'.$a_filename))
-		{
-			return unlink($this->forum_path.'/'.$this->obj_id.'_'.$this->pos_id."_".$a_filename);
-		}
-	}
-	/**
-	* get absolute path of filename
-	* @param string relative path
-	* @access	public
-	* @return string absolute path
-	*/
-	function getAbsolutePath($a_path)
-	{
-		return $this->forum_path.'/'.$this->obj_id.'_'.$this->pos_id."_".$a_path;
-	}
-	
-	/**
-	* get file data of a specific attachment
-	* @param string md5 encrypted filename
-	* @access public
-	* @return array filedata
-	*/
-	public function getFileDataByMD5Filename($a_md5_filename)
-	{
-		$files = ilUtil::getDir( $this->forum_path );
-		foreach((array)$files as $file)
-		{
-			if($file['type'] == 'file' && md5($file['entry']) == $a_md5_filename)
-			{
-				return array(
-					'path' => $this->forum_path.'/'.$file['entry'],
-					'filename' => $file['entry'],
-					'clean_filename' => str_replace($this->obj_id.'_'.$this->pos_id.'_', '', $file['entry'])
-				);
-			}
-		}
-		
-		return false;
-	}
-	
-	/**
-	* get file data of a specific attachment
-	* @param string|array md5 encrypted filename or array of multiple md5 encrypted files
-	* @access public
-	* @return boolean status
-	*/
-	function unlinkFilesByMD5Filenames($a_md5_filename)
-	{
-		$files = ilUtil::getDir( $this->forum_path );
-		if(is_array($a_md5_filename))
-		{
-			foreach((array)$files as $file)
-			{
-				if($file['type'] == 'file' && in_array(md5($file['entry']), $a_md5_filename))
-				{
-					unlink( $this->forum_path.'/'.$file['entry'] );
-				}
-			}
-			
-			return true;
-		}
-		else
-		{
-			foreach((array)$files as $file)
-			{
-				if($file['type'] == 'file' && md5($file['entry']) == $a_md5_filename)
-				{
-					return unlink( $this->forum_path.'/'.$file['entry'] );
-				}
-			}
-		}
-		
-		return false;
-	}
+                [$obj_id, $pos_id, $rest] = explode('_', $file->getFilename(), 3);
+                if ((int) $obj_id !== $this->obj_id || (int) $pos_id !== $this->getPosId()) {
+                    continue;
+                }
 
-	/**
-	* check if files exist
-	* @param array filenames to check
-	* @access	public
-	* @return bool
-	*/
-	function checkFilesExist($a_files)
-	{
-		if($a_files)
-		{
-			foreach($a_files as $file)
-			{
-				if(!file_exists($this->forum_path.'/'.$this->obj_id.'_'.$this->pos_id.'_'.$file))
-				{
-					return false;
-				}
-			}
-			return true;
-		}
-		return true;
-	}
+                ilFileUtils::rename(
+                    $file->getPathname(),
+                    $this->forum_path . '/' . $a_new_frm_id . '_' . $this->pos_id . '_' . $rest
+                );
+            }
 
-	// PRIVATE METHODS
-	function __checkPath()
-	{
-		if(!@file_exists($this->getForumPath()))
-		{
-			return false;
-		}
-		$this->__checkReadWrite();
+            return true;
+        }
 
-		return true;
-	}
-	/**
-	* check if directory is writable
-	* overwritten method from base class
-	* @access	private
-	* @return bool
-	*/
-	function __checkReadWrite()
-	{
-		if(is_writable($this->forum_path) && is_readable($this->forum_path))
-		{
-			return true;
-		}
-		else
-		{
-			$this->error->raiseError("Forum directory is not readable/writable by webserver",$this->error->FATAL);
-		}
-	}
-	/**
-	* init directory
-	* overwritten method
-	* @access	public
-	* @return string path
-	*/
-	function __initDirectory()
-	{
-		if(is_writable($this->getPath()))
-		{
-			if(mkdir($this->getPath().'/'.FORUM_PATH))
-			{
-				if(chmod($this->getPath().'/'.FORUM_PATH,0755))
-				{
-					$this->forum_path = $this->getPath().'/'.FORUM_PATH;
-					return true;
-				}
-			} 
-		}
-		return false;
-	}
-	/**
-	* rotate files with same name
-	* recursive method
-	* @param string filename
-	* @access	private
-	* @return bool
-	*/
-	function __rotateFiles($a_path)
-	{
-		if(file_exists($a_path))
-		{
-			$this->__rotateFiles($a_path.".old");
-			return \ilFileUtils::rename($a_path, $a_path . '.old');
-		}
-		return true;
-	}
+        return false;
+    }
 
-	/**
-	 * @param $file
-	 * @return bool|void
-	 */
-	public function deliverFile($file)
-	{
-		if(!$path = $this->getFileDataByMD5Filename($file))
-		{
-			return ilUtil::sendFailure($this->lng->txt('error_reading_file'), true);
-		}
-		else
-		{
-			return ilUtil::deliverFile($path['path'], $path['clean_filename']);
-		}
-	}
+    public function ilClone(int $a_new_obj_id, int $a_new_pos_id): bool
+    {
+        foreach ($this->getFilesOfPost() as $file) {
+            copy(
+                $this->getForumPath() . '/' . $this->obj_id . '_' . $this->pos_id . '_' . $file['name'],
+                $this->getForumPath() . '/' . $a_new_obj_id . '_' . $a_new_pos_id . '_' . $file['name']
+            );
+        }
+        return true;
+    }
 
-	/**
-	 *
-	 */
-	public function deliverZipFile()
-	{
-		global $DIC;
-		
-		$zip_file = $this->createZipFile();
-		if(!$zip_file)
-		{
-			ilUtil::sendFailure($DIC->language()->txt('error_reading_file'), true);
-			return false;
-		}
-		else
-		{
-			$post = new ilForumPost($this->getPosId());
-			ilUtil::deliverFile($zip_file,  $post->getSubject() . '.zip', '', false, true, false);
-			ilUtil::delDir($this->getForumPath() . '/zip/' . $this->getObjId() . '_' . $this->getPosId());
-			exit();
-		}
-	}
+    public function delete(): bool
+    {
+        foreach ($this->getFiles() as $file) {
+            if (is_file($this->getForumPath() . '/' . $this->getObjId() . '_' . $file['name'])) {
+                unlink($this->getForumPath() . '/' . $this->getObjId() . '_' . $file['name']);
+            }
+        }
 
-	/**
-	 * @return null|string
-	 */
-	protected function createZipFile()
-	{
-		$filesOfPost = $this->getFilesOfPost();
-		ksort($filesOfPost);
+        return true;
+    }
 
-		ilUtil::makeDirParents($this->getForumPath() . '/zip/' . $this->getObjId() . '_' . $this->getPosId());
-		$tmp_dir = $this->getForumPath() . '/zip/' . $this->getObjId() . '_' . $this->getPosId();
-		foreach($filesOfPost as $file)
-		{
-			@copy($file['path'], $tmp_dir . '/' . $file['name']);
-		}
+    public function storeUploadedFile(array $files): bool
+    {
+        if (isset($files['name']) && is_array($files['name'])) {
+            foreach ($files['name'] as $index => $name) {
+                $name = rtrim($name, '/');
+                $filename = ilFileUtils::_sanitizeFilemame($name);
+                $temp_name = $files['tmp_name'][$index];
+                $error = $files['error'][$index];
 
-		$zip_file = null;
-		if(ilUtil::zip($tmp_dir, $this->getForumPath() . '/zip/' . $this->getObjId() . '_' . $this->getPosId() . '.zip'))
-		{
-			$zip_file = $this->getForumPath() . '/zip/' . $this->getObjId() . '_' . $this->getPosId() . '.zip';
-		}
+                if ($filename !== '' && $temp_name !== '' && (int) $error === 0) {
+                    $path = $this->getForumPath() . '/' . $this->obj_id . '_' . $this->pos_id . '_' . $filename;
 
-		return $zip_file;
-	}
+                    $this->rotateFiles($path);
+                    ilFileUtils::moveUploadedFile($temp_name, $filename, $path);
+                }
+            }
+
+            return true;
+        }
+
+        if (isset($files['name']) && is_string($files['name'])) {
+            $files['name'] = rtrim($files['name'], '/');
+            $filename = ilFileUtils::_sanitizeFilemame($files['name']);
+            $temp_name = $files['tmp_name'];
+
+            $path = $this->getForumPath() . '/' . $this->obj_id . '_' . $this->pos_id . '_' . $filename;
+
+            $this->rotateFiles($path);
+            ilFileUtils::moveUploadedFile($temp_name, $filename, $path);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    public function unlinkFile(string $a_filename): bool
+    {
+        if (is_file($this->forum_path . '/' . $this->obj_id . '_' . $this->pos_id . '_' . $a_filename)) {
+            return unlink($this->forum_path . '/' . $this->obj_id . '_' . $this->pos_id . '_' . $a_filename);
+        }
+
+        return false;
+    }
+
+    /**
+     * @param string $hashedFilename
+     * @return array{path: string, filename: string, clean_filename: string}|null
+     */
+    public function getFileDataByMD5Filename(string $hashedFilename): ?array
+    {
+        $files = ilFileUtils::getDir($this->forum_path);
+        foreach ($files as $file) {
+            if ($file['type'] === 'file' && md5($file['entry']) === $hashedFilename) {
+                return [
+                    'path' => $this->forum_path . '/' . $file['entry'],
+                    'filename' => $file['entry'],
+                    'clean_filename' => str_replace($this->obj_id . '_' . $this->pos_id . '_', '', $file['entry'])
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param string|string[] $hashedFilenameOrFilenames
+     * @return bool
+     */
+    public function unlinkFilesByMD5Filenames($hashedFilenameOrFilenames): bool
+    {
+        $files = ilFileUtils::getDir($this->forum_path);
+        if (is_array($hashedFilenameOrFilenames)) {
+            foreach ($files as $file) {
+                if ($file['type'] === 'file' && in_array(md5($file['entry']), $hashedFilenameOrFilenames, true)) {
+                    unlink($this->forum_path . '/' . $file['entry']);
+                }
+            }
+
+            return true;
+        }
+
+        foreach ($files as $file) {
+            if ($file['type'] === 'file' && md5($file['entry']) === $hashedFilenameOrFilenames) {
+                return unlink($this->forum_path . '/' . $file['entry']);
+            }
+        }
+
+        return false;
+    }
+
+    private function checkForumPath(): bool
+    {
+        if (!is_dir($this->getForumPath())) {
+            return false;
+        }
+        $this->checkReadWrite();
+
+        return true;
+    }
+
+    private function checkReadWrite(): void
+    {
+        if (!is_writable($this->forum_path) || !is_readable($this->forum_path)) {
+            $this->error->raiseError('Forum directory is not readable/writable by webserver', $this->error->FATAL);
+        }
+    }
+
+    private function initDirectory(): void
+    {
+        if (is_writable($this->getPath()) && mkdir($this->getPath() . '/' . self::FORUM_PATH) && chmod(
+            $this->getPath() . '/' . self::FORUM_PATH,
+            0755
+        )) {
+            $this->forum_path = $this->getPath() . '/' . self::FORUM_PATH;
+        }
+    }
+
+    private function rotateFiles(string $a_path): void
+    {
+        if (is_file($a_path)) {
+            $this->rotateFiles($a_path . '.old');
+            ilFileUtils::rename($a_path, $a_path . '.old');
+        }
+    }
+
+    public function deliverFile(string $file): void
+    {
+        global $DIC;
+
+        if (($path = $this->getFileDataByMD5Filename($file)) !== null) {
+            ilFileDelivery::deliverFileLegacy($path['path'], $path['clean_filename']);
+        } else {
+            $this->main_tpl->setOnScreenMessage('failure', $DIC->lanuage()->txt('error_reading_file'), true);
+        }
+    }
+
+    public function deliverZipFile(): bool
+    {
+        global $DIC;
+
+        $zip_file = $this->createZipFile();
+        if (!$zip_file) {
+            $this->main_tpl->setOnScreenMessage('failure', $DIC->language()->txt('error_reading_file'), true);
+            return false;
+        }
+
+        $post = new ilForumPost($this->getPosId());
+        ilFileDelivery::deliverFileLegacy($zip_file, $post->getSubject() . '.zip', '', false, true, false);
+        ilFileUtils::delDir($this->getForumPath() . '/zip/' . $this->getObjId() . '_' . $this->getPosId());
+        $DIC->http()->close();
+        return true; // never
+    }
+
+    protected function createZipFile(): ?string
+    {
+        $filesOfPost = $this->getFilesOfPost();
+        ksort($filesOfPost);
+
+        ilFileUtils::makeDirParents($this->getForumPath() . '/zip/' . $this->getObjId() . '_' . $this->getPosId());
+        $tmp_dir = $this->getForumPath() . '/zip/' . $this->getObjId() . '_' . $this->getPosId();
+        foreach ($filesOfPost as $file) {
+            copy($file['path'], $tmp_dir . '/' . $file['name']);
+        }
+
+        $zip_file = null;
+        if (ilFileUtils::zip(
+            $tmp_dir,
+            $this->getForumPath() . '/zip/' . $this->getObjId() . '_' . $this->getPosId() . '.zip'
+        )) {
+            $zip_file = $this->getForumPath() . '/zip/' . $this->getObjId() . '_' . $this->getPosId() . '.zip';
+        }
+
+        return $zip_file;
+    }
 }

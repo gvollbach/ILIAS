@@ -1,47 +1,58 @@
 /* Services/Tags */
 
-@il-tag-bg: lighten(@il-brand-3rd, 20%);
-
 .ilTagCloud {
-	font-size: @font-size-small;
-	padding: @padding-large-vertical @padding-large-horizontal;
+	font-size: @il-font-size-small;
+	padding: @il-padding-large-vertical 0;
 }
-
+.il-maincontrols-slate {
+	.ilTagCloud {
+		padding: @il-padding-large-vertical @il-padding-large-horizontal;
+  	}
+}
 .ilTag {
-	background-color: @il-tag-bg;
+	background-color: @il-btn-tag-bg;
 	/* background-color: lighten(@brand-primary, 10%); */
-	color: white;
+	color: @il-btn-tag-fg-relevance-veryhigh;
 	display: inline-block;
 	white-space: nowrap;
 	padding: 1px 5px;
 	margin: 2px 4px 2px 0;
 	border-radius: 3px;
+
+	.ilTagRelVeryHigh {
+
+	}
+	.ilTagRelHigh {
+		background-color: @il-btn-tag-bg-relevance-high;
+		color: @il-btn-tag-fg-relevance-high;
+	}
+	.ilTagRelMiddle {
+		background-color: @il-btn-tag-bg-relevance-middle;
+		color: @il-btn-tag-fg-relevance-middle;
+	}
+	.ilTagRelLow {
+		background-color: @il-btn-tag-bg-relevance-low;
+		color: @il-btn-tag-fg-relevance-low;
+	}
+	.ilTagRelVeryLow {
+		background-color: @il-btn-tag-bg-relevance-verylow;
+		color: @il-btn-tag-fg-relevance-verylow;
+	}
+
+	&.ilHighlighted, &.ilHighlighted:hover {
+		background-color: @il-btn-tag-bg-highlighted;
+		color: @il-btn-tag-fg-highlighted;
+
+		&:hover{
+			background-color: darken(@il-btn-tag-bg-highlighted, 5%);
+		}
+	}
 }
 
 a.ilTag:hover, a.ilTag:active {
 	text-decoration: none;
-	color: white;
-	background-color: saturate(@il-tag-bg, 40%);;
-}
-
-.ilTagRelVeryHigh {
-
-}
-.ilTagRelHigh {
-	background-color: desaturate(@il-tag-bg, 20%);
-}
-.ilTagRelMiddle {
-	background-color: desaturate(@il-tag-bg, 40%);
-}
-.ilTagRelLow {
-	background-color: desaturate(@il-tag-bg, 60%);
-}
-.ilTagRelVeryLow {
-	background-color: desaturate(@il-tag-bg, 80%);
-}
-
-.ilTag.ilHighlighted {
-	background-color: @badge-bg;
+	color: @il-btn-tag-fg-relevance-veryhigh;
+	background-color: darken(@il-btn-tag-bg, 5%);
 }
 
 #il_tags_modal textarea {

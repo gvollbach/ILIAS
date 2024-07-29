@@ -1,46 +1,62 @@
-<?php namespace ILIAS\GlobalScreen\Scope\Tool\Collector;
+<?php
 
-use Closure;
-use ILIAS\GlobalScreen\Collector\Collector;
+declare(strict_types=1);
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/** @noinspection PhpPropertyOnlyWrittenInspection */
+
+namespace ILIAS\GlobalScreen\Scope\Tool\Collector;
+
+use ILIAS\GlobalScreen\Collector\AbstractBaseCollector;
+use ILIAS\GlobalScreen\Collector\ItemCollector;
 use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Handler\TypeHandler;
 use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Information\ItemInformation;
 use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Information\TypeInformation;
 use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Information\TypeInformationCollection;
-use ILIAS\GlobalScreen\Scope\MainMenu\Factory\isItem;
 use ILIAS\GlobalScreen\Scope\Tool\Collector\Renderer\ToolItemRenderer;
+use ILIAS\GlobalScreen\Scope\Tool\Collector\Renderer\TreeToolItemRenderer;
+use ILIAS\GlobalScreen\Scope\Tool\Factory\isToolItem;
 use ILIAS\GlobalScreen\Scope\Tool\Factory\Tool;
+use ILIAS\GlobalScreen\Scope\Tool\Factory\TreeTool;
 use ILIAS\GlobalScreen\Scope\Tool\Provider\DynamicToolProvider;
+use ILIAS\GlobalScreen\Identification\IdentificationInterface;
+use Generator;
 
 /**
  * Class MainToolCollector
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
-class MainToolCollector implements Collector
+class MainToolCollector extends AbstractBaseCollector implements ItemCollector
 {
-
+    private ?ItemInformation $information;
+    private TypeInformationCollection $type_information_collection;
     /**
-     * @var ItemInformation
+     * @var isToolItem[]
      */
-    private $information;
-    /**
-     * @var TypeInformationCollection
-     */
-    private $type_information_collection;
-    /**
-     * @var array
-     */
-    private $tools;
+    private array $tools;
     /**
      * @var DynamicToolProvider[]
      */
-    private $providers = [];
-
+    private array $providers;
 
     /**
      * MainToolCollector constructor.
-     *
      * @param DynamicToolProvider[] $providers
+     * @param ItemInformation|null  $information
      */
     public function __construct(array $providers, ItemInformation $information = null)
     {
@@ -53,68 +69,93 @@ class MainToolCollector implements Collector
         $tool->setCreationPrevented(true);
         $this->type_information_collection->add($tool);
 
+        $tool = new TypeInformation(TreeTool::class, TreeTool::class, new TreeToolItemRenderer());
+        $tool->setCreationPrevented(true);
+        $this->type_information_collection->add($tool);
+
         $this->tools = [];
     }
 
-
-    public function collect() : void
+    public function collectStructure(): void
     {
         global $DIC;
         $called_contexts = $DIC->globalScreen()->tool()->context()->stack();
 
+        $tools_to_merge = [];
+
         foreach ($this->providers as $provider) {
             $context_collection = $provider->isInterestedInContexts();
             if ($context_collection->hasMatch($called_contexts)) {
-                $this->tools = array_merge($this->tools, $provider->getToolsForContextStack($called_contexts));
+                $tools_to_merge[] = $provider->getToolsForContextStack($called_contexts);
             }
         }
+        $this->tools = array_merge([], ...$tools_to_merge);
+    }
 
+    public function filterItemsByVisibilty(bool $async_only = false): void
+    {
         $this->tools = array_filter($this->tools, $this->getVisibleFilter());
-        array_walk($this->tools, function (Tool $tool) {
+    }
+
+    public function getSingleItem(IdentificationInterface $identification): isToolItem
+    {
+        foreach ($this->tools as $tool) {
+            if ($tool->getProviderIdentification()->serialize() === $identification->serialize()) {
+                return $tool;
+            }
+        }
+        return new Tool($identification);
+    }
+
+    public function prepareItemsForUIRepresentation(): void
+    {
+        array_walk($this->tools, function (isToolItem $tool): void {
             $this->applyTypeInformation($tool);
         });
+    }
 
+    public function cleanupItemsForUIRepresentation(): void
+    {
+        // TODO: Implement cleanupItemsForUIRepresentation() method.
+    }
+
+    public function sortItemsForUIRepresentation(): void
+    {
         usort($this->tools, $this->getItemSorter());
     }
 
-
-    /**
-     * @return Tool[]
-     */
-    public function getItems() : array
+    public function getItemsForUIRepresentation(): Generator
     {
-        return $this->tools;
+        yield from $this->tools;
     }
 
-
-    /**
-     * @return bool
-     */
-    public function hasItems() : bool
+    public function hasItems(): bool
     {
         return count($this->tools) > 0;
     }
 
 
+    public function hasVisibleItems(): bool
+    {
+        return $this->hasItems();
+    }
+
     /**
-     * @param isItem $item
-     *
-     * @return isItem
+     * @param isToolItem $item
+     * @return isToolItem
      */
-    private function applyTypeInformation(isItem $item) : isItem
+    private function applyTypeInformation(isToolItem $item): isToolItem
     {
         $item->setTypeInformation($this->getTypeInfoermationForItem($item));
 
         return $item;
     }
 
-
     /**
-     * @param isItem $item
-     *
+     * @param isToolItem $item
      * @return TypeInformation
      */
-    private function getTypeInfoermationForItem(isItem $item) : TypeInformation
+    private function getTypeInfoermationForItem(isToolItem $item): TypeInformation
     {
         /**
          * @var $handler TypeHandler
@@ -124,25 +165,17 @@ class MainToolCollector implements Collector
         return $this->type_information_collection->get($type);
     }
 
-
-    /**
-     * @return Closure
-     */
-    private function getVisibleFilter() : Closure
+    private function getVisibleFilter(): callable
     {
-        return function (isItem $tool) {
+        return static function (isToolItem $tool): bool {
             return ($tool->isAvailable() && $tool->isVisible());
         };
     }
 
-
-    /**
-     * @return Closure
-     */
-    private function getItemSorter() : Closure
+    private function getItemSorter(): callable
     {
-        return function (Tool &$a, Tool &$b) {
-            return $a->getPosition() > $b->getPosition();
+        return static function (isToolItem $a, isToolItem $b): int {
+            return $a->getPosition() - $b->getPosition();
         };
     }
 }

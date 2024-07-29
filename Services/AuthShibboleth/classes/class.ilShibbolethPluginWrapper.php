@@ -1,177 +1,132 @@
 <?php
-require_once('./Services/AuthShibboleth/interfaces/interface.ilShibbolethAuthenticationPluginInt.php');
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ *      https://www.ilias.de
+ *      https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 
 /**
  * Class ilShibbolethPluginWrapper
  *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
-class ilShibbolethPluginWrapper implements ilShibbolethAuthenticationPluginInt {
+class ilShibbolethPluginWrapper implements ilShibbolethAuthenticationPluginInt
+{
+    protected ilComponentFactory $component_factory;
+    protected ilComponentLogger $log;
+    protected static ?ilShibbolethPluginWrapper $cache = null;
 
-	/**
-	 * @var ilPluginAdmin
-	 */
-	protected $plugin_admin;
-	/**
-	 * @var ilLog
-	 */
-	protected $log;
-	/**
-	 * @var array
-	 */
-	protected static $active_plugins = array();
-	/**
-	 * @var ilShibbolethPluginWrapper
-	 */
-	protected static $cache = NULL;
+    protected function __construct()
+    {
+        global $DIC;
+        $ilLog = $DIC['ilLog'];
+        $this->log = $ilLog;
+        $this->component_factory = $DIC["component.factory"];
+    }
 
+    public static function getInstance(): self
+    {
+        if (!self::$cache instanceof self) {
+            self::$cache = new self();
+        }
 
-	protected function __construct() {
-		global $DIC;
-		$ilPluginAdmin = $DIC['ilPluginAdmin'];
-		$ilLog = $DIC['ilLog'];
-		$this->log = $ilLog;
-		$this->plugin_admin = $ilPluginAdmin;
-		if (self::$active_plugins == NULL) {
-			self::$active_plugins = $this->plugin_admin->getActivePluginsForSlot(IL_COMP_SERVICE, 'AuthShibboleth', 'shibhk');
-		}
-	}
+        return self::$cache;
+    }
 
-
-	/**
-	 * @return ilShibbolethPluginWrapper
-	 */
-	public static function getInstance() {
-		if (! self::$cache instanceof ilShibbolethPluginWrapper) {
-			self::$cache = new self();
-		}
-
-		return self::$cache;
-	}
+    /**
+     * @return ilShibbolethAuthenticationPlugin[]
+     */
+    protected function getPluginObjects(): Iterator
+    {
+        return $this->component_factory->getActivePluginsInSlot('shibhk');
+    }
 
 
-	/**
-	 * @return ilShibbolethAuthenticationPlugin[]
-	 */
-	protected function getPluginObjects() {
-		$plugin_objs = array();
-		foreach (self::$active_plugins as $plugin_name) {
-			$plugin_obj = $this->plugin_admin->getPluginObject(IL_COMP_SERVICE, 'AuthShibboleth', 'shibhk', $plugin_name);
-			if ($plugin_obj instanceof ilShibbolethAuthenticationPlugin) {
-				$plugin_objs[] = $plugin_obj;
-			}
-		}
+    public function beforeLogin(ilObjUser $user): ilObjUser
+    {
+        foreach ($this->getPluginObjects() as $pl) {
+            $user = $pl->beforeLogin($user);
+        }
 
-		return $plugin_objs;
-	}
+        return $user;
+    }
 
 
-	/**
-	 * @param ilObjUser $user
-	 *
-	 * @return ilObjUser
-	 */
-	public function beforeLogin(ilObjUser $user) {
-		foreach ($this->getPluginObjects() as $pl) {
-			$user = $pl->beforeLogin($user);
-		}
+    public function afterLogin(ilObjUser $user): ilObjUser
+    {
+        foreach ($this->getPluginObjects() as $pl) {
+            $user = $pl->afterLogin($user);
+        }
 
-		return $user;
-	}
+        return $user;
+    }
 
 
-	/**
-	 * @param ilObjUser $user
-	 *
-	 * @return ilObjUser
-	 */
-	public function afterLogin(ilObjUser $user) {
-		foreach ($this->getPluginObjects() as $pl) {
-			$user = $pl->afterLogin($user);
-		}
+    public function beforeCreateUser(ilObjUser $user): ilObjUser
+    {
+        foreach ($this->getPluginObjects() as $pl) {
+            $user = $pl->beforeCreateUser($user);
+        }
 
-		return $user;
-	}
+        return $user;
+    }
 
 
-	/**
-	 * @param ilObjUser $user
-	 *
-	 * @return ilObjUser
-	 */
-	public function beforeCreateUser(ilObjUser $user) {
-		foreach ($this->getPluginObjects() as $pl) {
-			$user = $pl->beforeCreateUser($user);
-		}
+    public function afterCreateUser(ilObjUser $user): ilObjUser
+    {
+        foreach ($this->getPluginObjects() as $pl) {
+            $user = $pl->afterCreateUser($user);
+        }
 
-		return $user;
-	}
+        return $user;
+    }
 
 
-	/**
-	 * @param ilObjUser $user
-	 *
-	 * @return ilObjUser
-	 */
-	public function afterCreateUser(ilObjUser $user) {
-		foreach ($this->getPluginObjects() as $pl) {
-			$user = $pl->afterCreateUser($user);
-		}
+    public function beforeLogout(ilObjUser $user): ilObjUser
+    {
+        foreach ($this->getPluginObjects() as $pl) {
+            $user = $pl->beforeLogout($user);
+        }
 
-		return $user;
-	}
+        return $user;
+    }
 
 
-	public function beforeLogout(ilObjUser $user) {
-		foreach ($this->getPluginObjects() as $pl) {
-			$user = $pl->beforeLogout($user);
-		}
+    public function afterLogout(ilObjUser $user): ilObjUser
+    {
+        $this->log->write('afterlogout');
+        foreach ($this->getPluginObjects() as $pl) {
+            $user = $pl->afterLogout($user);
+        }
 
-		return $user;
-	}
-
-
-	/**
-	 * @param ilObjUser $user
-	 *
-	 * @return ilObjUser
-	 */
-	public function afterLogout(ilObjUser $user) {
-		$this->log->write('afterlogout');
-		foreach ($this->getPluginObjects() as $pl) {
-			$user = $pl->afterLogout($user);
-		}
-
-		return $user;
-	}
+        return $user;
+    }
 
 
-	/**
-	 * @param ilObjUser $user
-	 *
-	 * @return ilObjUser
-	 */
-	public function beforeUpdateUser(ilObjUser $user) {
-		foreach ($this->getPluginObjects() as $pl) {
-			$user = $pl->beforeUpdateUser($user);
-		}
+    public function beforeUpdateUser(ilObjUser $user): ilObjUser
+    {
+        foreach ($this->getPluginObjects() as $pl) {
+            $user = $pl->beforeUpdateUser($user);
+        }
 
-		return $user;
-	}
+        return $user;
+    }
 
 
-	/**
-	 * @param ilObjUser $user
-	 *
-	 * @return ilObjUser
-	 */
-	public function afterUpdateUser(ilObjUser $user) {
-		foreach ($this->getPluginObjects() as $pl) {
-			$user = $pl->afterUpdateUser($user);
-		}
+    public function afterUpdateUser(ilObjUser $user): ilObjUser
+    {
+        foreach ($this->getPluginObjects() as $pl) {
+            $user = $pl->afterUpdateUser($user);
+        }
 
-		return $user;
-	}
+        return $user;
+    }
 }
-
-?>

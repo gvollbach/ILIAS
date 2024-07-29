@@ -1,114 +1,104 @@
 <?php
 
-/* Copyright (c) 1998-2019 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- * 
- * @ingroup ModulesLearningModule
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilLMMailNotification extends ilMailNotification
 {
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
+    public const TYPE_USER_BLOCKED = 10;
+    protected int $question_id = 0;
 
+    protected ilObjUser $user;
 
-	/**
-	 * Constructor
-	 */
-	function __construct($a_is_personal_workspace = false)
-	{
-		global $DIC;
-		parent::__construct($a_is_personal_workspace);
+    public function __construct(
+        bool $a_is_personal_workspace = false
+    ) {
+        global $DIC;
+        parent::__construct($a_is_personal_workspace);
+        $this->user = $DIC->user();
+    }
 
-		$this->user = $DIC->user();
-	}
+    public function setQuestionId(int $a_val): void
+    {
+        $this->question_id = $a_val;
+    }
 
-	const TYPE_USER_BLOCKED = 10;
+    public function getQuestionId(): int
+    {
+        return $this->question_id;
+    }
 
-	/**
-	 * Set question id
-	 *
-	 * @param int $a_val question id
-	 */
-	function setQuestionId($a_val)
-	{
-		$this->question_id = $a_val;
-	}
+    public function send(): bool
+    {
+        $ilUser = $this->user;
 
-	/**
-	 * Get question id
-	 *
-	 * @return int question id
-	 */
-	function getQuestionId()
-	{
-		return $this->question_id;
-	}
+        switch ($this->getType()) {
+            case self::TYPE_USER_BLOCKED:
 
-	/**
-	 * Send notifications
-	 * @return 
-	 */
-	public function send()
-	{
-		$ilUser = $this->user;
-		
-		switch($this->getType())
-		{
-			case self::TYPE_USER_BLOCKED:
-				
-				foreach($this->getRecipients() as $rcp)
-				{
-					$this->initLanguage($rcp);
-					$this->initMail();
-					$this->setSubject(
-						sprintf($this->getLanguageText('cont_user_blocked'),
-							$this->getObjectTitle(true))
-					);
-					$this->setBody(ilMail::getSalutation($rcp,$this->getLanguage()));
-					$this->appendBody("\n\n");
-					$this->appendBody(
-						$this->getLanguageText('cont_user_blocked2'));
-					$this->appendBody("\n");
-					$this->appendBody(
-						$this->getLanguageText('cont_user_blocked3')." '".$this->getLanguageText('objs_qst')."' > '".$this->getLanguageText('cont_blocked_users')."'");
-					$this->appendBody("\n");
-					$this->appendBody(
-						$this->getLanguageText('obj_lm').": ".$this->getObjectTitle(true));
-					$this->appendBody("\n");
-					$this->appendBody(
-						$this->getLanguageText('user').": ".ilUserUtil::getNamePresentation($ilUser->getId(), false, false, ""));
-					$this->appendBody("\n");
+                foreach ($this->getRecipients() as $rcp) {
+                    $this->initLanguage($rcp);
+                    $this->initMail();
+                    $this->setSubject(
+                        sprintf(
+                            $this->getLanguageText('cont_user_blocked'),
+                            $this->getObjectTitle(true)
+                        )
+                    );
+                    $this->setBody(ilMail::getSalutation($rcp, $this->getLanguage()));
+                    $this->appendBody("\n\n");
+                    $this->appendBody(
+                        $this->getLanguageText('cont_user_blocked2')
+                    );
+                    $this->appendBody("\n");
+                    $this->appendBody(
+                        $this->getLanguageText('cont_user_blocked3') . " '" . $this->getLanguageText('objs_qst') . "' > '" . $this->getLanguageText('cont_blocked_users') . "'"
+                    );
+                    $this->appendBody("\n");
+                    $this->appendBody(
+                        $this->getLanguageText('obj_lm') . ": " . $this->getObjectTitle(true)
+                    );
+                    $this->appendBody("\n");
+                    $this->appendBody(
+                        $this->getLanguageText('user') . ": " . ilUserUtil::getNamePresentation($ilUser->getId(), false, false, "")
+                    );
+                    $this->appendBody("\n");
 
-					$this->appendBody(
-						$this->getLanguageText('question').": ".assQuestion::_getTitle($this->getQuestionId()));
-					$this->appendBody("\n");
-					$this->appendBody("\n\n");
-					$this->appendBody($this->getLanguageText('cont_lm_mail_permanent_link'));
-					$this->appendBody("\n");
-					$this->appendBody($this->createPermanentLink(array(), ""));
-					$this->getMail()->appendInstallationSignature(true);
-					$this->sendMail(array($rcp));
-				}
-				break;
+                    $this->appendBody(
+                        $this->getLanguageText('question') . ": " . assQuestion::_getTitle($this->getQuestionId())
+                    );
+                    $this->appendBody("\n");
+                    $this->appendBody("\n\n");
+                    $this->appendBody($this->getLanguageText('cont_lm_mail_permanent_link'));
+                    $this->appendBody("\n");
+                    $this->appendBody($this->createPermanentLink(array(), ""));
+                    $this->getMail()->appendInstallationSignature(true);
+                    $this->sendMail(array($rcp));
+                }
+                break;
 
-		}
-		return true;
-	}
-	
-	/**
-	 * Init language
-	 *
-	 * @param int $a_usr_id user id
-	 */
-	protected function initLanguage($a_usr_id)
-	{
-		parent::initLanguage($a_usr_id);
-		$this->getLanguage()->loadLanguageModule('content');
-	}
+        }
+        return true;
+    }
+
+    protected function initLanguage(int $a_usr_id): void
+    {
+        parent::initLanguage($a_usr_id);
+        $this->getLanguage()->loadLanguageModule('content');
+    }
 }
-?>

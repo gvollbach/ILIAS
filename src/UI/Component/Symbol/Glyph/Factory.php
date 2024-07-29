@@ -1,7 +1,22 @@
 <?php
+
 declare(strict_types=1);
 
-/* Copyright (c) 2015, 2016 Richard Klees <richard.klees@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 namespace ILIAS\UI\Component\Symbol\Glyph;
 
@@ -34,7 +49,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function settings(string $action = null) : Glyph;
+    public function settings(string $action = null): Glyph;
 
     /**
      * ---
@@ -62,7 +77,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function collapse(string $action = null) : Glyph;
+    public function collapse(string $action = null): Glyph;
 
     /**
      * ---
@@ -90,7 +105,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function expand(string $action = null) : Glyph;
+    public function expand(string $action = null): Glyph;
 
     /**
      * ---
@@ -126,7 +141,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function add(string $action = null) : Glyph;
+    public function add(string $action = null): Glyph;
 
     /**
      * ---
@@ -135,7 +150,7 @@ interface Factory
      *       The Remove Glyph serves as a replacement for the respective textual
      *       button in very crowded screens. It allows removing an item.
      *   composition: >
-     *       The Remove Glyph uses the glyphicon-plus-sign.
+     *       The Remove Glyph uses the glyphicon-minus-sign.
      *   effect: >
      *       Clicking on the Remove Glyph deletes an existing input from a form.
      *
@@ -160,7 +175,7 @@ interface Factory
      * @param	string|null	$action
      * @return 	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function remove(string $action = null) : Glyph;
+    public function remove(string $action = null): Glyph;
 
     /**
      * ---
@@ -197,7 +212,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function up(string $action = null) : Glyph;
+    public function up(string $action = null): Glyph;
 
     /**
      * ---
@@ -234,7 +249,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function down(string $action = null) : Glyph;
+    public function down(string $action = null): Glyph;
 
     /**
      * ---
@@ -265,7 +280,7 @@ interface Factory
      * @param	string|null	$action
      * @return 	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function back(string $action = null) : Glyph;
+    public function back(string $action = null): Glyph;
 
     /**
      * ---
@@ -295,7 +310,7 @@ interface Factory
      * @param	string|null	$action
      * @return 	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function next(string $action = null) : Glyph;
+    public function next(string $action = null): Glyph;
 
     /**
      * ---
@@ -316,7 +331,7 @@ interface Factory
      * @param	string|null	$action
      * @return 	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function sortAscending(string $action = null) : Glyph;
+    public function sortAscending(string $action = null): Glyph;
 
     /**
      * ---
@@ -337,7 +352,7 @@ interface Factory
      * @param	string|null	$action
      * @return 	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function sortDescending(string $action = null) : Glyph;
+    public function sortDescending(string $action = null): Glyph;
 
     /**
      * ---
@@ -357,7 +372,7 @@ interface Factory
      * @param	string|null	$action
      * @return 	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function briefcase(string $action = null) : Glyph;
+    public function briefcase(string $action = null): Glyph;
 
     /**
      * ---
@@ -379,7 +394,7 @@ interface Factory
      * @param	string|null	$action
      * @return 	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function user(string $action = null) : Glyph;
+    public function user(string $action = null): Glyph;
 
     /**
      * ---
@@ -401,38 +416,28 @@ interface Factory
      * @param	string|null	$action
      * @return 	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function mail(string $action = null) : Glyph;
+    public function mail(string $action = null): Glyph;
 
     /**
      * ---
      * description:
      *   purpose: >
-     *       The Notification Glyph allows users to activate / deactivate the notification service for a specific object or sub-item.
-     *       It is a toggle indicating by colour  whether it is activated or not.
+     *       The Notification Glyph indicates and controls functionality that allows the system to send notifications
+     *       to the user, such as the notification center in the Meta Bar or the notification service at individual
+     *       objects.
      *   composition: >
-     *       The Notification Glyph uses the glyphicon-bell in link-color if notifications are not active or brand-warning color if they are.
-     *   effect: >
-     *       Upon clicking the notification activation is toggled: Clicking the Notification Glyph activates respectively
-     *       deactivates the notification service for the current object or sub-item.
+     *       If used to toggle the notifications at an individual object, the Notification Glyph uses link-color to
+     *       indicate inactivity and the brand-warning color to indicate activity.
      *
      * rules:
-     *   usage:
-     *       1: >
-     *          The Notification Glyph MUST only be used in the Content Top Actions.
-     *   interaction:
-     *       1: >
-     *          Clicking the Notification Glyph MUST toggle the activation of Notifications.
-     *   style:
-     *       1: >
-     *          If notifications are activated the Notification Glyph MUST use the brand-warning color.
      *   accessibility:
-     *       1: >
-     *          The aria-label MUST be ‘Notifications'.
+     *       2: >
+     *          The aria-label MUST be "Notifications".
      * ---
      * @param	string|null	$action
      * @return 	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function notification(string $action = null) : Glyph;
+    public function notification(string $action = null): Glyph;
 
     /**
      * ---
@@ -455,13 +460,13 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function tag(string $action = null) : Glyph;
+    public function tag(string $action = null): Glyph;
 
     /**
      * ---
      * description:
      *   purpose: >
-     *       The Note Glyph is used to indicate the possibilty of adding notes to an object.
+     *       The Note Glyph is used to indicate the possibility of adding notes to an object.
      *   composition: >
      *       The Note Glyph uses the glyphicon-pushpin.
      *   effect: >
@@ -478,13 +483,13 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function note(string $action = null) : Glyph;
+    public function note(string $action = null): Glyph;
 
     /**
      * ---
      * description:
      *   purpose: >
-     *       The Comment Glyph is used to indicate the possibilty of adding comments to an object.
+     *       The Comment Glyph is used to indicate the possibility of adding comments to an object.
      *   composition: >
      *       The Comment Glyph uses the glyphicon-comment.
      *   effect: >
@@ -501,7 +506,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function comment(string $action = null) : Glyph;
+    public function comment(string $action = null): Glyph;
 
     /**
      * ---
@@ -527,7 +532,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function like(string $action = null) : Glyph;
+    public function like(string $action = null): Glyph;
 
     /**
      * ---
@@ -553,7 +558,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function love(string $action = null) : Glyph;
+    public function love(string $action = null): Glyph;
 
     /**
      * ---
@@ -579,7 +584,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function dislike(string $action = null) : Glyph;
+    public function dislike(string $action = null): Glyph;
 
     /**
      * ---
@@ -605,7 +610,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function laugh(string $action = null) : Glyph;
+    public function laugh(string $action = null): Glyph;
 
     /**
      * ---
@@ -631,7 +636,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function astounded(string $action = null) : Glyph;
+    public function astounded(string $action = null): Glyph;
 
     /**
      * ---
@@ -657,7 +662,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function sad(string $action = null) : Glyph;
+    public function sad(string $action = null): Glyph;
 
     /**
      * ---
@@ -683,7 +688,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function angry(string $action = null) : Glyph;
+    public function angry(string $action = null): Glyph;
 
 
     /**
@@ -706,12 +711,12 @@ interface Factory
      *          The Eye Closed Glyph MUST only be used with Password-Inputs.
      *   accessibility:
      *       1: >
-     *          The aria-label MUST be "eye closed - click to hide the input's contents".
+     *          The aria-label MUST be "Eye Closed - Click to hide the input's contents".
      * ---
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function eyeclosed(string $action = null) : Glyph;
+    public function eyeclosed(string $action = null): Glyph;
 
     /**
      * ---
@@ -733,12 +738,12 @@ interface Factory
      *          The Eye Open Glyph MUST only be used with Password-Inputs.
      *   accessibility:
      *       1: >
-     *          The aria-label MUST be "eye open - click to reveal the input's contents".
+     *          The aria-label MUST be "Eye Opened - Click to reveal the input's contents".
      * ---
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function eyeopen(string $action = null) : Glyph;
+    public function eyeopen(string $action = null): Glyph;
 
     /**
      * ---
@@ -749,10 +754,8 @@ interface Factory
      *      The Attachment Glyph uses the glyphicon-paperclip.
      *   effect: >
      *       Clicking executes an action which delivers these attachments to the actor OR initiates a process to add new attachments.
-     *
      * context:
      *       - Indicate whether or not files have been attached to emails in the folder view of Mail.
-     *
      * rules:
      *   composition:
      *       1: >
@@ -761,10 +764,10 @@ interface Factory
      *       1: >
      *          The aria-label MUST be 'Attachment'.
      * ---
-     * @param string|null	$action
-     * @return \ILIAS\UI\Component\Symbol\Glyph\Glyph
+     * @param string|null $action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function attachment(string $action = null) : Glyph;
+    public function attachment(string $action = null): Glyph;
 
     /**
      * ---
@@ -795,10 +798,10 @@ interface Factory
      *       1: >
      *          The aria-label MUST be 'Reset'.
      * ---
-     * @param string|null	$action
-     * @return \ILIAS\UI\Component\Symbol\Glyph\Glyph
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function reset(string $action = null) : Glyph;
+    public function reset(string $action = null): Glyph;
 
     /**
      * ---
@@ -829,10 +832,10 @@ interface Factory
      *       1: >
      *          The aria-label MUST be 'Apply'.
      * ---
-     * @param string|null	$action
-     * @return \ILIAS\UI\Component\Symbol\Glyph\Glyph
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function apply(string $action = null) : Glyph;
+    public function apply(string $action = null): Glyph;
 
     /**
      * ---
@@ -843,11 +846,11 @@ interface Factory
      *       The Search Glyph uses the glyphicon-search.
      *   effect: >
      *       Clicking this glyph will open a search dialog.
-     *       Since the context for the Search Glyph primarily is the Metabar,
-     *       the according search dialog will be opened as Tool in the Mainbar.
+     *       Since the context for the Search Glyph primarily is the Meta Bar,
+     *       the according search dialog will be opened as Tool in the Main Bar.
      *
      * context:
-     *    - The Search Glyph appears in the Metabar.
+     *    - The Search Glyph appears in the Meta Bar.
      *
      * rules:
      *   accessibility:
@@ -857,7 +860,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function search(string $action = null) : Glyph;
+    public function search(string $action = null): Glyph;
 
     /**
      * ---
@@ -869,11 +872,11 @@ interface Factory
      *   effect: >
      *       When clicked, the user is provided with explanations or
      *       instructions for the usage of the current context.
-     *       When used in the Metabar, the help is displayed as tool in the
+     *       When used in the Meta Bar, the help is displayed as tool in the
      *       Sidebar.
      *
      * context:
-     *    - The Search Glyph appears in the Metabar.
+     *    - The Help Glyph appears in the Meta Bar.
      *
      * rules:
      *   accessibility:
@@ -883,7 +886,7 @@ interface Factory
      * @param	string|null	$action
      * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function help(string $action = null) : Glyph;
+    public function help(string $action = null): Glyph;
 
     /**
      * ---
@@ -903,10 +906,10 @@ interface Factory
      *       1: >
      *          The aria-label MUST be 'Calendar'.
      * ---
-     * @param string|null	$action
-     * @return \ILIAS\UI\Component\Symbol\Glyph\Glyph
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function calendar($action = null);
+    public function calendar(string $action = null): Glyph;
 
     /**
      * ---
@@ -926,10 +929,10 @@ interface Factory
      *       1: >
      *          The aria-label MUST be 'Time'.
      * ---
-     * @param string|null	$action
-     * @return \ILIAS\UI\Component\Symbol\Glyph\Glyph
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function time($action = null);
+    public function time(string $action = null): Glyph;
 
     /**
      * ---
@@ -947,8 +950,377 @@ interface Factory
      *       1: >
      *          The aria-label MUST be 'Close'.
      * ---
-     * @param string|null	$action
-     * @return \ILIAS\UI\Component\Symbol\Glyph\Glyph
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
      */
-    public function close($action = null);
+    public function close(string $action = null): Glyph;
+
+    /**
+     * ---
+     * description:
+     *   purpose: >
+     *      The More Glyph allows shortening a part of a set of entries that
+     *      are too long to be presented fully or would be overwhelming.
+     *      The More glyph offers viewing the rest of the shortened set of
+     *      entries so that the entire set becomes visible.
+     *   composition: >
+     *      The More Glyph uses the glyphicon-option-horizontal.
+     *   effect: >
+     *       Clicking the More Glyph shows the rest of the set of entries.
+     *   rivals:
+     *      Disclosure Glyph: >
+     *         The Disclosure Glyph hides the complete set of entries, wherear the
+     *         More Glyph only hides parts of it.
+     *      Mini Action Dropdown: >
+     *         The Dropdown in the ListGUI without text is used to offer a
+     *         set of actions that cannot be displayed directly due to scarce space.
+     *         This is different because the set of entries of the More Glyph does not entail actions.
+     *      Show More Less Button: >
+     *         The Show-More /Show Less Button in Timeline unhides
+     *         a full individual entry of a timeline. Entries are caped at a certain
+     *         length and Show-More-Buttons allow viewing all the content of this entry.
+     *         This is different, because the unhidden entirety is an individual entry
+     *         and not a set of entries. The Show-More /Show Less Button in filtered Categories with loads of
+     *         objects shows the next x objects in the list GUI. This is different,
+     *         because what is shown is not an entirety but a part of an entirety.
+     *      The Hamburg Glyph: >
+     *         The Hamburg Glyph is an icon introduced on the web,
+     *         which in most cases represents a complete main menu. This is different
+     *         from More Glyph, which abbreviates part of the menu. The hamburger
+     *         icon currently used in the shortened toolbar (on small screens) should
+     *         actually be replaced because it doesn't show the entire main menu, but
+     *         more actions are displayed when you click on it.
+     *
+     * context:
+     *    - This Glyph is currently used in the responsive view of the Main Bar.
+     *
+     * rules:
+     *   usage:
+     *       1: >
+     *          The usage of this Glyph SHOULD be avoided if possible.
+     *          Invisible components reduce the affordance of a screen.
+     *   style:
+     *       1: >
+     *          Because it has a certain similarity to the Disclose Glyph, it
+     *          SHOULD also have a visual similarity, which can be distinguished
+     *          from the Disclose Glyph.
+     *   accessibility:
+     *       1: >
+     *          The aria-label MUST be 'Show More'.
+     * ---
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
+     */
+    public function more(string $action = null): Glyph;
+
+    /**
+     * ---
+     * description:
+     *   purpose: >
+     *      The Disclose Glyph allows hiding a complete set of entries that
+     *      are too long to be presented fully or would be overwhelming.
+     *      The Disclosure Glyphs offers viewing the entirety of the hidden set of entries.
+     *   composition: >
+     *      The Disclosure Glyph uses the glyphicon-option-vertical.
+     *   effect: >
+     *       Clicking the Disclose Glyph shows the entire set of entries.
+     *   rivals:
+     *      More Glyph: >
+     *         The More Glyph hides part of the set of entries.
+     *         This is a difference to the Disclose Glyph, because here the
+     *         complete set of entries is collected in a glyph.
+     *      Mini Action Dropdown: >
+     *         The Dropdown in the ListGUI without text is used to offer a
+     *         set of actions that cannot be displayed directly due to scarce space.
+     *         This is different because the set of entries of the More Glyph does not entail actions.
+     *      Show More Less Button: >
+     *         The Show-More /Show Less Button in Timeline unhides
+     *         a full individual entry of a timeline. Entries are caped at a certain
+     *         length and Show-More-Buttons allow viewing all the content of this entry.
+     *         This is different, because the unhidden entirety is an individual entry
+     *         and not a set of entries. The Show-More /Show Less Button in filtered Categories with loads of
+     *         objects shows the next x objects in the list GUI. This is different,
+     *         because what is shown is not an entirety but a part of an entirety.
+     *      The Hamburg Glyph: >
+     *         The Hamburg Glyph is an icon introduced on the web,
+     *         which in most cases represents a complete main menu. This is different
+     *         from More Glyph, which abbreviates part of the menu. The hamburger
+     *         icon currently used in the shortened toolbar (on small screens) should
+     *         actually be replaced because it doesn't show the entire main menu, but
+     *         more actions are displayed when you click on it.
+     *
+     * context:
+     *    - This Glyph is currently used in the responsive view of the Meta Bar.
+     * rules:
+     *   usage:
+     *       1: >
+     *          The usage of this Glyph SHOULD be avoided if possible.
+     *          Invisible components reduce the affordance of a screen.
+     *   style:
+     *       1: >
+     *          Because it has a certain similarity to the More Glyph, it SHOULD
+     *          also have a visual similarity, which can be distinguished from the More Glyph.
+     *   accessibility:
+     *       1: >
+     *          The aria-label MUST be „Disclose“.
+     * ---
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
+     */
+    public function disclosure(string $action = null): Glyph;
+
+    /**
+     * ---
+     * description:
+     *   purpose: >
+     *       The Language Glyph is used to indicate the option to switch languages
+     *       by some shorthand workflow without navigating to the personal settings.
+     *   composition: >
+     *       The Language Glyph uses the glyphicon-lang from the il-icons set.
+     *   effect: >
+     *       When clicked, the user is shown a set of active languages to choose from.
+     *   rivals:
+     *      Standard Icon: >
+     *         The Standard Icon-Set features the Language Icon, which symbolizes
+     *         the Service "Language". It is not used in the Meta Bar as trigger
+     *         for switching languages, but to visually identify the language as
+     *         service (e.g. in the administration).
+     *
+     *
+     * context:
+     *    - The Language Glyph appears in the Meta Bar.
+     *
+     * rules:
+     *   accessibility:
+     *       1: >
+     *          The aria-label MUST be 'Switch Language'.
+     * ---
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
+     */
+    public function language(?string $action = null): Glyph;
+
+    /**
+     * ---
+     * description:
+     *   purpose: >
+     *       The Login Glyph is used to trigger the login interaction.
+     *       It is displayed in the Meta Bar of the user is not yet logged in.
+     *   composition: >
+     *       The Login Glyph uses the login glyph from the il-icons font.
+     *   effect: >
+     *       Clicking this Glyph will trigger the interaction to authenticate and login.
+     *   rivals:
+     *       Logout Glyph: The Logout Glyph triggers the logout interaction.
+     *
+     * context:
+     *    - The Login Glyph appears in the Meta Bar.
+     *
+     * rules:
+     *   usage:
+     *       1: The Login Glyph MUST be displayed if no user is authenticated.
+     *   style:
+     *       1: The Login Glyph MUST be placed on the very top right.
+     *   accessibility:
+     *       1: >
+     *          The aria-label MUST be 'Login'.
+     * ---
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
+     */
+    public function login(string $action = null): Glyph;
+
+    /**
+     * ---
+     * description:
+     *   purpose: >
+     *       The Logout Glyph is used to trigger the logout interaction.
+     *       It is displayed in the Slate triggered by clicking on the User Avatar in the Meta Bar.
+     *   composition: >
+     *       The Logout Glyph uses the logout glyph from the il-icons font.
+     *   effect: >
+     *       Clicking this Glyph will trigger the interaction to logout.
+     *   rivals:
+     *       Login Glyph: The Login Glyph triggers the login interaction.
+     *
+     * context:
+     *    - The Logout Glyph appears in the Slate triggered by clicking on the User Avatar in the Meta Bar.
+     *
+     * rules:
+     *   usage:
+     *       1: The Logout Glyph MUST be displayed if the user is logged in.
+     *   accessibility:
+     *       1: >
+     *          The aria-label MUST be 'Logout'.
+     * ---
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
+     */
+    public function logout(string $action = null): Glyph;
+
+    /**
+     * ---
+     * description:
+     *   purpose: >
+     *       The Bullet List Glyph is used to indicate the possibility to group related content together
+     *       and organize vertically, when you don’t need to convey a specific order for list items.
+     *   composition: >
+     *       The Bullet List Glyph uses the glyphicon-listbullet.
+     *   effect: >
+     *       Clicking this glyph will group a list of entries with bullet points.
+     *   rivals:
+     *       Numbered List Glyph: The Numbered Glyph will group a list of entries with enumeration number.
+     *
+     * context:
+     *    - The Bullet List Glyph appears in the ILIAS Page Editor.
+     *
+     * rules:
+     *   accessibility:
+     *       1: >
+     *          The aria-label MUST be 'Bullet Point List'.
+     * ---
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
+     */
+    public function bulletlist(string $action = null): Glyph;
+
+    /**
+     * ---
+     * description:
+     *   purpose: >
+     *       The Numbered List Glyph is used to indicate the possibility to group related content together
+     *       and organize vertically, where you need to convey a priority, hierarchy,
+     *       or sequence between list items.
+     *   composition: >
+     *       The Numbered List Glyph uses the glyphicon-listnumbered.
+     *   effect: >
+     *       Clicking this glyph will group a list of entries with enumeration number.
+     *   rivals:
+     *       Bullet List Glyph: The Bullet Glyph will group a list of entries with bullet points.
+     *
+     * context:
+     *    - The Numbered List Glyph appears in the ILIAS Page Editor.
+     *
+     * rules:
+     *   usage:
+     *       1: The Logout Glyph MUST be displayed if the user is logged in.
+     *   accessibility:
+     *       1: >
+     *          The aria-label MUST be 'Numbered List'.
+     * ---
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
+     */
+    public function numberedlist(string $action = null): Glyph;
+
+    /**
+     * ---
+     * description:
+     *   purpose: >
+     *       The Indent Glyph is used to define the gradation of a structured list.
+     *       It leads to an increased indentation and thus gives the impression of a
+     *       subordinate level.
+     *   composition: >
+     *       The Indent List Glyph uses the glyphicon-listindent.
+     *   effect: >
+     *       Clicking this glyph will intend the content to the next subordinate level of the list.
+     *   rivals:
+     *       Outdent Glyph: The Outend Glyph will reduce the indent to the next superordinate level of the list.
+     *
+     * context:
+     *    - The Indent Glyph appears in the ILIAS Page Editor.
+     *
+     * rules:
+     *   accessibility:
+     *       1: >
+     *          The aria-label MUST be 'Increase Indent'.
+     * ---
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
+     */
+    public function listindent(string $action = null): Glyph;
+
+    /**
+     * ---
+     * description:
+     *   purpose: >
+     *       The Outdent Glyph is used to define the gradation of a structured list.
+     *       It leads to a decreased indentation and thus gives the impression of a superordinate level.
+     *   composition: >
+     *       The Outdent List Glyph uses the glyphicon-listoutdent.
+     *   effect: >
+     *       Clicking this glyph will outdent the content to the next superordinate level of the list.
+     *   rivals:
+     *       Indent Glyph: The Indent Glyph will increase the indentation to the next subordinate level of the list.
+     *
+     * context:
+     *    -  The Outdent List Glyph appears in the ILIAS Page Editor.
+     *
+     * rules:
+     *   accessibility:
+     *       1: >
+     *          The aria-label MUST be 'Decrease Indent'.
+     * ---
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
+     */
+    public function listoutdent(string $action = null): Glyph;
+
+    /**
+     * ---
+     * description:
+     *   purpose: >
+     *       The Filter Glyph is used to trigger a filter action.
+     *   composition: >
+     *       The Filter Glyph uses the glyphicon-filter.
+     *   effect: >
+     *       Clicking this glyph will filter a list of entries.
+     *   rivals:
+     *       Search Glyph: The Search Glyph will open a search dialog  or will generate a list of entries according to the search input.
+     *
+     * context:
+     *    -  The Filter Glyph appears in the Who-is-online-Tool.
+     *
+     * rules:
+     *   accessibility:
+     *       1: >
+     *          The aria-label MUST be 'Filter'.
+     * ---
+     * @param	string|null	$action
+     * @return	\ILIAS\UI\Component\Symbol\Glyph\Glyph
+     */
+    public function filter(string $action = null): Glyph;
+
+    /**
+     * ---
+     * description:
+     *   purpose: >
+     *       The Collapse Horizontal Glyph is used to trigger the collapsing of
+     *       some neighbouring Container Collection (such as a Slate) or to navigate
+     *       within a menu where collapsing might mean "switching to a higher level".
+     *       The Collapse Horizontal Glyph is used where collapsing is better
+     *       indicated by a left-triangle than by a down-triangle.
+     *   composition: >
+     *       The Collapse Horizontal Glyph is composed of a triangle pointing to the left.
+     *   effect: >
+     *      Clicking the Collapse Horizontal Glyph hides the display of some Container Collection.
+     *      It might simultaneously trigger the display of another Container Collection.
+     *   rivals:
+     *      Expand Glyph: The Expand Glyphs triggers the display of some Container Collection.
+     *      Collapse Glyph: The Collapse Glyph strongly indicates a Container positioned below.
+     *      Previous Glyph: The Previous/Next Glyph opens a completely new view. It serves a navigational purpose.
+     *
+     * context:
+     *    -  The Collapse Horizontal Glyph appears in the Drilldown Menu.
+     *    -  The Collapse Horizontal Glyph appears in Main Bar to hide Slates.
+     *
+     * rules:
+     *   accessibility:
+     *       1: >
+     *          The aria-label MUST be ‘collapse/back'.
+     * ---
+     * @param   string|null $action
+     * @return  \ILIAS\UI\Component\Symbol\Glyph\Glyph
+     */
+    public function collapseHorizontal(string $action = null): Glyph;
 }

@@ -20,32 +20,21 @@
 	<p>
 		{CAS_LOGIN_FORM}
 	</p>
-	<!-- END cas_login_form -->
+	<!-- END cas_login -->
 	<!-- BEGIN oidc_login -->
 	{OPEN_ID_CONNECT_LOGIN_FORM}
 	<!-- END oidc_login -->
 	<!-- BEGIN ilias_login -->
-	<p>
-		{LOGIN_FORM}
-	</p>
+	{LOGIN_FORM}
 	<!-- END ilias_login -->
 	<!-- BEGIN reg_links -->
-	<p class="ilStartupSection">
+	<div class="ilStartupSection">
 		{REG_PWD_CLIENT_LINKS}
-	</p>
+	</div>
 	<!-- END reg_links -->
 	<!-- BEGIN agreement -->
-	<p>
+	<div class="ilStartupSection">
 		{USER_AGREEMENT}
-	</p>
+	</div>
 	<!-- END agreement -->
 </div>
-<script language="JavaScript">
-<!--
-if (document.formlogin.username && document.formlogin.password)
-{
-	if(document.formlogin.username.value!="") document.formlogin.password.focus();
-	else document.formlogin.username.focus();
-}
-//-->
-</script>

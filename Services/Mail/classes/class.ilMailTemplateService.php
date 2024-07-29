@@ -1,5 +1,22 @@
 <?php
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilMailTemplateService
@@ -8,137 +25,103 @@
  */
 class ilMailTemplateService
 {
-	/** @var \ilMailTemplateRepository */
-	protected $repository;
+    protected ilMailTemplateRepository $repository;
 
-	/**
-	 * ilMailTemplateService constructor.
-	 * @param ilMailTemplateRepository $repository
-	 */
-	public function __construct(\ilMailTemplateRepository $repository)
-	{
-		$this->repository = $repository;
-	}
+    public function __construct(ilMailTemplateRepository $repository)
+    {
+        $this->repository = $repository;
+    }
 
-	/**
-	 * @param string $contextId
-	 * @param string $title
-	 * @param string $subject
-	 * @param string $message
-	 * @param string $language
-	 * @return \ilMailTemplate
-	 */
-	public function createNewTemplate(
-		string $contextId,
-		string $title,
-		string $subject,
-		string $message,
-		string $language
-	): \ilMailTemplate {
-		$template = new \ilMailTemplate();
-		$template->setContext($contextId);
-		$template->setTitle($title);
-		$template->setSubject($subject);
-		$template->setMessage($message);
-		$template->setLang($language);
+    public function createNewTemplate(
+        string $contextId,
+        string $title,
+        string $subject,
+        string $message,
+        string $language
+    ): ilMailTemplate {
+        $template = new ilMailTemplate();
+        $template->setContext($contextId);
+        $template->setTitle($title);
+        $template->setSubject($subject);
+        $template->setMessage($message);
+        $template->setLang($language);
 
-		$this->repository->store($template);
+        $this->repository->store($template);
 
-		return $template;
-	}
+        return $template;
+    }
 
-	/**
-	 * @param int $templateId
-	 * @param string $contextId
-	 * @param string $title
-	 * @param string $subject
-	 * @param string $message
-	 * @param string $language
-	 */
-	public function modifyExistingTemplate(
-		int $templateId,
-		string $contextId,
-		string $title,
-		string $subject,
-		string $message,
-		string $language
-	)
-	{
-		$template = $this->repository->findById($templateId);
+    public function modifyExistingTemplate(
+        int $templateId,
+        string $contextId,
+        string $title,
+        string $subject,
+        string $message,
+        string $language
+    ): void {
+        $template = $this->repository->findById($templateId);
 
-		$template->setContext($contextId);
-		$template->setTitle($title);
-		$template->setSubject($subject);
-		$template->setMessage($message);
-		$template->setLang($language);
+        $template->setContext($contextId);
+        $template->setTitle($title);
+        $template->setSubject($subject);
+        $template->setMessage($message);
+        $template->setLang($language);
 
-		$this->repository->store($template);
-	}
+        $this->repository->store($template);
+    }
 
-	/**
-	 * @param int $templateId
-	 * @return \ilMailTemplate
-	 */
-	public function loadTemplateForId(int $templateId): \ilMailTemplate
-	{
-		return $this->repository->findById($templateId);
-	}
+    public function loadTemplateForId(int $templateId): ilMailTemplate
+    {
+        return $this->repository->findById($templateId);
+    }
 
-	/**
-	 * @param string $contextId
-	 * @return \ilMailTemplate[]
-	 */
-	public function loadTemplatesForContextId(string $contextId): array
-	{
-		return $this->repository->findByContextId($contextId);
-	}
+    /**
+     * @param string $contextId
+     * @return ilMailTemplate[]
+     */
+    public function loadTemplatesForContextId(string $contextId): array
+    {
+        return $this->repository->findByContextId($contextId);
+    }
 
-	/**
-	 * @param array $templateIds
-	 */
-	public function deleteTemplatesByIds(array $templateIds)
-	{
-		$this->repository->deleteByIds($templateIds);
-	}
+    /**
+     * @param int[] $templateIds
+     */
+    public function deleteTemplatesByIds(array $templateIds): void
+    {
+        $this->repository->deleteByIds($templateIds);
+    }
 
-	/**
-	 * @return array[]
-	 */
-	public function listAllTemplatesAsArray(): array
-	{
-		$templates = $this->repository->getAll();
+    /**
+     * @return array[]
+     */
+    public function listAllTemplatesAsArray(): array
+    {
+        $templates = $this->repository->getAll();
 
-		$templates = array_map(function(\ilMailTemplate $template) {
-			return $template->toArray();
-		}, $templates);
+        return array_map(static function (ilMailTemplate $template): array {
+            return $template->toArray();
+        }, $templates);
+    }
 
-		return $templates;
-	}
+    public function unsetAsContextDefault(ilMailTemplate $template): void
+    {
+        $template->setAsDefault(false);
 
-	/**
-	 * @param \ilMailTemplate $template
-	 */
-	public function unsetAsContextDefault(\ilMailTemplate $template)
-	{
-		$template->setAsDefault(false);
+        $this->repository->store($template);
+    }
 
-		$this->repository->store($template);
-	}
+    public function setAsContextDefault(ilMailTemplate $template): void
+    {
+        $allOfContext = $this->repository->findByContextId($template->getContext());
+        foreach ($allOfContext as $otherTemplate) {
+            $otherTemplate->setAsDefault(false);
 
-	/**
-	 * @param \ilMailTemplate $template
-	 */
-	public function setAsContextDefault(\ilMailTemplate $template)
-	{
-		$allOfContext = $this->repository->findByContextId($template->getContext());
-		foreach ($allOfContext as $otherTemplate) {
-			$otherTemplate->setAsDefault(false);
+            if ($template->getTplId() === $otherTemplate->getTplId()) {
+                $otherTemplate->setAsDefault(true);
+            }
 
-			if ((int)$template->getTplId() === (int)$otherTemplate->getTplId()) {
-				$otherTemplate->setAsDefault(true);
-			}
-
-			$this->repository->store($otherTemplate);
-		}
-	}
+            $this->repository->store($otherTemplate);
+        }
+    }
 }

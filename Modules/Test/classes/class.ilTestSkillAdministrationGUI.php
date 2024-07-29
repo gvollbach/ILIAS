@@ -1,8 +1,22 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Modules/TestQuestionPool/classes/class.ilAssQuestionSkillAssignmentsGUI.php';
-require_once 'Modules/Test/classes/class.ilTestSkillLevelThresholdsGUI.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\Refinery\Factory as Refinery;
 
 /**
  * @author		Björn Heyser <bheyser@databay.de>
@@ -15,232 +29,197 @@ require_once 'Modules/Test/classes/class.ilTestSkillLevelThresholdsGUI.php';
  */
 class ilTestSkillAdministrationGUI
 {
-	/**
-	 * @var ILIAS
-	 */
-	private $ilias;
+    private ILIAS $ilias;
+    private ilCtrlInterface $ctrl;
+    private ilAccessHandler $access;
+    private ilTabsGUI $tabs;
+    private ilGlobalTemplateInterface $tpl;
+    private ilLanguage $lng;
+    private ilDBInterface $db;
+    private Refinery $refinery;
+    private ilTree $tree;
+    private ilComponentRepository $component_repository;
+    private ilObjTest $testOBJ;
+    private $refId;
 
-	/**
-	 * @var ilCtrl
-	 */
-	private $ctrl;
+    public function __construct(
+        ILIAS $ilias,
+        ilCtrl $ctrl,
+        ilAccessHandler $access,
+        ilTabsGUI $tabs,
+        ilGlobalTemplateInterface $tpl,
+        ilLanguage $lng,
+        Refinery $refinery,
+        ilDBInterface $db,
+        ilTree $tree,
+        ilComponentRepository $component_repository,
+        ilObjTest $testOBJ,
+        $refId
+    ) {
+        $this->ilias = $ilias;
+        $this->ctrl = $ctrl;
+        $this->access = $access;
+        $this->tabs = $tabs;
+        $this->tpl = $tpl;
+        $this->lng = $lng;
+        $this->refinery = $refinery;
+        $this->db = $db;
+        $this->tree = $tree;
+        $this->component_repository = $component_repository;
+        $this->testOBJ = $testOBJ;
+        $this->refId = $refId;
+    }
 
-	/**
-	 * @var ilAccessHandler
-	 */
-	private $access;
+    public function executeCommand()
+    {
+        if ($this->isAccessDenied()) {
+            $this->ilias->raiseError($this->lng->txt("permission_denied"), $this->ilias->error_obj->MESSAGE);
+        }
 
-	/**
-	 * @var ilTabsGUI
-	 */
-	private $tabs;
+        $nextClass = $this->ctrl->getNextClass();
 
-	/**
-	 * @var ilGlobalTemplate
-	 */
-	private $tpl;
+        $this->manageTabs($nextClass);
 
-	/**
-	 * @var ilLanguage
-	 */
-	private $lng;
+        switch ($nextClass) {
+            case 'ilassquestionskillassignmentsgui':
 
-	/**
-	 * @var ilDBInterface
-	 */
-	private $db;
+                $questionContainerId = $this->getQuestionContainerId();
 
-	/**
-	 * @var ilTree
-	 */
-	private $tree;
+                $questionList = new ilAssQuestionList($this->db, $this->lng, $this->refinery, $this->component_repository);
+                $questionList->setParentObjId($questionContainerId);
+                $questionList->setQuestionInstanceTypeFilter($this->getRequiredQuestionInstanceTypeFilter());
+                $questionList->load();
 
-	/**
-	 * @var ilPluginAdmin
-	 */
-	private $pluginAdmin;
+                $gui = new ilAssQuestionSkillAssignmentsGUI($this->ctrl, $this->access, $this->tpl, $this->lng, $this->db);
+                $gui->setAssignmentEditingEnabled($this->isAssignmentEditingRequired());
+                $gui->setQuestionContainerId($questionContainerId);
+                $gui->setQuestionList($questionList);
 
-	/**
-	 * @var ilObjTest
-	 */
-	private $testOBJ;
+                if ($this->testOBJ->isFixedTest()) {
+                    $gui->setQuestionOrderSequence($this->testOBJ->getQuestions());
+                } else {
+                    $gui->setAssignmentConfigurationHintMessage($this->buildAssignmentConfigurationInPoolHintMessage());
+                }
 
-	public function __construct(ILIAS $ilias, ilCtrl $ctrl, ilAccessHandler $access, ilTabsGUI $tabs, ilGlobalTemplate $tpl, ilLanguage $lng, ilDBInterface $db, ilTree $tree, ilPluginAdmin $pluginAdmin, ilObjTest $testOBJ, $refId)
-	{
-		$this->ilias = $ilias;
-		$this->ctrl = $ctrl;
-		$this->access = $access;
-		$this->tabs = $tabs;
-		$this->tpl = $tpl;
-		$this->lng = $lng;
-		$this->db = $db;
-		$this->tree = $tree;
-		$this->pluginAdmin = $pluginAdmin;
-		$this->testOBJ = $testOBJ;
-		$this->refId = $refId;
-	}
+                $this->ctrl->forwardCommand($gui);
 
-	public function executeCommand()
-	{
-		if( $this->isAccessDenied() )
-		{
-			$this->ilias->raiseError($this->lng->txt("permission_denied"), $this->ilias->error_obj->MESSAGE);
-		}
+                break;
 
-		$nextClass = $this->ctrl->getNextClass();
+            case 'iltestskilllevelthresholdsgui':
 
-		$this->manageTabs($nextClass);
+                $gui = new ilTestSkillLevelThresholdsGUI($this->ctrl, $this->tpl, $this->lng, $this->db, $this->testOBJ->getTestId());
+                $gui->setQuestionAssignmentColumnsEnabled(!$this->testOBJ->isRandomTest());
+                $gui->setQuestionContainerId($this->getQuestionContainerId());
+                $this->ctrl->forwardCommand($gui);
+                break;
+        }
+    }
 
-		switch($nextClass)
-		{
-			case 'ilassquestionskillassignmentsgui':
+    private function isAssignmentEditingRequired(): bool
+    {
+        if (!$this->testOBJ->isFixedTest()) {
+            return false;
+        }
 
-				$questionContainerId = $this->getQuestionContainerId();
-				
-				require_once 'Modules/TestQuestionPool/classes/class.ilAssQuestionList.php';
-				$questionList = new ilAssQuestionList($this->db, $this->lng, $this->pluginAdmin);
-				$questionList->setParentObjId($questionContainerId);
-				$questionList->setQuestionInstanceTypeFilter($this->getRequiredQuestionInstanceTypeFilter());
-				$questionList->load();
+        if ($this->testOBJ->participantDataExist()) {
+            return false;
+        }
 
-				$gui = new ilAssQuestionSkillAssignmentsGUI($this->ctrl, $this->access, $this->tpl, $this->lng, $this->db);
-				$gui->setAssignmentEditingEnabled($this->isAssignmentEditingRequired());
-				$gui->setQuestionContainerId($questionContainerId);
-				$gui->setQuestionList($questionList);
-				
-				if( $this->testOBJ->isFixedTest() )
-				{
-					$gui->setQuestionOrderSequence($this->testOBJ->getQuestions());
-				}
-				else
-				{
-					$gui->setAssignmentConfigurationHintMessage($this->buildAssignmentConfigurationInPoolHintMessage());
-				}
+        return true;
+    }
 
-				$this->ctrl->forwardCommand($gui);
-				
-				break;
+    public function manageTabs($activeSubTabId)
+    {
+        $link = $this->ctrl->getLinkTargetByClass(
+            'ilAssQuestionSkillAssignmentsGUI',
+            ilAssQuestionSkillAssignmentsGUI::CMD_SHOW_SKILL_QUEST_ASSIGNS
+        );
+        $this->tabs->addSubTab(
+            'ilassquestionskillassignmentsgui',
+            $this->lng->txt('qpl_skl_sub_tab_quest_assign'),
+            $link
+        );
 
-			case 'iltestskilllevelthresholdsgui':
+        $link = $this->ctrl->getLinkTargetByClass(
+            'ilTestSkillLevelThresholdsGUI',
+            ilTestSkillLevelThresholdsGUI::CMD_SHOW_SKILL_THRESHOLDS
+        );
+        $this->tabs->addSubTab(
+            'iltestskilllevelthresholdsgui',
+            $this->lng->txt('tst_skl_sub_tab_thresholds'),
+            $link
+        );
 
-				$gui = new ilTestSkillLevelThresholdsGUI($this->ctrl, $this->tpl, $this->lng, $this->db, $this->testOBJ->getTestId());
-				$gui->setQuestionAssignmentColumnsEnabled(!$this->testOBJ->isRandomTest());
-				$gui->setQuestionContainerId($this->getQuestionContainerId());
-				$this->ctrl->forwardCommand($gui);
-				break;
-		}
-	}
-	
-	private function isAssignmentEditingRequired()
-	{
-		if( !$this->testOBJ->isFixedTest() )
-		{
-			return false;
-		}
-		
-		if( $this->testOBJ->participantDataExist() )
-		{
-			return false;
-		}
-		
-		return true;
-	}
+        $this->tabs->activateTab('tst_tab_competences');
+        $this->tabs->activateSubTab($activeSubTabId);
+    }
 
-	public function manageTabs($activeSubTabId)
-	{
-		$link = $this->ctrl->getLinkTargetByClass(
-			'ilAssQuestionSkillAssignmentsGUI', ilAssQuestionSkillAssignmentsGUI::CMD_SHOW_SKILL_QUEST_ASSIGNS
-		);
-		$this->tabs->addSubTab(
-			'ilassquestionskillassignmentsgui', $this->lng->txt('qpl_skl_sub_tab_quest_assign'), $link
+    private function isAccessDenied(): bool
+    {
+        if (!$this->testOBJ->isSkillServiceEnabled()) {
+            return true;
+        }
 
-		);
+        if (!ilObjTest::isSkillManagementGloballyActivated()) {
+            return true;
+        }
 
-		$link = $this->ctrl->getLinkTargetByClass(
-			'ilTestSkillLevelThresholdsGUI', ilTestSkillLevelThresholdsGUI::CMD_SHOW_SKILL_THRESHOLDS
-		);
-		$this->tabs->addSubTab(
-			'iltestskilllevelthresholdsgui', $this->lng->txt('tst_skl_sub_tab_thresholds'), $link
-		);
+        if (!$this->access->checkAccess('write', '', $this->refId)) {
+            return true;
+        }
 
-		$this->tabs->activateTab('tst_tab_competences');
-		$this->tabs->activateSubTab($activeSubTabId);
-	}
+        return false;
+    }
 
-	private function isAccessDenied()
-	{
-		if( !$this->testOBJ->isSkillServiceEnabled() )
-		{
-			return true;
-		}
+    private function getQuestionContainerId(): ?int
+    {
+        if ($this->testOBJ->isDynamicTest()) {
+            $questionSetConfigFactory = new ilTestQuestionSetConfigFactory(
+                $this->tree,
+                $this->db,
+                $this->component_repository,
+                $this->testOBJ
+            );
 
-		if( !ilObjTest::isSkillManagementGloballyActivated() )
-		{
-			return true;
-		}
+            $questionSetConfig = $questionSetConfigFactory->getQuestionSetConfig();
 
-		if( ! $this->access->checkAccess('write', '', $this->refId) )
-		{
-			return true;
-		}
+            return $questionSetConfig->getSourceQuestionPoolId();
+        }
 
-		return false;
-	}
-	
-	private function getQuestionContainerId()
-	{
-		if( $this->testOBJ->isDynamicTest() )
-		{
-			$questionSetConfigFactory = new ilTestQuestionSetConfigFactory(
-				$this->tree, $this->db, $this->pluginAdmin, $this->testOBJ
-			);
+        return $this->testOBJ->getId();
+    }
 
-			$questionSetConfig = $questionSetConfigFactory->getQuestionSetConfig();
+    private function getRequiredQuestionInstanceTypeFilter(): ?string
+    {
+        if ($this->testOBJ->isDynamicTest()) {
+            return ilAssQuestionList::QUESTION_INSTANCE_TYPE_ORIGINALS;
+        }
 
-			return $questionSetConfig->getSourceQuestionPoolId();
-		}
+        if ($this->testOBJ->isRandomTest()) {
+            return ilAssQuestionList::QUESTION_INSTANCE_TYPE_DUPLICATES;
+        }
 
-		return $this->testOBJ->getId();
-	}
-	
-	private function getRequiredQuestionInstanceTypeFilter()
-	{
-		if( $this->testOBJ->isDynamicTest() )
-		{
-			return ilAssQuestionList::QUESTION_INSTANCE_TYPE_ORIGINALS;
-		}
-		
-		if( $this->testOBJ->isRandomTest() )
-		{
-			return ilAssQuestionList::QUESTION_INSTANCE_TYPE_DUPLICATES;
-		}
-		
-		return null;
-	}
-	
-	private function buildAssignmentConfigurationInPoolHintMessage()
-	{
-		$questionSetConfigFactory = new ilTestQuestionSetConfigFactory(
-			$this->tree, $this->db, $this->pluginAdmin, $this->testOBJ
-		);
-		
-		$questionSetConfig = $questionSetConfigFactory->getQuestionSetConfig();
-		
-		if( $this->testOBJ->isRandomTest() )
-		{
-			$testMode = $this->lng->txt('tst_question_set_type_random');
-			$poolLinks = $questionSetConfig->getCommaSeparatedSourceQuestionPoolLinks();
+        return null;
+    }
 
-			return sprintf($this->lng->txt('tst_qst_skl_cfg_in_pool_hint_rndquestset'), $testMode, $poolLinks);
-		}
-		elseif( $this->testOBJ->isDynamicTest() )
-		{
-			$testMode = $this->lng->txt('tst_question_set_type_dynamic');
-			$poolLink = $questionSetConfig->getSourceQuestionPoolLink($questionSetConfig->getSourceQuestionPoolId());
-			
-			return sprintf($this->lng->txt('tst_qst_skl_cfg_in_pool_hint_dynquestset'), $testMode, $poolLink);
-		}
+    private function buildAssignmentConfigurationInPoolHintMessage(): string
+    {
+        $questionSetConfigFactory = new ilTestQuestionSetConfigFactory(
+            $this->tree,
+            $this->db,
+            $this->component_repository,
+            $this->testOBJ
+        );
 
-		return '';
-	}
-} 
+        $questionSetConfig = $questionSetConfigFactory->getQuestionSetConfig();
+
+        if ($this->testOBJ->isRandomTest()) {
+            $testMode = $this->lng->txt('tst_question_set_type_random');
+            $poolLinks = $questionSetConfig->getCommaSeparatedSourceQuestionPoolLinks();
+
+            return sprintf($this->lng->txt('tst_qst_skl_cfg_in_pool_hint_rndquestset'), $testMode, $poolLinks);
+        }
+
+        return '';
+    }
+}

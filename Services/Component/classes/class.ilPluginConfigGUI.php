@@ -1,5 +1,20 @@
 <?php
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
 
 /**
  * Parent class for all plugin config gui classes
@@ -19,72 +34,59 @@
  */
 abstract class ilPluginConfigGUI
 {
-	protected $plugin_object = null;
-	
-	/**
-	 * Set plugin object
-	 *
-	 * @param	object	plugin object
-	 */
-	final function setPluginObject($a_val)
-	{
-		$this->plugin_object = $a_val;
-	}
+    protected ?ilPlugin $plugin_object = null;
 
-	/**
-	 * Get plugin object
-	 *
-	 * @return ilPlugin	 object
-	 */
-	public final function getPluginObject()
-	{
-		return $this->plugin_object;
-	}
+    final public function setPluginObject(ilPlugin $a_val): void
+    {
+        $this->plugin_object = $a_val;
+    }
 
-	/**
-	 * Execute command
-	 *
-	 * @param
-	 * @return
-	 */
-	function executeCommand()
-	{
-		global $DIC;
-		$ilCtrl = $DIC->ctrl();
-		$ilTabs = $DIC->tabs();
-		$lng = $DIC->language();
-		$tpl = $DIC['tpl'];
+    final public function getPluginObject(): ?ilPlugin
+    {
+        return $this->plugin_object;
+    }
 
-		$ilCtrl->setParameterByClass("ilobjcomponentsettingsgui", "ctype", $_GET["ctype"]);
-		$ilCtrl->setParameterByClass("ilobjcomponentsettingsgui", "cname", $_GET["cname"]);
-		$ilCtrl->setParameterByClass("ilobjcomponentsettingsgui", "slot_id", $_GET["slot_id"]);
-		$ilCtrl->setParameterByClass("ilobjcomponentsettingsgui", "plugin_id", $_GET["plugin_id"]);
-		$ilCtrl->setParameterByClass("ilobjcomponentsettingsgui", "pname", $_GET["pname"]);
+    /**
+     * Execute command
+     *
+     * @param
+     * @return
+     */
+    public function executeCommand(): void
+    {
+        global $DIC;
+        $ilCtrl = $DIC->ctrl();
+        $ilTabs = $DIC->tabs();
+        $lng = $DIC->language();
+        $tpl = $DIC['tpl'];
+        $request_wrapper = $DIC->http()->wrapper()->query();
+        $string_trafo = $DIC["refinery"]->kindlyTo()->string();
 
-		$tpl->setTitle($lng->txt("cmps_plugin").": ".$_GET["pname"]);
-		$tpl->setDescription("");
+        $ilCtrl->setParameterByClass("ilobjcomponentsettingsgui", "ctype", $request_wrapper->retrieve("ctype", $string_trafo));
+        $ilCtrl->setParameterByClass("ilobjcomponentsettingsgui", "cname", $request_wrapper->retrieve("cname", $string_trafo));
+        $ilCtrl->setParameterByClass("ilobjcomponentsettingsgui", "slot_id", $request_wrapper->retrieve("slot_id", $string_trafo));
+        $ilCtrl->setParameterByClass("ilobjcomponentsettingsgui", "plugin_id", $request_wrapper->retrieve("plugin_id", $string_trafo));
+        $ilCtrl->setParameterByClass("ilobjcomponentsettingsgui", "pname", $request_wrapper->retrieve("pname", $string_trafo));
 
-		$ilTabs->clearTargets();
-		
-		if($_GET["plugin_id"])
-		{
-			$ilTabs->setBackTarget(
-				$lng->txt("cmps_plugin"),
-				$ilCtrl->getLinkTargetByClass("ilobjcomponentsettingsgui", "showPlugin")
-			);
-		}
-		else
-		{
-			$ilTabs->setBackTarget(
-				$lng->txt("cmps_plugins"),
-				$ilCtrl->getLinkTargetByClass("ilobjcomponentsettingsgui", "listPlugins")
-			);
-		}
+        $tpl->setTitle($lng->txt("cmps_plugin") . ": " . $request_wrapper->retrieve("pname", $string_trafo));
+        $tpl->setDescription("");
 
-		$this->performCommand($ilCtrl->getCmd("configure"));
+        $ilTabs->clearTargets();
 
-	}
+        if ($request_wrapper->retrieve("plugin_id", $string_trafo)) {
+            $ilTabs->setBackTarget(
+                $lng->txt("cmps_plugin"),
+                $ilCtrl->getLinkTargetByClass("ilobjcomponentsettingsgui", "showPlugin")
+            );
+        } else {
+            $ilTabs->setBackTarget(
+                $lng->txt("cmps_plugins"),
+                $ilCtrl->getLinkTargetByClass("ilobjcomponentsettingsgui", "listPlugins")
+            );
+        }
 
-	abstract function performCommand($cmd);
+        $this->performCommand($ilCtrl->getCmd("configure"));
+    }
+
+    abstract public function performCommand(string $cmd): void;
 }
-?>

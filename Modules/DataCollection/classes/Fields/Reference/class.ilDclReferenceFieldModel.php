@@ -1,37 +1,51 @@
 <?php
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
 
 /**
  * Class ilDclReferenceFieldModel
- *
  * @author  Michael Herren <mh@studer-raimann.ch>
  * @version 1.0.0
  */
 class ilDclReferenceFieldModel extends ilDclBaseFieldModel
 {
-
-    const PROP_REFERENCE = 'table_id';
-    const PROP_N_REFERENCE = 'multiple_selection';
-
+    public const PROP_REFERENCE = 'table_id';
+    public const PROP_N_REFERENCE = 'multiple_selection';
 
     /**
      * Returns a query-object for building the record-loader-sql-query
-     *
      * @param string  $direction
      * @param boolean $sort_by_status The specific sort object is a status field
-     *
      * @return null|ilDclRecordQueryObject
      */
-    public function getRecordQuerySortObject($direction = "asc", $sort_by_status = false)
-    {
+    public function getRecordQuerySortObject(
+        string $direction = "asc",
+        bool $sort_by_status = false
+    ): ?ilDclRecordQueryObject {
         global $DIC;
         $ilDB = $DIC['ilDB'];
 
-        $ref_field = ilDclCache::getFieldCache($this->getProperty(self::PROP_REFERENCE));
         if ($this->hasProperty(self::PROP_N_REFERENCE)) {
-            $n_ref = true;
+            return null;
         }
 
-        $select_str = ($n_ref) ? " " . $ilDB->groupConcat("stloc_{$this->getId()}_joined.value") . " AS field_{$this->getId()}" : "stloc_{$this->getId()}_joined.value AS field_{$this->getId()},";
+        $ref_field = ilDclCache::getFieldCache($this->getProperty(self::PROP_REFERENCE));
+
+        $select_str = "stloc_{$this->getId()}_joined.value AS field_{$this->getId()},";
         $join_str = "LEFT JOIN il_dcl_record_field AS record_field_{$this->getId()} ON (record_field_{$this->getId()}.record_id = record.id AND record_field_{$this->getId()}.field_id = "
             . $ilDB->quote($this->getId(), 'integer') . ") ";
         $join_str .= "LEFT JOIN il_dcl_stloc{$this->getStorageLocation()}_value AS stloc_{$this->getId()} ON (stloc_{$this->getId()}.record_field_id = record_field_{$this->getId()}.id) ";
@@ -42,25 +56,15 @@ class ilDclReferenceFieldModel extends ilDclBaseFieldModel
         $sql_obj = new ilDclRecordQueryObject();
         $sql_obj->setSelectStatement($select_str);
         $sql_obj->setJoinStatement($join_str);
-        $sql_obj->setOrderStatement("field_{$this->getId()} " . $direction);
-
-        if ($n_ref) {
-            $sql_obj->setGroupStatement("record.id, record.owner");
-        }
+        $sql_obj->setOrderStatement("field_{$this->getId()} " . $direction . ", ID ASC");
 
         return $sql_obj;
     }
 
-
-    /**
-     * Returns a query-object for building the record-loader-sql-query
-     *
-     * @param string $filter_value
-     *
-     * @return null|ilDclRecordQueryObject
-     */
-    public function getRecordQueryFilterObject($filter_value = "", ilDclBaseFieldModel $sort_field = null)
-    {
+    public function getRecordQueryFilterObject(
+        $filter_value = "",
+        ?ilDclBaseFieldModel $sort_field = null
+    ): ?ilDclRecordQueryObject {
         global $DIC;
         $ilDB = $DIC['ilDB'];
 
@@ -98,20 +102,15 @@ class ilDclReferenceFieldModel extends ilDclBaseFieldModel
         return $sql_obj;
     }
 
-
-    /**
-     * @inheritDoc
-     */
-    public function getValidFieldProperties()
+    public function getValidFieldProperties(): array
     {
-        return array(ilDclBaseFieldModel::PROP_REFERENCE, ilDclBaseFieldModel::PROP_REFERENCE_LINK, ilDclBaseFieldModel::PROP_N_REFERENCE);
+        return [ilDclBaseFieldModel::PROP_REFERENCE,
+                ilDclBaseFieldModel::PROP_REFERENCE_LINK,
+                ilDclBaseFieldModel::PROP_N_REFERENCE
+        ];
     }
 
-
-    /**
-     * @return bool
-     */
-    public function allowFilterInListView()
+    public function allowFilterInListView(): bool
     {
         //A reference-field is not filterable if the referenced field is of datatype MOB or File
         $ref_field = $this->getFieldRef();
@@ -120,18 +119,19 @@ class ilDclReferenceFieldModel extends ilDclBaseFieldModel
             || $ref_field->getDatatypeId() == ilDclDatatype::INPUTFORMAT_FILE);
     }
 
-
-    public function getFieldRef()
+    public function getFieldRef(): ilDclBaseFieldModel
     {
         return ilDclCache::getFieldCache((int) $this->getProperty(ilDclBaseFieldModel::PROP_REFERENCE));
     }
 
-
-    public function afterClone($records)
+    public function afterClone(array $records): void
     {
         /** @var ilDclReferenceFieldModel $clone */
         $clone = ilDclCache::getCloneOf($this->getId(), ilDclCache::TYPE_FIELD);
-        $reference_clone = ilDclCache::getCloneOf((int) $clone->getProperty(ilDclBaseFieldModel::PROP_REFERENCE), ilDclCache::TYPE_FIELD);
+        $reference_clone = ilDclCache::getCloneOf(
+            (int) $clone->getProperty(ilDclBaseFieldModel::PROP_REFERENCE),
+            ilDclCache::TYPE_FIELD
+        );
         if ($reference_clone) {
             $this->setProperty(ilDclBaseFieldModel::PROP_REFERENCE, $reference_clone->getId());
             $this->updateProperties();

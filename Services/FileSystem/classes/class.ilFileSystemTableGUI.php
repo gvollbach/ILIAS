@@ -1,254 +1,289 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
-include_once("./Services/Table/classes/class.ilTable2GUI.php");
+use ILIAS\FileUpload\MimeType;
+use ILIAS\Filesystem\Util\LegacyPathHelper;
+use ILIAS\ResourceStorage\Preloader\SecureString;
 
 /**
-* TableGUI class for file system
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* @version $Id$
-*
-* @ingroup ServicesFileSystemStorage
-*/
+ * @deprecated $
+ */
 class ilFileSystemTableGUI extends ilTable2GUI
 {
-	protected $has_multi; // [bool]
-	protected $row_commands = array(); 
-	
-	/**
-	* Constructor
-	*/
-	function __construct($a_parent_obj, $a_parent_cmd, $a_cur_dir, 
-		$a_cur_subdir, $a_label_enable = false,
-		$a_file_labels, $a_label_header = "", $a_commands = array(),
-		$a_post_dir_path = false, $a_table_id = "")
-	{
-		global $DIC;
-		$ilCtrl = $DIC['ilCtrl'];
-		$lng = $DIC['lng'];
-		$ilAccess = $DIC['ilAccess'];
-		$lng = $DIC['lng'];
+    use SecureString; // This is just for those legacy classes which will be removed soon anyway.
+    protected bool $has_multi = false;
+    protected array $row_commands = [];
+    protected bool $label_enable = false;
+    protected string $label_header = "";
+    protected string $cur_dir = '';
+    protected string $cur_subdir = '';
+    protected string $relative_cur_dir;
+    protected ?bool $post_dir_path = null;
+    protected array $file_labels = [];
+    protected \ILIAS\Filesystem\Filesystem $filesystem;
+    protected ilFileSystemGUI $filesystem_gui;
+    /**
+     * Constructor
+     */
+    public function __construct(
+        ilFileSystemGUI $a_parent_obj,
+        string $a_parent_cmd,
+        string $a_cur_dir,
+        string $a_cur_subdir,
+        bool $a_label_enable,
+        ?array $a_file_labels = [],
+        ?string $a_label_header = "",
+        ?array $a_commands = [],
+        ?bool $a_post_dir_path = false,
+        ?string $a_table_id = ""
+    ) {
+        global $DIC;
+        $this->setId($a_table_id);
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        if ($a_cur_dir !== realpath($a_cur_dir)) {
+            throw new \InvalidArgumentException('$a_cur_dir must be a absolute path');
+        }
+        $this->filesystem = LegacyPathHelper::deriveFilesystemFrom($a_cur_dir);
+        $this->relative_cur_dir = LegacyPathHelper::createRelativePath($a_cur_dir);
+        $this->cur_dir = $a_cur_dir;
+        $this->cur_subdir = $a_cur_subdir;
+        $this->label_enable = $a_label_enable;
+        $this->label_header = $a_label_header;
+        $this->file_labels = $a_file_labels;
+        $this->post_dir_path = $a_post_dir_path;
+        $this->filesystem_gui = $a_parent_obj;
 
-		$this->setId($a_table_id);
-		$this->cur_dir = $a_cur_dir;
-		$this->cur_subdir = $a_cur_subdir;
-		$this->label_enable = $a_label_enable;
-		$this->label_header = $a_label_header;
-		$this->file_labels = $a_file_labels;
-		$this->post_dir_path = $a_post_dir_path;
-		$this->lng = $lng;
-		
-		parent::__construct($a_parent_obj, $a_parent_cmd);
-		$this->setTitle($lng->txt("cont_files")." ".$this->cur_subdir);		
-		
-		$this->has_multi = false;
-		for ($i=0; $i < count($a_commands); $i++)
-		{
-			if (!$a_commands[$i]["single"])
-			{
-				// does also handle internal commands
-				$this->addMultiCommand("extCommand_".$i, $a_commands[$i]["name"]);		
-				$this->has_multi = true;
-			}
-			else
-			{
-				$this->row_commands[] = array(
-					"cmd" => "extCommand_".$i,
-					"caption" => $a_commands[$i]["name"],
-					"allow_dir" => $a_commands[$i]["allow_dir"]
-				);
-			}
-		}
+        parent::__construct($a_parent_obj, $a_parent_cmd);
+        $this->setTitle($this->lng->txt("cont_files") . " " . $this->cur_subdir);
 
-		$this->addColumns();
+        $this->has_multi = false;
 
-		$this->setDefaultOrderField("name");
-		$this->setDefaultOrderDirection("asc");
-		
-		$this->setEnableHeader(true);
-		$this->setFormAction($ilCtrl->getFormAction($a_parent_obj));
-		$this->setRowTemplate("tpl.directory_row.html",
-			"Services/FileSystem");
-		$this->setEnableTitle(true);		
-	}
-	
-	function numericOrdering($a_field)
-	{
-		if ($a_field == "size")
-		{
-			return true;
-		}
-		return false;
-	}
+        foreach ((array) $a_commands as $i => $command) {
+            if (!($command["single"] ?? false)) {
+                // does also handle internal commands
+                $this->addMultiCommand("extCommand_" . $i, $command["name"]);
+                $this->has_multi = true;
+            } else {
+                $this->row_commands[] = array(
+                    "cmd" => "extCommand_" . $i,
+                    "caption" => $command["name"],
+                    "allow_dir" => $command["allow_dir"] ?? "",
+                    "id" => $command["id"] ?? "",
+                );
+            }
+        }
+        $this->addColumns();
 
-	/**
-	* Get data just before output
-	*/
-	function prepareOutput()
-	{
-		$this->determineOffsetAndOrder(true);
-		$this->setData($this->getEntries());
-	}
-	
-	
-	/**
-	* Get entries
-	*/
-	function getEntries()
-	{
-		if (is_dir($this->cur_dir))
-		{
-			$entries = ilUtil::getDir($this->cur_dir);
-		}
-		else
-		{
-			$entries = array(array("type" => "dir", "entry" => ".."));
-		}
-		$items = array();
+        $this->setDefaultOrderField("name");
+        $this->setDefaultOrderDirection("asc");
 
-		foreach ($entries as $e)
-		{
-			if(($e["entry"] == ".") || ($e["entry"] == ".." && empty($this->cur_subdir)))
-			{
-				continue;
-			}
-			$cfile = (!empty($this->cur_subdir))
-				? $this->cur_subdir."/".$e["entry"]
-				: $e["entry"];
-				
-			if ($this->label_enable)
-			{
-				$label = (is_array($this->file_labels[$cfile]))
-					? implode($this->file_labels[$cfile], ", ")
-					: "";
-			}
+        $this->setEnableHeader(true);
+        $this->setFormAction($this->ctrl->getFormAction($a_parent_obj));
+        $this->setRowTemplate(
+            "tpl.directory_row.html",
+            "Services/FileSystem"
+        );
+        $this->setEnableTitle(true);
+    }
 
-			$pref = ($e["type"] == "dir")
-				? ( $this->getOrderDirection() != "desc" ? "1_" : "9_")
-				: "5_";
-			$items[] = array("file" => $cfile, "entry" => $e["entry"],
-				"type" => $e["type"], "label" => $label, "size" => $e["size"],
-				"name" => $pref.$e["entry"]);
-		}
-		return $items;
+    public function numericOrdering(string $a_field): bool
+    {
+        if ($a_field == "size") {
+            return true;
+        }
+        return false;
+    }
 
-	}
+    protected function prepareOutput(): void
+    {
+        $this->determineOffsetAndOrder(true);
+        $this->setData($this->getEntries());
+    }
 
-	public function addColumns()
-	{
-		if ($this->has_multi) {
-			$this->setSelectAllCheckbox("file[]");
-			$this->addColumn("", "", "1", true);
-		}
-		$this->addColumn("", "", "1", true); // icon
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function getEntries(): array
+    {
+        if ($this->filesystem->has($this->relative_cur_dir)) {
+            $entries = [];
+            if ($this->cur_dir!=='') {
+                $entries['..'] = [
+                    'order_val' => -1,
+                    'order_id' => -1,
+                    'entry' => '..',
+                    'type' => 'dir',
+                    'subdir' => '',
+                    'size' => 0
+                ];
+            }
 
-		$this->addColumn($this->lng->txt("cont_dir_file"), "name");
-		$this->addColumn($this->lng->txt("cont_size"), "size");
 
-		if ($this->label_enable) {
-			$this->addColumn($this->label_header, "label");
-		}
+            foreach ($this->filesystem->listContents($this->relative_cur_dir) as $i => $content) {
+                $basename = basename($content->getPath());
+                $entries[$basename] = [
+                    'order_val' => $i,
+                    'order_id' => $i,
+                    'entry' => $basename,
+                    'type' => $content->isDir() ? 'dir' : 'file',
+                    'subdir' => '',
+                    'size' => $content->isFile() ? $this->filesystem->getSize($content->getPath(), 1)->inBytes() : 0
+                ];
+            }
+        } else {
+            $entries = array(array("type" => "dir", "entry" => ".."));
+        }
+        $items = array();
 
-		if (sizeof($this->row_commands)) {
-			$this->addColumn($this->lng->txt("actions"));
-			include_once "Services/UIComponent/AdvancedSelectionList/classes/class.ilAdvancedSelectionListGUI.php";
-		}
-	}
+        foreach ($entries as $e) {
+            if (($e["entry"] == ".") || ($e["entry"] == ".." && empty($this->cur_subdir))) {
+                continue;
+            }
+            $cfile = (!empty($this->cur_subdir))
+                ? $this->cur_subdir . "/" . $e["entry"]
+                : $e["entry"];
 
-	/**
-	 * @param array $entry
-	 * @return bool
-	 */
-	private function isDoubleDotDirectory(array $entry)
-	{
-		return $entry['entry'] === '..';
-	}
+            if ($this->label_enable) {
+                $label = (isset($this->file_labels[$cfile]) && is_array($this->file_labels[$cfile]))
+                    ? implode(", ", $this->file_labels[$cfile])
+                    : "";
+            }
 
-	/**
-	* Fill table row
-	*/
-	protected function fillRow($a_set)
-	{
-		global $DIC;
-		$ilCtrl = $DIC['ilCtrl'];
-		
-		$hash = $this->post_dir_path
-			? md5($a_set["file"])
-			: md5($a_set["entry"]);
+            $pref = ($e["type"] == "dir")
+                ? ($this->getOrderDirection() != "desc" ? "1_" : "9_")
+                : "5_";
+            $items[] = array("file" => $cfile,
+                             "entry" => $e["entry"],
+                             "type" => $e["type"],
+                             "label" => $label ?? '',
+                             "size" => $e["size"] ?? '',
+                             "name" => $pref . $e["entry"]
+            );
+        }
+        return $items;
+    }
 
-		if ($this->has_multi) {
-			if ($this->isDoubleDotDirectory($a_set)) {
-				$this->tpl->touchBlock('no_checkbox');
-			} else {
-				$this->tpl->setVariable("CHECKBOX_ID", $hash);
-			}
-		}
+    public function addColumns(): void
+    {
+        if ($this->has_multi) {
+            $this->setSelectAllCheckbox("file[]");
+            $this->addColumn("", "", "1", true);
+        }
+        $this->addColumn("", "", "1", true); // icon
 
-		// label
-		if ($this->label_enable)
-		{
-			$this->tpl->setCurrentBlock("Label");
-			$this->tpl->setVariable("TXT_LABEL", $a_set["label"]);
-			$this->tpl->parseCurrentBlock();
-		}
-		
-		$ilCtrl->setParameter($this->parent_obj, "cdir", $this->cur_subdir);
+        $this->addColumn($this->lng->txt("cont_dir_file"), "name");
+        $this->addColumn($this->lng->txt("cont_size"), "size");
 
-		//$this->tpl->setVariable("ICON", $obj["title"]);
-		if($a_set["type"] == "dir")
-		{
-			$this->tpl->setCurrentBlock("FileLink");			
-			$ilCtrl->setParameter($this->parent_obj, "newdir", $a_set["entry"]);
-			$ilCtrl->setParameter($this->parent_obj, "resetoffset", 1);
-			$this->tpl->setVariable("LINK_FILENAME",
-				$ilCtrl->getLinkTarget($this->parent_obj, "listFiles"));
-			$ilCtrl->setParameter($this->parent_obj, "newdir", "");
-			$this->tpl->setVariable("TXT_FILENAME", $a_set["entry"]);
-			$this->tpl->parseCurrentBlock();
+        if ($this->label_enable) {
+            $this->addColumn($this->label_header, "label");
+        }
 
-			$this->tpl->setVariable("ICON", "<img src=\"".
-				ilUtil::getImagePath("icon_cat.svg")."\">");
-			$ilCtrl->setParameter($this->parent_obj, "resetoffset", "");
-		}
-		else
-		{
-			$this->tpl->setCurrentBlock("File");
-			$this->tpl->setVariable("TXT_FILENAME2", $a_set["entry"]);
-			$this->tpl->parseCurrentBlock();
-		}
-		
-		if($a_set["type"] != "dir")
-		{					
-			$this->tpl->setVariable("TXT_SIZE", ilUtil::formatSize($a_set["size"]));
-		}
+        if (sizeof($this->row_commands)) {
+            $this->addColumn($this->lng->txt("actions"));
+        }
+    }
 
-		// single item commands
-		if(sizeof($this->row_commands) &&
-			!($a_set["type"] == "dir" && $a_set["entry"] == ".."))
-		{
-			$advsel = new ilAdvancedSelectionListGUI();
-			//$advsel->setListTitle($this->lng->txt("actions"));
-			foreach($this->row_commands as $rcom)
-			{								
-				if($rcom["allow_dir"] || $a_set["type"] != "dir")
-				{
-					include_once("./Services/Utilities/classes/class.ilMimeTypeUtil.php");
+    private function isDoubleDotDirectory(array $entry): bool
+    {
+        return $entry['entry'] === '..';
+    }
 
-					if(($rcom["caption"] == "Unzip" && ilMimeTypeUtil::getMimeType($this->cur_dir.$a_set['entry']) == "application/zip") || $rcom["caption"] != "Unzip")
-					{
-						$ilCtrl->setParameter($this->parent_obj, "fhsh", $hash);
-						$url = $ilCtrl->getLinkTarget($this->parent_obj, $rcom["cmd"]);
-						$ilCtrl->setParameter($this->parent_obj, "fhsh", "");
+    /**
+     * Fill table row
+     */
+    protected function fillRow(array $a_set): void
+    {
+        $hash = $this->post_dir_path
+            ? md5($a_set["file"])
+            : md5($a_set["entry"]);
 
-						$advsel->addItem($rcom["caption"], "", $url);
-					}
+        if ($this->has_multi) {
+            if ($this->isDoubleDotDirectory($a_set)) {
+                $this->tpl->touchBlock('no_checkbox');
+            } else {
+                $this->tpl->setVariable("CHECKBOX_ID", $hash);
+            }
+        }
 
-				}
-			}			
-			$this->tpl->setVariable("ACTIONS", $advsel->getHTML());			
-		}		
-	}
+        // label
+        if ($this->label_enable) {
+            $this->tpl->setCurrentBlock("Label");
+            $this->tpl->setVariable("TXT_LABEL", $a_set["label"]);
+            $this->tpl->parseCurrentBlock();
+        }
 
+        $this->ctrl->setParameter($this->parent_obj, "cdir", $this->cur_subdir);
+
+        if ($a_set["type"] == "dir") {
+            $this->tpl->setCurrentBlock("FileLink");
+            $this->ctrl->setParameter($this->parent_obj, "newdir", $a_set["entry"]);
+            $this->ctrl->setParameter($this->parent_obj, "resetoffset", 1);
+            $this->tpl->setVariable(
+                "LINK_FILENAME",
+                $this->ctrl->getLinkTarget($this->parent_obj, "listFiles")
+            );
+            $this->ctrl->setParameter($this->parent_obj, "newdir", "");
+            $this->tpl->setVariable("TXT_FILENAME", $a_set["entry"]);
+            $this->tpl->parseCurrentBlock();
+
+            $this->tpl->setVariable("ICON", "<img src=\"" .
+                ilUtil::getImagePath("icon_cat.svg") . "\">");
+            $this->ctrl->setParameter($this->parent_obj, "resetoffset", "");
+        } else {
+            $this->tpl->setCurrentBlock("File");
+            $this->tpl->setVariable("TXT_FILENAME2", $this->secure($a_set["entry"]));
+            $this->tpl->parseCurrentBlock();
+        }
+
+        if ($a_set["type"] != "dir") {
+            $this->tpl->setVariable("TXT_SIZE", ilUtil::formatSize($a_set["size"]));
+        }
+
+        // single item commands
+
+        $zip_mime_types = [
+            "application/zip",
+            "application/x-zip"
+        ];
+
+        if (count($this->row_commands) > 0
+            && !(($a_set["type"] ?? '') === "dir" && ($a_set["entry"] ?? '') === "..")) {
+            $advsel = new ilAdvancedSelectionListGUI();
+            $advsel->setListTitle('');
+            foreach ($this->row_commands as $rcom) {
+                if ($rcom["allow_dir"] || ($a_set["type"] ?? '') !== "dir") {
+                    // see https://mantis.ilias.de/view.php?id=36305
+                    // will be dropped soon anyway...
+                    $path = $this->cur_dir . $a_set['entry'];
+                    $mime_type = MimeType::getMimeType($path);
+                    if (
+                        $rcom["id"] !== "unzip_file"
+                        || ($rcom["id"] === "unzip_file" && in_array($mime_type, $zip_mime_types))
+                    ) {
+                        $this->ctrl->setParameter($this->parent_obj, "fhsh", $hash);
+                        $url = $this->ctrl->getLinkTarget($this->parent_obj, $rcom["cmd"]);
+                        $this->ctrl->setParameter($this->parent_obj, "fhsh", "");
+
+                        $advsel->addItem($rcom["caption"], "", $url);
+                    }
+                }
+            }
+            $this->tpl->setVariable("ACTIONS", $advsel->getHTML());
+        }
+    }
 }
-?>

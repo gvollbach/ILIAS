@@ -1,5 +1,21 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+declare(strict_types=1);
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Class ilDBWrapperFactory
@@ -13,46 +29,27 @@
  *
  * @ingroup ServicesDatabase
  */
-class ilDBWrapperFactory {
+class ilDBWrapperFactory
+{
+    /**
+     * @param string $a_type
+     * @return ilDBPdoInterface
+     * @throws ilDatabaseException
+     */
+    public static function getWrapper(string $a_type): \ilDBPdoInterface
+    {
+        switch ($a_type) {
+            case 'pdo-mysql-innodb':
+            case ilDBConstants::TYPE_INNODB:
+                $ilDB = new ilDBPdoMySQLInnoDB();
+                break;
+            case ilDBConstants::TYPE_GALERA:
+                $ilDB = new ilDBPdoMySQLGalera();
+                break;
+            default:
+                throw new ilDatabaseException("No viable database-type given: " . var_export($a_type, true));
+        }
 
-	/**
-	 * @param $a_type
-	 *
-	 * @return ilDBInterface
-	 * @throws ilDatabaseException
-	 */
-	static public function getWrapper($a_type) {
-		if ($a_type == "") {
-			if (isset($GLOBALS["DIC"])
-			&& $GLOBALS["DIC"]->offsetExists("ilClientIniFile")
-			&& $GLOBALS["DIC"]["ilClientIniFile"] instanceof \ilIniFile) {
-				$a_type = $GLOBALS["DIC"]["ilClientIniFile"]->readVariable("db", "type");
-			}
-			else {
-				$a_type = ilDBConstants::TYPE_INNODB;
-			}
-		}
-
-		switch ($a_type) {
-			case ilDBConstants::TYPE_POSTGRES:
-			case ilDBConstants::TYPE_PDO_POSTGRE:
-				$ilDB = new ilDBPdoPostgreSQL();
-				break;
-			case ilDBConstants::TYPE_PDO_MYSQL_INNODB:
-			case ilDBConstants::TYPE_INNODB:
-				$ilDB = new ilDBPdoMySQLInnoDB();
-				break;
-			case ilDBConstants::TYPE_PDO_MYSQL_MYISAM:
-			case ilDBConstants::TYPE_MYSQL:
-				$ilDB = new ilDBPdoMySQLMyISAM();
-				break;
-			case ilDBConstants::TYPE_GALERA:
-				$ilDB = new ilDBPdoMySQLGalera();
-				break;
-			default:
-				throw new ilDatabaseException("No viable database-type given: " . var_export($a_type, true));
-		}
-
-		return $ilDB;
-	}
+        return $ilDB;
+    }
 }

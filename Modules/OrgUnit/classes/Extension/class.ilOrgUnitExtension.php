@@ -1,150 +1,143 @@
 <?php
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
 
 /**
  * Class ilOrgUnitExtension
- *
  * @author Oskar Truffer <ot@studer-raimann.ch>
  */
-abstract class ilOrgUnitExtension extends ilObjectPlugin {
+abstract class ilOrgUnitExtension extends ilObjectPlugin
+{
+    protected ilObjOrgUnitTree $ilObjOrgUnitTree;
+    protected int $parent_ref_id;
+    protected ilTree $tree;
 
-	/**
-	 * @var ilObjOrgUnitTree
-	 */
-	protected $ilObjOrgUnitTree;
+    /**
+     * ilOrgUnitExtension constructor.
+     */
+    public function __construct(int $a_ref_id = 0)
+    {
+        global $DIC;
+        $tree = $DIC->repositoryTree();
 
-	/**
-	 * @var int
-	 */
-	protected $parent_ref_id;
+        $http = $DIC->http();
+        $refinery = $DIC->refinery();
+        $ref_id = $http->wrapper()->query()->retrieve('ref_id', $refinery->to()->int());
 
-	/**
-	 * @var ilTree
-	 */
-	protected $tree;
+        parent::__construct($a_ref_id);
+        $this->ilObjOrgUnitTree = ilObjOrgUnitTree::_getInstance();
+        $this->parent_ref_id = $tree->getParentId($a_ref_id ? $a_ref_id : $ref_id);
+        $this->tree = $tree;
+    }
 
-	/**
-	 * ilOrgUnitExtension constructor.
-	 *
-	 * @param int $a_ref_id
-	 */
-	public function __construct($a_ref_id = 0) {
-		global $DIC;
-		$tree = $DIC['tree'];
+    /**
+     * Returns all Orgu Plugin Ids of active plugins where the Plugin wants to be shown in the tree. ($plugin->showInTree() == true)
+     * @return string[]
+     */
+    public static function getActivePluginIdsForTree(): array
+    {
+        global $DIC;
+        $component_factory = $DIC["component.factory"];
 
-		parent::__construct($a_ref_id);
-		$this->ilObjOrgUnitTree = ilObjOrgUnitTree::_getInstance();
-		$this->parent_ref_id = $tree->getParentId($a_ref_id ? $a_ref_id : $_GET['ref_id']);
-		$this->tree = $tree;
-	}
+        /**
+         * @var $plugin ilOrgUnitExtensionPlugin
+         */
+        $list = array();
 
-	/**
-	 * Returns all Orgu Plugin Ids of active plugins where the Plugin wants to be shown in the tree. ($plugin->showInTree() == true)
-	 *
-	 * @return string[]
-	 */
-	public static function getActivePluginIdsForTree() {
-		/**
-		 * @var $plugin ilOrgUnitExtensionPlugin
-		 */
-		$list = array();
+        foreach ($component_factory->getActivePluginsInSlot("orguext") as $plugin) {
+            if ($plugin->showInTree()) {
+                $list[] = $plugin->getId();
+            }
+        }
 
-		$plugin_ids = ilPlugin::getActivePluginIdsForSlot(IL_COMP_MODULE, "OrgUnit", "orguext");
-		foreach ($plugin_ids as $plugin_id) {
-			$plugin = ilObjectPlugin::getPluginObjectByType($plugin_id);
-			if ($plugin->showInTree()) {
-				$list[] = $plugin_id;
-			}
-		}
+        return $list;
+    }
 
-		return $list;
-	}
+    /**
+     * Get all user ids of employees of the underlying OrgUnit.
+     * @param bool $recursively include all employees in the suborgunits
+     * @return int[]
+     */
+    public function getEmployees(bool $recursively = false): array
+    {
+        return $this->ilObjOrgUnitTree->getEmployees($this->parent_ref_id, $recursively);
+    }
 
+    /**
+     * Get all user ids of superiors of the underlying OrgUnit
+     * @param bool $recursively
+     * @return int[]
+     */
+    public function getSuperiors(bool $recursively = false): array
+    {
+        return $this->ilObjOrgUnitTree->getSuperiors($this->parent_ref_id, $recursively);
+    }
 
-	/**
-	 * @return ilOrgUnitExtensionPlugin
-	 * @throws ilPluginException
-	 */
-	protected function getPlugin() {
-		if (!$this->plugin) {
-			$this->plugin = ilPlugin::getPluginObject(IL_COMP_MODULE, "OrgUnit", "orguext", ilPlugin::lookupNameForId(IL_COMP_MODULE, "OrgUnit", "orguext", $this->getType()));
-			if (!$this->plugin instanceof ilOrgUnitExtensionPlugin) {
-				throw new ilPluginException("ilOrgUnitExtension: Could not instantiate plugin object for type " . $this->getType() . ".");
-			}
-		}
+    public function getOrgUnit(): ?ilObject
+    {
+        return ilObjectFactory::getInstanceByRefId($this->parent_ref_id);
+    }
 
-		return $this->plugin;
-	}
+    /**
+     * @return int[] RefIds from the root OrgUnit to the underlying OrgUnit
+     */
+    public function getOrgUnitPathRefIds(): array
+    {
+        $path = array();
+        foreach ($this->getOrgUnitPath() as $node) {
+            $path[] = $node['child'];
+        }
 
+        return $path;
+    }
 
-	/**
-	 * Get all user ids of employees of the underlying OrgUnit.
-	 *
-	 * @param bool $recursively include all employees in the suborgunits
-	 * @return int[]
-	 */
-	public function getEmployees($recursively = false) {
-		return $this->ilObjOrgUnitTree->getEmployees($this->parent_ref_id, $recursively);
-	}
+    /**
+     * @return array Returns the path to the underlying OrgUnit starting with the root OrgUnit. The array are nodes of the global $tree.
+     */
+    public function getOrgUnitPath(): array
+    {
+        return $this->tree->getPathFull($this->parent_ref_id, ilObjOrgUnit::getRootOrgRefId());
+    }
 
+    /**
+     * @return string[] Returns the titles to the underlying OrgUnit starting with the root OrgUnit.
+     */
+    public function getOrgUnitPathTitles(): array
+    {
+        $titles = array();
+        foreach ($this->getOrgUnitPath() as $node) {
+            if ($node["title"] == "__OrgUnitAdministration") {
+                $node["title"] = $this->lng->txt("objs_orgu");
+            }
+            $titles[] = $node['title'];
+        }
 
-	/**
-	 * Get all user ids of superiors of the underlying OrgUnit
-	 *
-	 * @param bool $recursively
-	 * @return int[]
-	 */
-	public function getSuperiors($recursively = false) {
-		return $this->ilObjOrgUnitTree->getSuperiors($this->parent_ref_id, $recursively);
-	}
+        return $titles;
+    }
 
+    /**
+     * @param bool   $with_data if this is set to true, only the ids are delivered
+     * @param string $type      what type are you looking for?
+     * @return array
+     */
+    public function getOrgUnitSubtree(bool $with_data = true, string $type = ""): array
+    {
+        $node = $this->tree->getNodeData($this->parent_ref_id);
 
-	/**
-	 * @return ilObjOrgUnit
-	 */
-	public function getOrgUnit() {
-		return ilObjectFactory::getInstanceByRefId($this->parent_ref_id);
-	}
-
-	/**
-	 * @return int[] RefIds from the root OrgUnit to the underlying OrgUnit
-	 */
-	public function getOrgUnitPathRefIds() {
-		$path = array();
-		foreach ($this->getOrgUnitPath() as $node) {
-			$path[] = $node['child'];
-		}
-		return $path;
-	}
-
-	/**
-	 *
-	 * @return array Returns the path to the underlying OrgUnit starting with the root OrgUnit. The array are nodes of the global $tree.
-	 */
-	public function getOrgUnitPath() {
-		return $this->tree->getPathFull($this->parent_ref_id, ilObjOrgUnit::getRootOrgRefId());
-	}
-
-	/**
-	 * @return string[] Returns the titles to the underlying OrgUnit starting with the root OrgUnit.
-	 */
-	public function getOrgUnitPathTitles() {
-		$titles = array();
-		foreach ($this->getOrgUnitPath() as $node) {
-			if ($node["title"] == "__OrgUnitAdministration") {
-				$node["title"] = $this->lng->txt("objs_orgu");
-			}
-			$titles[] = $node['title'];
-		}
-		return $titles;
-	}
-
-	/**
-	 * @param bool $with_data if this is set to true, only the ids are delivered
-	 * @param string $type what type are you looking for?
-	 * @return array
-	 */
-	public function getOrgUnitSubtree($with_data = true, $type = "") {
-		$node = $this->tree->getNodeData($this->parent_ref_id);
-		return $this->tree->getSubTree($node, $with_data, $type);
-	}
+        return $this->tree->getSubTree($node, $with_data, [$type]);
+    }
 }

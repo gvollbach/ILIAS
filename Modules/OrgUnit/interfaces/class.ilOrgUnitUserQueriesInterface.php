@@ -1,25 +1,18 @@
 <?php
 /**
  * Class ilOrgUnitUserQueriesInterface
- *
  * @author: Benjamin Seglias   <bs@studer-raimann.ch>
  */
 
-interface ilOrgUnitUserQueriesInterface {
+interface ilOrgUnitUserQueriesInterface
+{
+    /**
+     * @param int[] $user_ids
+     */
+    public function findAllUsersByUserIds(array $user_ids): array;
 
-	/**
-	 * @param array $user_ids
-	 *
-	 * @return array $users
-	 */
-	public function findAllUsersByUserIds($user_ids);
-
-
-	/**
-	 * @param array $users
-	 *
-	 * @return array $user_names
-	 */
-	public function getAllUserNames($users);
-
+    /**
+     * @param string[] $users
+     */
+    public function getAllUserNames(array $users): array;
 }

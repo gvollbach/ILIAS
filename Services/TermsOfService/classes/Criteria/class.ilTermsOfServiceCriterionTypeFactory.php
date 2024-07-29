@@ -1,5 +1,22 @@
-<?php declare(strict_types=1);
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+<?php
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilTermsOfServiceCriterionTypeFactory
@@ -8,36 +25,33 @@
 class ilTermsOfServiceCriterionTypeFactory implements ilTermsOfServiceCriterionTypeFactoryInterface
 {
     /** @var ilTermsOfServiceCriterionType[] */
-    protected $types = [];
+    protected array $types = [];
 
     /**
      * ilTermsOfServiceCriterionTypeFactory constructor.
-     * @param ilRbacReview      $rbacReview
+     * @param ilRbacReview $rbacReview
      * @param ilObjectDataCache $objectCache
+     * @param string[] $countryCodes
      */
-    public function __construct(ilRbacReview $rbacReview, ilObjectDataCache $objectCache)
+    public function __construct(ilRbacReview $rbacReview, ilObjectDataCache $objectCache, array $countryCodes)
     {
-        $usrLanguageCriterion   = new ilTermsOfServiceUserHasLanguageCriterion();
+        $usrLanguageCriterion = new ilTermsOfServiceUserHasLanguageCriterion();
         $usrGlobalRoleCriterion = new ilTermsOfServiceUserHasGlobalRoleCriterion($rbacReview, $objectCache);
+        $usrCountryCriterion = new ilTermsOfServiceUserHasCountryCriterion($countryCodes);
 
         $this->types = [
-            $usrLanguageCriterion->getTypeIdent()   => $usrLanguageCriterion,
+            $usrLanguageCriterion->getTypeIdent() => $usrLanguageCriterion,
             $usrGlobalRoleCriterion->getTypeIdent() => $usrGlobalRoleCriterion,
+            $usrCountryCriterion->getTypeIdent() => $usrCountryCriterion,
         ];
     }
 
-    /**
-     * @inheritdoc
-     */
-    public function getTypesByIdentMap() : array
+    public function getTypesByIdentMap(): array
     {
         return $this->types;
     }
 
-    /**
-     * @inheritdoc
-     */
-    public function findByTypeIdent(string $typeIdent, bool $useFallback = false) : ilTermsOfServiceCriterionType
+    public function findByTypeIdent(string $typeIdent, bool $useFallback = false): ilTermsOfServiceCriterionType
     {
         if (isset($this->types[$typeIdent])) {
             return $this->types[$typeIdent];
@@ -48,7 +62,8 @@ class ilTermsOfServiceCriterionTypeFactory implements ilTermsOfServiceCriterionT
         }
 
         throw new ilTermsOfServiceCriterionTypeNotFoundException(sprintf(
-            "Did not find criterion type by ident: %s", var_export($typeIdent, true)
+            'Did not find criterion type by ident: %s',
+            var_export($typeIdent, true)
         ));
     }
 }

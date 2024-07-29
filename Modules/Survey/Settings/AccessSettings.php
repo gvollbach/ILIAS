@@ -1,33 +1,37 @@
 <?php
 
-/* Copyright (c) 1998-2019 ILIAS open source, Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 namespace ILIAS\Survey\Settings;
 
 /**
  * Access settings
  *
- * @author killing@leifos.de
+ * @author Alexander Killing <killing@leifos.de>
  */
 class AccessSettings
 {
-    /**
-     * @var int
-     */
-    protected $start_date;
+    protected int $start_date;
+    protected int $end_date;
+    protected bool $access_by_codes;
 
     /**
-     * @var int
-     */
-    protected $end_date;
-
-    /**
-     * @var bool
-     */
-    protected $access_by_codes;
-
-    /**
-     * Constructor
      * @param int $start_date (unix ts)
      * @param int $end_date (unix ts)
      * @param bool $access_by_codes
@@ -36,8 +40,7 @@ class AccessSettings
         int $start_date,
         int $end_date,
         bool $access_by_codes
-    )
-    {
+    ) {
         $this->start_date = $start_date;
         $this->end_date = $end_date;
         $this->access_by_codes = $access_by_codes;
@@ -45,8 +48,6 @@ class AccessSettings
 
     /**
      * Get start date (unix ts)
-     *
-     * @return int
      */
     public function getStartDate(): int
     {
@@ -55,8 +56,6 @@ class AccessSettings
 
     /**
      * Get start date (unix ts)
-     *
-     * @return int
      */
     public function getEndDate(): int
     {
@@ -65,12 +64,9 @@ class AccessSettings
 
     /**
      * Get access by codes
-     *
-     * @return bool
      */
     public function getAccessByCodes(): bool
     {
         return $this->access_by_codes;
     }
-
 }

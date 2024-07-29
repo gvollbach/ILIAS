@@ -1,7 +1,22 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Modules/Test/interfaces/interface.ilTestQuestionSequence.php';
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * @author		Björn Heyser <bheyser@databay.de>
@@ -11,138 +26,122 @@ require_once 'Modules/Test/interfaces/interface.ilTestQuestionSequence.php';
  */
 class ilTestVirtualSequence implements ilTestQuestionSequence
 {
-	/**
-	 * @var ilDBInterface
-	 */
-	protected $db;
+    protected ilDBInterface $db;
 
-	/**
-	 * @var ilObjTest
-	 */
-	protected $testOBJ;
+    protected ilObjTest $testOBJ;
 
-	/**
-	 * @var ilTestSequenceFactory
-	 */
-	protected $testSequenceFactory;
+    protected ilTestSequenceFactory $testSequenceFactory;
 
-	/**
-	 * @var integer
-	 */
-	protected $activeId;
+    protected ?int $activeId;
 
-	/**
-	 * @var array
-	 */
-	protected $questionsPassMap;
-	
-	public function __construct(ilDBInterface $db, ilObjTest $testOBJ, ilTestSequenceFactory $testSequenceFactory)
-	{
-		$this->db = $db;
-		$this->testOBJ = $testOBJ;
-		$this->testSequenceFactory = $testSequenceFactory;
-		
-		$this->activeId = null;
+    protected array $questionsPassMap;
 
-		$this->questionsPassMap = array();
-	}
+    public function __construct(ilDBInterface $db, ilObjTest $testOBJ, ilTestSequenceFactory $testSequenceFactory)
+    {
+        $this->db = $db;
+        $this->testOBJ = $testOBJ;
+        $this->testSequenceFactory = $testSequenceFactory;
 
-	public function getActiveId()
-	{
-		return $this->activeId;
-	}
+        $this->activeId = null;
 
-	public function setActiveId($activeId)
-	{
-		$this->activeId = $activeId;
-	}
+        $this->questionsPassMap = array();
+    }
 
-	public function getQuestionIds()
-	{
-		return array_keys($this->questionsPassMap);
-	}
+    public function getActiveId(): ?int
+    {
+        return $this->activeId;
+    }
 
-	public function getQuestionsPassMap()
-	{
-		return $this->questionsPassMap;
-	}
+    public function setActiveId(int $activeId): void
+    {
+        $this->activeId = $activeId;
+    }
 
-	public function getUniquePasses()
-	{
-		return array_unique(array_values($this->questionsPassMap));
-	}
-	
-	public function init()
-	{
-		$passes = $this->getExistingPassesDescendent($this->getActiveId());
-		$this->fetchQuestionsFromPasses($this->getActiveId(), $passes);
-	}
+    public function getQuestionIds(): array
+    {
+        return array_keys($this->questionsPassMap);
+    }
 
-	private function getExistingPassesDescendent($activeId)
-	{
-		require_once 'Modules/Test/classes/class.ilTestPassesSelector.php';
-		$passesSelector = new ilTestPassesSelector($this->db, $this->testOBJ);
-		$passesSelector->setActiveId($activeId);
-		
-		$passes = $passesSelector->getExistingPasses();
+    public function getQuestionsPassMap(): array
+    {
+        return $this->questionsPassMap;
+    }
 
-		rsort($passes, SORT_NUMERIC);
+    public function getUniquePasses(): array
+    {
+        return array_unique(array_values($this->questionsPassMap));
+    }
 
-		return $passes;
-	}
+    public function init(): void
+    {
+        $passes = $this->getExistingPassesDescendent($this->getActiveId());
+        $this->fetchQuestionsFromPasses($this->getActiveId(), $passes);
+    }
 
-	protected function getTestSequence($activeId, $pass)
-	{
-		$testSequence = $this->testSequenceFactory->getSequenceByActiveIdAndPass($activeId, $pass);
+    private function getExistingPassesDescendent($activeId): array
+    {
+        require_once 'Modules/Test/classes/class.ilTestPassesSelector.php';
+        $passesSelector = new ilTestPassesSelector($this->db, $this->testOBJ);
+        $passesSelector->setActiveId($activeId);
 
-		$testSequence->loadFromDb();
-		$testSequence->loadQuestions();
+        $passes = $passesSelector->getExistingPasses();
 
-		$testSequence->setConsiderHiddenQuestionsEnabled(true);
-		$testSequence->setConsiderOptionalQuestionsEnabled(true);
-		return $testSequence;
-	}
+        rsort($passes, SORT_NUMERIC);
 
-	protected function wasAnsweredInThisPass(ilTestSequence $testSequence, $questionId)
-	{
-		if( $testSequence->isHiddenQuestion($questionId) )
-		{
-			return false;
-		}
+        return $passes;
+    }
 
-		if( !$testSequence->isQuestionOptional($questionId) )
-		{
-			return true;
-		}
+    /**
+     * @return ilTestSequenceDynamicQuestionSet|ilTestSequenceFixedQuestionSet|ilTestSequenceRandomQuestionSet
+     */
+    protected function getTestSequence(int $activeId, int $pass)
+    {
+        $testSequence = $this->testSequenceFactory->getSequenceByActiveIdAndPass($activeId, $pass);
 
-		if( $testSequence->isAnsweringOptionalQuestionsConfirmed() )
-		{
-			return true;
-		}
+        $testSequence->loadFromDb();
+        $testSequence->loadQuestions();
 
-		return false;
-	}
+        $testSequence->setConsiderHiddenQuestionsEnabled(true);
+        $testSequence->setConsiderOptionalQuestionsEnabled(true);
+        return $testSequence;
+    }
 
-	protected function fetchQuestionsFromPasses($activeId, $passes)
-	{
-		$this->questionsPassMap = array();
+    protected function wasAnsweredInThisPass(ilTestSequence $testSequence, $questionId): bool
+    {
+        if ($testSequence->isHiddenQuestion($questionId)) {
+            return false;
+        }
 
-		foreach($passes as $pass)
-		{
-			$testSequence = $this->getTestSequence($activeId, $pass);
+        if (!$testSequence->isQuestionOptional($questionId)) {
+            return true;
+        }
 
-			foreach($testSequence->getOrderedSequenceQuestions() as $questionId)
-			{
-				if(isset($this->questionsPassMap[$questionId]))
-				{
-					continue;
-				}
+        if ($testSequence->isAnsweringOptionalQuestionsConfirmed()) {
+            return true;
+        }
 
-				if($this->wasAnsweredInThisPass($testSequence, $questionId))
-				{
-					$this->questionsPassMap[$questionId] = $pass;
-				}
-			}
-		}
-	}
+        return false;
+    }
+
+    /**
+     * @param int[] $passes
+     */
+    protected function fetchQuestionsFromPasses(int $activeId, array $passes): void
+    {
+        $this->questionsPassMap = array();
+
+        foreach ($passes as $pass) {
+            $testSequence = $this->getTestSequence($activeId, $pass);
+
+            foreach ($testSequence->getOrderedSequenceQuestions() as $questionId) {
+                if (isset($this->questionsPassMap[$questionId])) {
+                    continue;
+                }
+
+                if ($this->wasAnsweredInThisPass($testSequence, $questionId)) {
+                    $this->questionsPassMap[$questionId] = $pass;
+                }
+            }
+        }
+    }
 }

@@ -1,364 +1,317 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-include_once './Services/Table/classes/class.ilTable2GUI.php';
-include_once './Services/Cron/classes/class.ilCronJobResult.php';
 
 /**
- * List all active cron jobs
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
  *
- * @author Jörg Lützenkirchen <luetzenkirchen@leifos.com>
- * @ingroup ServicesCron
- */
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
 class ilCronManagerTableGUI extends ilTable2GUI
 {
-	/** @var ilLanguage */
-	private $language;
+    private ilCronJobRepository $cronRepository;
+    private bool $mayWrite;
 
-	/** @var ilCtrl */
-	private $controller;
+    public function __construct(
+        ilCronManagerGUI $a_parent_obj,
+        ilCronJobRepository $cronRepository,
+        string $a_parent_cmd,
+        bool $mayWrite = false
+    ) {
+        $this->cronRepository = $cronRepository;
+        $this->mayWrite = $mayWrite;
 
-	/**
-	 * Constructor
-	 *
-	 * @param ilObject $a_parent_obj
-	 * @param string $a_parent_cmd
-	 */
-	public function  __construct($a_parent_obj, $a_parent_cmd, \ILIAS\DI\Container $dic = null)
-	{
-		if ($dic === null) {
-			global $DIC;
-			$dic = $DIC;
-		}
+        $this->setId('crnmng'); // #14526 / #16391
 
-		$this->language = $dic->language();
-		$this->controller = $dic->ctrl();
+        parent::__construct($a_parent_obj, $a_parent_cmd);
 
-		$this->setId("crnmng"); // #14526 / #16391
-		
-		parent::__construct($a_parent_obj, $a_parent_cmd);
-		
-		$this->addColumn("", "", 1);
-		$this->addColumn($this->lng->txt("cron_job_id"), "title");
-		$this->addColumn($this->lng->txt("cron_component"), "component");
-		$this->addColumn($this->lng->txt("cron_schedule"), "schedule");
-		$this->addColumn($this->lng->txt("cron_status"), "status");
-		$this->addColumn($this->lng->txt("cron_status_info"), "");
-		$this->addColumn($this->lng->txt("cron_result"), "result");
-		$this->addColumn($this->lng->txt("cron_result_info"), "");		
-		$this->addColumn($this->lng->txt("cron_last_run"), "last_run");			
-		$this->addColumn($this->lng->txt("actions"), "");
-		
-		$this->setTitle($this->lng->txt("cron_jobs"));
-		$this->setDefaultOrderField("title");
-		
-		$this->setSelectAllCheckbox("mjid");
-		$this->addMultiCommand("activate", $this->language->txt("cron_action_activate"));
-		$this->addMultiCommand("deactivate", $this->language->txt("cron_action_deactivate"));
-		$this->addMultiCommand("reset", $this->language->txt("cron_action_reset"));
-						
-		$this->setRowTemplate("tpl.cron_job_row.html", "Services/Cron");
-		$this->setFormAction($this->controller->getFormAction($a_parent_obj, $a_parent_cmd));
-				
-		$this->getItems();
-	}
-	
-	protected function parseJobToData(array $a_item, ilCronJob $job)
-	{
-		$res = $a_item;
-		
-		$res["title"] = $job->getTitle();
-		$res["description"] = $job->getDescription();
-		$res["has_settings"] = $job->hasCustomSettings();			
+        if ($this->mayWrite) {
+            $this->addColumn("", "", '1px', true);
+        }
+        $this->addColumn($this->lng->txt('cron_job_id'), 'title');
+        $this->addColumn($this->lng->txt('cron_component'), 'component');
+        $this->addColumn($this->lng->txt('cron_schedule'), 'schedule');
+        $this->addColumn($this->lng->txt('cron_status'), 'status');
+        $this->addColumn($this->lng->txt('cron_status_info'), '');
+        $this->addColumn($this->lng->txt('cron_result'), 'result');
+        $this->addColumn($this->lng->txt('cron_result_info'), '');
+        $this->addColumn($this->lng->txt('cron_last_run'), 'last_run');
+        if ($this->mayWrite) {
+            $this->addColumn($this->lng->txt('actions'), '');
+        }
 
-		if(!$res["title"])
-		{
-			$res["title"] = $a_item["job_id"];
-		}
+        $this->setTitle($this->lng->txt('cron_jobs'));
+        $this->setDefaultOrderField('title');
 
-		// schedule			
-		if(!$job->hasFlexibleSchedule())
-		{		
-			// schedule type changed
-			if($a_item["schedule_type"])
-			{
-				ilCronManager::updateJobSchedule($job, null, null);
-			}
+        if ($this->mayWrite) {
+            $this->setSelectAllCheckbox('mjid');
+            $this->addMultiCommand('activate', $this->lng->txt('cron_action_activate'));
+            $this->addMultiCommand('deactivate', $this->lng->txt('cron_action_deactivate'));
+            $this->addMultiCommand('reset', $this->lng->txt('cron_action_reset'));
+        }
 
-			$a_item["schedule_type"] = $job->getDefaultScheduleType();
-			$a_item["schedule_value"] = $job->getDefaultScheduleValue();
-			$res["editable_schedule"] = false;
-		}
-		else
-		{
-			// schedule type changed
-			if(!$a_item["schedule_type"])
-			{
-				$a_item["schedule_type"] = $job->getDefaultScheduleType();
-				$a_item["schedule_value"] = $job->getDefaultScheduleValue();
-				ilCronManager::updateJobSchedule($job, $a_item["schedule_type"], 
-					$a_item["schedule_value"]);
-			}
+        $this->setRowTemplate('tpl.cron_job_row.html', 'Services/Cron');
+        $this->setFormAction($this->ctrl->getFormAction($a_parent_obj, $a_parent_cmd));
+    }
 
-			$res["editable_schedule"] = true;
-		}
+    private function formatSchedule(ilCronJobEntity $entity, array $row): string
+    {
+        $schedule = '';
+        switch ($entity->getEffectiveScheduleType()) {
+            case ilCronJob::SCHEDULE_TYPE_DAILY:
+                $schedule = $this->lng->txt('cron_schedule_daily');
+                break;
 
-		switch($a_item["schedule_type"])
-		{
-			case ilCronJob::SCHEDULE_TYPE_DAILY:
-				$schedule = $this->language->txt("cron_schedule_daily");
-				break;
+            case ilCronJob::SCHEDULE_TYPE_WEEKLY:
+                $schedule = $this->lng->txt('cron_schedule_weekly');
+                break;
 
-			case ilCronJob::SCHEDULE_TYPE_WEEKLY:
-				$schedule = $this->language->txt("cron_schedule_weekly");
-				break;
+            case ilCronJob::SCHEDULE_TYPE_MONTHLY:
+                $schedule = $this->lng->txt('cron_schedule_monthly');
+                break;
 
-			case ilCronJob::SCHEDULE_TYPE_MONTHLY:
-				$schedule = $this->language->txt("cron_schedule_monthly");
-				break;
+            case ilCronJob::SCHEDULE_TYPE_QUARTERLY:
+                $schedule = $this->lng->txt('cron_schedule_quarterly');
+                break;
 
-			case ilCronJob::SCHEDULE_TYPE_QUARTERLY:
-				$schedule = $this->language->txt("cron_schedule_quarterly");
-				break;
+            case ilCronJob::SCHEDULE_TYPE_YEARLY:
+                $schedule = $this->lng->txt('cron_schedule_yearly');
+                break;
 
-			case ilCronJob::SCHEDULE_TYPE_YEARLY:
-				$schedule = $this->language->txt("cron_schedule_yearly");
-				break;
+            case ilCronJob::SCHEDULE_TYPE_IN_MINUTES:
+                $schedule = sprintf(
+                    $this->lng->txt('cron_schedule_in_minutes'),
+                    $entity->getEffectiveScheduleValue()
+                );
+                break;
 
-			case ilCronJob::SCHEDULE_TYPE_IN_MINUTES:
-				$schedule = sprintf($this->language->txt("cron_schedule_in_minutes"), $a_item["schedule_value"]);
-				break;
+            case ilCronJob::SCHEDULE_TYPE_IN_HOURS:
+                $schedule = sprintf(
+                    $this->lng->txt('cron_schedule_in_hours'),
+                    $entity->getEffectiveScheduleValue()
+                );
+                break;
 
-			case ilCronJob::SCHEDULE_TYPE_IN_HOURS:
-				$schedule = sprintf($this->language->txt("cron_schedule_in_hours"), $a_item["schedule_value"]);
-				break;
+            case ilCronJob::SCHEDULE_TYPE_IN_DAYS:
+                $schedule = sprintf(
+                    $this->lng->txt('cron_schedule_in_days'),
+                    $entity->getEffectiveScheduleValue()
+                );
+                break;
+        }
 
-			case ilCronJob::SCHEDULE_TYPE_IN_DAYS:
-				$schedule = sprintf($this->language->txt("cron_schedule_in_days"), $a_item["schedule_value"]);
-				break;
-		}			
-		$res["schedule"] = $schedule;
+        return $schedule;
+    }
 
-		// status
-		if($a_item["job_status"])
-		{
-			$res["status"] = $this->language->txt("cron_status_active");
-		}
-		else
-		{
-			$res["status"] = $this->language->txt("cron_status_inactive");
-		}					
+    private function formatStatusInfo(ilCronJobEntity $entity): string
+    {
+        $status_info = [];
+        if ($entity->getJobStatusTimestamp()) {
+            $status_info[] = ilDatePresentation::formatDate(
+                new ilDateTime($entity->getJobStatusTimestamp(), IL_CAL_UNIX)
+            );
+        }
 
-		$status_info = array();
-		if($a_item["job_status_ts"])
-		{				
-			$status_info[] = ilDatePresentation::formatDate(new ilDateTime($a_item["job_status_ts"], IL_CAL_UNIX));
-		}
-		if(!$a_item["job_status_type"])
-		{
-			$status_info[] = $this->language->txt("cron_changed_by_crontab");
-		}
-		else
-		{
-			$status_info[] = ilUserUtil::getNamePresentation($a_item["job_status_user_id"]);
-		}
-		$res["status_info"] = implode("<br />", $status_info); 
+        if ($entity->getJobStatusType()) {
+            $status_info[] = ilUserUtil::getNamePresentation($entity->getJobStatusUsrId());
+        } else {
+            $status_info[] = $this->lng->txt('cron_changed_by_crontab');
+        }
 
-		// result
-		$result = "-";
-		if($a_item["job_result_status"])
-		{
-			switch($a_item["job_result_status"])
-			{
-				case ilCronJobResult::STATUS_INVALID_CONFIGURATION:
-					$result = $this->language->txt("cron_result_status_invalid_configuration");
-					break;
+        return implode('<br />', $status_info);
+    }
 
-				case ilCronJobResult::STATUS_NO_ACTION:
-					$result = $this->language->txt("cron_result_status_no_action");
-					break;
+    private function formatResult(ilCronJobEntity $entity): string
+    {
+        $result = '-';
+        if ($entity->getJobResultStatus()) {
+            switch ($entity->getJobResultStatus()) {
+                case ilCronJobResult::STATUS_INVALID_CONFIGURATION:
+                    $result = $this->lng->txt('cron_result_status_invalid_configuration');
+                    break;
 
-				case ilCronJobResult::STATUS_OK:
-					$result = $this->language->txt("cron_result_status_ok");
-					break;
+                case ilCronJobResult::STATUS_NO_ACTION:
+                    $result = $this->lng->txt('cron_result_status_no_action');
+                    break;
 
-				case ilCronJobResult::STATUS_CRASHED:
-					$result = $this->language->txt("cron_result_status_crashed");
-					break;
+                case ilCronJobResult::STATUS_OK:
+                    $result = $this->lng->txt('cron_result_status_ok');
+                    break;
 
-				case ilCronJobResult::STATUS_RESET:
-					$result = $this->language->txt("cron_result_status_reset");
-					break;
-				
-				case ilCronJobResult::STATUS_FAIL:
-					$result = $this->language->txt("cron_result_status_fail");
-					break;
-			}			
-		}
-		$res["result"] = $result;
+                case ilCronJobResult::STATUS_CRASHED:
+                    $result = $this->lng->txt('cron_result_status_crashed');
+                    break;
 
-		$result_info = array();			
-		if($a_item["job_result_dur"])
-		{
-			$result_info[] = ($a_item["job_result_dur"]/1000)." sec";
-		}
+                case ilCronJobResult::STATUS_RESET:
+                    $result = $this->lng->txt('cron_result_status_reset');
+                    break;
 
-		// #23391 / #11866
-		$resultCode = $a_item['job_result_code'];
-		if (in_array($resultCode, ilCronJobResult::getCoreCodes())) {
-			$result_info[] = $this->language->txt('cro_job_rc_' . $resultCode);
-		} else {
-			if ($a_item['job_result_message']) {
-				$result_info[] = $a_item['job_result_message'];
-			}
-		}
+                case ilCronJobResult::STATUS_FAIL:
+                    $result = $this->lng->txt('cron_result_status_fail');
+                    break;
+            }
+        }
 
-		if (defined('DEVMODE') && DEVMODE) {
-			$result_info[] = $resultCode;
-		}
+        return $result;
+    }
 
-		if(!$a_item["job_result_type"])
-		{
-			$result_info[] = $this->language->txt("cron_changed_by_crontab");
-		}
-		else
-		{
-			$result_info[] = ilUserUtil::getNamePresentation($a_item["job_result_user_id"]);
-		}
-		$res["result_info"] = implode("<br />", $result_info); 
+    private function formatResultInfo(ilCronJobEntity $entity): string
+    {
+        $result_info = [];
+        if ($entity->getJobResultDuration()) {
+            $result_info[] = ($entity->getJobResultDuration() / 1000) . ' sec';
+        }
 
-		if($a_item["running_ts"])
-		{
-			$res["last_run"] = strtotime("+1year", $a_item["running_ts"]);				
-		}
-		else if($a_item["job_result_ts"])
-		{				
-			$res["last_run"] = $a_item["job_result_ts"];
-		}
-		else
-		{
-			$res["last_run"] = null;
-		}			
-		
-		$res['is_manually_executable'] = $job->isManuallyExecutable();
-		
-		return $res;
-	}
+        // #23391 / #11866
+        $resultCode = $entity->getJobResultCode();
+        if (in_array($resultCode, ilCronJobResult::getCoreCodes(), true)) {
+            $result_info[] = $this->lng->txt('cro_job_rc_' . $resultCode);
+        } elseif ($entity->getJobResultMessage()) {
+            $result_info[] = $entity->getJobResultMessage();
+        }
 
-	protected function getItems()
-	{
-		include_once "Services/User/classes/class.ilUserUtil.php";
-		include_once "Services/Cron/classes/class.ilCronJobResult.php";
-		
-		// systems
-		$data = ilCronManager::getCronJobData();
-		foreach($data as $idx => $item)
-		{			
-			$job = ilCronManager::getJobInstance($item["job_id"],
-					$item["component"], $item["class"], $item["path"]);		
-			if($job)
-			{
-				$data[$idx] = $this->parseJobToData($item, $job);					
-			}
-		}
-		
-		// plugins
-		$this->language->loadLanguageModule("cmps");
-		foreach(ilCronManager::getPluginJobs() as $item)
-		{
-			$job = $item[0];
-			$item = $item[1];
-			
-			$item["job_id"] = "pl__".$item["component"]."__".$job->getId();
-			$item["component"] = $this->language->txt("cmps_plugin")."/".$item["component"];
+        if (defined('DEVMODE') && DEVMODE && $resultCode) {
+            $result_info[] = $resultCode;
+        }
 
-			$data[] = $this->parseJobToData($item, $job);					
-		}
-				
-		$this->setData($data);
-	}
+        if ($entity->getJobResultType()) {
+            $result_info[] = ilUserUtil::getNamePresentation($entity->getJobResultUsrId());
+        } else {
+            $result_info[] = $this->lng->txt('cron_changed_by_crontab');
+        }
 
-	protected function fillRow($a_set)
-	{
-		$this->tpl->setVariable("VAL_ID", $a_set["title"]);
-		$this->tpl->setVariable("VAL_JID", $a_set["job_id"]);
-		
-		if($a_set["description"])
-		{
-			$this->tpl->setVariable("VAL_DESC", $a_set["description"]);
-		}
-		
-		$this->tpl->setVariable("VAL_COMPONENT", $a_set["component"]);
-		$this->tpl->setVariable("VAL_SCHEDULE", $a_set["schedule"]);
-		$this->tpl->setVariable("VAL_STATUS", $a_set["status"]);
-		$this->tpl->setVariable("VAL_STATUS_INFO", $a_set["status_info"]);		
-		$this->tpl->setVariable("VAL_RESULT", $a_set["result"]);	
-		$this->tpl->setVariable("VAL_RESULT_INFO", $a_set["result_info"]);		
-		if($a_set["last_run"] > time())
-		{
-			$a_set["last_run"] = $this->language->txt("cron_running_since")." ".
-				ilDatePresentation::formatDate(new ilDateTime($a_set["running_ts"], IL_CAL_UNIX));
-			
-			// job has pinged 
-			if($a_set["alive_ts"] != $a_set["running_ts"])
-			{
-				$a_set["last_run"] .= "<br />(Ping: ".
-					ilDatePresentation::formatDate(new ilDateTime($a_set["alive_ts"], IL_CAL_UNIX)).")";
-			}
-		}
-		else if($a_set["last_run"])
-		{
-			$a_set["last_run"] = ilDatePresentation::formatDate(new ilDateTime($a_set["last_run"], IL_CAL_UNIX));
-		}		
-		$this->tpl->setVariable("VAL_LAST_RUN", $a_set["last_run"] ? $a_set["last_run"] : "-");	
-		
-		
-		// actions
-		
-		$actions = array();
-		
-		if(!$a_set["running_ts"])
-		{
-			// reset
-			if($a_set["job_result_status"] == ilCronJobResult::STATUS_CRASHED)
-			{
-				$actions[] = "reset";
-			}
-			// activate
-			else if(!$a_set["job_status"])
-			{
-				$actions[] = "activate";
-			}
-			// deactivate
-			else 
-			{
-				if($a_set['is_manually_executable'])
-				{
-					$actions[] = 'run';
-				}
-				$actions[] = "deactivate";
-			}
-			// edit (schedule)
-			if($a_set["editable_schedule"] || $a_set["has_settings"])
-			{
-				$actions[] = "edit";
-			}		
-			
-			$this->controller->setParameter($this->getParentObject(), "jid", $a_set["job_id"]);
-			
-			foreach($actions as $action)
-			{
-				$this->tpl->setCurrentBlock("action_bl");
-				$this->tpl->setVariable("URL_ACTION", 
-					$this->controller->getLinkTarget($this->getParentObject(), $action)
-				);
-				$this->tpl->setVariable("TXT_ACTION", $this->language->txt("cron_action_".$action));
-				$this->tpl->parseCurrentBlock();	
-			}
-			
-			$this->controller->setParameter($this->getParentObject(), "jid", "");
-		}
-	}
+        return implode('<br />', $result_info);
+    }
+
+    public function populate(ilCronJobCollection $collection): self
+    {
+        $this->setData(array_map(function (ilCronJobEntity $entity): array {
+            $row = [];
+
+            $row['schedule'] = $this->formatSchedule($entity, $row);
+            $row['status'] = $this->lng->txt('cron_status_inactive');
+            if ($entity->getJobStatus()) {
+                $row['status'] = $this->lng->txt('cron_status_active');
+            }
+            $row['status_info'] = $this->formatStatusInfo($entity);
+            $row['result'] = $this->formatResult($entity);
+            $row['result_info'] = $this->formatResultInfo($entity);
+
+            $row['last_run'] = null;
+            if ($entity->getRunningTimestamp()) {
+                $row['last_run'] = strtotime('+1year', $entity->getRunningTimestamp());
+            } elseif ($entity->getJobResultTimestamp()) {
+                $row['last_run'] = $entity->getJobResultTimestamp();
+            }
+
+            $row['job_id'] = $entity->getJobId();
+            $row['component'] = $entity->getComponent();
+            if ($entity->isPlugin()) {
+                $row['job_id'] = 'pl__' . $row['component'] . '__' . $row['job_id'];
+                $row['component'] = $this->lng->txt('cmps_plugin') . '/' . $row['component'];
+            }
+
+            $row['title'] = $entity->getEffectiveTitle();
+            $row['description'] = $entity->getJob()->getDescription();
+            $row['is_manually_executable'] = $entity->getJob()->isManuallyExecutable();
+            $row['has_settings'] = $entity->getJob()->hasCustomSettings();
+            $row['job_result_status'] = $entity->getJobResultStatus();
+            $row['job_status'] = $entity->getJobStatus();
+            $row['alive_ts'] = $entity->getAliveTimestamp();
+            $row['running_ts'] = $entity->getRunningTimestamp();
+
+            if ($entity->getJob()->hasFlexibleSchedule()) {
+                $row['editable_schedule'] = true;
+                if (!$entity->getScheduleType()) {
+                    $this->cronRepository->updateJobSchedule(
+                        $entity->getJob(),
+                        $entity->getEffectiveScheduleType(),
+                        $entity->getEffectiveScheduleValue()
+                    );
+                }
+            } elseif ($entity->getScheduleType()) {
+                $this->cronRepository->updateJobSchedule($entity->getJob(), null, null);
+            }
+
+            return $row;
+        }, $collection->toArray()));
+
+        return $this;
+    }
+
+    protected function fillRow(array $a_set): void
+    {
+        if ($this->mayWrite) {
+            $this->tpl->setVariable('VAL_JID', $a_set['job_id']);
+        }
+        $this->tpl->setVariable('VAL_ID', $a_set['title']);
+
+        if ($a_set['description']) {
+            $this->tpl->setVariable('VAL_DESC', $a_set['description']);
+        }
+
+        $this->tpl->setVariable('VAL_COMPONENT', $a_set['component']);
+        $this->tpl->setVariable('VAL_SCHEDULE', $a_set['schedule']);
+        $this->tpl->setVariable('VAL_STATUS', $a_set['status']);
+        $this->tpl->setVariable('VAL_STATUS_INFO', $a_set['status_info']);
+        $this->tpl->setVariable('VAL_RESULT', $a_set['result']);
+        $this->tpl->setVariable('VAL_RESULT_INFO', $a_set['result_info']);
+        if ($a_set['last_run'] > time()) {
+            $a_set['last_run'] = $this->lng->txt('cron_running_since') . ' ' .
+                ilDatePresentation::formatDate(new ilDateTime($a_set['running_ts'], IL_CAL_UNIX));
+
+            // job has pinged
+            if ($a_set['alive_ts'] !== $a_set['running_ts']) {
+                $a_set['last_run'] .= '<br />(Ping: ' .
+                    ilDatePresentation::formatDate(new ilDateTime($a_set['alive_ts'], IL_CAL_UNIX)) . ')';
+            }
+        } elseif ($a_set['last_run']) {
+            $a_set['last_run'] = ilDatePresentation::formatDate(new ilDateTime($a_set['last_run'], IL_CAL_UNIX));
+        }
+        $this->tpl->setVariable('VAL_LAST_RUN', $a_set['last_run'] ?: '-');
+
+        $actions = [];
+        if ($this->mayWrite && !$a_set['running_ts']) {
+            if ($a_set['job_result_status'] === ilCronJobResult::STATUS_CRASHED) {
+                $actions[] = 'reset';
+            } elseif (!$a_set['job_status']) {
+                $actions[] = 'activate';
+            } else {
+                if ($a_set['is_manually_executable']) {
+                    $actions[] = 'run';
+                }
+                $actions[] = 'deactivate';
+            }
+
+            if (
+                (isset($a_set['editable_schedule']) && $a_set['editable_schedule']) ||
+                (isset($a_set['has_settings']) && $a_set['has_settings'])
+            ) {
+                $actions[] = 'edit';
+            }
+
+            $this->ctrl->setParameter($this->getParentObject(), 'jid', $a_set['job_id']);
+            foreach ($actions as $action) {
+                $this->tpl->setCurrentBlock('action_bl');
+                $this->tpl->setVariable(
+                    'URL_ACTION',
+                    $this->ctrl->getLinkTarget($this->getParentObject(), $action)
+                );
+                $this->tpl->setVariable('TXT_ACTION', $this->lng->txt('cron_action_' . $action));
+                $this->tpl->parseCurrentBlock();
+            }
+            $this->ctrl->setParameter($this->getParentObject(), 'jid', '');
+        }
+    }
 }
-
-?>

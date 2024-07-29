@@ -1,280 +1,255 @@
 <?php
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+declare(strict_types=1);
 
 /**
- * Class ilCronDeleteNeverLoggedInUserAccounts
- */
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\Refinery\ConstraintViolationException;
+
 class ilCronDeleteNeverLoggedInUserAccounts extends \ilCronJob
 {
-	const DEFAULT_CREATION_THRESHOLD = 365;
+    private const DEFAULT_CREATION_THRESHOLD = 365;
 
-	/** @var string */
-	private $roleIdWhiteliste = '';
-	
-	/** @var int */
-	private $thresholdInDays = self::DEFAULT_CREATION_THRESHOLD;
+    private string $roleIdWhiteliste = '';
+    private int $thresholdInDays = self::DEFAULT_CREATION_THRESHOLD;
+    private ilLanguage $lng;
+    private ilSetting $settings;
+    private ilRbacReview $rbacreview;
+    private ilObjectDataCache $objectDataCache;
+    private \ILIAS\HTTP\GlobalHttpState $http;
+    private \ILIAS\Refinery\Factory $refinery;
+    private \ilGlobalTemplateInterface $main_tpl;
 
-	/** @var \ilLanguage */
-	protected $lng;
+    public function __construct()
+    {
+        global $DIC;
+        $this->main_tpl = $DIC->ui()->mainTemplate();
 
-	/** @var \ilSetting */
-	protected $settings;
+        if ($DIC) {
+            if (isset($DIC['ilSetting'])) {
+                $this->settings = $DIC->settings();
 
-	/** @var \ilRbacReview */
-	protected $rbacreview;
+                $this->roleIdWhiteliste = (string) $this->settings->get(
+                    'cron_users_without_login_delete_incl_roles',
+                    ''
+                );
 
-	/** @var \ilObjectDataCache */
-	protected $objectDataCache;
-	
-	/** @var \Psr\Http\Message\ServerRequestInterface */
-	protected $request;
+                $this->thresholdInDays = (int) $this->settings->get(
+                    'cron_users_without_login_delete_threshold',
+                    (string) self::DEFAULT_CREATION_THRESHOLD
+                );
+            }
 
-	/**
-	 * ilCronDeleteNeverLoggedInUserAccounts constructor.
-	 */
-	public function __construct()
-	{
-		global $DIC;
+            if (isset($DIC['lng'])) {
+                $this->lng = $DIC->language();
+                $this->lng->loadLanguageModule('usr');
+            }
 
-		if ($DIC) {
-			if (isset($DIC['ilSetting'])) {
-				$this->settings = $DIC->settings();
+            if (isset($DIC['rbacreview'])) {
+                $this->rbacreview = $DIC->rbac()->review();
+            }
 
-				$this->roleIdWhiteliste = (string)$this->settings->get(
-					'cron_users_without_login_delete_incl_roles', ''
-				);
+            if (isset($DIC['ilObjDataCache'])) {
+                $this->objectDataCache = $DIC['ilObjDataCache'];
+            }
 
-				$this->thresholdInDays = (int)$this->settings->get(
-					'cron_users_without_login_delete_threshold', self::DEFAULT_CREATION_THRESHOLD
-				);
-			}
+            if (isset($DIC['http'])) {
+                $this->http = $DIC->http();
+            }
 
-			if (isset($DIC['lng'])) {
-				$this->lng = $DIC->language();
-				$this->lng->loadLanguageModule('usr');
-			}
+            if (isset($DIC['refinery'])) {
+                $this->refinery = $DIC->refinery();
+            }
+        }
+    }
 
-			if (isset($DIC['rbacreview'])) {
-				$this->rbacreview = $DIC->rbac()->review();
-			}
+    public function getId(): string
+    {
+        return 'user_never_logged_in';
+    }
 
-			if (isset($DIC['ilObjDataCache'])) {
-				$this->objectDataCache = $DIC['ilObjDataCache'];
-			}
+    public function getTitle(): string
+    {
+        global $DIC;
 
-			if (isset($DIC['http'])) {
-				$this->request = $DIC->http()->request();
-			}
-		}
-	}
+        return $DIC->language()->txt('user_never_logged_in');
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getId()
-	{
-		return 'user_never_logged_in';
-	}
+    public function getDescription(): string
+    {
+        global $DIC;
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getTitle()
-	{
-		global $DIC;
+        return $DIC->language()->txt('user_never_logged_in_info');
+    }
 
-		return $DIC->language()->txt('user_never_logged_in');
-	}
+    public function getDefaultScheduleType(): int
+    {
+        return self::SCHEDULE_TYPE_DAILY;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getDescription()
-	{
-		global $DIC;
+    public function getDefaultScheduleValue(): int
+    {
+        return 1;
+    }
 
-		return $DIC->language()->txt('user_never_logged_in_info');
-	}
+    public function hasAutoActivation(): bool
+    {
+        return false;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getDefaultScheduleType()
-	{
-		return self::SCHEDULE_TYPE_DAILY;
-	}
+    public function hasFlexibleSchedule(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getDefaultScheduleValue()
-	{
-		return 1;
-	}
+    public function hasCustomSettings(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function hasAutoActivation()
-	{
-		return false;
-	}
+    public function run(): ilCronJobResult
+    {
+        global $DIC;
 
-	/**
-	 * @inheritdoc
-	 */
-	public function hasFlexibleSchedule()
-	{
-		return true;
-	}
+        $result = new ilCronJobResult();
 
-	/**
-	 * @inheritdoc
-	 */
-	public function hasCustomSettings()
-	{
-		return true;
-	}
+        $status = ilCronJobResult::STATUS_NO_ACTION;
+        $message = 'No user deleted';
 
-	/**
-	 * @inheritdoc
-	 */
-	public function run()
-	{
-		global $DIC;
+        $userIds = ilObjUser::getUserIdsNeverLoggedIn(
+            $this->thresholdInDays ?: self::DEFAULT_CREATION_THRESHOLD
+        );
 
-		$result = new \ilCronJobResult();
+        $roleIdWhitelist = array_filter(array_map('intval', explode(',', $this->roleIdWhiteliste)));
 
-		$status = \ilCronJobResult::STATUS_NO_ACTION;
-		$message = 'No user deleted';
+        $counter = 0;
+        foreach ($userIds as $userId) {
+            if ($userId === ANONYMOUS_USER_ID || $userId === SYSTEM_USER_ID) {
+                continue;
+            }
 
-		$userIds = ilObjUser::getUserIdsNeverLoggedIn(
-			$this->thresholdInDays ?: self::DEFAULT_CREATION_THRESHOLD
-		);
+            $user = ilObjectFactory::getInstanceByObjId($userId, false);
+            if (!($user instanceof ilObjUser)) {
+                continue;
+            }
 
-		$roleIdWhitelist = array_filter(array_map('intval', explode(',', $this->roleIdWhiteliste)));
+            $ignoreUser = true;
 
-		$counter = 0;
-		foreach ($userIds as $userId) {
-			if($userId == ANONYMOUS_USER_ID || $userId == SYSTEM_USER_ID) {
-				continue;
-			}
+            if (count($roleIdWhitelist) > 0) {
+                $assignedRoleIds = array_filter(array_map('intval', $this->rbacreview->assignedRoles($userId)));
 
-			$user = ilObjectFactory::getInstanceByObjId($userId, false);
-			if (!$user || !($user instanceof \ilObjUser)) {
-				continue;
-			}
+                $respectedRolesToInclude = array_intersect($assignedRoleIds, $roleIdWhitelist);
+                if (count($respectedRolesToInclude) > 0) {
+                    $ignoreUser = false;
+                }
+            }
 
-			$ignoreUser = true;
+            if ($ignoreUser) {
+                continue;
+            }
 
-			if (count($roleIdWhitelist) > 0) {
-				$assignedRoleIds = array_filter(array_map('intval', (array)$this->rbacreview->assignedRoles($userId)));
+            $DIC->logger()->user()->info(sprintf(
+                "Deleting user account with id %s (login: %s)",
+                $user->getId(),
+                $user->getLogin()
+            ));
+            $user->delete();
 
-				$respectedRolesToInclude = array_intersect($assignedRoleIds, $roleIdWhitelist);
-				if (count($respectedRolesToInclude) > 0) {
-					$ignoreUser = false;
-				} 
-			}
+            $counter++;
+        }
 
-			if ($ignoreUser) {
-				continue;
-			}
+        if ($counter) {
+            $status = ilCronJobResult::STATUS_OK;
+            $message = sprintf('%s user(s) deleted', $counter);
+        }
 
-			$DIC->logger()->usr()->info(sprintf(
-				"Deleting user account with id %s (login: %s)",
-				$user->getId(), $user->getLogin()
-			));
-			$user->delete();
+        $result->setStatus($status);
+        $result->setMessage($message);
 
-			$counter++;
-		}
+        return $result;
+    }
 
-		if ($counter) {
-			$status = \ilCronJobResult::STATUS_OK;
-			$message = sprintf('%s user(s) deleted', $counter);
-		}
+    public function addCustomSettingsToForm(ilPropertyFormGUI $a_form): void
+    {
+        $roleWhiteList = new ilMultiSelectInputGUI(
+            $this->lng->txt('cron_users_without_login_del_role_whitelist'),
+            'role_whitelist'
+        );
+        $roleWhiteList->setInfo($this->lng->txt('cron_users_without_login_del_role_whitelist_info'));
+        $roles = array();
+        foreach ($this->rbacreview->getGlobalRoles() as $role_id) {
+            if ($role_id !== ANONYMOUS_ROLE_ID) {
+                $roles[$role_id] = $this->objectDataCache->lookupTitle($role_id);
+            }
+        }
+        $roleWhiteList->setOptions($roles);
+        $roleWhiteList->setValue(array_filter(array_map('intval', explode(',', $this->roleIdWhiteliste))));
+        $roleWhiteList->setWidth(300);
+        $a_form->addItem($roleWhiteList);
 
-		$result->setStatus($status);
-		$result->setMessage($message);
+        $threshold = new ilNumberInputGUI(
+            $this->lng->txt('cron_users_without_login_del_create_date_thr'),
+            'threshold'
+        );
+        $threshold->allowDecimals(false);
+        $threshold->setInfo($this->lng->txt('cron_users_without_login_del_create_date_thr_info'));
+        $threshold->setValue((string) $this->thresholdInDays);
+        $threshold->setSuffix($this->lng->txt('days'));
+        $threshold->setSize(4);
+        $threshold->setMaxLength(4);
+        $threshold->setRequired(true);
+        $a_form->addItem($threshold);
+    }
 
-		return $result;
-	}
+    public function saveCustomSettings(ilPropertyFormGUI $a_form): bool
+    {
+        $valid = true;
 
-	/**
-	 * @inheritdoc
-	 */
-	public function addCustomSettingsToForm(\ilPropertyFormGUI $a_form)
-	{
-		$roleWhiteList = new ilMultiSelectInputGUI(
-			$this->lng->txt('cron_users_without_login_del_role_whitelist'),
-			'role_whitelist'
-		);
-		$roleWhiteList->setInfo($this->lng->txt('cron_users_without_login_del_role_whitelist_info'));
-		$roles = array();
-		foreach ($this->rbacreview->getGlobalRoles() as $role_id) {
-			if ($role_id != ANONYMOUS_ROLE_ID) {
-				$roles[$role_id] = $this->objectDataCache->lookupTitle($role_id);
-			}
-		}
-		$roleWhiteList->setOptions($roles);
-		$roleWhiteList->setValue(array_filter(array_map('intval', explode(',', $this->roleIdWhiteliste))));
-		$roleWhiteList->setWidth(300);
-		$a_form->addItem($roleWhiteList);
+        $this->roleIdWhiteliste = implode(',', $this->http->wrapper()->post()->retrieve(
+            'role_whitelist',
+            $this->refinery->byTrying([
+                $this->refinery->kindlyTo()->listOf($this->refinery->kindlyTo()->int()),
+                $this->refinery->always([])
+            ])
+        ));
 
-		$threshold = new ilNumberInputGUI(
-			$this->lng->txt('cron_users_without_login_del_create_date_thr'),
-			'threshold'
-		);
-		$threshold->setInfo($this->lng->txt('cron_users_without_login_del_create_date_thr_info'));
-		$threshold->setValue($this->thresholdInDays);
-		$threshold->setSuffix($this->lng->txt('days'));
-		$threshold->setSize(4);
-		$threshold->setMaxLength(4);
-		$threshold->setRequired(true);
-		$a_form->addItem($threshold);
-	}
+        try {
+            $this->thresholdInDays = $this->http->wrapper()->post()->retrieve(
+                'threshold',
+                $this->refinery->kindlyTo()->int()
+            );
+        } catch (ConstraintViolationException $e) {
+            $valid = false;
+            $a_form->getItemByPostVar('threshold')->setAlert($this->lng->txt('user_never_logged_in_info_threshold_err_num'));
+        }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function saveCustomSettings(\ilPropertyFormGUI $a_form)
-	{
-		$valid = true;
+        if ($valid) {
+            $this->settings->set(
+                'cron_users_without_login_delete_incl_roles',
+                $this->roleIdWhiteliste
+            );
+            $this->settings->set(
+                'cron_users_without_login_delete_threshold',
+                (string) $this->thresholdInDays
+            );
+            return true;
+        }
 
-		$roleIdWhitelist = $this->request->getParsedBody()['role_whitelist'] ?? [];
-		$this->roleIdWhiteliste = implode(',', array_map('intval', (is_array($roleIdWhitelist) ? $roleIdWhitelist : [])));
-
-		$this->thresholdInDays = $this->request->getParsedBody()['threshold'] ?? '';
-
-		if (!is_numeric($this->thresholdInDays) || $this->hasDecimals($this->thresholdInDays)) {
-			$valid = false;
-			$a_form->getItemByPostVar('threshold')->setAlert($this->lng->txt('user_never_logged_in_info_threshold_err_num'));
-		}
-
-		if ($valid) {
-			$this->settings->set(
-				'cron_users_without_login_delete_incl_roles', (string)$this->roleIdWhiteliste
-			);
-			$this->settings->set(
-				'cron_users_without_login_delete_threshold', (int)$this->thresholdInDays
-			);
-			return true;
-		} else { 
-			\ilUtil::sendFailure($this->lng->txt('form_input_not_valid'));
-			return false;
-		}
-	}
-
-	/**
-	 * @param mixed $number
-	 * @return bool
-	 */
-	protected function hasDecimals($number): bool 
-	{
-		if (strpos($number, ',') !== false || strpos($number, '.') !== false) {
-			return true;
-		}
-
-		return false;
-	}
+        $this->main_tpl->setOnScreenMessage('failure', $this->lng->txt('form_input_not_valid'));
+        return false;
+    }
 }

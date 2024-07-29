@@ -20,11 +20,13 @@ il.Form = {
 
 	// init
 	init: function () {
-		il.Form.initLinkInput();
-		il.Form.registerFileUploadInputEventTrigger();
+		$(() => {
+			il.Form.initLinkInput();
+			il.Form.registerFileUploadInputEventTrigger();
+		});
 	},
 	
-	registerFileUploadInputEventTrigger: function() {
+	registerFileUploadInputEventTrigger: function(selectorPrefix = '') {
 
 
         /* experimental: bootstrap'ed file upload */
@@ -32,7 +34,7 @@ il.Form = {
         // see http://www.abeautifulsite.net/whipping-file-inputs-into-shape-with-bootstrap-3/
 
         // trigger event on fileselect
-        $(document).on('change', '.btn-file :file', function() {
+        $(document).on('change', selectorPrefix + '.btn-file :file', function() {
             var input = $(this),
                 numFiles = input.get(0).files ? input.get(0).files.length : 1,
                 label = input.val().replace(/\\/g, '/').replace(/.*\//, '');
@@ -40,15 +42,12 @@ il.Form = {
         });
 
         // display selected file name
-        $(document).ready( function() {
-            $('.btn-file :file').on('fileselect', function(event, numFiles, label) {
-                var input = $(this).parents('.input-group').find(':text');
-                if( input.length ) {
-                    input.val(label);
-                }
-            });
-        });
-
+		$(selectorPrefix + '.btn-file :file').on('fileselect', function(event, numFiles, label) {
+			var input = $(this).parents('.input-group').find(':text');
+			if( input.length ) {
+				input.val(label);
+			}
+		});
 
     },
 
@@ -65,6 +64,9 @@ il.Form = {
 		id      = il.Form.escapeSelector(id);
 		cont_id = il.Form.escapeSelector(cont_id);
 
+		console.log(id);
+		console.log(cont_id);
+
 		if (cb == null) {
 			il.Form.sub_active[cont_id] = id;
 		} else {
@@ -75,10 +77,15 @@ il.Form = {
 			}
 		}
 
+		console.log(il.Form.sub_active);
+
 		var parent_subform = $("#" + cont_id).parents(".ilSubForm")[0];
-		
+
+		console.log("close...");
 		$("#" + cont_id + " div.ilSubForm[id!='" + id + "']").each(function() {
-			
+
+			console.log(this.id);
+
 			// #18482 - check if subform is on same level as parent
 			if(parent_subform == $(this).parents(".ilSubForm")[0]) {
 				
@@ -98,6 +105,7 @@ il.Form = {
 				
 			}
 		})
+		console.log("...close");
 
 		// activate subform
 		obj = $("#" + id).get(0);
@@ -193,22 +201,24 @@ il.Form = {
 	// initialisation for number fields
 	initNumericCheck: function (id, decimals_allowed) {
 		var current;
-		
+	
 		$('#' + il.Form.escapeSelector(id)).keydown(function (event) {
-
 			// #10562
 			var kcode = event.which;
 			var is_shift = event.shiftKey;
 			var is_ctrl = event.ctrlKey;
-			
-			if (kcode == 190) {
+
+			if (kcode == 190 || kcode == 188) {
 				// decimals are not allowed
 				if (decimals_allowed == undefined || decimals_allowed == 0) {
 					event.preventDefault();
 				} else {
 					// decimal point is only allowed once
 					current = $('#' + id).val();
-					if (current.indexOf('.') > -1) {
+					if (
+						current.indexOf('.') > -1 ||
+						current.indexOf(',') > -1
+					) {
 						event.preventDefault();
 					}
 				}
@@ -442,3 +452,8 @@ il.Form = {
 
 // init forms
 il.Util.addOnLoad(il.Form.init);
+
+// see #27281
+$(document).on('dp.show', function(event) {
+	il.UI.page.fit($('.bootstrap-datetimepicker-widget'));
+});

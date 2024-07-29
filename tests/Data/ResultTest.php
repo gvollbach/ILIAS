@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /* Copyright (c) 2017 Stefan Hecken <stefan.hecken@concepts-and-training.de> Extended GPL, see docs/LICENSE */
 
 require_once("libs/composer/vendor/autoload.php");
@@ -11,198 +14,217 @@ use PHPUnit\Framework\TestCase;
  *
  * @author Stefan Hecken <stefan.hecken@concepts-and-training.de>
  */
-class ResultTest extends TestCase {
-	protected function setUp(): void {
-		$this->f = new Data\Factory();
-	}
+class ResultTest extends TestCase
+{
+    private ?Data\Factory $f;
 
-	protected function tearDown(): void {
-		$this->f = null;
-	}
+    protected function setUp(): void
+    {
+        $this->f = new Data\Factory();
+    }
 
-	public function testValue() {
-		$result = $this->f->ok(3.154);
-		$this->assertEquals(3.154, $result->value());
-	}
+    protected function tearDown(): void
+    {
+        $this->f = null;
+    }
 
-	public function testNoValue() {
-		$result = $this->f->error("Something went wrong");
+    public function testValue(): void
+    {
+        $result = $this->f->ok(3.154);
+        $this->assertEquals(3.154, $result->value());
+    }
 
-		try{
-			$result->value();
-			$raised = false;
-		} catch(\Exception $e) {
-			$raised = true;
-		}
+    public function testNoValue(): void
+    {
+        $result = $this->f->error("Something went wrong");
 
-		$this->assertTrue($raised);
-	}
+        try {
+            $result->value();
+            $raised = false;
+        } catch (Exception $e) {
+            $raised = true;
+        }
 
-	public function testIsOk() {
-		$result = $this->f->ok(3.154);
-		$this->assertTrue($result->isOk());
-		$this->assertFalse($result->isError());
-	}
+        $this->assertTrue($raised);
+    }
 
-	public function testError() {
-		$result = $this->f->error("Something went wrong");
-		$this->assertEquals("Something went wrong", $result->error());
-	}
+    public function testIsOk(): void
+    {
+        $result = $this->f->ok(3.154);
+        $this->assertTrue($result->isOk());
+        $this->assertFalse($result->isError());
+    }
 
-	public function testNoError() {
-		$result = $this->f->ok(3.154);
+    public function testError(): void
+    {
+        $result = $this->f->error("Something went wrong");
+        $this->assertEquals("Something went wrong", $result->error());
+    }
 
-		try{
-			$result->error();
-			$raised = false;
-		} catch(\LogicException $e) {
-			$raised = true;
-		}
+    public function testNoError(): void
+    {
+        $result = $this->f->ok(3.154);
 
-		$this->assertTrue($raised);
-	}
+        try {
+            $result->error();
+            $raised = false;
+        } catch (LogicException $e) {
+            $raised = true;
+        }
 
-	public function testIsError() {
-		$result = $this->f->error("Something went wrong");
-		$this->assertTrue($result->isError());
-		$this->assertFalse($result->isOk());
-	}
+        $this->assertTrue($raised);
+    }
 
-	public function testValueOr() {
-		$result = $this->f->ok(3.154);
-		$this->assertEquals(3.154, $result->valueOr(5));
-	}
+    public function testIsError(): void
+    {
+        $result = $this->f->error("Something went wrong");
+        $this->assertTrue($result->isError());
+        $this->assertFalse($result->isOk());
+    }
 
-	public function testValueOrDefault() {
-		$result = $this->f->error("Something went wrong");
-		$this->assertEquals(5, $result->valueOr(5));
-	}
+    public function testValueOr(): void
+    {
+        $result = $this->f->ok(3.154);
+        $this->assertEquals(3.154, $result->valueOr(5));
+    }
 
-	public function testMapOk() {
-		$result = $this->f->ok(3);
-		$multiplicator = 3;
-		$new_result = $result->map(function($v) use ($multiplicator) {
-			return $v * $multiplicator;
-		});
+    public function testValueOrDefault(): void
+    {
+        $result = $this->f->error("Something went wrong");
+        $this->assertEquals(5, $result->valueOr(5));
+    }
 
-		$this->assertInstanceOf(Data\Result::class, $new_result);
-		$this->assertNotEquals($result, $new_result);
-		$this->assertEquals(9, $new_result->value());
-	}
+    public function testMapOk(): void
+    {
+        $result = $this->f->ok(3);
+        $multiplicator = 3;
+        $new_result = $result->map(function ($v) use ($multiplicator) {
+            return $v * $multiplicator;
+        });
 
-	public function testMapError() {
-		$result = $this->f->error("Something went wrong");
-		$multiplicator = 3;
-		$new_result = $result->map(function($v) use ($multiplicator) {
-			return $v * $multiplicator;
-		});
+        $this->assertInstanceOf(Data\Result::class, $new_result);
+        $this->assertNotEquals($result, $new_result);
+        $this->assertEquals(9, $new_result->value());
+    }
 
-		$this->assertEquals($result, $new_result);
-	}
+    public function testMapError(): void
+    {
+        $result = $this->f->error("Something went wrong");
+        $multiplicator = 3;
+        $new_result = $result->map(function ($v) use ($multiplicator) {
+            return $v * $multiplicator;
+        });
 
-	public function testThenOk() {
-		$result = $this->f->ok(3);
-		$multiplicator = 3;
-		$new_result = $result->then(function($v) use ($multiplicator) {
-			$ret = $this->f->ok(($v * $multiplicator));
-			return $ret;
-		});
+        $this->assertEquals($result, $new_result);
+    }
 
-		$this->assertInstanceOf(Data\Result::class, $new_result);
-		$this->assertNotEquals($result, $new_result);
-		$this->assertEquals(9, $new_result->value());
-	}
+    public function testThenOk(): void
+    {
+        $result = $this->f->ok(3);
+        $multiplicator = 3;
+        $new_result = $result->then(function ($v) use ($multiplicator) {
+            return $this->f->ok(($v * $multiplicator));
+        });
 
-	public function testThenCallableNull() {
-		$result = $this->f->ok(3);
-		$new_result = $result->then(function($v) {
-			return null;
-		});
+        $this->assertInstanceOf(Data\Result::class, $new_result);
+        $this->assertNotEquals($result, $new_result);
+        $this->assertEquals(9, $new_result->value());
+    }
 
-		$this->assertInstanceOf(Data\Result::class, $new_result);
-		$this->assertEquals($result, $new_result);
-	}
+    public function testThenCallableNull(): void
+    {
+        $result = $this->f->ok(3);
+        $new_result = $result->then(function ($v) {
+            return null;
+        });
 
-	public function testThenError() {
-		$result = $this->f->error("Something went wrong");
-		$multiplicator = 3;
-		$new_result = $result->then(function($v) use ($multiplicator) {
-			$ret = $this->f->ok(($v * $multiplicator));
-			return $ret;
-		});
+        $this->assertInstanceOf(Data\Result::class, $new_result);
+        $this->assertEquals($result, $new_result);
+    }
 
-		$this->assertInstanceOf(Data\Result::class, $new_result);
-		$this->assertEquals($result, $new_result);
-	}
+    public function testThenError(): void
+    {
+        $result = $this->f->error("Something went wrong");
+        $multiplicator = 3;
+        $new_result = $result->then(function ($v) use ($multiplicator) {
+            return $this->f->ok(($v * $multiplicator));
+        });
 
-	public function testThenNoResult() {
-		$result = $this->f->ok(3);
+        $this->assertInstanceOf(Data\Result::class, $new_result);
+        $this->assertEquals($result, $new_result);
+    }
 
-		try {
-			$new_result = $result->then(function($v) {
-					return 4;
-				});
+    public function testThenNoResult(): void
+    {
+        $result = $this->f->ok(3);
 
-			$raised = false;
-		} catch(\UnexpectedValueException $e) {
-			$raised = true;
-		}
+        try {
+            $new_result = $result->then(function ($v) {
+                return 4;
+            });
 
-		$this->assertTrue($raised);
-	}
+            $raised = false;
+        } catch (UnexpectedValueException $e) {
+            $raised = true;
+        }
 
-	public function testExceptError() {
-		$result = $this->f->error("Something went wrong");
-		$exception = "Something else went wrong";
+        $this->assertTrue($raised);
+    }
 
-		$new_result = $result->except(function($v) use ($exception) {
-			$ret = $this->f->error($exception);
-			return $ret;
-		});
+    public function testExceptError(): void
+    {
+        $result = $this->f->error("Something went wrong");
+        $exception = "Something else went wrong";
 
-		$this->assertInstanceOf(Data\Result::class, $new_result);
-		$this->assertNotEquals($result, $new_result);
-		$this->assertEquals("Something else went wrong", $new_result->error());
-	}
+        $new_result = $result->except(function ($v) use ($exception) {
+            return $this->f->error($exception);
+        });
 
-	public function testExceptCallableNull() {
-		$result = $this->f->error("Something went wrong");
-		$exception = "Something else went wrong";
+        $this->assertInstanceOf(Data\Result::class, $new_result);
+        $this->assertNotEquals($result, $new_result);
+        $this->assertEquals("Something else went wrong", $new_result->error());
+    }
 
-		$new_result = $result->except(function($v) {
-			return null;
-		});
+    public function testExceptCallableNull(): void
+    {
+        $result = $this->f->error("Something went wrong");
+        $exception = "Something else went wrong";
 
-		$this->assertInstanceOf(Data\Result::class, $new_result);
-		$this->assertEquals($result, $new_result);
-	}
+        $new_result = $result->except(function ($v) {
+            return null;
+        });
 
-	public function testExceptOk() {
-		$result = $this->f->ok(3);
-		$exception = "Something else went wrong";
+        $this->assertInstanceOf(Data\Result::class, $new_result);
+        $this->assertEquals($result, $new_result);
+    }
 
-		$new_result = $result->except(function($v) use ($exception) {
-			$ret = $this->f->error($exception);
-			return $ret;
-		});
+    public function testExceptOk(): void
+    {
+        $result = $this->f->ok(3);
+        $exception = "Something else went wrong";
 
-		$this->assertInstanceOf(Data\Result::class, $new_result);
-		$this->assertEquals($result, $new_result);
-	}
+        $new_result = $result->except(function ($v) use ($exception) {
+            return $this->f->error($exception);
+        });
 
-	public function testExceptNoResult() {
-		$result = $this->f->error("Something went wrong");
+        $this->assertInstanceOf(Data\Result::class, $new_result);
+        $this->assertEquals($result, $new_result);
+    }
 
-		try {
-			$new_result = $result->except(function($v) {
-					return "New error text";
-				});
+    public function testExceptNoResult(): void
+    {
+        $result = $this->f->error("Something went wrong");
 
-			$raised = false;
-		} catch(\UnexpectedValueException $e) {
-			$raised = true;
-		}
+        try {
+            $new_result = $result->except(function ($v) {
+                return "New error text";
+            });
 
-		$this->assertTrue($raised);
-	}
+            $raised = false;
+        } catch (UnexpectedValueException $e) {
+            $raised = true;
+        }
+
+        $this->assertTrue($raised);
+    }
 }

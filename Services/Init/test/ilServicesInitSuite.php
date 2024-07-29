@@ -5,15 +5,15 @@ use PHPUnit\Framework\TestSuite;
 /**
  * @author Richard Klees <richard.klees@concepts-and-training.de>
  */
-class ilServicesInitSuite extends TestSuite {
-    public static function suite()
+class ilServicesInitSuite extends TestSuite
+{
+    public static function suite(): self
     {
         $suite = new ilServicesInitSuite();
 
-        require_once("Services/Init/test/ilInitialisationTest.php");
-
-        $suite->addTestSuite("ilInitialisationTest");
+        require_once __DIR__ . '/InitCtrlServiceTest.php';
+        $suite->addTestSuite(InitCtrlServiceTest::class);
 
         return $suite;
     }
-} 
+}

@@ -1,44 +1,19 @@
-/* Services/InfoScreen */
-div.ilInfoScreenSec {
-	padding: 0;
-	margin-bottom: 20px;
+.ilInfoScreenSec:not(:first-child) .ilFormHeader {
+	margin: @il-standard-form-header-margin;
+	border-top: @il-standard-form-header-border;
 }
 
-div.ilInfoScreenSec h3.ilHeader {
-	margin-bottom: 5px;
-	display: block;
-	/* margin: 10px 0;
-	color: @brand-secondary;
-	font-size: 120%;
-	text-align: right; */
-}
+.il_InfoScreenPropertyValue{
+	padding-top: @il-padding-base-vertical + 1px;
+	padding-bottom: @il-padding-base-vertical + 1px;
 
-.il_InfoScreenProperty {
-	padding: 15px;
-	vertical-align: top;
-	color: lighten(@mid-gray, 15%);
-	font-style: italic;
-}
-
-.il_InfoScreenPropertyValue {
-	padding: 15px;
-	vertical-align: top;
-	background-color: @il-primary-container-bg;
-}
-
-.ilInfoScreenSec.form-horizontal .form-group {
-    margin: 0;
-	background-color: @il-secondary-container-bg;
-	&:nth-child(2) .il_InfoScreenPropertyValue {
-		/* border-top: 1px solid lighten(@mid-gray, 60%);
-		box-shadow: inset 0px 2px 1px -1px white; */
+	.ilProfile {
+		margin: 0;
 	}
-}
 
-.ilInfoScreenSec.form-horizontal {
-	background-color: transparent;
-}
-.ilInfoScreenSec.form-horizontal .control-label {
-    padding: 15px;
-	line-height: normal;
+	.breadcrumb {
+		padding: 0;
+		margin: 0;
+		font-size: @il-font-size-base;
+	}
 }

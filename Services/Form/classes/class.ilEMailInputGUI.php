@@ -1,252 +1,188 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2008 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
+
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * This class represents a email property in a property form.
- * @author     Alex Killing <alex.killing@gmx.de>
- * @version    $Id$
- * @ingroup    ServicesForm
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilEMailInputGUI extends ilFormPropertyGUI
 {
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+    protected string $value = "";
+    protected int  $size = 30;
+    protected int $max_length = 80;
+    protected bool $allowRFC822 = false;
+    protected bool $retype = false;
+    protected string $retypevalue = '';
 
-	protected $value;
-	protected $size = 30;
-	protected $max_length = 80;
-	protected $allowRFC822 = false; // [bool]
+    public function __construct(
+        string $a_title = "",
+        string $a_postvar = ""
+    ) {
+        global $DIC;
 
-	/**
-	 * @var bool
-	 */
-	protected $retype = false;
+        $this->lng = $DIC->language();
+        parent::__construct($a_title, $a_postvar);
+        $this->setRetype(false);
+    }
 
-	/**
-	 * @var string
-	 */
-	protected $retypevalue = '';
+    public function setValue(string $a_value): void
+    {
+        $this->value = $a_value;
+    }
 
-	/**
-	 * Constructor
-	 * @param    string $a_title      Title
-	 * @param    string $a_postvar    Post Variable
-	 */
-	function __construct($a_title = "", $a_postvar = "")
-	{
-		global $DIC;
+    public function getValue(): string
+    {
+        return $this->value;
+    }
 
-		$this->lng = $DIC->language();
-		parent::__construct($a_title, $a_postvar);
-		$this->setRetype(false);
-	}
+    public function setValueByArray(array $a_values): void
+    {
+        $this->setValue($a_values[$this->getPostVar()] ?? "");
+        $this->setRetypeValue($a_values[$this->getPostVar() . '_retype'] ?? "");
+    }
 
-	/**
-	 * Set Value.
-	 * @param    string $a_value    Value
-	 */
-	function setValue($a_value)
-	{
-		$this->value = $a_value;
-	}
+    /**
+     * Allow extended email address format
+     *
+     * "example@example.com" vs "example <example@example.com>"
+     */
+    public function allowRFC822(bool $a_value): void
+    {
+        $this->allowRFC822 = $a_value;
+    }
 
-	/**
-	 * Get Value.
-	 * @return    string    Value
-	 */
-	function getValue()
-	{
-		return $this->value;
-	}
+    // get string parameter kindly
+    protected function sanitize($key): string
+    {
+        $t = $this->refinery->kindlyTo()->string();
+        return ilUtil::stripSlashes(
+            (string) ($this->getRequestParam($key, $t) ?? ""),
+            !$this->allowRFC822
+        );
+    }
 
-	/**
-	 * Set value by array
-	 * @param    array $a_values    value array
-	 */
-	function setValueByArray($a_values)
-	{
-		$this->setValue($a_values[$this->getPostVar()]);
-		$this->setRetypeValue($a_values[$this->getPostVar() . '_retype']);
-	}
-	
-	/**
-	 * Allow extended email address format 
-	 * 
-	 * "example@example.com" vs "example <example@example.com>"
-	 * 
-	 * @param bool $a_value
-	 */
-	function allowRFC822($a_value)
-	{
-		$this->allowRFC822 = (bool)$a_value;
-	}
+    public function checkInput(): bool
+    {
+        $lng = $this->lng;
 
-	/**
-	 * Check input, strip slashes etc. set alert, if input is not ok.
-	 * @return    boolean        Input ok, true/false
-	 */
-	function checkInput()
-	{
-		$lng = $this->lng;
-		
-		$_POST[$this->getPostVar()]             = ilUtil::stripSlashes($_POST[$this->getPostVar()], !(bool)$this->allowRFC822);
-		$_POST[$this->getPostVar() . '_retype'] = ilUtil::stripSlashes($_POST[$this->getPostVar() . '_retype'], !(bool)$this->allowRFC822);
-		if($this->getRequired() && trim($_POST[$this->getPostVar()]) == "")
-		{
-			$this->setAlert($lng->txt("msg_input_is_required"));
+        if ($this->getRequired() && trim($this->str($this->getPostVar())) == "") {
+            $this->setAlert($lng->txt("msg_input_is_required"));
+            return false;
+        }
+        if ($this->getRetype() &&
+            ($this->sanitize($this->getPostVar()) != $this->sanitize($this->getPostVar() . '_retype'))) {
+            $this->setAlert($lng->txt('email_not_match'));
+            return false;
+        }
+        if (!ilUtil::is_email($this->sanitize($this->getPostVar())) &&
+            trim($this->sanitize($this->getPostVar())) != ""
+        ) {
+            $this->setAlert($lng->txt("email_not_valid"));
+            return false;
+        }
+        return true;
+    }
 
-			return false;
-		}
-		if($this->getRetype() && ($_POST[$this->getPostVar()] != $_POST[$this->getPostVar() . '_retype']))
-		{
-			$this->setAlert($lng->txt('email_not_match'));
+    public function getInput(): string
+    {
+        return trim($this->sanitize($this->getPostVar()));
+    }
 
-			return false;
-		}
-		if(!ilUtil::is_email($_POST[$this->getPostVar()]) &&
-			trim($_POST[$this->getPostVar()]) != ""
-		)
-		{
-			$this->setAlert($lng->txt("email_not_valid"));
+    public function insert(ilTemplate $a_tpl): void
+    {
+        $lng = $this->lng;
 
-			return false;
-		}
+        $ptpl = new ilTemplate('tpl.prop_email.html', true, true, 'Services/Form');
 
+        if ($this->getRetype()) {
+            $ptpl->setCurrentBlock('retype_email');
+            $ptpl->setVariable('RSIZE', $this->getSize());
+            $ptpl->setVariable('RID', $this->getFieldId());
+            $ptpl->setVariable('RMAXLENGTH', $this->getMaxLength());
+            $ptpl->setVariable('RPOST_VAR', $this->getPostVar());
 
-		return true;
-	}
+            $retype_value = $this->getRetypeValue();
+            $ptpl->setVariable('PROPERTY_RETYPE_VALUE', ilLegacyFormElementsUtil::prepareFormOutput($retype_value));
+            if ($this->getDisabled()) {
+                $ptpl->setVariable('RDISABLED', ' disabled="disabled"');
+            }
+            $ptpl->setVariable('TXT_RETYPE', $lng->txt('form_retype_email'));
+            $ptpl->parseCurrentBlock();
+        }
 
-	/**
-	 * @param ilTemplate $a_tpl
-	 */
-	function insert(ilTemplate $a_tpl)
-	{
-		$lng = $this->lng;
+        $ptpl->setVariable('POST_VAR', $this->getPostVar());
+        $ptpl->setVariable('ID', $this->getFieldId());
+        $ptpl->setVariable('PROPERTY_VALUE', ilLegacyFormElementsUtil::prepareFormOutput($this->getValue()));
+        $ptpl->setVariable('SIZE', $this->getSize());
+        $ptpl->setVariable('MAXLENGTH', $this->getMaxLength());
+        if ($this->getDisabled()) {
+            $ptpl->setVariable('DISABLED', ' disabled="disabled"');
+            $ptpl->setVariable('HIDDEN_INPUT', $this->getHiddenTag($this->getPostVar(), $this->getValue()));
+        }
 
-		$ptpl = new ilTemplate('tpl.prop_email.html', true, true, 'Services/Form');
+        if ($this->getRequired()) {
+            $ptpl->setVariable("REQUIRED", "required=\"required\"");
+        }
 
-		if($this->getRetype())
-		{
-			$ptpl->setCurrentBlock('retype_email');
-			$ptpl->setVariable('RSIZE', $this->getSize());
-			$ptpl->setVariable('RID', $this->getFieldId());
-			$ptpl->setVariable('RMAXLENGTH', $this->getMaxLength());
-			$ptpl->setVariable('RPOST_VAR', $this->getPostVar());
+        $a_tpl->setCurrentBlock('prop_generic');
+        $a_tpl->setVariable('PROP_GENERIC', $ptpl->get());
+        $a_tpl->parseCurrentBlock();
+    }
 
-			$retype_value = $this->getRetypeValue();
-			$ptpl->setVariable('PROPERTY_RETYPE_VALUE', ilUtil::prepareFormOutput($retype_value));
-			if($this->getDisabled())
-			{
-				$ptpl->setVariable('RDISABLED', ' disabled="disabled"');
-			}
-			$ptpl->setVariable('TXT_RETYPE', $lng->txt('form_retype_email'));
-			$ptpl->parseCurrentBlock();
-		}
+    public function setRetype(bool $a_val): void
+    {
+        $this->retype = $a_val;
+    }
 
-		$ptpl->setVariable('POST_VAR', $this->getPostVar());
-		$ptpl->setVariable('ID', $this->getFieldId());
-		$ptpl->setVariable('PROPERTY_VALUE', ilUtil::prepareFormOutput($this->getValue()));
-		$ptpl->setVariable('SIZE', $this->getSize());
-		$ptpl->setVariable('MAXLENGTH', $this->getMaxLength());
-		if($this->getDisabled())
-		{
-			$ptpl->setVariable('DISABLED', ' disabled="disabled"');
-			$ptpl->setVariable('HIDDEN_INPUT', $this->getHiddenTag($this->getPostVar(), $this->getValue()));
-		}
-		
-		if($this->getRequired())
-		{
-			$ptpl->setVariable("REQUIRED", "required=\"required\"");
-		}
+    public function getRetype(): bool
+    {
+        return $this->retype;
+    }
 
-		$a_tpl->setCurrentBlock('prop_generic');
-		$a_tpl->setVariable('PROP_GENERIC', $ptpl->get());
-		$a_tpl->parseCurrentBlock();
-	}
+    public function setRetypeValue(string $a_retypevalue): void
+    {
+        $this->retypevalue = $a_retypevalue;
+    }
 
-	/**
-	 * @param    boolean $a_val
-	 */
-	public function setRetype($a_val)
-	{
-		$this->retype = $a_val;
-	}
+    public function getRetypeValue(): string
+    {
+        return $this->retypevalue;
+    }
 
-	/**
-	 * @return    boolean
-	 */
-	public function getRetype()
-	{
-		return $this->retype;
-	}
+    public function setSize(int $size): void
+    {
+        $this->size = $size;
+    }
 
-	/**
-	 * @param string $a_retypevalue
-	 */
-	public function setRetypeValue($a_retypevalue)
-	{
-		$this->retypevalue = $a_retypevalue;
-	}
+    public function getSize(): int
+    {
+        return $this->size;
+    }
 
-	/**
-	 * @return    string
-	 */
-	public function getRetypeValue()
-	{
-		return $this->retypevalue;
-	}
+    public function setMaxLength(int $max_length): void
+    {
+        $this->max_length = $max_length;
+    }
 
-	/**
-	 * @param int $size
-	 */
-	public function setSize($size)
-	{
-		$this->size = $size;
-	}
-
-	/**
-	 * @return int
-	 */
-	public function getSize()
-	{
-		return $this->size;
-	}
-
-	/**
-	 * @param int $max_length
-	 */
-	public function setMaxLength($max_length)
-	{
-		$this->max_length = $max_length;
-	}
-
-	/**
-	 * @return int
-	 */
-	public function getMaxLength()
-	{
-		return $this->max_length;
-	}
+    public function getMaxLength(): int
+    {
+        return $this->max_length;
+    }
 }

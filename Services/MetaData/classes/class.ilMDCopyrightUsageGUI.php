@@ -1,164 +1,132 @@
 <?php
+
+declare(strict_types=1);
+
 /* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
 
+use ILIAS\HTTP\GlobalHttpState;
+use ILIAS\Refinery\Factory;
+
 /**
- * @author Jesús López <lopez@leifos.com>
- *
+ * @author       Jesús López <lopez@leifos.com>
  * @ilCtrl_Calls ilMDCopyrightUsageGUI: ilPublicUserProfileGUI
- *
- * @ingroup ServicesMetaData
+ * @ingroup      ServicesMetaData
  */
 class ilMDCopyrightUsageGUI
 {
-	const DEFAULT_CMD = 'showUsageTable';
+    public const DEFAULT_CMD = 'showUsageTable';
 
-	/**
-	 * copyright identifier
-	 * @var integer
-	 */
-	protected $entry_id;
+    protected int $entry_id;
 
-	/**
-	 * @var ilTemplate|null
-	 */
-	protected $tpl = null;
+    protected ilGlobalTemplateInterface $tpl;
+    protected ilCtrl $ctrl;
+    protected ilLanguage $lng;
+    protected ilTabsGUI $tabs;
+    protected GlobalHttpState $http;
+    protected Factory $refinery;
 
-	/**
-	 * @var ilCtrl|null
-	 */
-	protected $ctrl = null;
+    public function __construct(int $a_entry_id)
+    {
+        global $DIC;
 
-	/**
-	 * @var ilLanguage|null
-	 */
-	protected $lng = null;
+        $this->tpl = $DIC->ui()->mainTemplate();
+        $this->http = $DIC->http();
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        $this->tabs = $DIC->tabs();
+        $this->refinery = $DIC->refinery();
 
-	/**
-	 * @var \ilTabsGUI|null
-	 */
-	protected $tabs = null;
+        $this->entry_id = $a_entry_id;
+    }
 
-	/**
-	 * ilMDCopyrightUsageGUI constructor.
-	 * @param int $a_entry_id
-	 */
-	public function __construct(int $a_entry_id)
-	{
-		global $DIC;
+    public function executeCommand(): void
+    {
+        // save usage id for all request
+        $this->ctrl->saveParameter($this, 'entry_id');
 
-		$this->tpl = $DIC->ui()->mainTemplate();
+        $user = '';
+        if ($this->http->wrapper()->query()->has('user')) {
+            $user = $this->http->wrapper()->query()->retrieve(
+                'user',
+                $this->refinery->kindlyTo()->string()
+            );
+        }
 
-		$this->ctrl = $DIC->ctrl();
-		$this->lng = $DIC->language();
-		$this->tabs = $DIC->tabs();
+        $this->setTabs();
+        $next_class = $this->ctrl->getNextClass($this);
+        switch ($this->ctrl->getNextClass($this)) {
+            case 'ilpublicuserprofilegui':
+                $profile_gui = new ilPublicUserProfileGUI($this->http->wrapper()->query()->retrieve(
+                    'user',
+                    $this->refinery->kindlyTo()->int()
+                ));
+                $profile_gui->setBackUrl(
+                    $this->ctrl->getLinkTarget($this, self::DEFAULT_CMD)
+                );
+                $html = $this->ctrl->forwardCommand($profile_gui);
+                $this->tpl->setContent($html);
+                break;
 
-		$this->entry_id = $a_entry_id;
-	}
+            default:
+                $cmd = $this->ctrl->getCmd(self::DEFAULT_CMD);
+                $this->$cmd();
+                break;
+        }
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function executeCommand()
-	{
-		// save usage id for all request
-		$this->ctrl->saveParameter($this, 'entry_id');
+    public function showUsageTable(): void
+    {
+        $this->tpl->setOnScreenMessage('info', $this->lng->txt("meta_info_only_repository_objects"));
 
-		$this->setTabs();
-		$next_class = $this->ctrl->getNextClass($this);
-		switch($this->ctrl->getNextClass($this))
-		{
-			case 'ilpublicuserprofilegui':
-				$profile_gui = new ilPublicUserProfileGUI(ilUtil::stripSlashes($_GET['user']));
-				$profile_gui->setBackUrl(
-					$this->ctrl->getLinkTarget($this,self::DEFAULT_CMD)
-				);
-				$html = $this->ctrl->forwardCommand($profile_gui);
-				$this->tpl->setContent($html);
-				break;
+        $table_gui = new ilMDCopyrightUsageTableGUI(
+            $this,
+            self::DEFAULT_CMD,
+        );
+        $table_gui->setFilterCommand("applyUsageFilter");
+        $table_gui->setResetCommand("resetUsageFilter");
+        $table_gui->init();
+        $table_gui->parse();
 
-			default:
-				$cmd = $this->ctrl->getCmd(self::DEFAULT_CMD);
-				$this->$cmd();
-				break;
-		}
-	}
+        $this->tpl->setContent($table_gui->getHTML());
+    }
 
-	/**
-	 * Sho usage table
-	 */
-	function showUsageTable()
-	{
-		global $DIC;
+    public function getEntryId(): int
+    {
+        return $this->entry_id;
+    }
 
-		$tabs = $DIC->tabs();
-		$lng = $DIC->language();
+    protected function applyUsageFilter(): void
+    {
+        $table_gui = new ilMDCopyrightUsageTableGUI(
+            $this,
+            self::DEFAULT_CMD,
+        );
+        $table_gui->init();
+        $table_gui->resetOffset();        // sets record offset to 0 (first page)
+        $table_gui->writeFilterToSession();    // writes filter to session
 
-		ilUtil::sendInfo($this->lng->txt("meta_info_only_repository_objects"));
+        $this->ctrl->redirect($this, self::DEFAULT_CMD);
+    }
 
-		$table_gui = new ilMDCopyrightUsageTableGUI(
-			$this,
-			self::DEFAULT_CMD,
-			$this->entry_id
-		);
-		$table_gui->setFilterCommand("applyUsageFilter");
-		$table_gui->setResetCommand("resetUsageFilter");
-		$table_gui->init();
-		$table_gui->parse();
+    protected function resetUsageFilter(): void
+    {
+        $table_gui = new ilMDCopyrightUsageTableGUI(
+            $this,
+            self::DEFAULT_CMD,
+        );
+        $table_gui->init();
+        $table_gui->resetOffset();        // sets record offest to 0 (first page)
+        $table_gui->resetFilter();        // clears filter
 
-		$this->tpl->setContent($table_gui->getHTML());
-	}
+        $this->ctrl->redirect($this, self::DEFAULT_CMD);
+    }
 
-	/**
-	 * @return int
-	 */
-	public function getEntryId()
-	{
-		return $this->entry_id;
-	}
-
-	/**
-	 * Apply filter
-	 */
-	protected function applyUsageFilter()
-	{
-		$table_gui = new ilMDCopyrightUsageTableGUI(
-			$this,
-			self::DEFAULT_CMD,
-			$this->entry_id
-		);
-		$table_gui->init();
-		$table_gui->resetOffset();		// sets record offset to 0 (first page)
-		$table_gui->writeFilterToSession();	// writes filter to session
-
-		$this->ctrl->redirect($this, self::DEFAULT_CMD);
-	}
-
-	/**
-	 * Reset filter
-	 */
-	protected function resetUsageFilter()
-	{
-		$table_gui = new ilMDCopyrightUsageTableGUI(
-			$this,
-			self::DEFAULT_CMD,
-			$this->entry_id
-		);
-		$table_gui->init();
-		$table_gui->resetOffset();		// sets record offest to 0 (first page)
-		$table_gui->resetFilter();		// clears filter
-
-		$this->ctrl->redirect($this, self::DEFAULT_CMD);
-	}
-
-	/**
-	 * Set tabs
-	 */
-	protected function setTabs()
-	{
-		$this->tabs->clearTargets();
-		$this->tabs->setBackTarget(
-			$this->lng->txt('back'),
-			$this->ctrl->getParentReturn($this)
-		);
-	}
+    protected function setTabs(): void
+    {
+        $this->tabs->clearTargets();
+        $this->tabs->setBackTarget(
+            $this->lng->txt('back'),
+            $this->ctrl->getParentReturn($this)
+        );
+    }
 }

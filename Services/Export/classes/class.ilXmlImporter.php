@@ -1,200 +1,126 @@
 <?php
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Xml importer class
- *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- * @ingroup ServicesExport
+ * @author Alexander Killing <killing@leifos.de>
  */
 abstract class ilXmlImporter
 {
-	protected $skip_entities = array();
-	protected $imp; // import object
-	
-	/**
-	 * Constructor
-	 *
-	 * @param
-	 * @return
-	 */
-	function __construct()
-	{
+    protected array $skip_entities = array();
+    protected ilImport $imp;
+    protected string $install_id;
+    protected string $install_url;
+    protected string $schema_version;
+    protected string $import_directory;
 
-	}
+    public function __construct()
+    {
+    }
 
-	/**
-	 * Set import
-	 *
-	 * @param ilImport $a_val import object
-	 */
-	function setImport($a_val)
-	{
-		$this->imp = $a_val;
-	}
+    public function setImport(ilImport $a_val): void
+    {
+        $this->imp = $a_val;
+    }
 
-	/**
-	 * Get import
-	 *
-	 * @return ilImport import object
-	 */
-	function getImport()
-	{
-		return $this->imp;
-	}
-	/**
-	 * Init
-	 */
-	function init()
-	{
-	}
+    public function getImport(): ilImport
+    {
+        return $this->imp;
+    }
 
-	/**
-	 * Set installation id
-	 *
-	 * @param	string	installation id
-	 */
-	function setInstallId($a_val)
-	{
-		$this->install_id = $a_val;
-	}
+    public function init(): void
+    {
+    }
 
-	/**
-	 * Get installation id
-	 *
-	 * @return	string	installation id
-	 */
-	function getInstallId()
-	{
-		return $this->install_id;
-	}
+    public function setInstallId(string $a_val): void
+    {
+        $this->install_id = $a_val;
+    }
 
-	/**
-	 * Set installation url
-	 *
-	 * @param	string	installation url
-	 */
-	function setInstallUrl($a_val)
-	{
-		$this->install_url = $a_val;
-	}
+    public function getInstallId(): string
+    {
+        return $this->install_id;
+    }
 
-	/**
-	 * Get installation url
-	 *
-	 * @return	string	installation url
-	 */
-	function getInstallUrl()
-	{
-		return $this->install_url;
-	}
+    public function setInstallUrl(string $a_val): void
+    {
+        $this->install_url = $a_val;
+    }
 
-	/**
-	 * Set schema version
-	 *
-	 * @param	string	schema version
-	 */
-	function setSchemaVersion($a_val)
-	{
-		$this->schema_version = $a_val;
-	}
+    public function getInstallUrl(): string
+    {
+        return $this->install_url;
+    }
 
-	/**
-	 * Get schema version
-	 *
-	 * @return	string	schema version
-	 */
-	function getSchemaVersion()
-	{
-		return $this->schema_version;
-	}
+    public function setSchemaVersion(string $a_val): void
+    {
+        $this->schema_version = $a_val;
+    }
 
-	/**
-	 * Set import directory
-	 *
-	 * @param	string	import directory
-	 */
-	function setImportDirectory($a_val)
-	{
-		$this->import_directory = $a_val;
-	}
+    public function getSchemaVersion(): string
+    {
+        return $this->schema_version;
+    }
 
-	/**
-	 * Get import directory
-	 *
-	 * @return	string	import directory
-	 */
-	function getImportDirectory()
-	{
-		return $this->import_directory;
-	}
-	
-	/**
-	 * Set skip entities
-	 *
-	 * @param array $a_val entities to skip	
-	 */
-	function setSkipEntities($a_val)
-	{
-		$this->skip_entities = $a_val;
-	}
-	
-	/**
-	 * Get skip entities
-	 *
-	 * @return array entities to skip
-	 */
-	function getSkipEntities()
-	{
-		return $this->skip_entities;
-	}
+    public function setImportDirectory(string $a_val): void
+    {
+        $this->import_directory = $a_val;
+    }
 
-	/**
-	 * Is exporting and importing installation identical?
-	 *
-	 * @param
-	 * @return
-	 */
-	function exportedFromSameInstallation()
-	{
-		if ($this->getInstallId() > 0 && ($this->getInstallId() == IL_INST_ID))
-		{
-			return true;
-		}
-		return false;
-	}
+    public function getImportDirectory(): string
+    {
+        return $this->import_directory;
+    }
 
+    public function setSkipEntities(array $a_val): void
+    {
+        $this->skip_entities = $a_val;
+    }
 
-	/**
-	 * Import xml representation
-	 *
-	 * @param	string		entity
-	 * @param	string		target release
-	 * @param	string		id
-	 * @return	string		xml string
-	 */
-	abstract public function importXmlRepresentation($a_entity, $a_id, $a_xml, $a_mapping);
+    public function getSkipEntities(): array
+    {
+        return $this->skip_entities;
+    }
 
-	/**
-	 * Final processing
-	 *
-	 * @param	array		mapping array
-	 */
-	function finalProcessing($a_mapping)
-	{
+    // Is exporting and importing installation identical?
+    public function exportedFromSameInstallation(): bool
+    {
+        if ($this->getInstallId() > 0 && ($this->getInstallId() == IL_INST_ID)) {
+            return true;
+        }
+        return false;
+    }
 
-	}
-	
-	// begin-patch optes_lok_export
-	/**
-	 * Called after all container objects have been implemented. 
-	 * @param ilImportMapping $mapping
-	 */
-	public function afterContainerImportProcessing(ilImportMapping $mapping)
-	{
-		
-	}
-	// end-patch optes_lok_export
+    abstract public function importXmlRepresentation(
+        string $a_entity,
+        string $a_id,
+        string $a_xml,
+        ilImportMapping $a_mapping
+    ): void;
+
+    public function finalProcessing(ilImportMapping $a_mapping): void
+    {
+    }
+
+    // Called after all container objects have been imported.
+    public function afterContainerImportProcessing(ilImportMapping $mapping): void
+    {
+    }
 }
-?>

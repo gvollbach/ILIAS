@@ -1,143 +1,141 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Storage of editor settings
  *
  * @author Stefan Meyer <meyer@leifos.com>
- * @ingroup ServicesAuthentication
  */
 class ilAuthLoginPageEditorSettings
 {
-	const MODE__UNDEFINED = 0;
-	const MODE_RTE = 1;
-	const MODE_IPE = 2;
+    public const MODE__UNDEFINED = 0;
+    public const MODE_RTE = 1;
+    public const MODE_IPE = 2;
 
-	private $languages = array();
+    private array $languages = [];
 
+    private static ?ilAuthLoginPageEditorSettings $instance = null;
+    private ilSetting $storage;
 
-	private static $instance = null;
-	private $storage = null;
+    private int $mode = 0;
 
-	private $mode = 0;
+    private ilLanguage $lng;
 
+    public function __construct()
+    {
+        global $DIC;
+        $this->lng = $DIC->language();
 
-	public function __construct()
-	{
-		include_once './Services/Administration/classes/class.ilSetting.php';
-		$this->storage = new ilSetting('login_editor');
-		$this->read();
-	}
+        $this->storage = new ilSetting('login_editor');
+        $this->read();
+    }
 
-	/**
-	 * Get singelton instance
-	 * @return ilAuthLoginPageEditorSettings
-	 */
-	public static function getInstance()
-	{
-		if(self::$instance)
-		{
-			return self::$instance;
-		}
-		return self::$instance = new ilAuthLoginPageEditorSettings();
-	}
+    /**
+     * Get singelton instance
+     * @return ilAuthLoginPageEditorSettings
+     */
+    public static function getInstance(): ilAuthLoginPageEditorSettings
+    {
+        if (self::$instance) {
+            return self::$instance;
+        }
+        return self::$instance = new ilAuthLoginPageEditorSettings();
+    }
 
-	/**
-	 * @return ilSetting
-	 */
-	protected function getStorage()
-	{
-		return $this->storage;
-	}
+    /**
+     * @return ilSetting
+     */
+    protected function getStorage(): ilSetting
+    {
+        return $this->storage;
+    }
 
-	public function setMode($a_mode)
-	{
-		$this->mode = $a_mode;
-	}
+    public function setMode(int $a_mode): void
+    {
+        //TODO check for proper mode
+        $this->mode = $a_mode;
+    }
 
-	public function getMode()
-	{
-		return $this->mode;
-	}
+    public function getMode(): int
+    {
+        return $this->mode;
+    }
 
-	/**
-	 * Get ilias editor language
-	 * @global ilLanguage $lng
-	 * @param string $a_langkey
-	 * @return string
-	 */
-	public function getIliasEditorLanguage($a_langkey)
-	{
-		global $DIC;
+    /**
+     * Get ilias editor language
+     * @param string $a_langkey
+     * @return string
+     */
+    public function getIliasEditorLanguage(string $a_langkey): string
+    {
+        if ($this->mode !== self::MODE_IPE) {
+            return '';
+        }
+        if ($this->isIliasEditorEnabled($a_langkey)) {
+            return $a_langkey;
+        }
+        if ($this->isIliasEditorEnabled($this->lng->getDefaultLanguage())) {
+            return $this->lng->getDefaultLanguage();
+        }
+        return '';
+    }
 
-		$lng = $DIC['lng'];
+    /**
+     * Enable editor for language
+     */
+    public function enableIliasEditor(string $a_langkey, bool $a_status): void
+    {
+        $this->languages[$a_langkey] = $a_status;
+    }
 
-		if($this->getMode() != self::MODE_IPE)
-		{
-			return '';
-		}
-		if($this->isIliasEditorEnabled($a_langkey))
-		{
-			return $a_langkey;
-		}
-		if($this->isIliasEditorEnabled($lng->getDefaultLanguage()))
-		{
-			return $lng->getDefaultLanguage();
-		}
-		return '';
-	}
+    /**
+     * Check if ilias editor is enabled for a language
+     */
+    public function isIliasEditorEnabled(string $a_langkey): bool
+    {
+        return $this->languages[$a_langkey] ?? false;
+    }
 
-	/**
-	 * Enable editor for language
-	 */
-	public function enableIliasEditor($a_langkey,$a_status)
-	{
-		$this->languages[$a_langkey] = (bool) $a_status;
-	}
+    /**
+     * Update settings
+     */
+    public function update(): void
+    {
+        $this->getStorage()->set('mode', (string) $this->getMode());
 
-	/**
-	 * Check if ilias editor is enabled for a language
-	 * @param string $a_langkey
-	 */
-	public function isIliasEditorEnabled($a_langkey)
-	{
-		if(isset($this->languages[$a_langkey]))
-		{
-			return (bool) $this->languages[$a_langkey];
-		}
-		return false;
-	}
+        foreach ($this->languages as $lngkey => $stat) {
+            $this->storage->set($lngkey, (string) $stat);
+        }
+    }
 
-	/**
-	 * Update settings
-	 */
-	public function update()
-	{
-		$this->getStorage()->set('mode', $this->getMode());
+    /**
+     * Read settings
+     */
+    public function read(): void
+    {
+        $this->setMode((int) $this->getStorage()->get('mode', (string) self::MODE_RTE));
 
-		foreach((array) $this->languages as $lngkey => $stat)
-		{
-			$this->storage->set($lngkey,(int) $stat);
-		}
-	}
-
-	/**
-	 * Read settings
-	 */
-	public function read()
-	{
-		global $DIC;
-
-		$lng = $DIC['lng'];
-		
-		$this->setMode($this->getStorage()->get('mode', self::MODE_RTE));
-
-		// Language settings
-		$this->languages = array();
-		foreach($lng->getInstalledLanguages() as $num => $lngkey)
-		{
-			$this->enableIliasEditor($lngkey,$this->getStorage()->get($lngkey,0));
-		}
-	}
+        // Language settings
+        $this->languages = [];
+        foreach ($this->lng->getInstalledLanguages() as $lngkey) {
+            $this->enableIliasEditor($lngkey, (bool) $this->getStorage()->get($lngkey, ""));
+        }
+    }
 }
-?>

@@ -1,35 +1,55 @@
 <?php
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 use ILIAS\UI\Component\Tree\Node\Factory;
 use ILIAS\UI\Component\Tree\Node\Node;
 use ILIAS\UI\Component\Tree\Tree;
+use ILIAS\HTTP\GlobalHttpState;
+use ILIAS\Refinery\Factory as Refinery;
 
-/**
- * Class Mail Explorer
- * class for explorer view for mailboxes
- * @author  Stefan Meyer <meyer@leifos.com>
- * @author  Michael Jansen <mjansen@databay.de>
- */
 class ilMailExplorer extends ilTreeExplorerGUI
 {
-    /** @var ilMailGUI */
-    private $parentObject;
+    private GlobalHttpState $http;
+    private Refinery $refinery;
+    private int $currentFolderId = 0;
+    private int $root_folder_id;
+    private int $root_node_id;
 
-    /** @var int */
-    protected $currentFolderId = 0;
-
-    /**
-     * ilMailExplorer constructor.
-     * @param $parentObject
-     * @param $userId
-     */
-    public function __construct($parentObject, $userId)
+    public function __construct(ilMailGUI $parentObject, int $userId)
     {
-        $this->parentObject = $parentObject;
+        global $DIC;
+
+        $this->http = $DIC->http();
+        $this->refinery = $DIC->refinery();
 
         $this->tree = new ilTree($userId);
         $this->tree->setTableNames('mail_tree', 'mail_obj_data');
+
+        $this->root_folder_id = (new ilMailbox($userId))->getRooFolder();
+        $this->root_node_id = $this->tree->readRootId();
+
+        if ($this->root_folder_id !== $this->root_node_id) {
+            $DIC->logger()->mail()->error(
+                "Root folder id $this->root_folder_id does not match root node id $this->root_node_id for user $userId"
+            );
+        }
 
         parent::__construct('mail_exp', $parentObject, '', $this->tree);
 
@@ -40,83 +60,107 @@ class ilMailExplorer extends ilTreeExplorerGUI
         $this->setOrderField('title,m_type');
     }
 
-    /**
-     *
-     */
-    protected function initFolder() : void
+    protected function initFolder(): void
     {
-        $folderId = (int) ($this->httpRequest->getParsedBody()['mobj_id'] ?? 0);
-        if (0 === $folderId) {
-            $folderId = (int) ($this->httpRequest->getQueryParams()['mobj_id'] ?? 0);
+        if ($this->http->wrapper()->post()->has('mobj_id')) {
+            $folderId = $this->http->wrapper()->post()->retrieve('mobj_id', $this->refinery->kindlyTo()->int());
+        } elseif ($this->http->wrapper()->query()->has('mobj_id')) {
+            $folderId = $this->http->wrapper()->query()->retrieve('mobj_id', $this->refinery->kindlyTo()->int());
+        } else {
+            $folderId = $this->refinery->byTrying([
+                $this->refinery->kindlyTo()->int(),
+                $this->refinery->always($this->currentFolderId),
+            ])->transform(ilSession::get('mobj_id'));
         }
 
-        $this->currentFolderId = (int) $folderId;
+        $this->currentFolderId = $folderId;
     }
 
     /**
-     * @inheritDoc
+     * Workaround for: https://mantis.ilias.de/view.php?id=40716
+     * @param array<string, mixed> $root
+     * @return array<string, mixed>
      */
-    public function getTreeComponent() : Tree
+    private function repairRootNode(array $root): array
+    {
+        if (!isset($root['child']) && $this->root_node_id !== $this->root_folder_id) {
+            $root['child'] = $this->root_node_id;
+            $root['obj_id'] = $this->root_node_id;
+            $root['parent'] = 0;
+            $root['depth'] = 1;
+            $root['title'] = 'a_root';
+            $root['m_type'] = 'root';
+            $root['lft'] = 1;
+            $root['rgt'] = PHP_INT_MAX;
+            $root['user_id'] = $this->tree->getTreeId();
+        }
+
+        return $root;
+    }
+
+    public function getTreeLabel(): string
+    {
+        return $this->lng->txt("mail_folders");
+    }
+
+    public function getTreeComponent(): Tree
     {
         $f = $this->ui->factory();
 
-        $tree = $f->tree()
-            ->expandable($this)
-            ->withData($this->tree->getChilds((int) $this->tree->readRootId()))
-            ->withHighlightOnNodeClick(false);
-
-        return $tree;
+        return $f->tree()
+                 ->expandable($this->getTreeLabel(), $this)
+                 ->withData($this->tree->getChilds($this->root_node_id))
+                 ->withHighlightOnNodeClick(false);
     }
 
-    /**
-     * @inheritDoc
-     */
     public function build(
         Factory $factory,
         $record,
         $environment = null
-    ) : Node {
-        $node = parent::build($factory, $record, $environment);
-
-        return $node->withHighlighted($this->currentFolderId === (int) $record['child']);
+    ): Node {
+        return parent::build($factory, $record, $environment)
+                     ->withHighlighted(
+                         $this->currentFolderId === (int) $record['child']
+                     );
     }
 
-    /**
-     * @inheritDoc
-     */
-    protected function getNodeStateToggleCmdClasses($record) : array
+    protected function getNodeStateToggleCmdClasses($record): array
     {
         return [
-            'ilMailGUI',
+            ilMailGUI::class,
         ];
     }
 
-    /**
-     * @inheritDoc
-     */
-    public function getNodeContent($node)
+    public function getRootNode(): array
     {
-        $content = $node['title'];
+        return $this->repairRootNode(parent::getRootNode());
+    }
 
-        if ($node['child'] == $this->getNodeId($this->getRootNode())) {
+    public function getNodeContent($a_node): string
+    {
+        $content = ilLegacyFormElementsUtil::prepareFormOutput($a_node['title']);
+
+        if ((int) $a_node['child'] === (int) $this->getNodeId($this->getRootNode())) {
             $content = $this->lng->txt('mail_folders');
-        } elseif ($node['depth'] < 3) {
-            $content = $this->lng->txt('mail_' . $node['title']);
+        } elseif ($a_node['depth'] < 3) {
+            $content = $this->lng->txt('mail_' . $a_node['title']);
         }
 
         return $content;
     }
 
-    /**
-     * @inheritDoc
-     */
-    public function getNodeIcon($node)
+    public function getNodeIconAlt($a_node): string
     {
-        if ($node['child'] == $this->getNodeId($this->getRootNode())) {
+        return $this->getNodeContent($a_node);
+    }
+
+    public function getNodeIcon($a_node): string
+    {
+        if ((int) $a_node['child'] === (int) $this->getNodeId($this->getRootNode())) {
             $icon = ilUtil::getImagePath('icon_mail.svg');
         } else {
-            $iconType = $node['m_type'];
-            if ($node['m_type'] === 'user_folder') {
+            $iconType = $a_node['m_type'];
+            if ($a_node['m_type'] === 'user_folder') {
                 $iconType = 'local';
             }
 
@@ -126,18 +170,15 @@ class ilMailExplorer extends ilTreeExplorerGUI
         return $icon;
     }
 
-    /**
-     * @inheritDoc
-     */
-    public function getNodeHref($node)
+    public function getNodeHref($a_node): string
     {
-        if ($node['child'] == $this->getNodeId($this->getRootNode())) {
-            $node['child'] = 0;
+        if ((int) $a_node['child'] === (int) $this->getNodeId($this->getRootNode())) {
+            $a_node['child'] = 0;
         }
 
-        $this->ctrl->setParameterByClass('ilMailFolderGUI', 'mobj_id', $node['child']);
-        $href = $this->ctrl->getLinkTargetByClass('ilMailFolderGUI', '', '', false, false);
-        $this->ctrl->clearParametersByClass('ilMailFolderGUI');
+        $this->ctrl->setParameterByClass(ilMailFolderGUI::class, 'mobj_id', $a_node['child']);
+        $href = $this->ctrl->getLinkTargetByClass([ilMailGUI::class, ilMailFolderGUI::class]);
+        $this->ctrl->clearParametersByClass(ilMailFolderGUI::class);
 
         return $href;
     }

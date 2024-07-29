@@ -1,11 +1,20 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Modules/Test/classes/class.ilObjAssessmentFolder.php';
-require_once 'Modules/TestQuestionPool/classes/class.ilAssQuestionProcessLocker.php';
-require_once 'Modules/TestQuestionPool/classes/class.ilAssQuestionProcessLockerNone.php';
-require_once 'Modules/TestQuestionPool/classes/class.ilAssQuestionProcessLockerFile.php';
-require_once 'Modules/TestQuestionPool/classes/class.ilAssQuestionProcessLockerDb.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * @author		Björn Heyser <bheyser@databay.de>
@@ -15,126 +24,125 @@ require_once 'Modules/TestQuestionPool/classes/class.ilAssQuestionProcessLockerD
  */
 class ilAssQuestionProcessLockerFactory
 {
-	/**
-	 * @var ilSetting
-	 */
-	protected $settings;
+    /**
+     * @var ilSetting
+     */
+    protected $settings;
 
-	/**
-	 * @var ilDBInterface
-	 */
-	protected $db;
+    /**
+     * @var ilDBInterface
+     */
+    protected $db;
 
-	/**
-	 * @var integer
-	 */
-	protected $questionId;
+    /**
+     * @var integer
+     */
+    protected $questionId;
 
-	/**
-	 * @var integer
-	 */
-	protected $userId;
+    /**
+     * @var integer
+     */
+    protected $userId;
 
-	/**
-	 * @var bool
-	 */
-	protected $assessmentLogEnabled;
+    /**
+     * @var bool
+     */
+    protected $assessmentLogEnabled;
 
-	/**
-	 * @param ilSetting $settings
-	 * @param ilDBInterface $db
-	 */
-	public function __construct(ilSetting $settings, ilDBInterface $db)
-	{
-		$this->settings = $settings;
-		$this->db = $db;
-		
-		$this->questionId = null;
-		$this->userId = null;
-		$this->assessmentLogEnabled = false;
-	}
+    /**
+     * @param ilSetting $settings
+     * @param ilDBInterface $db
+     */
+    public function __construct(ilSetting $settings, ilDBInterface $db)
+    {
+        $this->settings = $settings;
+        $this->db = $db;
 
-	/**
-	 * @param int $questionId
-	 */
-	public function setQuestionId($questionId)
-	{
-		$this->questionId = $questionId;
-	}
+        $this->questionId = null;
+        $this->userId = null;
+        $this->assessmentLogEnabled = false;
+    }
 
-	/**
-	 * @return int
-	 */
-	public function getQuestionId()
-	{
-		return $this->questionId;
-	}
-	
-	/**
-	 * @param int $userId
-	 */
-	public function setUserId($userId)
-	{
-		$this->userId = $userId;
-	}
+    /**
+     * @param int $questionId
+     */
+    public function setQuestionId($questionId): void
+    {
+        $this->questionId = $questionId;
+    }
 
-	/**
-	 * @return int
-	 */
-	public function getUserId()
-	{
-		return $this->userId;
-	}
+    /**
+     * @return int
+     */
+    public function getQuestionId(): ?int
+    {
+        return $this->questionId;
+    }
 
-	/**
-	 * @param bool $assessmentLogEnabled
-	 */
-	public function setAssessmentLogEnabled($assessmentLogEnabled)
-	{
-		$this->assessmentLogEnabled = $assessmentLogEnabled;
-	}
+    /**
+     * @param int $userId
+     */
+    public function setUserId($userId): void
+    {
+        $this->userId = $userId;
+    }
 
-	/**
-	 * @return bool
-	 */
-	public function isAssessmentLogEnabled()
-	{
-		return $this->assessmentLogEnabled;
-	}
+    /**
+     * @return int
+     */
+    public function getUserId(): ?int
+    {
+        return $this->userId;
+    }
 
-	private function getLockModeSettingValue()
-	{
-		return $this->settings->get('ass_process_lock_mode', ilObjAssessmentFolder::ASS_PROC_LOCK_MODE_NONE);
-	}
+    /**
+     * @param bool $assessmentLogEnabled
+     */
+    public function setAssessmentLogEnabled($assessmentLogEnabled): void
+    {
+        $this->assessmentLogEnabled = $assessmentLogEnabled;
+    }
 
-	/**
-	 * @return ilAssQuestionProcessLockerDb|ilAssQuestionProcessLockerFile|ilAssQuestionProcessLockerNone
-	 */
-	public function getLocker()
-	{
-		switch( $this->getLockModeSettingValue() )
-		{
-			case ilObjAssessmentFolder::ASS_PROC_LOCK_MODE_NONE:
-				
-				$locker = new ilAssQuestionProcessLockerNone();
-				break;
-				
-			case ilObjAssessmentFolder::ASS_PROC_LOCK_MODE_FILE:
+    /**
+     * @return bool
+     */
+    public function isAssessmentLogEnabled(): bool
+    {
+        return $this->assessmentLogEnabled;
+    }
 
-				require_once 'Modules/TestQuestionPool/classes/class.ilAssQuestionProcessLockFileStorage.php';
-				$storage = new ilAssQuestionProcessLockFileStorage($this->getQuestionId(), $this->getUserId());
-				$storage->create();
+    private function getLockModeSettingValue(): ?string
+    {
+        return $this->settings->get('ass_process_lock_mode', ilObjAssessmentFolder::ASS_PROC_LOCK_MODE_NONE);
+    }
 
-				$locker = new ilAssQuestionProcessLockerFile($storage);
-				break;
-			
-			case ilObjAssessmentFolder::ASS_PROC_LOCK_MODE_DB:
+    /**
+     * @return ilAssQuestionProcessLockerDb|ilAssQuestionProcessLockerFile|ilAssQuestionProcessLockerNone
+     */
+    public function getLocker()
+    {
+        switch ($this->getLockModeSettingValue()) {
+            case ilObjAssessmentFolder::ASS_PROC_LOCK_MODE_NONE:
 
-				$locker = new ilAssQuestionProcessLockerDb($this->db);
-				$locker->setAssessmentLogEnabled($this->isAssessmentLogEnabled());
-				break;
-		}
-		
-		return $locker;
-	}
-} 
+                $locker = new ilAssQuestionProcessLockerNone();
+                break;
+
+            case ilObjAssessmentFolder::ASS_PROC_LOCK_MODE_FILE:
+
+                require_once 'Modules/TestQuestionPool/classes/class.ilAssQuestionProcessLockFileStorage.php';
+                $storage = new ilAssQuestionProcessLockFileStorage($this->getQuestionId(), $this->getUserId());
+                $storage->create();
+
+                $locker = new ilAssQuestionProcessLockerFile($storage);
+                break;
+
+            case ilObjAssessmentFolder::ASS_PROC_LOCK_MODE_DB:
+
+                $locker = new ilAssQuestionProcessLockerDb($this->db);
+                $locker->setAssessmentLogEnabled($this->isAssessmentLogEnabled());
+                break;
+        }
+
+        return $locker;
+    }
+}

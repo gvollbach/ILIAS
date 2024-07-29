@@ -1,87 +1,67 @@
 <?php
 
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
 
 /**
- * Object service
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
  *
- * @author killing@leifos.de
- * @ingroup ServiceObject
- */
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\Filesystem\Filesystems;
+use ILIAS\FileUpload\FileUpload;
+
 class ilObjectService implements ilObjectServiceInterface
 {
-	/**
+    protected ilLanguage $lng;
+    protected ilSetting $settings;
+    protected Filesystems $filesystem;
+    protected FileUpload $upload;
 
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+    public function __construct(
+        ilLanguage $lng,
+        ilSetting $settings,
+        Filesystems $filesystem,
+        FileUpload $upload
+    ) {
+        $this->lng = $lng;
+        $this->settings = $settings;
+        $this->filesystem = $filesystem;
+        $this->upload = $upload;
+    }
 
-	/**
-	 * @var ilSetting
-	 */
-	protected $settings;
+    public function language(): ilLanguage
+    {
+        return $this->lng;
+    }
 
-	/**
-	 * @var \ILIAS\Filesystem\Filesystems
-	 */
-	protected $filesystem;
+    public function settings(): ilSetting
+    {
+        return $this->settings;
+    }
 
-	/**
-	 * Constructor
-	 * @param ilLanguage $lng
-	 */
-	public function __construct(ilLanguage $lng, ilSetting $settings, \ILIAS\Filesystem\Filesystems $filesystem, \ILIAS\FileUpload\FileUpload $upload)
-	{
-		$this->lng = $lng;
-		$this->settings = $settings;
-		$this->filesystem = $filesystem;
-		$this->upload = $upload;
-	}
+    public function filesystem(): Filesystems
+    {
+        return $this->filesystem;
+    }
 
-	/**
-	 * Get language object
-	 *
-	 * @return ilLanguage
-	 */
-	public function language()
-	{
-		return $this->lng;
-	}
+    public function upload(): FileUpload
+    {
+        return $this->upload;
+    }
 
-	/**
-	 * Get settings object
-	 *
-	 * @return ilSetting
-	 */
-	public function settings()
-	{
-		return $this->settings;
-	}
-
-	/**
-	 * Get filesystems
-	 * @return \ILIAS\Filesystem\Filesystems
-	 */
-	public function filesystem()
-	{
-		return $this->filesystem;
-	}
-
-	/**
-	 * Get filesystems
-	 * @return \ILIAS\FileUpload\FileUpload
-	 */
-	public function upload()
-	{
-		return $this->upload;
-	}
-
-	/**
-	 * @inheritdoc
-	 */
-	public function commonSettings(): ilObjectCommonSettings
-	{
-		return new ilObjectCommonSettings($this);
-	}
+    public function commonSettings(): ilObjectCommonSettings
+    {
+        return new ilObjectCommonSettings($this);
+    }
 }

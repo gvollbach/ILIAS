@@ -11,9 +11,9 @@ il.IntLink =
 
 	save_pars: {
 		//"target_type": "",
-		"link_par_ref_id": "",
-		"link_par_obj_id": "",
-		"link_par_fold_id": "",
+		"link_par_ref_id": 0,
+		"link_par_obj_id": 0,
+		"link_par_fold_id": 0,
 		"link_type": ""
 	},
 
@@ -64,7 +64,6 @@ il.IntLink =
 
 	init: function(cfg)
 	{
-		//console.log("init with cfgurl:" + cfg.url);
 		//console.trace();
 		// new: get link dynamically
 		if(cfg.url == "")
@@ -107,10 +106,13 @@ il.IntLink =
 	},
 
 	// click event handler
-	openIntLink: function(ev) {
+	openIntLink: function(ev, addCallback) {
+		this.addCallback = addCallback;
 		il.IntLink.initPanel();
-		ev.preventDefault();
-		ev.stopPropagation();
+		if (ev) {
+			ev.preventDefault();
+			ev.stopPropagation();
+		}
 	},
 
 	/**
@@ -324,8 +326,8 @@ il.IntLink =
 
 	addInternalLink: function (b, e, ev, c)
 	{
-		if (typeof ilCOPage != "undefined" && ($("#ilEditTableDataCl").length == 0)) {
-			ilCOPage.cmdIntLink(b, e, c);
+		if (this.addCallback) {
+			this.addCallback(b, e, c);
 		} else if (il.Form && $("#par_content").length == 0 && $("#cell_0_0").length == 0) {
 			il.Form.addInternalLink(b,e,this.id,ev);
 		}

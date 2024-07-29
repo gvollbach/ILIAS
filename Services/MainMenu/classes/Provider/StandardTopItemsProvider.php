@@ -1,8 +1,35 @@
-<?php namespace ILIAS\MainMenu\Provider;
+<?php
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+namespace ILIAS\MainMenu\Provider;
 
 use ILIAS\DI\Container;
+use ILIAS\GlobalScreen\Helper\BasicAccessCheckClosuresSingleton;
 use ILIAS\GlobalScreen\Identification\IdentificationInterface;
 use ILIAS\GlobalScreen\Scope\MainMenu\Provider\AbstractStaticMainMenuProvider;
+use ILIAS\MyStaff\ilMyStaffAccess;
+use ILIAS\MyStaff\ilMyStaffCachedAccessDecorator;
+use ILIAS\UI\Component\Symbol\Icon\Standard;
+use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Renderer\TopParentItemDrilldownRenderer;
+use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Information\TypeInformation;
+use ILIAS\GlobalScreen\Helper\BasicAccessCheckClosures;
 
 /**
  * Class StandardTopItemsProvider
@@ -11,41 +38,27 @@ use ILIAS\GlobalScreen\Scope\MainMenu\Provider\AbstractStaticMainMenuProvider;
  */
 class StandardTopItemsProvider extends AbstractStaticMainMenuProvider
 {
+    private static StandardTopItemsProvider $instance;
 
-    /**
-     * @var StandardTopItemsProvider
-     */
-    private static $instance;
-    /**
-     * @var IdentificationInterface
-     */
-    private $administration_identification;
-    /**
-     * @var IdentificationInterface
-     */
-    private $organisation_identification;
-    /**
-     * @var IdentificationInterface
-     */
-    private $communication_identification;
-    /**
-     * @var IdentificationInterface
-     */
-    private $achievements_identification;
-    /**
-     * @var IdentificationInterface
-     */
-    private $personal_workspace_identification;
-    /**
-     * @var IdentificationInterface
-     */
-    private $repository_identification;
+    private BasicAccessCheckClosures $basic_access_helper;
+
+    private IdentificationInterface $administration_identification;
+
+    private IdentificationInterface $organisation_identification;
+
+    private IdentificationInterface $communication_identification;
+
+    private IdentificationInterface $achievements_identification;
+
+    private IdentificationInterface $personal_workspace_identification;
+
+    private IdentificationInterface $repository_identification;
 
 
     /**
      * @return StandardTopItemsProvider
      */
-    public static function getInstance()
+    public static function getInstance(): StandardTopItemsProvider
     {
         global $DIC;
         if (!isset(self::$instance)) {
@@ -62,6 +75,7 @@ class StandardTopItemsProvider extends AbstractStaticMainMenuProvider
     public function __construct(Container $dic)
     {
         parent::__construct($dic);
+        $this->basic_access_helper = BasicAccessCheckClosuresSingleton::getInstance();
         $this->repository_identification = $this->if->identifier('repository');
         $this->personal_workspace_identification = $this->if->identifier('personal_workspace');
         $this->achievements_identification = $this->if->identifier('achievements');
@@ -74,16 +88,15 @@ class StandardTopItemsProvider extends AbstractStaticMainMenuProvider
     /**
      * @inheritDoc
      */
-    public function getStaticTopItems() : array
+    public function getStaticTopItems(): array
     {
         $f = function ($id) {
             return $this->dic->language()->txt($id);
         };
-        $dic = $this->dic;
 
         // Dashboard
         $title = $this->dic->language()->txt("mm_dashboard");
-        $icon = $this->dic->ui()->factory()->symbol()->icon()->custom(\ilUtil::getImagePath("simpleline/home.svg"), $title);
+        $icon = $this->dic->ui()->factory()->symbol()->icon()->standard(Standard::DSHS, $title);
         $dashboard = $this->mainmenu->topLinkItem($this->if->identifier('mm_pd_crs_grp'))
             ->withSymbol($icon)
             ->withTitle($title)
@@ -91,82 +104,75 @@ class StandardTopItemsProvider extends AbstractStaticMainMenuProvider
             ->withPosition(10)
             ->withNonAvailableReason($this->dic->ui()->factory()->legacy("{$this->dic->language()->txt('component_not_active')}"))
             ->withAvailableCallable(
-                function () use ($dic) {
+                function () {
                     return true;
-                    return $dic->settings()->get('disable_my_memberships', 0) == 0;
                 }
             )
             ->withVisibilityCallable(
-                $this->getLoggedInCallableWithAdditionalCallable(function () use ($dic) {
-                    return true;
-                    $pdItemsViewSettings = new \ilPDSelectedItemsBlockViewSettings($dic->user());
-
-                    return (bool) $pdItemsViewSettings->allViewsEnabled() || $pdItemsViewSettings->enabledMemberships();
-                })
+                $this->basic_access_helper->isUserLoggedIn()
             );
 
         $title = $f("mm_repository");
-        $icon = $this->dic->ui()->factory()->symbol()->icon()->custom(\ilUtil::getImagePath("simpleline/layers.svg"), $title);
+        $icon = $this->dic->ui()->factory()->symbol()->icon()->standard(Standard::REP, $title);
 
         $repository = $this->mainmenu->topParentItem($this->getRepositoryIdentification())
-            ->withVisibilityCallable(function () {
-                return (bool) $this->dic->access()->checkAccess('read', '', ROOT_FOLDER_ID);
-            })
+            ->withVisibilityCallable($this->basic_access_helper->isRepositoryReadable())
             ->withSymbol($icon)
             ->withTitle($title)
             ->withPosition(20);
 
         $title = $f("mm_personal_workspace");
-        $icon = $this->dic->ui()->factory()->symbol()->icon()->custom(\ilUtil::getImagePath("simpleline/user.svg"), $title);
+        $icon = $this->dic->ui()->factory()->symbol()->icon()->custom(\ilUtil::getImagePath("icon_wksp.svg"), $title);
 
         $personal_workspace = $this->mainmenu->topParentItem($this->getPersonalWorkspaceIdentification())
-            ->withVisibilityCallable($this->getLoggedInCallableWithAdditionalCallable(function () { return true; }))
+            ->withVisibilityCallable($this->basic_access_helper->isUserLoggedIn())
             ->withSymbol($icon)
             ->withTitle($title)
             ->withPosition(30);
 
         $title = $f("mm_achievements");
-        $icon = $this->dic->ui()->factory()->symbol()->icon()->custom(\ilUtil::getImagePath("simpleline/trophy.svg"), $title);
+        $icon = $this->dic->ui()->factory()->symbol()->icon()->custom(\ilUtil::getImagePath("icon_achv.svg"), $title);
 
         $achievements = $this->mainmenu->topParentItem($this->getAchievementsIdentification())
-            ->withVisibilityCallable($this->getLoggedInCallableWithAdditionalCallable(function () { return true; }))
+            ->withVisibilityCallable($this->basic_access_helper->isUserLoggedIn())
             ->withSymbol($icon)
             ->withTitle($title)
             ->withPosition(40);
 
         $title = $f("mm_communication");
-        $icon = $this->dic->ui()->factory()->symbol()->icon()->custom(\ilUtil::getImagePath("simpleline/bubbles.svg"), $title);
+        $icon = $this->dic->ui()->factory()->symbol()->icon()->custom(\ilUtil::getImagePath("icon_comu.svg"), $title);
 
         $communication = $this->mainmenu->topParentItem($this->getCommunicationIdentification())
-            ->withVisibilityCallable($this->getLoggedInCallableWithAdditionalCallable(function () { return true; }))
+            ->withVisibilityCallable($this->basic_access_helper->isUserLoggedIn())
             ->withSymbol($icon)
             ->withTitle($title)
             ->withPosition(50);
 
         $title = $f("mm_organisation");
-        $icon = $this->dic->ui()->factory()->symbol()->icon()->custom(\ilUtil::getImagePath("simpleline/organization.svg"), $title);
+        $icon = $this->dic->ui()->factory()->symbol()->icon()->custom(\ilUtil::getImagePath("icon_orga.svg"), $title);
 
         $organisation = $this->mainmenu->topParentItem($this->getOrganisationIdentification())
-            ->withVisibilityCallable($this->getLoggedInCallableWithAdditionalCallable(function () { return true; }))
+            ->withVisibilityCallable($this->basic_access_helper->isUserLoggedIn())
             ->withSymbol($icon)
             ->withTitle($title)
-            ->withPosition(60)
-            ->withAvailableCallable(
-                function () use ($dic) {
-                    return (bool) ($dic->settings()->get("enable_my_staff"));
-                }
-            );
+            ->withPosition(60);
 
         $title = $f("mm_administration");
-        $icon = $this->dic->ui()->factory()->symbol()->icon()->custom(\ilUtil::getImagePath("simpleline/settings.svg"), $title);
+        $icon = $this->dic->ui()->factory()->symbol()->icon()->standard("adm", $title);
 
         $administration = $this->mainmenu->topParentItem($this->getAdministrationIdentification())
+            ->withSupportsAsynchronousLoading(false)
+            ->withAvailableCallable($this->basic_access_helper->isUserLoggedIn())
             ->withSymbol($icon)
             ->withTitle($title)
             ->withPosition(70)
-            ->withVisibilityCallable(
-                $this->getLoggedInCallableWithAdditionalCallable(function () use ($dic) { return (bool) ($dic->access()->checkAccess('visible', '', SYSTEM_FOLDER_ID)); })
-            );
+            ->withVisibilityCallable($this->basic_access_helper->hasAdministrationAccess());
+
+        $dd_renderer = new TopParentItemDrilldownRenderer();
+        $ti = new TypeInformation(get_class($administration), get_class($administration));
+        $ti->setRenderer($dd_renderer);
+        $administration = $administration->setTypeInformation($ti);
+
 
         return [
             $dashboard,
@@ -175,27 +181,15 @@ class StandardTopItemsProvider extends AbstractStaticMainMenuProvider
             $achievements,
             $communication,
             $organisation,
-            $administration,
+            $administration
         ];
-    }
-
-
-    private function getLoggedInCallableWithAdditionalCallable(\Closure $additional) : \Closure
-    {
-        return function () use ($additional) {
-            if ($this->dic->user()->isAnonymous()) {
-                return false;
-            }
-
-            return $additional();
-        };
     }
 
 
     /**
      * @inheritDoc
      */
-    public function getProviderNameForPresentation() : string
+    public function getProviderNameForPresentation(): string
     {
         return "Default";
     }
@@ -204,7 +198,7 @@ class StandardTopItemsProvider extends AbstractStaticMainMenuProvider
     /**
      * @inheritDoc
      */
-    public function getStaticSubItems() : array
+    public function getStaticSubItems(): array
     {
         return [];
     }
@@ -213,7 +207,7 @@ class StandardTopItemsProvider extends AbstractStaticMainMenuProvider
     /**
      * @return IdentificationInterface
      */
-    public function getAdministrationIdentification() : IdentificationInterface
+    public function getAdministrationIdentification(): IdentificationInterface
     {
         return $this->administration_identification;
     }
@@ -222,7 +216,7 @@ class StandardTopItemsProvider extends AbstractStaticMainMenuProvider
     /**
      * @return IdentificationInterface
      */
-    public function getOrganisationIdentification() : IdentificationInterface
+    public function getOrganisationIdentification(): IdentificationInterface
     {
         return $this->organisation_identification;
     }
@@ -231,7 +225,7 @@ class StandardTopItemsProvider extends AbstractStaticMainMenuProvider
     /**
      * @return IdentificationInterface
      */
-    public function getCommunicationIdentification() : IdentificationInterface
+    public function getCommunicationIdentification(): IdentificationInterface
     {
         return $this->communication_identification;
     }
@@ -240,7 +234,7 @@ class StandardTopItemsProvider extends AbstractStaticMainMenuProvider
     /**
      * @return IdentificationInterface
      */
-    public function getAchievementsIdentification() : IdentificationInterface
+    public function getAchievementsIdentification(): IdentificationInterface
     {
         return $this->achievements_identification;
     }
@@ -249,7 +243,7 @@ class StandardTopItemsProvider extends AbstractStaticMainMenuProvider
     /**
      * @return IdentificationInterface
      */
-    public function getPersonalWorkspaceIdentification() : IdentificationInterface
+    public function getPersonalWorkspaceIdentification(): IdentificationInterface
     {
         return $this->personal_workspace_identification;
     }
@@ -258,7 +252,7 @@ class StandardTopItemsProvider extends AbstractStaticMainMenuProvider
     /**
      * @return IdentificationInterface
      */
-    public function getRepositoryIdentification() : IdentificationInterface
+    public function getRepositoryIdentification(): IdentificationInterface
     {
         return $this->repository_identification;
     }

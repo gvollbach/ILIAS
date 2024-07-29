@@ -1,6 +1,8 @@
 <?php
 
-/* Copyright (c) 2018 Jesús López <lopez@leifos.com> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+namespace ILIAS\UI\examples\Deck;
 
 function repository()
 {
@@ -9,7 +11,7 @@ function repository()
     $f = $DIC->ui()->factory();
     $renderer = $DIC->ui()->renderer();
 
-    $icon = $f->symbol()->icon()->standard('crs', 'Course')->withIsOutlined(true);
+    $icon = $f->symbol()->icon()->standard('crs', 'Course');
 
     $items = array(
         $f->button()->shy("Go to Course", "#"),

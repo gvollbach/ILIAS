@@ -1,121 +1,143 @@
 <?php
 
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 class ilADTInternalLink extends ilADT
 {
-	/**
-	 * @var int
-	 */
-	protected $value; 
-	
-	/**
-	 * @param ilADTDefinition $a_def
-	 * @return bool
-	 */
-	protected function isValidDefinition(ilADTDefinition $a_def)
-	{
-		return $a_def instanceof ilADTInternalLinkDefinition;
-	}
+    protected ?int $value;
 
-	/**
-	 * Reset
-	 */
-	public function reset()
-	{
-		parent::reset();
-		$this->value = null;
-	}
-	
-	/**
-	 * Set id of target object
-	 * @param type $a_value
-	 */
-	public function setTargetRefId($a_value)
-	{
-		$this->value = $a_value;
-	}
-	
-	/**
-	 * @return int get target ref_id
-	 */
-	public function getTargetRefId()
-	{
-		return $this->value;
-	}
+    protected ilTree $tree;
 
-	/**
-	 * 
-	 * @param ilADT $a_adt
-	 * @return type
-	 */
-	public function equals(ilADT $a_adt)
-	{
-		if($this->getDefinition()->isComparableTo($a_adt))
-		{
-			return strcmp($this->getCheckSum(), $a_adt->getCheckSum()) === 0;
-		}
-	}
+    public function __construct(ilADTDefinition $a_def)
+    {
+        global $DIC;
+        parent::__construct($a_def);
 
-	/**
-	 * Is larger
-	 * @param ilADT $a_adt
-	 */
-	public function isLarger(ilADT $a_adt)
-	{
-		
-	}
+        $this->tree = $DIC->repositoryTree();
+    }
 
-	/**
-	 * Is smaller
-	 * @param ilADT $a_adt
-	 */
-	public function isSmaller(ilADT $a_adt)
-	{
-		
-	}
+    /**
+     * @param ilADTDefinition $a_def
+     * @return bool
+     */
+    protected function isValidDefinition(ilADTDefinition $a_def): bool
+    {
+        return $a_def instanceof ilADTInternalLinkDefinition;
+    }
 
-	/**
-	 * is null
-	 * @return bool
-	 */
-	public function isNull()
-	{
-		return (bool) !$this->getTargetRefId();
-	}
-	
+    /**
+     * Reset
+     */
+    public function reset(): void
+    {
+        parent::reset();
+        $this->value = null;
+    }
 
-	/**
-	 * is valid
-	 * @return boolean
-	 */
-	public function isValid()
-	{
-		$valid = parent::isValid();
-		if(!$this->isNull())
-		{
-			$tree = $GLOBALS['DIC']->repositoryTree();
-			if(
-				!$tree->isInTree($this->getTargetRefId()) || 
-				$tree->isDeleted($this->getTargetRefId())
-			)
-			{
-				$this->valid = false;
-				$this->addValidationError(self::ADT_VALIDATION_ERROR_INVALID_NODE);
-			}
-		}
-		return $valid;
-	}
+    public function setTargetRefId(?int $a_value): void
+    {
+        $this->value = $a_value;
+    }
 
-	/**
-	 * get checksum
-	 * @return string
-	 */
-	public function getCheckSum()
-	{
-		if(!$this->isNull())
-		{
-			return md5($this->getTargetRefId());
-		}
-	}
+    /**
+     * @return int|null get target ref_id
+     */
+    public function getTargetRefId(): ?int
+    {
+        return $this->value;
+    }
 
+    /**
+     * @param ilADT $a_adt
+     * @return bool
+     */
+    public function equals(ilADT $a_adt): ?bool
+    {
+        if ($this->getDefinition()->isComparableTo($a_adt)) {
+            return strcmp($this->getCheckSum() ?? '', $a_adt->getCheckSum() ?? '') === 0;
+        }
+        return null;
+    }
+
+    public function isLarger(ilADT $a_adt): ?bool
+    {
+        return null;
+    }
+
+    public function isSmaller(ilADT $a_adt): ?bool
+    {
+        return null;
+    }
+
+    /**
+     * is null
+     * @return bool
+     */
+    public function isNull(): bool
+    {
+        return !$this->getTargetRefId();
+    }
+
+    public function isValid(): bool
+    {
+        $valid = parent::isValid();
+        if (!$this->isNull()) {
+            if (
+                !$this->tree->isInTree($this->getTargetRefId()) ||
+                $this->tree->isDeleted($this->getTargetRefId())
+            ) {
+                $valid = false;
+                $this->addValidationError(self::ADT_VALIDATION_ERROR_INVALID_NODE);
+            }
+        }
+        return $valid;
+    }
+
+    public function getCheckSum(): ?string
+    {
+        if (!$this->isNull()) {
+            return md5((string) $this->getTargetRefId());
+        }
+        return null;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function exportStdClass(): ?stdClass
+    {
+        if (!$this->isNull()) {
+            $obj = new stdClass();
+            $obj->target_ref_id = $this->getTargetRefId();
+
+            return $obj;
+        }
+        return null;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function importStdClass(?stdClass $a_std): void
+    {
+        if (is_object($a_std)) {
+            $this->setTargetRefId($a_std->target_ref_id);
+        }
+    }
 }
-?>

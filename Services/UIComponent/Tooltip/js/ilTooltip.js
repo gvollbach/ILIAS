@@ -1,4 +1,18 @@
-/* Copyright (c) 1998-2011 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Tooltip object
@@ -13,6 +27,26 @@ il.Tooltip = {
 	 * @param object cfg configuration object
 	 */
 	add: function (el_id, cfg) {
+		this.tooltips.push({el_id: "#" + el_id, cfg: cfg});
+	},
+
+	/**
+	 * Add a tooltip to the nearest element given
+	 *
+	 * @param string el_id element id
+	 * @param object cfg configuration object
+	 */
+	addToNearest: function (el_id, nearest_element_selector, cfg) {
+		this.tooltips.push({el_id: $("#" + el_id).closest(nearest_element_selector), cfg: cfg});
+	},
+
+	/**
+	 * Add a tooltip
+	 *
+	 * @param string selector
+	 * @param object cfg configuration object
+	 */
+	addBySelector: function (el_id, cfg) {
 		this.tooltips.push({el_id: el_id, cfg: cfg});
 	},
 
@@ -23,9 +57,7 @@ il.Tooltip = {
 		var k;
 
 		for (k in this.tooltips) {
-//			this.tooltips[k].tp = new YAHOO.widget.Tooltip("ttip_" + this.tooltips[k].el_id,
-//				this.tooltips[k].cfg);
-			$("#" + this.tooltips[k].el_id).qtip({
+			$(this.tooltips[k].el_id).qtip({
 				position: {
 					my: this.tooltips[k].cfg.my,
 					at: this.tooltips[k].cfg.at,

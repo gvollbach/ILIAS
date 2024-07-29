@@ -1,9 +1,22 @@
 <?php
 
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
-include_once('Services/Table/classes/class.ilTable2GUI.php');
-include_once("./Services/UIComponent/AdvancedSelectionList/classes/class.ilAdvancedSelectionListGUI.php");
+declare(strict_types=1);
 
 /**
  * Class ilChatroomSmiliesTableGUI
@@ -14,78 +27,67 @@ include_once("./Services/UIComponent/AdvancedSelectionList/classes/class.ilAdvan
  */
 class ilChatroomSmiliesTableGUI extends ilTable2GUI
 {
-	private $gui = null;
-	/**
-	 * @var \ILIAS\DI\Container
-	 */
-	protected $dic;
+    private ilChatroomObjectGUI $gui;
+    protected \ILIAS\DI\Container $dic;
 
-	/**
-	 * Constructor
-	 * Prepares smilies table.
-	 * @param ilObjChatroomAdminGUI $a_ref
-	 * @param string                $cmd
-	 */
-	public function __construct($a_ref, $cmd)
-	{
-		parent::__construct($a_ref, $cmd);
+    public function __construct(ilChatroomObjectGUI $a_ref, string $cmd)
+    {
+        $this->setId('chatroom_smilies_tbl');
+        parent::__construct($a_ref, $cmd);
 
-		global $DIC;
+        global $DIC;
 
-		$this->dic = $DIC;
-		$this->gui = $a_ref;
+        $this->dic = $DIC;
+        $this->gui = $a_ref;
 
-		$this->setTitle($this->lng->txt('chatroom_available_smilies'));
-		$this->setId('chatroom_smilies_tbl');
+        $this->setTitle($this->lng->txt('chatroom_available_smilies'));
 
-		$this->addColumn('', 'checkbox', '2%', true);
-		$this->addColumn($this->lng->txt('chatroom_smiley_image'), '', '28%');
-		$this->addColumn($this->lng->txt('chatroom_smiley_keyword'), 'keyword', '55%');
-		$this->addColumn($this->lng->txt('actions'), '', '15%');
+        $this->addColumn('', 'checkbox', '2%', true);
+        $this->addColumn($this->lng->txt('chatroom_smiley_image'), '', '28%');
+        $this->addColumn($this->lng->txt('chatroom_smiley_keyword'), 'keyword', '55%');
+        $this->addColumn($this->lng->txt('actions'), '', '15%');
 
-		$this->setFormAction($this->ctrl->getFormAction($a_ref));
-		$this->setRowTemplate('tpl.chatroom_smiley_list_row.html', 'Modules/Chatroom');
-		$this->setSelectAllCheckbox('smiley_id');
+        $this->setFormAction($this->ctrl->getFormAction($a_ref));
+        $this->setRowTemplate('tpl.chatroom_smiley_list_row.html', 'Modules/Chatroom');
+        $this->setSelectAllCheckbox('smiley_id');
 
-		if($this->dic->rbac()->system()->checkAccess('write', $this->gui->ref_id)) {
-			$this->addMultiCommand(
-				"smiley-deleteMultipleObject", $this->lng->txt("chatroom_delete_selected")
-			);
-		}
-	}
+        if ($this->dic->rbac()->system()->checkAccess('write', $this->gui->getRefId())) {
+            $this->addMultiCommand(
+                'smiley-deleteMultipleObject',
+                $this->lng->txt('chatroom_delete_selected')
+            );
+        }
+    }
 
-	/**
-	 * Fills table rows with content from $a_set.
-	 * @param array    $a_set
-	 */
-	public function fillRow($a_set)
-	{
-		$this->tpl->setVariable('VAL_SMILEY_ID', $a_set['smiley_id']);
-		$this->tpl->setVariable('VAL_SMILEY_PATH', $a_set['smiley_fullpath']);
-		$this->tpl->setVariable('VAL_SMILEY_KEYWORDS', $a_set['smiley_keywords']);
-		$this->tpl->setVariable(
-			'VAL_SMILEY_KEYWORDS_NONL',
-			str_replace("\n", "", $a_set['smiley_keywords'])
-		);
-		$this->tpl->setVariable(
-			'VAL_SORTING_TEXTINPUT',
-			ilUtil::formInput('sorting[' . $a_set['id'] . ']',
-				$a_set['sorting'])
-		);
+    protected function fillRow(array $a_set): void
+    {
+        $this->tpl->setVariable('VAL_SMILEY_ID', $a_set['smiley_id']);
+        $this->tpl->setVariable('VAL_SMILEY_PATH', $a_set['smiley_fullpath']);
+        $this->tpl->setVariable('VAL_SMILEY_KEYWORDS', $a_set['smiley_keywords']);
+        $this->tpl->setVariable(
+            'VAL_SMILEY_KEYWORDS_NONL',
+            str_replace("\n", "", $a_set['smiley_keywords'])
+        );
 
-		$this->ctrl->setParameter($this->gui, 'topic_id', $a_set['id']);
+        if ($this->dic->rbac()->system()->checkAccess('write', $this->gui->getRefId())) {
+            $current_selection_list = new ilAdvancedSelectionListGUI();
+            $current_selection_list->setListTitle($this->lng->txt('actions'));
+            $current_selection_list->setId('act_' . $a_set['smiley_id']);
 
-		if($this->dic->rbac()->system()->checkAccess('write', $this->gui->ref_id)) {
-			$current_selection_list = new ilAdvancedSelectionListGUI();
-			$current_selection_list->setListTitle($this->lng->txt("actions"));
-			$current_selection_list->setId("act_" . $a_set['smiley_id']);
+            $this->ctrl->setParameter($this->gui, 'smiley_id', $a_set['smiley_id']);
+            $current_selection_list->addItem(
+                $this->lng->txt('edit'),
+                '',
+                $this->ctrl->getLinkTarget($this->gui, 'smiley-showEditSmileyEntryFormObject')
+            );
+            $current_selection_list->addItem(
+                $this->lng->txt('delete'),
+                '',
+                $this->ctrl->getLinkTarget($this->gui, 'smiley-showDeleteSmileyFormObject')
+            );
+            $this->ctrl->setParameter($this->gui, 'smiley_id', null);
 
-			$current_selection_list->addItem($this->lng->txt("edit"), '', $this->ctrl->getLinkTarget($this->gui, 'smiley-showEditSmileyEntryFormObject')
-				. "&smiley_id=" . $a_set['smiley_id']);
-			$current_selection_list->addItem($this->lng->txt("delete"), '', $this->ctrl->getLinkTarget($this->gui, 'smiley-showDeleteSmileyFormObject')
-				. "&smiley_id=" . $a_set['smiley_id']);
-
-			$this->tpl->setVariable('VAL_ACTIONS', $current_selection_list->getHTML());
-		}
-	}
+            $this->tpl->setVariable('VAL_ACTIONS', $current_selection_list->getHTML());
+        }
+    }
 }

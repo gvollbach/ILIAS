@@ -1,6 +1,20 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * @author		Björn Heyser <bheyser@databay.de>
@@ -12,245 +26,229 @@
  */
 class ilTestSkillLevelThresholdsGUI
 {
-	const CMD_SHOW_SKILL_THRESHOLDS = 'showSkillThresholds';
-	const CMD_SAVE_SKILL_THRESHOLDS = 'saveSkillThresholds';
-	/**
-	 * @var ilCtrl
-	 */
-	private $ctrl;
+    public const CMD_SHOW_SKILL_THRESHOLDS = 'showSkillThresholds';
+    public const CMD_SAVE_SKILL_THRESHOLDS = 'saveSkillThresholds';
 
-	/**
-	 * @var ilGlobalTemplate
-	 */
-	private $tpl;
+    private ilCtrl $ctrl;
+    private ilGlobalTemplateInterface $tpl;
+    private ilLanguage $lng;
+    private ilDBInterface $db;
 
-	/**
-	 * @var ilLanguage
-	 */
-	private $lng;
+    /**
+     * @var int
+     */
+    private $testId;
 
-	/**
-	 * @var ilDBInterface
-	 */
-	private $db;
+    /**
+     * @var integer
+     */
+    private $questionContainerId;
 
-	/**
-	 * @var int
-	 */
-	private $testId;
+    private bool $questionAssignmentColumnsEnabled;
 
-	/**
-	 * @var integer
-	 */
-	private $questionContainerId;
+    public function __construct(ilCtrl $ctrl, ilGlobalTemplateInterface $tpl, ilLanguage $lng, ilDBInterface $db, $testId)
+    {
+        $this->ctrl = $ctrl;
+        $this->tpl = $tpl;
+        $this->lng = $lng;
+        $this->db = $db;
+        $this->testId = $testId;
+        $this->questionAssignmentColumnsEnabled = false;
+    }
 
-	private $questionAssignmentColumnsEnabled;
+    /**
+     * @return int
+     */
+    public function getQuestionContainerId(): int
+    {
+        return $this->questionContainerId;
+    }
 
-	public function __construct(ilCtrl $ctrl, ilGlobalTemplate $tpl, ilLanguage $lng, ilDBInterface $db, $testId)
-	{
-		$this->ctrl = $ctrl;
-		$this->tpl = $tpl;
-		$this->lng = $lng;
-		$this->db = $db;
-		$this->testId = $testId;
-		$this->questionAssignmentColumnsEnabled = false;
-	}
+    /**
+     * @param int $questionContainerId
+     */
+    public function setQuestionContainerId($questionContainerId)
+    {
+        $this->questionContainerId = $questionContainerId;
+    }
 
-	/**
-	 * @return int
-	 */
-	public function getQuestionContainerId()
-	{
-		return $this->questionContainerId;
-	}
+    public function executeCommand()
+    {
+        $cmd = $this->ctrl->getCmd('show') . 'Cmd';
 
-	/**
-	 * @param int $questionContainerId
-	 */
-	public function setQuestionContainerId($questionContainerId)
-	{
-		$this->questionContainerId = $questionContainerId;
-	}
+        $this->$cmd();
+    }
 
-	public function executeCommand()
-	{
-		$cmd = $this->ctrl->getCmd('show') . 'Cmd';
+    /**
+     * @param boolean $questionAssignmentColumnsEnabled
+     */
+    public function setQuestionAssignmentColumnsEnabled($questionAssignmentColumnsEnabled)
+    {
+        $this->questionAssignmentColumnsEnabled = $questionAssignmentColumnsEnabled;
+    }
 
-		$this->$cmd();
-	}
+    /**
+     * @return bool
+     */
+    public function areQuestionAssignmentColumnsEnabled(): bool
+    {
+        return $this->questionAssignmentColumnsEnabled;
+    }
 
-	/**
-	 * @param boolean $questionAssignmentColumnsEnabled
-	 */
-	public function setQuestionAssignmentColumnsEnabled($questionAssignmentColumnsEnabled)
-	{
-		$this->questionAssignmentColumnsEnabled = $questionAssignmentColumnsEnabled;
-	}
+    /**
+     * @return int
+     */
+    public function getTestId(): int
+    {
+        return $this->testId;
+    }
 
-	/**
-	 * @return bool
-	 */
-	public function areQuestionAssignmentColumnsEnabled()
-	{
-		return $this->questionAssignmentColumnsEnabled;
-	}
+    private function saveSkillThresholdsCmd()
+    {
+        require_once 'Modules/Test/classes/class.ilTestSkillLevelThreshold.php';
 
-	/**
-	 * @return int
-	 */
-	public function getTestId()
-	{
-		return $this->testId;
-	}
+        if (strtolower($_SERVER['REQUEST_METHOD']) == 'post') {
+            $assignmentList = $this->buildSkillQuestionAssignmentList();
+            $assignmentList->loadFromDb();
 
-	private function saveSkillThresholdsCmd()
-	{
-		require_once 'Modules/Test/classes/class.ilTestSkillLevelThreshold.php';
+            $valid = true;
 
-		if(strtolower($_SERVER['REQUEST_METHOD']) == 'post')
-		{
-			$assignmentList = $this->buildSkillQuestionAssignmentList();
-			$assignmentList->loadFromDb();
+            $table = $this->getPopulatedTable();
+            $elements = $table->getInputElements((array) ($_POST['rendered'] ?? []));
+            foreach ($elements as $elm) {
+                if (!$elm->checkInput()) {
+                    $valid = false;
+                }
 
-			$valid = true;
+                $elm->setValue($_POST[$elm->getPostVar()]);
+            }
 
-			$table    = $this->getPopulatedTable();
-			$elements = $table->getInputElements();
-			foreach($elements as $elm)
-			{
-				if(!$elm->checkInput())
-				{
-					$valid = false;
-				}
+            if (!$valid) {
+                $this->tpl->setOnScreenMessage('failure', $this->lng->txt('form_input_not_valid'));
+                $this->showSkillThresholdsCmd($table);
+                return;
+            }
 
-				$elm->setValueByArray($_POST);
-			}
+            $threshold = array();
+            foreach ($elements as $elm) {
+                $key = $elm->getPostVar();
+                $value = $_POST[$key];
+                $matches = null;
+                if (preg_match('/^threshold_(\d+?):(\d+?)_(\d+?)$/', $key, $matches) && is_array($matches)) {
+                    $threshold[$matches[1] . ':' . $matches[2]][$matches[3]] = $value;
+                }
+            }
 
-			if(!$valid)
-			{
-				ilUtil::sendFailure($this->lng->txt('form_input_not_valid'));
-				return $this->showSkillThresholdsCmd($table);
-			}
+            /** @var $skillLevelThresholds ilTestSkillLevelThreshold[] */
+            $skillLevelThresholds = array();
 
-			$threshold = array();
-			foreach($_POST as $key => $value)
-			{
-				$matches = null;
-				if(preg_match('/^threshold_(\d+?):(\d+?)_(\d+?)$/', $key, $matches) && is_array($matches))
-				{
-					$threshold[$matches[1] . ':' . $matches[2]][$matches[3]] = $value;
-				}
-			}
+            foreach ($assignmentList->getUniqueAssignedSkills() as $data) {
+                $skill = $data['skill'];
+                $skillKey = $data['skill_base_id'] . ':' . $data['skill_tref_id'];
+                $levels = $skill->getLevelData();
 
-			/** @var $skillLevelThresholds ilTestSkillLevelThreshold[] */
-			$skillLevelThresholds = array();
+                $thresholds_by_level = array();
 
-			foreach($assignmentList->getUniqueAssignedSkills() as $data)
-			{
-				$skill    = $data['skill'];
-				$skillKey = $data['skill_base_id'] . ':' . $data['skill_tref_id'];
-				$levels   = $skill->getLevelData();
+                foreach ($levels as $level) {
+                    if (isset($threshold[$skillKey]) && isset($threshold[$skillKey][$level['id']])) {
+                        $skillLevelThreshold = new ilTestSkillLevelThreshold($this->db);
 
-				$thresholds_by_level = array();
+                        $skillLevelThreshold->setTestId($this->getTestId());
+                        $skillLevelThreshold->setSkillBaseId($data['skill_base_id']);
+                        $skillLevelThreshold->setSkillTrefId($data['skill_tref_id']);
+                        $skillLevelThreshold->setSkillLevelId($level['id']);
 
-				foreach($levels as $level)
-				{
-					if(isset($threshold[$skillKey]) && isset($threshold[$skillKey][$level['id']]))
-					{
-						$skillLevelThreshold = new ilTestSkillLevelThreshold($this->db);
+                        $skillLevelThreshold->setThreshold($threshold[$skillKey][$level['id']]);
+                        $skillLevelThresholds[] = $skillLevelThreshold;
+                        $thresholds_by_level[] = $threshold[$skillKey][$level['id']];
+                    }
+                }
 
-						$skillLevelThreshold->setTestId($this->getTestId());
-						$skillLevelThreshold->setSkillBaseId($data['skill_base_id']);
-						$skillLevelThreshold->setSkillTrefId($data['skill_tref_id']);
-						$skillLevelThreshold->setSkillLevelId($level['id']);
+                $sorted_thresholds_by_level = $thresholds_by_level = array_values($thresholds_by_level);
+                sort($sorted_thresholds_by_level);
+                if (
+                    $sorted_thresholds_by_level != $thresholds_by_level ||
+                    count($thresholds_by_level) != count(array_unique($thresholds_by_level))
+                ) {
+                    $this->tpl->setOnScreenMessage('failure', $this->lng->txt('ass_competence_respect_level_ordering'));
+                    $this->showSkillThresholdsCmd($table);
+                    return;
+                }
+            }
 
-						$skillLevelThreshold->setThreshold($threshold[$skillKey][$level['id']]);
-						$skillLevelThresholds[] = $skillLevelThreshold;
-						$thresholds_by_level[]  = $threshold[$skillKey][$level['id']];
-					}
-				}
+            foreach ($skillLevelThresholds as $skillLevelThreshold) {
+                $skillLevelThreshold->saveToDb();
+            }
 
-				$sorted_thresholds_by_level = $thresholds_by_level = array_values($thresholds_by_level);
-				sort($sorted_thresholds_by_level);
-				if(
-					$sorted_thresholds_by_level != $thresholds_by_level ||
-					count($thresholds_by_level) != count(array_unique($thresholds_by_level))
-				)
-				{
-					ilUtil::sendFailure($this->lng->txt('ass_competence_respect_level_ordering'));
-					return $this->showSkillThresholdsCmd($table);
-				}
-			}
+            $this->tpl->setOnScreenMessage('success', $this->lng->txt('tst_msg_skl_lvl_thresholds_saved'), true);
+        }
 
-			foreach($skillLevelThresholds as $skillLevelThreshold)
-			{
-				$skillLevelThreshold->saveToDb();
-			}
+        $this->ctrl->redirect($this, self::CMD_SHOW_SKILL_THRESHOLDS);
+    }
 
-			ilUtil::sendSuccess($this->lng->txt('tst_msg_skl_lvl_thresholds_saved'), true);
-		}
+    /**
+     * @param ilTestSkillLevelThresholdsTableGUI|null $table
+     */
+    private function showSkillThresholdsCmd(ilTestSkillLevelThresholdsTableGUI $table = null)
+    {
+        if (null === $table) {
+            $table = $this->getPopulatedTable();
+        }
 
-		$this->ctrl->redirect($this, self::CMD_SHOW_SKILL_THRESHOLDS);
-	}
+        $this->tpl->setContent($this->ctrl->getHTML($table));
+    }
 
-	/**
-	 * @param ilTestSkillLevelThresholdsTableGUI|null $table
-	 */
-	private function showSkillThresholdsCmd(ilTestSkillLevelThresholdsTableGUI $table = null)
-	{
-		if(null === $table)
-		{
-			$table = $this->getPopulatedTable();
-		}
+    /**
+     * @return ilTestSkillLevelThresholdsTableGUI
+     */
+    protected function getPopulatedTable(): ilTestSkillLevelThresholdsTableGUI
+    {
+        $table = $this->buildTableGUI();
 
-		$this->tpl->setContent($this->ctrl->getHTML($table));
-	}
+        $skillLevelThresholdList = $this->buildSkillLevelThresholdList();
+        $skillLevelThresholdList->loadFromDb();
+        $table->setSkillLevelThresholdList($skillLevelThresholdList);
 
-	/**
-	 * @return ilTestSkillLevelThresholdsTableGUI
-	 */
-	protected function getPopulatedTable()
-	{
-		$table = $this->buildTableGUI();
+        $assignmentList = $this->buildSkillQuestionAssignmentList();
+        $assignmentList->loadFromDb();
 
-		$skillLevelThresholdList = $this->buildSkillLevelThresholdList();
-		$skillLevelThresholdList->loadFromDb();
-		$table->setSkillLevelThresholdList($skillLevelThresholdList);
+        $table->setData($table->completeCompetenceTitles(
+            $assignmentList->getUniqueAssignedSkills()
+        ));
+        return $table;
+    }
 
-		$assignmentList = $this->buildSkillQuestionAssignmentList();
-		$assignmentList->loadFromDb();
+    private function buildTableGUI(): ilTestSkillLevelThresholdsTableGUI
+    {
+        require_once 'Modules/Test/classes/tables/class.ilTestSkillLevelThresholdsTableGUI.php';
+        $table = new ilTestSkillLevelThresholdsTableGUI(
+            $this,
+            $this->getTestId(),
+            self::CMD_SHOW_SKILL_THRESHOLDS,
+            $this->ctrl,
+            $this->lng
+        );
+        $table->setQuestionAssignmentColumnsEnabled($this->areQuestionAssignmentColumnsEnabled());
+        $table->initColumns();
 
-		$table->setData($table->completeCompetenceTitles(
-			$assignmentList->getUniqueAssignedSkills()
-		));
-		return $table;
-	}
+        return $table;
+    }
 
-	private function buildTableGUI()
-	{
-		require_once 'Modules/Test/classes/tables/class.ilTestSkillLevelThresholdsTableGUI.php';
-		$table = new ilTestSkillLevelThresholdsTableGUI($this, self::CMD_SHOW_SKILL_THRESHOLDS, $this->ctrl, $this->lng);
-		$table->setQuestionAssignmentColumnsEnabled( $this->areQuestionAssignmentColumnsEnabled() );
-		$table->initColumns();
+    private function buildSkillQuestionAssignmentList(): ilAssQuestionSkillAssignmentList
+    {
+        require_once 'Modules/TestQuestionPool/classes/class.ilAssQuestionSkillAssignmentList.php';
+        $assignmentList = new ilAssQuestionSkillAssignmentList($this->db);
+        $assignmentList->setParentObjId($this->getQuestionContainerId());
 
-		return $table;
-	}
+        return $assignmentList;
+    }
 
-	private function buildSkillQuestionAssignmentList()
-	{
-		require_once 'Modules/TestQuestionPool/classes/class.ilAssQuestionSkillAssignmentList.php';
-		$assignmentList = new ilAssQuestionSkillAssignmentList($this->db);
-		$assignmentList->setParentObjId($this->getQuestionContainerId());
+    private function buildSkillLevelThresholdList(): ilTestSkillLevelThresholdList
+    {
+        require_once 'Modules/Test/classes/class.ilTestSkillLevelThresholdList.php';
+        $thresholdList = new ilTestSkillLevelThresholdList($this->db);
+        $thresholdList->setTestId($this->getTestId());
 
-		return $assignmentList;
-	}
-
-	private function buildSkillLevelThresholdList()
-	{
-		require_once 'Modules/Test/classes/class.ilTestSkillLevelThresholdList.php';
-		$thresholdList = new ilTestSkillLevelThresholdList($this->db);
-		$thresholdList->setTestId($this->getTestId());
-
-		return $thresholdList;
-	}
+        return $thresholdList;
+    }
 }

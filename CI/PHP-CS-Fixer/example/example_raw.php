@@ -1,7 +1,25 @@
 <?php
-// PSR-2
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+// PSR-12
 namespace Vendor\Package;
 
+use ZPackage;
 use FooInterface;
 use BarClass as Bar;
 use OtherVendor\OtherPackage\BazClass;
@@ -33,8 +51,8 @@ class Foo extends Bar implements FooInterface
 /** thx to https://mlocati.github.io/php-cs-fixer-configurator for the examples **/
 // cast_spaces
 $a = 0; $b = 0; $c = 0; $d=0; $e= 0 ; $f =0;
-$bar = ( string )  $a;
-$foo = (int)$b;
+$bar  = ( string )  $a;
+$foo =  (int)$b;
 // concat_space
 $foo = 'bar' . 3 . 'baz'.'qux';
 // binary_operator_spaces
@@ -42,6 +60,11 @@ $a= 1  + $b^ $d !==  $e or   $f;
 // unary_operator_spaces
 $sample = 0;
 $sample ++;
+//Unused blank lines: begin
+
+
+
+//Unused blank lines: end
 -- $sample;
 $sample = ! ! $a;
 $sample = ~  $c;

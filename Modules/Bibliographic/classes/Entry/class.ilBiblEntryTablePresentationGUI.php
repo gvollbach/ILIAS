@@ -1,32 +1,34 @@
 <?php
 
 /**
- * Class ilBiblEntryTablePresentationGUI
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
  *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Class ilBiblEntryTablePresentationGUI
  * @author     Fabian Schmid <fs@studer-raimann.ch>
  * @version    1.0.0
  */
 class ilBiblEntryTablePresentationGUI
 {
-
-    /**
-     * @var \ilBiblEntry
-     */
-    protected $entry;
-    /**
-     * @var string
-     */
-    protected $html = '';
-    /**
-     * @var ilBiblFactoryFacadeInterface
-     */
-    protected $facade;
-
+    protected \ilBiblEntry $entry;
+    protected string $html = '';
+    protected \ilBiblFactoryFacadeInterface $facade;
 
     /**
      * ilBiblEntryTablePresentationGUI constructor.
-     *
-     * @param \ilBiblEntry $entry
      */
     public function __construct(ilBiblEntry $entry, ilBiblFactoryFacadeInterface $facade)
     {
@@ -35,13 +37,10 @@ class ilBiblEntryTablePresentationGUI
         $this->render();
     }
 
-
     /**
-     * @return mixed|string
      * @deprecated Has to be refactored. Active records verwenden statt array
-     *
      */
-    protected function render()
+    protected function render(): void
     {
         $attributes = $this->facade->entryFactory()->loadParsedAttributesByEntryId($this->getEntry()->getId());
         //Get the model which declares which attributes to show in the overview table and how to show them
@@ -50,7 +49,7 @@ class ilBiblEntryTablePresentationGUI
         //get design for specific entry type or get filetypes default design if type is not specified
         $entryType = $this->getEntry()->getType();
         //if there is no model for the specific entrytype (book, article, ....) the entry overview will be structured by the default entrytype from the given filetype (ris, bib, ...)
-        if (!$overviewModels[$this->facade->typeFactory()->getDataTypeIdentifierByInstance($this->facade->entryFactory()->getFileType())][$entryType]) {
+        if (!($overviewModels[$this->facade->typeFactory()->getDataTypeIdentifierByInstance($this->facade->entryFactory()->getFileType())][$entryType] ?? false)) {
             $entryType = 'default';
         }
         $single_entry = $overviewModels[$entryType];
@@ -61,12 +60,12 @@ class ilBiblEntryTablePresentationGUI
             //cut a moedel attribute like |bib_default_title|. in three pieces while $cuts[1] is the attribute key for the actual value and $cuts[0] is what comes before respectively $cuts[2] is what comes after the value if it is not empty.
             $cuts = explode('|', $placeholder);
             //if attribute key does not exist, because it comes from the default entry (e.g. ris_default_u2), we replace 'default' with the entrys type (e.g. ris_book_u2)
-            if (!$attributes[$cuts[1]]) {
+            if (!($attributes[$cuts[1]] ?? false)) {
                 $attribute_elements = explode('_', $cuts[1]);
                 $attribute_elements[1] = strtolower($this->getEntry()->getType());
                 $cuts[1] = implode('_', $attribute_elements);
             }
-            if ($attributes[$cuts[1]]) {
+            if (($attributes[$cuts[1]] ?? false)) {
                 //if the attribute for the attribute key exists, replace one attribute in the overview text line of a single entry with its actual value and the text before and after the value given by the model
                 $single_entry = str_replace($placeholders[0][$key], $cuts[0] . $attributes[$cuts[1]]
                     . $cuts[2], $single_entry);
@@ -81,7 +80,12 @@ class ilBiblEntryTablePresentationGUI
                     if ($last_sign_after_end_emph_tag) {
                         $italic_text = substr($single_entry, $first_sign_after_begin_emph_tag, $italic_text_length);
                         //parse
-                        $it_tpl = new ilTemplate("tpl.bibliographic_italicizer.html", true, true, "Modules/Bibliographic");
+                        $it_tpl = new ilTemplate(
+                            "tpl.bibliographic_italicizer.html",
+                            true,
+                            true,
+                            "Modules/Bibliographic"
+                        );
                         $it_tpl->setCurrentBlock("italic_section");
                         $it_tpl->setVariable('ITALIC_STRING', $italic_text);
                         $it_tpl->parseCurrentBlock();
@@ -102,41 +106,23 @@ class ilBiblEntryTablePresentationGUI
         $this->setHtml($single_entry);
     }
 
-
-    /**
-     * @return string
-     */
-    public function getHtml()
+    public function getHtml(): string
     {
         return $this->html;
     }
 
-
-    /**
-     * @param string $html
-     */
-    public function setHtml($html)
+    public function setHtml(string $html): void
     {
         $this->html = $html;
     }
 
-
-    /**
-     * @return ilBiblEntry
-     */
-    public function getEntry()
+    public function getEntry(): \ilBiblEntry
     {
         return $this->entry;
     }
 
-
-    /**
-     * @param ilBiblEntry $entry
-     */
-    public function setEntry($entry)
+    public function setEntry(\ilBiblEntry $entry): void
     {
         $this->entry = $entry;
     }
 }
-
-?>

@@ -1,4 +1,9 @@
 <?php
+
+declare(strict_types=1);
+
+namespace ILIAS\UI\examples\Input\Field\Duration;
+
 /**
  * Base example showing how to plug date-inputs into a form
  */
@@ -16,21 +21,25 @@ function base()
 
     //Step 1: define the input
     $duration = $ui->input()->field()->duration("Pick a time-span", "This is the byline text");
-    $time = $duration->withTimeOnly(true)->withRequired(true);
     $timezone = $duration
         ->withTimezone('America/El_Salvador')
         ->withUseTime(true)
         ->withByline('timezone and both time and date');
 
+    $time = $duration->withTimeOnly(true)->withRequired(true)->withLabels('start time', 'end time');
+
     //Step 2: define form and form actions, attach the input
     $form = $ui->input()->container()->form()->standard(
         '#',
         [
-            'duration'=>$duration,
-            'time'=>$time,
-            'timezone'=>$timezone
+            'duration' => $duration,
+            'time' => $time,
+            'timezone' => $timezone,
+            'disabled' => $duration->withLabel('disabled')->withDisabled(true)
         ]
     );
+
+    $result = "";
 
     //Step 3: implement some form data processing.
     if ($request->getMethod() == "POST") {
@@ -43,7 +52,7 @@ function base()
                 //The result is sumarized through the transformation
                 $result = $form->getData();
             }
-        };
+        }
     } else {
         $result = "No result yet.";
     }

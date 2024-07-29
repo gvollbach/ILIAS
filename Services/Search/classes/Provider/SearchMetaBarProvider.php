@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace ILIAS\Search\Provider;
 
 use ILIAS\GlobalScreen\Identification\IdentificationInterface;
@@ -16,11 +18,10 @@ use ilUIHookProcessor;
  */
 class SearchMetaBarProvider extends AbstractStaticMetaBarProvider implements StaticMetaBarProvider
 {
-
     /**
      * @return IdentificationInterface
      */
-    private function getId() : IdentificationInterface
+    private function getId(): IdentificationInterface
     {
         return $this->if->identifier('search');
     }
@@ -29,7 +30,7 @@ class SearchMetaBarProvider extends AbstractStaticMetaBarProvider implements Sta
     /**
      * @inheritDoc
      */
-    public function getAllIdentifications() : array
+    public function getAllIdentifications(): array
     {
         return [$this->getId()];
     }
@@ -38,7 +39,7 @@ class SearchMetaBarProvider extends AbstractStaticMetaBarProvider implements Sta
     /**
      * @inheritDoc
      */
-    public function getMetaBarItems() : array
+    public function getMetaBarItems(): array
     {
         $content = function () {
             $main_search = new ilMainMenuSearchGUI();
@@ -46,7 +47,8 @@ class SearchMetaBarProvider extends AbstractStaticMetaBarProvider implements Sta
 
             // user interface plugin slot + default rendering
             $uip = new ilUIHookProcessor(
-                "Services/MainMenu", "main_menu_search",
+                "Services/MainMenu",
+                "main_menu_search",
                 array("main_menu_gui" => $this, "main_menu_search_gui" => $main_search)
             );
             if (!$uip->replaced()) {
@@ -61,15 +63,12 @@ class SearchMetaBarProvider extends AbstractStaticMetaBarProvider implements Sta
         $item = $mb
             ->topLegacyItem($this->getId())
             ->withLegacyContent($content())
-            ->withVisibilityCallable(function () {
-                return !$this->dic->user()->isAnonymous();
-            })
             ->withSymbol($this->dic->ui()->factory()->symbol()->glyph()->search())
-            ->withTitle("Search")
+            ->withTitle($this->dic->language()->txt("search"))
             ->withPosition(1)
             ->withAvailableCallable(
                 function () {
-                    return (bool) $this->dic->rbac()->system()->checkAccess('search', ilSearchSettings::_getSearchSettingRefId());
+                    return $this->dic->rbac()->system()->checkAccess('search', ilSearchSettings::_getSearchSettingRefId());
                 }
             );
 

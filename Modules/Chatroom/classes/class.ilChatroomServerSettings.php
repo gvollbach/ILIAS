@@ -1,5 +1,22 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilChatroomServerSettings
@@ -9,316 +26,233 @@
  */
 class ilChatroomServerSettings
 {
-	const PREFIX = '/backend';
-	private $port = '8585';
-	private $protocol = 'http://';
-	private $domain = '192.168.1.94';
-	private $instance = '123456';
-	private $smilies_enabled = false;
-	private $authKey;
-	private $authSecret;
-	private $clientUrlEnabled;
-	private $clientUrl;
-	private $iliasUrlEnabled;
-	private $iliasUrl;
-	private $subDirectory;
+    private const DEFAULT_PORT = 8585;
+    private const DEFAULT_PROCOTOL = 'http://';
+    private const DEFAULT_HOST = '192.168.1.94';
 
-	public static function loadDefault()
-	{
-		global $DIC;
+    public const PREFIX = '/backend';
+    private int $port = self::DEFAULT_PORT;
+    private string $protocol = self::DEFAULT_PROCOTOL;
+    private string $domain = self::DEFAULT_HOST;
+    private string $instance = '123456';
+    private bool $smilies_enabled = false;
+    private string $authKey = '';
+    private string $authSecret = '';
+    private bool $clientUrlEnabled = false;
+    private string $clientUrl = '';
+    private bool $iliasUrlEnabled = false;
+    private string $iliasUrl = '';
+    private string $subDirectory = '';
 
-		$query = 'SELECT * FROM chatroom_admconfig';
-		$rset  = $DIC->database()->query($query);
-		$row   = $DIC->database()->fetchAssoc($rset);
+    public static function loadDefault(): self
+    {
+        global $DIC;
 
-		$client_settings = json_decode($row['client_settings']);
-		$server_settings = json_decode($row['server_settings']);
+        $query = 'SELECT * FROM chatroom_admconfig';
+        $rset = $DIC->database()->query($query);
+        $row = $DIC->database()->fetchAssoc($rset);
 
-		$settings = new ilChatroomServerSettings();
-		$settings->setPort($server_settings->port);
-		$settings->setProtocol($server_settings->protocol);
-		$settings->setInstance($client_settings->name);
-		$settings->setDomain($server_settings->address);
-		$settings->setSmiliesEnabled($client_settings->enable_smilies);
-		$settings->setAuthKey($client_settings->auth->key);
-		$settings->setAuthSecret($client_settings->auth->secret);
-		$settings->setClientUrlEnabled($server_settings->client_proxy);
-		$settings->setIliasUrlEnabled($server_settings->ilias_proxy);
-		$settings->setClientUrl($server_settings->client_url);
-		$settings->setIliasUrl($server_settings->ilias_url);
-		$settings->setSubDirectory($server_settings->sub_directory);
+        $client_settings = json_decode($row['client_settings'], false, 512, JSON_THROW_ON_ERROR);
+        $server_settings = json_decode($row['server_settings'], false, 512, JSON_THROW_ON_ERROR);
 
-		return $settings;
-	}
+        $settings = new self();
+        if ($server_settings instanceof stdClass) {
+            $settings->setPort((int) ($server_settings->port ?? self::DEFAULT_PORT));
+            $settings->setProtocol((string) ($server_settings->protocol ?? self::DEFAULT_PROCOTOL));
+            $settings->setDomain((string) ($server_settings->address ?? self::DEFAULT_HOST));
+            $settings->setSmiliesEnabled((bool) ($client_settings->enable_smilies ?? false));
+            $settings->setClientUrlEnabled((bool) ($server_settings->client_proxy ?? false));
+            $settings->setIliasUrlEnabled((bool) ($server_settings->ilias_proxy ?? false));
+            $settings->setClientUrl((string) ($server_settings->client_url ?? ''));
+            $settings->setIliasUrl((string) ($server_settings->ilias_url ?? ''));
+            $settings->setSubDirectory((string) ($server_settings->sub_directory ?? ''));
+        }
 
-	/**
-	 * Creates URL by calling $this->getBaseURL and using given $action and
-	 * $scope and returns it.
-	 * @param string      $action
-	 * @param string|null $scope
-	 * @return string
-	 */
-	public function getURL($action, $scope = null)
-	{
-		$url = $this->generateIliasUrl() . self::PREFIX . '/' . $action . '/' . $this->getInstance();
+        if ($client_settings instanceof stdClass) {
+            $settings->setInstance((string) ($client_settings->name ?? ''));
+            $settings->setAuthKey((string) ($client_settings->auth->key ?? ''));
+            $settings->setAuthSecret((string) ($client_settings->auth->secret ?? ''));
+        }
 
-		if($scope !== null)
-		{
-			$url .= '/' . $scope;
-		}
+        return $settings;
+    }
 
-		return $url;
-	}
+    /**
+     * Creates URL by calling $this->getBaseURL and using given $action and
+     * $scope and returns it.
+     * @param string $action
+     * @param string|int|null $scope
+     * @return string
+     */
+    public function getURL(string $action, $scope = null): string
+    {
+        $url = $this->generateIliasUrl() . self::PREFIX . '/' . $action . '/' . $this->getInstance();
 
-	/**
-	 * @return string
-	 */
-	public function generateIliasUrl()
-	{
-		if($this->getIliasUrlEnabled())
-		{
-			$url = $this->getIliasUrl();
+        if ($scope !== null) {
+            $url .= '/' . $scope;
+        }
 
-			if(strpos($url, '://') === false)
-			{
-				$url = $this->getProtocol() . $url;
-			}
+        return $url;
+    }
 
-			return $url;
-		}
-		return $this->getBaseURL();
-	}
+    public function generateIliasUrl(): string
+    {
+        if ($this->getIliasUrlEnabled()) {
+            $url = $this->getIliasUrl();
 
-	/**
-	 * @return bool
-	 */
-	public function getIliasUrlEnabled()
-	{
-		return $this->iliasUrlEnabled;
-	}
+            if (strpos($url, '://') === false) {
+                $url = $this->getProtocol() . $url;
+            }
 
-	/**
-	 * @param bool $iliasUrlEnabled
-	 */
-	public function setIliasUrlEnabled($iliasUrlEnabled)
-	{
-		$this->iliasUrlEnabled = $iliasUrlEnabled;
-	}
+            return $url;
+        }
 
-	/**
-	 * Returns $this->protocol.
-	 * @return string
-	 */
-	public function getProtocol()
-	{
-		return $this->protocol;
-	}
+        return $this->getBaseURL();
+    }
 
-	/**
-	 * Sets $this->protocol using given $protocol
-	 * @param string $protocol
-	 */
-	public function setProtocol($protocol)
-	{
-		if(strpos($protocol, '://') === false)
-		{
-			$this->protocol = $protocol . '://';
-		}
-	}
+    public function getIliasUrlEnabled(): bool
+    {
+        return $this->iliasUrlEnabled;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getIliasUrl()
-	{
-		return $this->iliasUrl;
-	}
+    public function setIliasUrlEnabled(bool $iliasUrlEnabled): void
+    {
+        $this->iliasUrlEnabled = $iliasUrlEnabled;
+    }
 
-	/**
-	 * @param string $iliasUrl
-	 */
-	public function setIliasUrl($iliasUrl)
-	{
-		$this->iliasUrl = $iliasUrl;
-	}
+    public function getProtocol(): string
+    {
+        return $this->protocol;
+    }
 
-	/**
-	 * Returns base URL
-	 * Creates base URL by calling $this->getProtocol(), $this->getDomain() and
-	 * $this->getPort() and returnes it.
-	 * @return string
-	 */
-	public function getBaseURL()
-	{
-		return $this->getProtocol() . $this->getDomain() . ':' . $this->getPort();
-	}
+    public function setProtocol(string $protocol): void
+    {
+        if (strpos($protocol, '://') === false) {
+            $this->protocol = $protocol . '://';
+        }
+    }
 
-	/**
-	 * Returns $this->domain.
-	 * @return string
-	 */
-	public function getDomain()
-	{
-		return $this->domain;
-	}
+    public function getIliasUrl(): string
+    {
+        return $this->iliasUrl;
+    }
 
-	/**
-	 * Sets $this->domain using given $domain.
-	 * @param string $domain
-	 */
-	public function setDomain($domain)
-	{
-		$this->domain = $domain;
-	}
+    public function setIliasUrl(string $iliasUrl): void
+    {
+        $this->iliasUrl = $iliasUrl;
+    }
 
-	/**
-	 * Returns $this->port.
-	 * @return string
-	 */
-	public function getPort()
-	{
-		return $this->port;
-	}
+    /**
+     * Creates base URL by calling $this->getProtocol(), $this->getDomain() and
+     * $this->getPort() and returnes it.
+     * @return string
+     */
+    public function getBaseURL(): string
+    {
+        return $this->getProtocol() . $this->getDomain() . ':' . $this->getPort();
+    }
 
-	/**
-	 * Sets $this->port using given $port
-	 * @param string $port
-	 */
-	public function setPort($port)
-	{
-		$this->port = $port;
-	}
+    public function getDomain(): string
+    {
+        return $this->domain;
+    }
 
-	/**
-	 * Returns $this->instance.
-	 * @return string
-	 */
-	public function getInstance()
-	{
-		return $this->instance;
-	}
+    public function setDomain(string $domain): void
+    {
+        $this->domain = $domain;
+    }
 
-	/**
-	 * Sets $this->instance using given $instance
-	 * @param string $instance
-	 */
-	public function setInstance($instance)
-	{
-		$this->instance = $instance;
-	}
+    public function getPort(): int
+    {
+        return $this->port;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function generateClientUrl()
-	{
-		if($this->getClientUrlEnabled())
-		{
-			$url = $this->getClientUrl();
+    public function setPort(int $port): void
+    {
+        $this->port = $port;
+    }
 
-			if(strpos($url, '://') === false)
-			{
-				$url = $this->getProtocol() . $url;
-			}
+    public function getInstance(): string
+    {
+        return $this->instance;
+    }
 
-			return $url;
-		}
-		return $this->getBaseURL();
-	}
+    public function setInstance(string $instance): void
+    {
+        $this->instance = $instance;
+    }
 
-	/**
-	 * @return bool
-	 */
-	public function getClientUrlEnabled()
-	{
-		return $this->clientUrlEnabled;
-	}
+    public function generateClientUrl(): string
+    {
+        if ($this->getClientUrlEnabled()) {
+            $url = $this->getClientUrl();
 
-	/**
-	 * @param bool $clientUrlEnabled
-	 */
-	public function setClientUrlEnabled($clientUrlEnabled)
-	{
-		$this->clientUrlEnabled = $clientUrlEnabled;
-	}
+            if (strpos($url, '://') === false) {
+                $url = $this->getProtocol() . $url;
+            }
 
-	/**
-	 * @return string
-	 */
-	public function getClientUrl()
-	{
-		return $this->clientUrl;
-	}
+            return $url;
+        }
+        return $this->getBaseURL();
+    }
 
-	/**
-	 * @param string $clientUrl
-	 */
-	public function setClientUrl($clientUrl)
-	{
-		$this->clientUrl = $clientUrl;
-	}
+    public function getClientUrlEnabled(): bool
+    {
+        return $this->clientUrlEnabled;
+    }
 
-	/**
-	 * @return bool
-	 */
-	public function getSmiliesEnabled()
-	{
-		return (bool)$this->smilies_enabled;
-	}
+    public function setClientUrlEnabled(bool $clientUrlEnabled): void
+    {
+        $this->clientUrlEnabled = $clientUrlEnabled;
+    }
 
-	/**
-	 * @param bool $a_bool
-	 */
-	public function setSmiliesEnabled($a_bool)
-	{
-		$this->smilies_enabled = $a_bool;
-	}
+    public function getClientUrl(): string
+    {
+        return $this->clientUrl;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getAuthKey()
-	{
-		return $this->authKey;
-	}
+    public function setClientUrl(string $clientUrl): void
+    {
+        $this->clientUrl = $clientUrl;
+    }
 
-	/**
-	 * @param string $authKey
-	 */
-	public function setAuthKey($authKey)
-	{
-		$this->authKey = $authKey;
-	}
+    public function getSmiliesEnabled(): bool
+    {
+        return $this->smilies_enabled;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getAuthSecret()
-	{
-		return $this->authSecret;
-	}
+    public function setSmiliesEnabled(bool $a_bool): void
+    {
+        $this->smilies_enabled = $a_bool;
+    }
 
-	/**
-	 * @param string $authSecret
-	 */
-	public function setAuthSecret($authSecret)
-	{
-		$this->authSecret = $authSecret;
-	}
+    public function getAuthKey(): string
+    {
+        return $this->authKey;
+    }
 
-	/**
-	 * @return mixed
-	 */
-	public function getSubDirectory()
-	{
-		return $this->subDirectory;
-	}
+    public function setAuthKey(string $authKey): void
+    {
+        $this->authKey = $authKey;
+    }
 
-	/**
-	 * @param mixed $subDirectory
-	 */
-	public function setSubDirectory($subDirectory)
-	{
-		$this->subDirectory = $subDirectory;
-	}
+    public function getAuthSecret(): string
+    {
+        return $this->authSecret;
+    }
+
+    public function setAuthSecret(string $authSecret): void
+    {
+        $this->authSecret = $authSecret;
+    }
+
+    public function getSubDirectory(): string
+    {
+        return $this->subDirectory;
+    }
+
+    public function setSubDirectory(string $subDirectory): void
+    {
+        $this->subDirectory = $subDirectory;
+    }
 }

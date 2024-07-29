@@ -1,139 +1,69 @@
 <?php
 
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 /**
  * Class arConnector
- *
  * @author  Fabian Schmid <fs@studer-raimann.ch>
- *
- * @description
- *
- * @version 2.0.7
+ * @internal
  */
-abstract class arConnector {
+abstract class arConnector
+{
+    /**
+     * @return mixed
+     */
+    abstract public function nextID(ActiveRecord $ar);
 
-	/**
-	 * @param ActiveRecord $ar
-	 */
-	abstract public function nextID(ActiveRecord $ar);
+    abstract public function checkConnection(ActiveRecord $ar): bool;
 
+    abstract public function installDatabase(ActiveRecord $ar, array $fields): bool;
 
-	/**
-	 * @param ActiveRecord $ar
-	 */
-	abstract public function checkConnection(ActiveRecord $ar);
+    abstract public function updateDatabase(ActiveRecord $ar): bool;
 
+    abstract public function resetDatabase(ActiveRecord $ar): bool;
 
-	/**
-	 * @param ActiveRecord $ar
-	 * @param              $fields
-	 */
-	abstract public function installDatabase(ActiveRecord $ar, $fields);
+    abstract public function truncateDatabase(ActiveRecord $ar): bool;
 
+    abstract public function checkTableExists(ActiveRecord $ar): bool;
 
-	/**
-	 * @param ActiveRecord $ar
-	 */
-	abstract public function updateDatabase(ActiveRecord $ar);
+    abstract public function checkFieldExists(ActiveRecord $ar, string $field_name): bool;
 
+    abstract public function removeField(ActiveRecord $ar, string $field_name): bool;
 
-	/**
-	 * @param ActiveRecord $ar
-	 */
-	abstract public function resetDatabase(ActiveRecord $ar);
+    abstract public function renameField(ActiveRecord $ar, string $old_name, string $new_name): bool;
 
+    abstract public function create(ActiveRecord $ar): void;
 
-	/**
-	 * @param ActiveRecord $ar
-	 */
-	abstract public function truncateDatabase(ActiveRecord $ar);
+    abstract public function read(ActiveRecord $ar): array;
 
+    abstract public function update(ActiveRecord $ar): void;
 
-	/**
-	 * @param ActiveRecord $ar
-	 */
-	abstract public function checkTableExists(ActiveRecord $ar);
+    abstract public function delete(ActiveRecord $ar): void;
 
+    abstract public function readSet(ActiveRecordList $arl): array;
 
-	/**
-	 * @param ActiveRecord $ar
-	 * @param              $field_name
-	 */
-	abstract public function checkFieldExists(ActiveRecord $ar, $field_name);
+    abstract public function affectedRows(ActiveRecordList $arl): int;
 
+    /**
+     * @param mixed $value
+     */
+    abstract public function quote($value, string $type): string;
 
-	/**
-	 * @param ActiveRecord $ar
-	 * @param              $field_name
-	 */
-	abstract public function removeField(ActiveRecord $ar, $field_name);
+    abstract public function updateIndices(ActiveRecord $ar): void;
 
-
-	/**
-	 * @param ActiveRecord $ar
-	 * @param              $old_name
-	 * @param              $new_name
-	 */
-	abstract public function renameField(ActiveRecord $ar, $old_name, $new_name);
-
-
-	/**
-	 * @param ActiveRecord $ar
-	 */
-	abstract public function create(ActiveRecord $ar);
-
-
-	/**
-	 * @param ActiveRecord $ar
-	 */
-	abstract public function read(ActiveRecord $ar);
-
-
-	/**
-	 * @param ActiveRecord $ar
-	 */
-	abstract public function update(ActiveRecord $ar);
-
-
-	/**
-	 * @param ActiveRecord $ar
-	 */
-	abstract public function delete(ActiveRecord $ar);
-
-
-	/**
-	 * @param ActiveRecordList $arl
-	 */
-	abstract public function readSet(ActiveRecordList $arl);
-
-
-	/**
-	 * @param ActiveRecordList $arl
-	 *
-	 * @return int
-	 */
-	abstract public function affectedRows(ActiveRecordList $arl);
-
-
-	/**
-	 * @param $value
-	 * @param $type
-	 *
-	 * @return string
-	 */
-	abstract public function quote($value, $type);
-
-
-	/**
-	 * @param ActiveRecord $ar
-	 */
-	abstract public function updateIndices(ActiveRecord $ar);
-
-
-	/**
-	 * @param $value
-	 * @return string
-	 */
-	public function fixDate($value) {
-		return $value;
-	}
+    public function fixDate(string $value): string
+    {
+        return $value;
+    }
 }

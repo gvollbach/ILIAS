@@ -1,64 +1,58 @@
 <?php
 
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
- * COPage page object definition handler 
- *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- * @ingroup ServicesCOPage
+ * COPage page object definition handler
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilCOPageObjDef
 {
-	static $page_obj_def = null;
-	
-	/**
-	 * Init
-	 *
-	 * @param
-	 * @return
-	 */
-	static function init()
-	{
-		global $DIC;
+    public static ?array $page_obj_def = null;
 
-		$db = $DIC->database();
-		
-		if (self::$page_obj_def == null)
-		{
-			$set = $db->query("SELECT * FROM copg_pobj_def ");
-			while ($rec = $db->fetchAssoc($set))
-			{
-				self::$page_obj_def[$rec["parent_type"]] = $rec;
-			}
-		}
-	}
-	
-	/**
-	 * Get definitions
-	 *
-	 * @param
-	 * @return
-	 */
-	function getDefinitions()
-	{
-		self::init();
-		return self::$page_obj_def;
-	}
-	
-	/**
-	 * Get definition by parent type
-	 *
-	 * @param string $a_parent_type parent type
-	 * @return array definition
-	 */
-	static function getDefinitionByParentType($a_parent_type)
-	{
-		self::init();
-		return self::$page_obj_def[$a_parent_type];
-	}
-	
+    public static function init(): void
+    {
+        global $DIC;
+
+        $db = $DIC->database();
+
+        if (self::$page_obj_def == null) {
+            $set = $db->query("SELECT * FROM copg_pobj_def ");
+            while ($rec = $db->fetchAssoc($set)) {
+                self::$page_obj_def[$rec["parent_type"]] = $rec;
+            }
+        }
+    }
+
+    /**
+     * Get all definitios
+     */
+    public function getDefinitions(): array
+    {
+        self::init();
+        return self::$page_obj_def;
+    }
+
+    /**
+     * Get definition by parent type
+     */
+    public static function getDefinitionByParentType(string $a_parent_type): array
+    {
+        self::init();
+        return self::$page_obj_def[$a_parent_type];
+    }
 }
-
-?>

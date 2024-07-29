@@ -1,286 +1,286 @@
 <?php
 
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
- * 
- *
  * @author Fabian Wolf <wolf@leifos.de>
- * @version $Id: $
- * @ingroup Services/LDAP
  */
 class ilLDAPRoleGroupMappingSetting
 {
-	/**
-	 * constructor
-	 * @global ilDB $ilDB
-	 * @param int $a_mapping_id 
-	 */
-	public function __construct($a_mapping_id)
-	{
-		global $DIC;
+    private ilDBInterface $db;
+    private ilObjectDataCache $ilObjDataCache;
+    private ilRbacReview $rbacreview;
 
-		$ilDB = $DIC['ilDB'];
-		$this->db = $ilDB;
-		$this->mapping_id = $a_mapping_id;
-	}
-	
-	/**
-	 * read data from db 
-	 */
-	function read()
-	{
-		$query = "SELECT * FROM ldap_rg_mapping "
-				."WHERE mapping_id = " . $this->db->quote($this->getMappingId(),'integer');
-		$set = $this->db->query($query);
-		$rec  = $this->db->fetchAssoc($set);
-		
-		$this->setMappingId($rec["mapping_id"]);
-		$this->setServerId($rec["server_id"]);
-		$this->setURL($rec["url"]);
-		$this->setDN($rec["dn"]);
-		$this->setMemberAttribute($rec["member_attribute"]);
-		$this->setMemberISDN($rec["member_isdn"]);
-		$this->setRole($rec["role"]);
-		$this->setMappingInfo($rec["mapping_info"]);
-		$this->setMappingInfoType($rec["mapping_info_type"]);
-	}
-	
-	/**
-	 * delete mapping by id 
-	 */
-	function delete()
-	{
-		$query = "DELETE FROM ldap_rg_mapping ".
-	 		"WHERE mapping_id = ".$this->db->quote($this->getMappingId(),'integer');
-		$res = $this->db->manipulate($query);
-	}
-	
-	/**
-	 * update mapping by id 
-	 */
-	function update()
-	{
-		$query = "UPDATE ldap_rg_mapping ".
-		 			"SET server_id = ".$this->db->quote($this->getServerId(),'integer').", ".
-		 			"url = ".$this->db->quote($this->getURL(),'text').", ".
-	 				"dn =".$this->db->quote($this->getDN(),'text').", ".
-	 				"member_attribute = ".$this->db->quote($this->getMemberAttribute(),'text').", ".
-	 				"member_isdn = ".$this->db->quote($this->getMemberISDN(),'integer').", ".
-	 				"role = ".$this->db->quote($this->getRole(),'integer').", ".
-	 				"mapping_info = ".$this->db->quote($this->getMappingInfo(),'text').", ".
-	 				"mapping_info_type = ".$this->db->quote($this->getMappingInfoType(),'integer')." ".
-	 				"WHERE mapping_id = ".$this->db->quote($this->getMappingId(),'integer');
-	 	$res = $this->db->manipulate($query);
-	}
-	
-	/**
-	 * create new mapping 
-	 */
-	function save()
-	{
-		$this->setMappingId($this->db->nextId('ldap_rg_mapping'));
-		$query = "INSERT INTO ldap_rg_mapping (mapping_id,server_id,url,dn,member_attribute,member_isdn,role,mapping_info,mapping_info_type) ".
-			 		"VALUES ( ".
-			 		$this->db->quote($this->getMappingId(),'integer').", ".
-		 			$this->db->quote($this->getServerId(),'integer').", ".
-		 			$this->db->quote($this->getURL(),'text').", ".
-	 				$this->db->quote($this->getDN(),'text').", ".
-	 				$this->db->quote($this->getMemberAttribute(),'text').", ".
-	 				$this->db->quote($this->getMemberISDN(),'integer').", ".
-	 				$this->db->quote($this->getRole(),'integer').", ".
-	 				$this->db->quote($this->getMappingInfo(),'text').", ".
-	 				$this->db->quote($this->getMappingInfoType(),'integer').
-	 				")";
-		$res = $this->db->manipulate($query);
-	}
-	
-	/**
-	 * get mapping id
-	 * @return int mapping id
-	 */
-	function getMappingId()
-	{
-		return $this->mapping_id;
-	}
-	
-	/**
-	 * set mapping id
-	 * @param int $a_value mapping id
-	 */
-	function setMappingId($a_value)
-	{
-		$this->mapping_id = $a_value;
-	}
-	
-	/**
-	 * get server id
-	 * @return int server id id
-	 */
-	function getServerId()
-	{
-		return $this->server_id;
-	}
-	
-	/**
-	 * set server id
-	 * @param int $a_value server id
-	 */
-	function setServerId($a_value)
-	{
-		$this->server_id = $a_value;
-	}
-	
-	/**
-	 * get url
-	 * @return string url 
-	 */
-	function getURL()
-	{
-		return $this->url;
-	}
-	
-	/**
-	 * set url
-	 * @param string $a_value url
-	 */
-	function setURL($a_value)
-	{
-		$this->url = $a_value;
-	}
-	
-	/**
-	 * get group dn
-	 * @return string 
-	 */
-	function getDN()
-	{
-		return $this->dn;
-	}
-	
-	/**
-	 * set group dn
-	 * @param string $a_value 
-	 */
-	function setDN($a_value)
-	{
-		$this->dn = $a_value;
-	}
-	
-	/**
-	 * get Group Member Attribute
-	 * @return string 
-	 */
-	function getMemberAttribute()
-	{
-		return $this->member_attribute;
-	}
-	
-	/**
-	 * set Group Member Attribute
-	 * @param string $a_value 
-	 */
-	function setMemberAttribute($a_value)
-	{
-		$this->member_attribute = $a_value;
-	}
-	
-	/**
-	 * get Member Attribute Value is DN
-	 * @return bool 
-	 */
-	function getMemberISDN()
-	{
-		return $this->member_isdn;
-	}
-	
-	/**
-	 * set Member Attribute Value is DN
-	 * @param bool $a_value 
-	 */
-	function setMemberISDN($a_value)
-	{
-		$this->member_isdn = $a_value;
-	}
-	
-	/**
-	 * get ILIAS Role Name id
-	 * @return int 
-	 */
-	function getRole()
-	{
-		return $this->role;
-	}
-	
-	/**
-	 * set ILIAS Role Name id
-	 * @param int $a_value 
-	 */
-	function setRole($a_value)
-	{
-		$this->role = $a_value;
-	}
-	
-	/**
-	 * get ILIAS Role Name
-	 * @global type $ilObjDataCache
-	 * @return string 
-	 */
-	function getRoleName()
-	{
-		global $DIC;
+    private int $mapping_id;
+    private int $server_id;
 
-		$ilObjDataCache = $DIC['ilObjDataCache'];
-		return $ilObjDataCache->lookupTitle($this->role);
-	}
-	
-	/**
-	 * set ILIAS Role Name
-	 * @global ilRbacReview $rbacreview
-	 * @param string $a_value 
-	 */
-	function setRoleByName($a_value)
-	{
-		global $DIC;
+    private ?string $url;
+    private ?string $dn;
+    private ?string $member_attribute;
+    private ?bool $mapping_info_type;
+    private ?bool $member_isdn;
+    private ?int $role;
+    private ?string $mapping_info;
 
-		$rbacreview = $DIC['rbacreview'];
-		$this->role = $rbacreview->roleExists(ilUtil::stripSlashes($a_value));
-	}
-	
-	/**
-	 * get Information Text
-	 * @return string 
-	 */
-	function getMappingInfo()
-	{
-		return $this->mapping_info;
-	}
-	
-	/**
-	 * set Information Text
-	 * @param string $a_value 
-	 */
-	function setMappingInfo($a_value)
-	{
-		$this->mapping_info = $a_value;
-	}
-	
-	/**
-	 * get Show Information also in the Repository/Personal Desktop 
-	 * @return bool 
-	 */
-	function getMappingInfoType()
-	{
-		return $this->mapping_info_type;
-	}
-	
-	/**
-	 * set Show Information also in the Repository/Personal Desktop 
-	 * @param bool $a_value 
-	 */
-	function setMappingInfoType($a_value)
-	{
-		$this->mapping_info_type = $a_value;
-	}
+    public function __construct(int $a_mapping_id)
+    {
+        global $DIC;
+
+        $this->db = $DIC->database();
+        $this->ilObjDataCache = $DIC['ilObjDataCache'];
+        $this->rbacreview = $DIC['rbacreview'];
+        $this->mapping_id = $a_mapping_id;
+    }
+
+    /**
+     * read data from db
+     */
+    public function read(): void
+    {
+        $query = "SELECT * FROM ldap_rg_mapping "
+                . "WHERE mapping_id = " . $this->db->quote($this->getMappingId(), 'integer');
+        $set = $this->db->query($query);
+        $rec = $this->db->fetchAssoc($set);
+        $this->setMappingId((int) $rec["mapping_id"]);
+        $this->setServerId((int) $rec["server_id"]);
+        $this->setURL($rec["url"]);
+        $this->setDN($rec["dn"]);
+        $this->setMemberAttribute($rec["member_attribute"]);
+        $this->setMemberISDN((bool) $rec["member_isdn"]);
+        $this->setRole((int) $rec["role"]);
+        $this->setMappingInfo($rec["mapping_info"]);
+        $this->setMappingInfoType((bool) $rec["mapping_info_type"]);
+    }
+
+    /**
+     * delete mapping by id
+     */
+    public function delete(): void
+    {
+        $query = "DELETE FROM ldap_rg_mapping " .
+            "WHERE mapping_id = " . $this->db->quote($this->getMappingId(), 'integer');
+        $this->db->manipulate($query);
+    }
+
+    /**
+     * update mapping by id
+     */
+    public function update(): void
+    {
+        $query = "UPDATE ldap_rg_mapping " .
+                    "SET server_id = " . $this->db->quote($this->getServerId(), 'integer') . ", " .
+                    "url = " . $this->db->quote($this->getURL(), 'text') . ", " .
+                    "dn =" . $this->db->quote($this->getDN(), 'text') . ", " .
+                    "member_attribute = " . $this->db->quote($this->getMemberAttribute(), 'text') . ", " .
+                    "member_isdn = " . $this->db->quote($this->getMemberISDN(), 'integer') . ", " .
+                    "role = " . $this->db->quote($this->getRole(), 'integer') . ", " .
+                    "mapping_info = " . $this->db->quote($this->getMappingInfo(), 'text') . ", " .
+                    "mapping_info_type = " . $this->db->quote($this->getMappingInfoType(), 'integer') . " " .
+                    "WHERE mapping_id = " . $this->db->quote($this->getMappingId(), 'integer');
+        $this->db->manipulate($query);
+    }
+
+    /**
+     * create new mapping
+     */
+    public function save(): void
+    {
+        $this->setMappingId($this->db->nextId('ldap_rg_mapping'));
+        $query = "INSERT INTO ldap_rg_mapping (mapping_id,server_id,url,dn,member_attribute,member_isdn,role,mapping_info,mapping_info_type) " .
+                    "VALUES ( " .
+                    $this->db->quote($this->getMappingId(), 'integer') . ", " .
+                    $this->db->quote($this->getServerId(), 'integer') . ", " .
+                    $this->db->quote($this->getURL(), 'text') . ", " .
+                    $this->db->quote($this->getDN(), 'text') . ", " .
+                    $this->db->quote($this->getMemberAttribute(), 'text') . ", " .
+                    $this->db->quote($this->getMemberISDN(), 'integer') . ", " .
+                    $this->db->quote($this->getRole(), 'integer') . ", " .
+                    $this->db->quote($this->getMappingInfo(), 'text') . ", " .
+                    $this->db->quote($this->getMappingInfoType(), 'integer') .
+                    ")";
+        $this->db->manipulate($query);
+    }
+
+    /**
+     * get mapping id
+     * @return int mapping id
+     */
+    public function getMappingId(): int
+    {
+        return $this->mapping_id;
+    }
+
+    /**
+     * set mapping id
+     * @param int $a_value mapping id
+     */
+    public function setMappingId(int $a_value): void
+    {
+        $this->mapping_id = $a_value;
+    }
+
+    /**
+     * get server id
+     * @return int server id id
+     */
+    public function getServerId(): int
+    {
+        return $this->server_id;
+    }
+
+    /**
+     * set server id
+     * @param int $a_value server id
+     */
+    public function setServerId(int $a_value): void
+    {
+        $this->server_id = $a_value;
+    }
+
+    /**
+     * get url
+     * @return string url
+     */
+    public function getURL(): string
+    {
+        return $this->url;
+    }
+
+    /**
+     * set url
+     * @param string $a_value url
+     */
+    public function setURL(string $a_value): void
+    {
+        $this->url = $a_value;
+    }
+
+    /**
+     * get group dn
+     */
+    public function getDN(): string
+    {
+        return $this->dn;
+    }
+
+    /**
+     * set group dn
+     */
+    public function setDN(string $a_value): void
+    {
+        $this->dn = $a_value;
+    }
+
+    /**
+     * get Group Member Attribute
+     */
+    public function getMemberAttribute(): string
+    {
+        return $this->member_attribute;
+    }
+
+    /**
+     * set Group Member Attribute
+     */
+    public function setMemberAttribute(string $a_value): void
+    {
+        $this->member_attribute = $a_value;
+    }
+
+    /**
+     * get Member Attribute Value is DN
+     */
+    public function getMemberISDN(): bool
+    {
+        return $this->member_isdn;
+    }
+
+    /**
+     * set Member Attribute Value is DN
+     * @param bool $a_value
+     */
+    public function setMemberISDN(bool $a_value): void
+    {
+        $this->member_isdn = $a_value;
+    }
+
+    /**
+     * get ILIAS Role Name id
+     */
+    public function getRole(): int
+    {
+        return $this->role;
+    }
+
+    /**
+     * set ILIAS Role Name id
+     */
+    public function setRole(int $a_value): void
+    {
+        $this->role = $a_value;
+    }
+
+    /**
+     * get ILIAS Role Name
+     */
+    public function getRoleName(): string
+    {
+        return $this->ilObjDataCache->lookupTitle($this->role);
+    }
+
+    /**
+     * set ILIAS Role Name
+     */
+    public function setRoleByName(string $a_value): void
+    {
+        $this->role = $this->rbacreview->roleExists(ilUtil::stripSlashes($a_value));
+    }
+
+    /**
+     * get Information Text
+     */
+    public function getMappingInfo(): string
+    {
+        return $this->mapping_info;
+    }
+
+    /**
+     * set Information Text
+     */
+    public function setMappingInfo(string $a_value): void
+    {
+        $this->mapping_info = $a_value;
+    }
+
+    /**
+     * get Show Information also in the Repository/Personal Desktop
+     */
+    public function getMappingInfoType(): bool
+    {
+        return $this->mapping_info_type;
+    }
+
+    /**
+     * set Show Information also in the Repository/Personal Desktop
+     */
+    public function setMappingInfoType(bool $a_value): void
+    {
+        $this->mapping_info_type = $a_value;
+    }
 }
-?>

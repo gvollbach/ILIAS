@@ -1,52 +1,57 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once './Services/EventHandling/interfaces/interface.ilAppEventListener.php';
-include_once './Services/Badge/classes/class.ilBadgeHandler.php';
-
-/** 
- * Trigger activity badges from events
- * 
- * @author Jörg Lützenkirchen <luetzenkirchen@leifos.com>
- * @version $Id$
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
  *
- * @ingroup ServicesBadge
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Trigger activity badges from events
+ *
+ * @author Jörg Lützenkirchen <luetzenkirchen@leifos.com>
  */
 class ilBadgeAppEventListener implements ilAppEventListener
-{	
-	public static function handleEvent($a_component, $a_event, $a_params)
-	{								
-		switch($a_component)
-		{
-			case 'Services/User':				
-				switch($a_event)
-				{					
-					case 'afterUpdate':
-						$user_obj = $a_params['user_obj'];	
-						ilBadgeHandler::getInstance()->triggerEvaluation(
-							'user/profile', 
-							$user_obj->getId()						
-						);				
-						break;
-				}
-				break;
-			
-			case 'Services/Tracking':				
-				switch($a_event)
-				{					
-					case 'updateStatus':									
-						if($a_params['status'] == ilLPStatus::LP_STATUS_COMPLETED_NUM)
-						{
-							ilBadgeHandler::getInstance()->triggerEvaluation(
-								'crs/course_lp', 
-								$a_params['usr_id'],
-								array('obj_id' => $a_params['obj_id'])								
-							);	
-						}
-						break;
-				}
-				break;
-						
-		}
-	}
+{
+    public static function handleEvent(string $a_component, string $a_event, array $a_parameter): void
+    {
+        switch ($a_component) {
+            case 'Services/User':
+                switch ($a_event) {
+                    case 'afterUpdate':
+                        $user_obj = $a_parameter['user_obj'];
+                        ilBadgeHandler::getInstance()->triggerEvaluation(
+                            'user/profile',
+                            $user_obj->getId()
+                        );
+                        break;
+                }
+                break;
+
+            case 'Services/Tracking':
+                switch ($a_event) {
+                    case 'updateStatus':
+                        if ((int) $a_parameter['status'] === ilLPStatus::LP_STATUS_COMPLETED_NUM) {
+                            ilBadgeHandler::getInstance()->triggerEvaluation(
+                                'crs/course_lp',
+                                (int) $a_parameter['usr_id'],
+                                ['obj_id' => (int) $a_parameter['obj_id']]
+                            );
+                        }
+                        break;
+                }
+                break;
+
+        }
+    }
 }

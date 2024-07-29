@@ -1,363 +1,253 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2006 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
 
-/** 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+/**
 * @author Stefan Meyer <meyer@leifos.com>
-* @version $Id$
-* 
-* 
-* @ingroup ServicesAuthentication 
 */
-
-include_once('Services/Authentication/classes/class.ilAuthUtils.php');
-
 class ilAuthModeDetermination
 {
-	const TYPE_MANUAL = 0;
-	const TYPE_AUTOMATIC = 1;
-	
-	protected static $instance = null;
-	
-	protected $db = null;
-	protected $settings = null;
-	
-	protected $kind = 0;
-	protected $position = array(); 
-	
+    public const TYPE_MANUAL = 0;
+    public const TYPE_AUTOMATIC = 1;
 
-	/**
-	 * Constructor (Singleton)
-	 *
-	 * @access private
-	 * 
-	 */
-	private function __construct()
-	{
-	 	global $DIC;
+    private static ?ilAuthModeDetermination $instance = null;
 
-	 	$ilSetting = $DIC['ilSetting'];
-	 	$ilDB = $DIC['ilDB'];
-	 	
-	 	$this->db = $ilDB;
+    private ilLogger $logger;
 
-		include_once "./Services/Administration/classes/class.ilSetting.php";
-		$this->settings = new ilSetting("auth_mode_determination");
-	 	$this->read();
-	}
-	
-	/**
-	 * Get instance
-	 *
-	 * @access public
-	 * @static
-	 *
-	 * @return ilAuthModeDetermination
-	 */
-	public static function _getInstance()
-	{
-		if(self::$instance)
-		{
-			return self::$instance;
-		}
-		return self::$instance = new ilAuthModeDetermination();
-	}
+    private ilSetting $settings;
+    private ilSetting $commonSettings;
 
-	/**
-	 * is manual selection  
-	 *
-	 * @access public
+    private int $kind = self::TYPE_MANUAL;
+    private array $position = [];
 
-	 *
-	 * @param
-	 */
-	public function isManualSelection()
-	{
-		return $this->kind == self::TYPE_MANUAL;
-	}
 
-	/**
-	 * get kind
-	 *
-	 * @access public
-	 * 
-	 */
-	public function getKind()
-	{
-	 	return $this->kind;
-	}
-	
-	/**
-	 * set kind of determination
-	 *
-	 * @access public
-	 * @param int TYPE_MANUAL or TYPE_DETERMINATION
-	 * 
-	 */
-	public function setKind($a_kind)
-	{
-	 	$this->kind = $a_kind;
-	}
-	
-	/**
-	 * get auth mode sequence
-	 *
-	 * @access public
-	 * 
-	 */
-	public function getAuthModeSequence($a_username = '')
-	{
-		if(!strlen($a_username))
-		{
-			return $this->position ? $this->position : array();	 	
-		}
-		$sorted = array();
-		
-		foreach($this->position as $auth_key)
-		{
-			include_once './Services/LDAP/classes/class.ilLDAPServer.php';
-			$sid = ilLDAPServer::getServerIdByAuthMode($auth_key);
-			if($sid)
-			{
-				$server = ilLDAPServer::getInstanceByServerId($sid);
-				ilLoggerFactory::getLogger('auth')->debug('Validating username filter for ' . $server->getName());
-				if(strlen($server->getUsernameFilter()))
-				{
-					//#17731
-					$pattern = str_replace('*','.*?', $server->getUsernameFilter());
+    /**
+     * Constructor (Singleton)
+     *
+     * @access private
+     *
+     */
+    private function __construct()
+    {
+        global $DIC;
 
-					if(preg_match('/^'.$pattern.'$/', $a_username))
-					{
-						ilLoggerFactory::getLogger('auth')->debug('Filter matches for ' . $a_username);
-						array_unshift($sorted, $auth_key);
-						continue;
-					}
-					ilLoggerFactory::getLogger('auth')->debug('Filter matches not for ' . $a_username. ' <-> ' . $server->getUsernameFilter());
-				}
-			}
-			$sorted[] = $auth_key;
-		}
-		
-		return (array) $sorted;
-	}
-	
-	/**
-	 * get number of auth modes
-	 *
-	 * @access public
-	 * 
-	 */
-	public function getCountActiveAuthModes()
-	{
-	 	return count($this->position);
-	}
-	
-	/**
-	 * set auth mode sequence
-	 *
-	 * @access public
-	 * @param array position => AUTH_MODE
-	 * 
-	 */
-	public function setAuthModeSequence($a_pos)
-	{
-	 	$this->position = $a_pos;
-	}
-	
-	/**
-	 * Save settings
-	 *
-	 * @access public
-	 * @param
-	 * 
-	 */
-	public function save()
-	{
-	 	$this->settings->deleteAll();
-	 	
-	 	$this->settings->set('kind',$this->getKind());
-	 	
-	 	$counter = 0;
-	 	foreach($this->position as $auth_mode)
-	 	{
-	 		$this->settings->set((string) $counter++,$auth_mode);
-	 	}
-	}
-	
-	
-	/**
-	 * Read settings
-	 *
-	 * @access private
-	 * @param
-	 * 
-	 */
-	private function read()
-	{
-		global $DIC;
+        $this->logger = $DIC->logger()->auth();
 
-		$ilSetting = $DIC['ilSetting'];
-		
-		$this->kind = $this->settings->get('kind',self::TYPE_MANUAL);
-		
-		// begin-patch ldap_multiple
-		include_once('Services/LDAP/classes/class.ilLDAPServer.php');
-		// end-patch ldap_multiple
-		
-		include_once('Services/Radius/classes/class.ilRadiusSettings.php');
-		$rad_settings = ilRadiusSettings::_getInstance();
-		$rad_active = $rad_settings->isActive();
-		
-		$soap_active = $ilSetting->get('soap_auth_active',false);
+        $this->commonSettings = $DIC->settings();
 
-       		// apache settings
-		$apache_settings = new ilSetting('apache_auth');
-		$apache_active = $apache_settings->get('apache_enable_auth');
+        $this->settings = new ilSetting("auth_mode_determination");
+        $this->read();
+    }
 
-		// Check if active
-		// begin-patch ldap_multiple
-		$i = 0;
-		while(true)
-		{
-			$auth_mode = $this->settings->get((string) $i++,FALSE);
-			if($auth_mode === FALSE)
-			{
-				break;
-			}
-			if($auth_mode)
-			{
-				// begin-patch ldap_multiple
-				switch((int) $auth_mode)
-				{
-					case AUTH_LOCAL:
-						$this->position[] = $auth_mode;
-						break;
-					
-					case AUTH_LDAP:
-						$auth_id = ilLDAPServer::getServerIdByAuthMode($auth_mode);
-						$server = ilLDAPServer::getInstanceByServerId($auth_id);
-						
-						if($server->isActive())
-						{
-							$this->position[] = $auth_mode;
-						}
-						break;
-						
-					case AUTH_RADIUS:
-						if($rad_active)
-						{
-							$this->position[] = $auth_mode;  
-						}
-						break;
-					
-					case AUTH_SOAP:
-						if($soap_active)
-						{
-							$this->position[] = $auth_mode;
-						} 
-						break;
+    /**
+     * Get instance
+     */
+    public static function _getInstance(): ilAuthModeDetermination
+    {
+        if (self::$instance) {
+            return self::$instance;
+        }
+        return self::$instance = new ilAuthModeDetermination();
+    }
 
-					case AUTH_APACHE:
-						if($apache_active)
-						{
-							$this->position[] = $auth_mode;
-						}
-						break;
-						
-					// begin-patch auth_plugin
-					default:
-						foreach(ilAuthUtils::getAuthPlugins() as $pl)
-						{
-							if($pl->isAuthActive($auth_mode))
-							{
-								$this->position[] = $auth_mode;
-							}
-						}
-						break;
-					// end-patch auth_plugin
-						
-				}
-			}
-		}
-		// end-patch ldap_multiple
+    /**
+     * is manual selection
+     */
+    public function isManualSelection(): bool
+    {
+        return $this->kind === self::TYPE_MANUAL;
+    }
 
-		// Append missing active auth modes
-		if(!in_array(AUTH_LOCAL,$this->position))
-		{
-			$this->position[] = AUTH_LOCAL;
-		}
-		// begin-patch ldap_multiple
-		foreach(ilLDAPServer::_getActiveServerList() as $sid)
-		{
-			$server = ilLDAPServer::getInstanceByServerId($sid);
-			if($server->isActive())
-			{
-				if(!in_array(AUTH_LDAP.'_'.$sid, $this->position))
-				{
-					$this->position[] = (AUTH_LDAP.'_'.$sid);
-				}
-			}
-					
-		}
-		// end-patch ldap_multiple
-		if($rad_active)
-		{
-			if(!in_array(AUTH_RADIUS,$this->position))
-			{
-				$this->position[] = AUTH_RADIUS;
-			}
-			
-		}
-		if($soap_active)
-		{
-			if(!in_array(AUTH_SOAP,$this->position))
-			{
-				$this->position[] = AUTH_SOAP;
-			}
-		}
-		if($apache_active)
-		{
-			if(!in_array(AUTH_APACHE,$this->position))
-			{
-				$this->position[] = AUTH_APACHE;
-			}
-		}
-		// begin-patch auth_plugin
-		foreach(ilAuthUtils::getAuthPlugins() as $pl)
-		{
-			foreach($pl->getAuthIds() as $auth_id)
-			{
-				if($pl->isAuthActive($auth_id))
-				{
-					if(!in_array($auth_id, $this->position))
-					{
-						$this->position[] = $auth_id;
-					}
-				}
-			}
-		}
-		// end-patch auth_plugin
-	}
+    /**
+     * get kind
+     */
+    public function getKind(): int
+    {
+        return $this->kind;
+    }
+
+    /**
+     * set kind of determination
+     *
+     * @param int TYPE_MANUAL or TYPE_DETERMINATION
+     *
+     */
+    public function setKind(int $a_kind): void
+    {
+        // TODO check value range
+        $this->kind = $a_kind;
+    }
+
+    /**
+     * get auth mode sequence
+     */
+    public function getAuthModeSequence(string $a_username = ''): array
+    {
+        if ($a_username === '') {
+            return $this->position ?: array();
+        }
+        $sorted = array();
+
+        foreach ($this->position as $auth_key) {
+            $sid = ilLDAPServer::getServerIdByAuthMode((string) $auth_key);
+            if ($sid) {
+                $server = ilLDAPServer::getInstanceByServerId($sid);
+                $this->logger->debug('Validating username filter for ' . $server->getName());
+                if ($server->getUsernameFilter() !== '') {
+                    //#17731
+                    $pattern = str_replace('*', '.*?', $server->getUsernameFilter());
+
+                    if (preg_match('/^' . $pattern . '$/', $a_username)) {
+                        $this->logger->debug('Filter matches for ' . $a_username);
+                        array_unshift($sorted, $auth_key);
+                        continue;
+                    }
+                    $this->logger->debug('Filter matches not for ' . $a_username . ' <-> ' . $server->getUsernameFilter());
+                }
+            }
+            $sorted[] = $auth_key;
+        }
+
+        return $sorted;
+    }
+
+    /**
+     * get number of auth modes
+     */
+    public function getCountActiveAuthModes(): int
+    {
+        return count($this->position);
+    }
+
+    /**
+     * set auth mode sequence
+     *
+     * @param array position => AUTH_MODE
+     *
+     */
+    public function setAuthModeSequence(array $a_pos): void
+    {
+        $this->position = $a_pos;
+    }
+
+    /**
+     * Save settings
+     */
+    public function save(): void
+    {
+        $this->settings->deleteAll();
+
+        $this->settings->set('kind', (string) $this->getKind());
+
+        $counter = 0;
+        foreach ($this->position as $auth_mode) {
+            $this->settings->set((string) $counter++, (string) $auth_mode);
+        }
+    }
+
+
+    /**
+     * Read settings
+     */
+    private function read(): void
+    {
+        $this->kind = (int) $this->settings->get('kind', (string) self::TYPE_MANUAL);
+
+        $soap_active = (bool) $this->commonSettings->get('soap_auth_active', "");
+
+        // apache settings
+        $apache_settings = new ilSetting('apache_auth');
+        $apache_active = $apache_settings->get('apache_enable_auth');
+
+        // Check if active
+        $i = 0;
+        while (true) {
+            $auth_mode = $this->settings->get((string) $i++, null);
+            if ($auth_mode === null) {
+                break;
+            }
+            if ($auth_mode) {
+                switch ((int) $auth_mode) {
+                    case ilAuthUtils::AUTH_LOCAL:
+                        $this->position[] = (int) $auth_mode;
+                        break;
+                    case ilAuthUtils::AUTH_LDAP:
+                        $auth_id = ilLDAPServer::getServerIdByAuthMode($auth_mode);
+                        if ($auth_id === null) {
+                            break;
+                        }
+                        $server = ilLDAPServer::getInstanceByServerId($auth_id);
+
+                        if ($server->isActive()) {
+                            $this->position[] = $auth_mode;
+                        }
+                        break;
+
+                    case ilAuthUtils::AUTH_SOAP:
+                        if ($soap_active) {
+                            $this->position[] = (int) $auth_mode;
+                        }
+                        break;
+
+                    case ilAuthUtils::AUTH_APACHE:
+                        if ($apache_active) {
+                            $this->position[] = (int) $auth_mode;
+                        }
+                        break;
+
+                    default:
+                        foreach (ilAuthUtils::getAuthPlugins() as $pl) {
+                            if ($pl->isAuthActive($auth_mode)) {
+                                $this->position[] = $auth_mode;
+                            }
+                        }
+                        break;
+                }
+            }
+        }
+
+        // Append missing active auth modes
+        if (!in_array(ilAuthUtils::AUTH_LOCAL, $this->position, true)) {
+            $this->position[] = ilAuthUtils::AUTH_LOCAL;
+        }
+        // begin-patch ldap_multiple
+        foreach (ilLDAPServer::_getActiveServerList() as $sid) {
+            $server = ilLDAPServer::getInstanceByServerId($sid);
+            if ($server->isActive() && !in_array(ilAuthUtils::AUTH_LDAP . '_' . $sid, $this->position, true)) {
+                $this->position[] = (ilAuthUtils::AUTH_LDAP . '_' . $sid);
+            }
+        }
+        // end-patch ldap_multiple
+        if ($soap_active && !in_array(ilAuthUtils::AUTH_SOAP, $this->position, true)) {
+            $this->position[] = ilAuthUtils::AUTH_SOAP;
+        }
+        if ($apache_active && !in_array(ilAuthUtils::AUTH_APACHE, $this->position, true)) {
+            $this->position[] = ilAuthUtils::AUTH_APACHE;
+        }
+        // begin-patch auth_plugin
+        foreach (ilAuthUtils::getAuthPlugins() as $pl) {
+            foreach ($pl->getAuthIds() as $auth_id) {
+                if ($pl->isAuthActive($auth_id) && !in_array($auth_id, $this->position, true)) {
+                    $this->position[] = $auth_id;
+                }
+            }
+        }
+        // end-patch auth_plugin
+    }
 }
-
-
-?>

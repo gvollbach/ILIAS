@@ -1,469 +1,382 @@
 <?php
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once("./Services/Administration/classes/class.ilSettingsTemplate.php");
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\Administration\SettingsTemplateGUIRequest;
 
 /**
  * Settings template
  *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- * @ingroup ServicesAdministration
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilSettingsTemplateGUI
 {
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    protected ilCtrlInterface $ctrl;
+    protected ilGlobalTemplateInterface $tpl;
+    protected ilToolbarGUI $toolbar;
+    protected ilLanguage $lng;
 
-	/**
-	 * @var ilTemplate
-	 */
-	protected $tpl;
+    private ilSettingsTemplateConfig $config;
+    protected \ILIAS\DI\Container $dic;
+    protected ilRbacSystem $rbacsystem;
+    protected ilPropertyFormGUI $form;
+    protected ilSettingsTemplate $settings_template;
+    protected SettingsTemplateGUIRequest $request ;
 
-	/**
-	 * @var ilToolbarGUI
-	 */
-	protected $toolbar;
+    public function __construct(ilSettingsTemplateConfig $a_config)
+    {
+        /** @var \ILIAS\DI\Container $DIC */
+        global $DIC;
 
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+        $this->dic = $DIC;
+        $this->rbacsystem = $this->dic->rbac()->system();
+        $this->ctrl = $this->dic->ctrl();
+        $this->tpl = $this->dic["tpl"];
+        $this->toolbar = $this->dic->toolbar();
+        $this->lng = $this->dic->language();
+        $ilCtrl = $this->dic->ctrl();
 
-	private $config;
-	/**
-	 * @var \ILIAS\DI\Container
-	 */
-	protected $dic;
-	/**
-	 * @var ilRbacSystem
-	 */
-	protected $rbacsystem;
+        $this->request = new SettingsTemplateGUIRequest(
+            $DIC->http(),
+            $DIC->refinery()
+        );
 
-	/**
-	 * Constructor
-	 *
-	 * @param
-	 * @return
-	 */
-	function __construct($a_config)
-	{
-		global $DIC;
-		$this->dic = $DIC;
-		$this->rbacsystem = $this->dic->rbac()->system();
-		$this->ctrl = $this->dic->ctrl();
-		$this->tpl = $this->dic["tpl"];
-		$this->toolbar = $this->dic->toolbar();
-		$this->lng = $this->dic->language();
-		$ilCtrl = $this->dic->ctrl();
+        $ilCtrl->saveParameter($this, array("templ_id"));
+        $this->setConfig($a_config);
+        $this->readSettingsTemplate();
+    }
 
-		$ilCtrl->saveParameter($this, array("templ_id"));
+    public function executeCommand(): void
+    {
+        $ilCtrl = $this->ctrl;
 
-		$this->setConfig($a_config);
+        $cmd = $ilCtrl->getCmd("listSettingsTemplates");
+        $this->$cmd();
+    }
 
-		$this->readSettingsTemplate();
-	}
+    public function setConfig(ilSettingsTemplateConfig $a_val): void
+    {
+        $this->config = $a_val;
+    }
 
-	/**
-	 * Execute command
-	 */
-	function executeCommand()
-	{
-		$ilCtrl = $this->ctrl;
+    public function getConfig(): ilSettingsTemplateConfig
+    {
+        return $this->config;
+    }
 
-		$cmd = $ilCtrl->getCmd("listSettingsTemplates");
-		$this->$cmd();
-	}
+    public function readSettingsTemplate(): void
+    {
+        if ($this->getConfig()) {
+            $this->settings_template = new ilSettingsTemplate(
+                $this->request->getTemplateId(),
+                $this->getConfig()
+            );
+        } else {
+            $this->settings_template = new ilSettingsTemplate(
+                $this->request->getTemplateId()
+            );
+        }
+    }
 
-	/**
-	 * Set config object
-	 *
-	 * @param	object	$a_val	config object
-	 */
-	public function setConfig($a_val)
-	{
-		$this->config = $a_val;
-	}
+    public function listSettingsTemplates(): void
+    {
+        $tpl = $this->tpl;
+        $ilToolbar = $this->toolbar;
+        $ilCtrl = $this->ctrl;
+        $lng = $this->lng;
 
-	/**
-	 * Get config object
-	 *
-	 * @return	object	config object
-	 */
-	public function getConfig()
-	{
-		return $this->config;
-	}
+        if ($this->rbacsystem->checkAccess('write', $this->request->getRefId())) {
+            $ilToolbar->addButton(
+                $lng->txt("adm_add_settings_template"),
+                $ilCtrl->getLinkTarget($this, "addSettingsTemplate")
+            );
+        }
 
-	/**
-	 * Read settings template
-	 *
-	 * @param
-	 * @return
-	 */
-	function readSettingsTemplate()
-	{
-	    if ($this->getConfig()) {
-		$this->settings_template = new ilSettingsTemplate((int) $_GET[templ_id], $this->getConfig());
-	    }
-	    else {
-		$this->settings_template = new ilSettingsTemplate((int) $_GET[templ_id]);
-	    }
-	}
+        $table = new ilSettingsTemplateTableGUI(
+            $this,
+            "listSettingsTemplates",
+            $this->getConfig()->getType()
+        );
 
-	/**
-	 * List all settings template
-	 *
-	 * @param
-	 * @return
-	 */
-	function listSettingsTemplates()
-	{
-		$tpl = $this->tpl;
-		$ilToolbar = $this->toolbar;
-		$ilCtrl = $this->ctrl;
-		$lng = $this->lng;
+        $tpl->setContent($table->getHTML());
+    }
 
-		if($this->rbacsystem->checkAccess('write', $_GET['ref_id'])) {
-			$ilToolbar->addButton($lng->txt("adm_add_settings_template"),
-				$ilCtrl->getLinkTarget($this, "addSettingsTemplate"));
-		}
+    public function addSettingsTemplate(): void
+    {
+        $tpl = $this->tpl;
 
-		include_once("./Services/Administration/classes/class.ilSettingsTemplateTableGUI.php");
-		$table = new ilSettingsTemplateTableGUI($this, "listSettingsTemplates",
-			$this->getConfig()->getType());
+        $this->initSettingsTemplateForm("create");
+        $tpl->setContent($this->form->getHTML());
+    }
 
-		$tpl->setContent($table->getHTML());
-	}
+    public function editSettingsTemplate(): void
+    {
+        $tpl = $this->tpl;
 
-	/**
-	 * Add settings template
-	 */
-	function addSettingsTemplate()
-	{
-		$tpl = $this->tpl;
+        $this->initSettingsTemplateForm("edit");
+        $this->getSettingsTemplateValues();
+        $tpl->setContent($this->form->getHTML());
+    }
 
-		$this->initSettingsTemplateForm("create");
-		$tpl->setContent($this->form->getHTML());
-	}
+    public function initSettingsTemplateForm(string $a_mode = "edit"): void
+    {
+        $lng = $this->lng;
+        $ilCtrl = $this->ctrl;
 
-	/**
-	 * Edit settings template
-	 */
-	function editSettingsTemplate()
-	{
-		$tpl = $this->tpl;
+        $this->form = new ilPropertyFormGUI();
 
-		$this->initSettingsTemplateForm("edit");
-		$this->getSettingsTemplateValues();
-		$tpl->setContent($this->form->getHTML());
-	}
+        // title
+        $ti = new ilTextInputGUI($lng->txt("title"), "title");
+        $ti->setMaxLength(200);
+        $ti->setRequired(true);
+        // begin-patch lok
+        if ($this->settings_template->getAutoGenerated()) {
+            $ti->setDisabled(true);
+        }
+        // end-patch lok
+        $this->form->addItem($ti);
 
-	/**
-	 * Init settings template form.
-	 *
-	 * @param        int        $a_mode        Edit Mode
-	 */
-	public function initSettingsTemplateForm($a_mode = "edit")
-	{
-		$lng = $this->lng;
-		$ilCtrl = $this->ctrl;
+        // description
+        $ti = new ilTextAreaInputGUI($lng->txt("description"), "description");
+        // begin-patch lok
+        if ($this->settings_template->getAutoGenerated()) {
+            $ti->setDisabled(true);
+        }
+        $this->form->addItem($ti);
 
-		include_once("Services/Form/classes/class.ilPropertyFormGUI.php");
-		$this->form = new ilPropertyFormGUI();
+        // hidable tabs
+        $tabs = $this->getConfig()->getHidableTabs();
+        if (is_array($tabs) && count($tabs) > 0) {
+            $sec = new ilFormSectionHeaderGUI();
+            $sec->setTitle($lng->txt("adm_hide_tabs"));
+            $this->form->addItem($sec);
 
-		// title
-		$ti = new ilTextInputGUI($lng->txt("title"), "title");
-		$ti->setMaxLength(200);
-		$ti->setRequired(true);
-		// begin-patch lok
-		if($this->settings_template->getAutoGenerated())
-		{
-			$ti->setDisabled(true);
-		}
-		// end-patch lok
-		$this->form->addItem($ti);
+            foreach ($tabs as $t) {
+                // hide tab $t?
+                $cb = new ilCheckboxInputGUI($t["text"], "tab_" . $t["id"]);
+                $this->form->addItem($cb);
+            }
+        }
 
-		// description
-		$ti = new ilTextAreaInputGUI($lng->txt("description"), "description");
-		// begin-patch lok
-		if($this->settings_template->getAutoGenerated())
-		{
-			$ti->setDisabled(true);
-		}
-		$this->form->addItem($ti);
+        // settings
+        $settings = $this->getConfig()->getSettings();
+        if (is_array($settings) && count($settings) > 0) {
+            $sec = new ilFormSectionHeaderGUI();
+            $sec->setTitle($lng->txt("adm_predefined_settings"));
+            $this->form->addItem($sec);
 
-		// hidable tabs
-		$tabs = $this->getConfig()->getHidableTabs();
-		if (is_array($tabs) && count($tabs) > 0)
-		{
-			$sec = new ilFormSectionHeaderGUI();
-			$sec->setTitle($lng->txt("adm_hide_tabs"));
-			$this->form->addItem($sec);
+            foreach ($settings as $s) {
+                // setting
+                $cb = new ilCheckboxInputGUI($s["text"], "set_" . $s["id"]);
+                $this->form->addItem($cb);
 
-			foreach($tabs as $t)
-			{
-				// hide tab $t?
-				$cb = new ilCheckboxInputGUI($t["text"], "tab_".$t["id"]);
-				$this->form->addItem($cb);
-			}
-		}
+                switch ($s["type"]) {
+                    case ilSettingsTemplateConfig::TEXT:
 
-		// settings
-		$settings = $this->getConfig()->getSettings();
-		if (is_array($settings) && count($settings) > 0)
-		{
-			$sec = new ilFormSectionHeaderGUI();
-			$sec->setTitle($lng->txt("adm_predefined_settings"));
-			$this->form->addItem($sec);
+                        $ti = new ilTextInputGUI($lng->txt("adm_value"), "value_" . $s["id"]);
+                        //$ti->setMaxLength();
+                        //$ti->setSize();
+                        $cb->addSubItem($ti);
+                        break;
 
-			foreach($settings as $s)
-			{
-				// setting
-				$cb = new ilCheckboxInputGUI($s["text"], "set_".$s["id"]);
-				$this->form->addItem($cb);
+                    case ilSettingsTemplateConfig::BOOL:
+                        $cb2 = new ilCheckboxInputGUI($lng->txt("adm_value"), "value_" . $s["id"]);
+                        $cb->addSubItem($cb2);
+                        break;
 
-				switch ($s["type"])
-				{
-					case ilSettingsTemplateConfig::TEXT:
-
-						$ti = new ilTextInputGUI($lng->txt("adm_value"), "value_".$s["id"]);
-						//$ti->setMaxLength();
-						//$ti->setSize();
-						$cb->addSubItem($ti);
-						break;
-
-					case ilSettingsTemplateConfig::BOOL:
-						$cb2 = new ilCheckboxInputGUI($lng->txt("adm_value"), "value_".$s["id"]);
-						$cb->addSubItem($cb2);
-						break;
-
-					case ilSettingsTemplateConfig::SELECT:
-						$si = new ilSelectInputGUI($lng->txt("adm_value"), "value_".$s["id"]);
-						$si->setOptions($s["options"]);
-						$cb->addSubItem($si);
-						break;
+                    case ilSettingsTemplateConfig::SELECT:
+                        $si = new ilSelectInputGUI($lng->txt("adm_value"), "value_" . $s["id"]);
+                        $si->setOptions($s["options"]);
+                        $cb->addSubItem($si);
+                        break;
 
                                         case ilSettingsTemplateConfig::CHECKBOX:
-                                                $chbs = new ilCheckboxGroupInputGUI($lng->txt("adm_value"), "value_".$s["id"]);
-                                                foreach($s['options'] as $key => $value) {
+                                                $chbs = new ilCheckboxGroupInputGUI($lng->txt("adm_value"), "value_" . $s["id"]);
+                                                foreach ($s['options'] as $key => $value) {
                                                     $chbs->addOption($c = new ilCheckboxInputGUI($value, $key));
                                                     $c->setValue($key);
                                                 }
                                                 $cb->addSubItem($chbs);
                                                 break;
-				}
+                }
 
-                                if ($s['hidable']) {
-                                    // hide setting
-                                    $cb_hide = new ilCheckboxInputGUI($lng->txt("adm_hide"), "hide_".$s["id"]);
-                                    $cb->addSubItem($cb_hide);
-                                }
-			}
-		}
+                if ($s['hidable']) {
+                    // hide setting
+                    $cb_hide = new ilCheckboxInputGUI($lng->txt("adm_hide"), "hide_" . $s["id"]);
+                    $cb->addSubItem($cb_hide);
+                }
+            }
+        }
 
-		if($this->rbacsystem->checkAccess('write', $_GET['ref_id'])) {
-			// save and cancel commands
-			if ($a_mode == "create")
-			{
-				$this->form->addCommandButton("saveSettingsTemplate", $lng->txt("save"));
-				$this->form->addCommandButton("listSettingsTemplates", $lng->txt("cancel"));
-				$this->form->setTitle($lng->txt("adm_add_settings_template"));
-			}
-			else
-			{
-				$this->form->addCommandButton("updateSettingsTemplate", $lng->txt("save"));
-				$this->form->addCommandButton("listSettingsTemplates", $lng->txt("cancel"));
-				$this->form->setTitle($lng->txt("adm_edit_settings_template"));
-			}
-		}
+        if ($this->rbacsystem->checkAccess('write', $this->request->getRefId())) {
+            // save and cancel commands
+            if ($a_mode === "create") {
+                $this->form->addCommandButton("saveSettingsTemplate", $lng->txt("save"));
+                $this->form->addCommandButton("listSettingsTemplates", $lng->txt("cancel"));
+                $this->form->setTitle($lng->txt("adm_add_settings_template"));
+            } else {
+                $this->form->addCommandButton("updateSettingsTemplate", $lng->txt("save"));
+                $this->form->addCommandButton("listSettingsTemplates", $lng->txt("cancel"));
+                $this->form->setTitle($lng->txt("adm_edit_settings_template"));
+            }
+        }
 
-		$this->form->setFormAction($ilCtrl->getFormAction($this));
-	}
+        $this->form->setFormAction($ilCtrl->getFormAction($this));
+    }
 
-	/**
-	 * Get current values for settings template from
-	 */
-	public function getSettingsTemplateValues()
-	{
-		$values = array();
+    public function getSettingsTemplateValues(): void
+    {
+        $values = array();
 
-		$values["title"] = $this->settings_template->getTitle();
-		$values["description"] = $this->settings_template->getDescription();
+        $values["title"] = $this->settings_template->getTitle();
+        $values["description"] = $this->settings_template->getDescription();
 
-		// save tabs to be hidden
-		$tabs = $this->settings_template->getHiddenTabs();
-		foreach ($tabs as $t)
-		{
-			$values["tab_".$t] = true;
-		}
+        // save tabs to be hidden
+        $tabs = $this->settings_template->getHiddenTabs();
+        foreach ($tabs as $t) {
+            $values["tab_" . $t] = true;
+        }
 
-		// save settings values
-		$set = $this->settings_template->getSettings();
-		foreach($this->getConfig()->getSettings() as $s)
-		{
-			if (isset($set[$s["id"]]))
-			{
-				$values["set_".$s["id"]] = true;
+        // save settings values
+        $set = $this->settings_template->getSettings();
+        foreach ($this->getConfig()->getSettings() as $s) {
+            if (isset($set[$s["id"]])) {
+                $values["set_" . $s["id"]] = true;
 
-                                if ($s['type'] == ilSettingsTemplateConfig::CHECKBOX) {
-                                    if (!is_array($set[$s["id"]]["value"]))
-					$ar = @unserialize($set[$s["id"]]["value"]);
-				    else
-					$ar = $set[$s["id"]]["value"];
-                                    $values["value_".$s["id"]] = is_array($ar) ? $ar : array();
-                                }
-                                else {
-                                    $values["value_".$s["id"]] = $set[$s["id"]]["value"];
-                                }
-                                
-				$values["hide_".$s["id"]] = $set[$s["id"]]["hide"];
-			}
-		}
-		$this->form->setValuesByArray($values);
-	}
+                if ($s['type'] === ilSettingsTemplateConfig::CHECKBOX) {
+                    if (!is_array($set[$s["id"]]["value"])) {
+                        $ar = unserialize($set[$s["id"]]["value"], ['allowed_classes' => false]);
+                    } else {
+                        $ar = $set[$s["id"]]["value"];
+                    }
+                    $values["value_" . $s["id"]] = is_array($ar) ? $ar : array();
+                } else {
+                    $values["value_" . $s["id"]] = $set[$s["id"]]["value"];
+                }
 
-	/**
-	 * Save settings template form
-	 */
-	public function saveSettingsTemplate()
-	{
-		$tpl = $this->tpl;
-		$lng = $this->lng;
-		$ilCtrl = $this->ctrl;
+                $values["hide_" . $s["id"]] = $set[$s["id"]]["hide"];
+            }
+        }
+        $this->form->setValuesByArray($values);
+    }
 
-		$this->initSettingsTemplateForm("create");
-		if ($this->form->checkInput())
-		{
-			$settings_template = new ilSettingsTemplate();
-			$settings_template->setType($this->getConfig()->getType());
+    public function saveSettingsTemplate(): void
+    {
+        $tpl = $this->tpl;
+        $lng = $this->lng;
+        $ilCtrl = $this->ctrl;
 
-			$this->setValuesFromForm($settings_template);
-			$settings_template->create();
+        $this->initSettingsTemplateForm("create");
+        if ($this->form->checkInput()) {
+            $settings_template = new ilSettingsTemplate();
+            $settings_template->setType($this->getConfig()->getType());
 
-			ilUtil::sendSuccess($lng->txt("msg_obj_modified"), true);
-			$ilCtrl->redirect($this, "listSettingsTemplates");
-		}
+            $this->setValuesFromForm($settings_template);
+            $settings_template->create();
 
-		$this->form->setValuesByPost();
-		$tpl->setContent($this->form->getHtml());
-	}
+            $this->tpl->setOnScreenMessage('success', $lng->txt("msg_obj_modified"), true);
+            $ilCtrl->redirect($this, "listSettingsTemplates");
+        }
 
-	/**
-	 * Update settings template
-	 */
-	function updateSettingsTemplate()
-	{
-		$lng = $this->lng;
-		$ilCtrl = $this->ctrl;
-		$tpl = $this->tpl;
+        $this->form->setValuesByPost();
+        $tpl->setContent($this->form->getHTML());
+    }
 
-		$this->initSettingsTemplateForm("edit");
-		if ($this->form->checkInput())
-		{
-			$this->setValuesFromForm($this->settings_template);
-			$this->settings_template->update();
+    public function updateSettingsTemplate(): void
+    {
+        $lng = $this->lng;
+        $ilCtrl = $this->ctrl;
+        $tpl = $this->tpl;
 
-			ilUtil::sendSuccess($lng->txt("msg_obj_modified"), true);
-			$ilCtrl->redirect($this, "listSettingsTemplates");
-		}
+        $this->initSettingsTemplateForm("edit");
+        if ($this->form->checkInput()) {
+            $this->setValuesFromForm($this->settings_template);
+            $this->settings_template->update();
 
-		$this->form->setValuesByPost();
-		$tpl->setContent($this->form->getHtml());
-	}
+            $this->tpl->setOnScreenMessage('success', $lng->txt("msg_obj_modified"), true);
+            $ilCtrl->redirect($this, "listSettingsTemplates");
+        }
 
-	/**
-	 * Set values from form
-	 *
-	 * @param
-	 * @return
-	 */
-	function setValuesFromForm($a_set_templ)
-	{
-		// perform update
-		$a_set_templ->setTitle($_POST["title"]);
-		$a_set_templ->setDescription($_POST["description"]);
+        $this->form->setValuesByPost();
+        $tpl->setContent($this->form->getHTML());
+    }
 
-		// save tabs to be hidden
-		$a_set_templ->removeAllHiddenTabs();
-		foreach ($this->getConfig()->getHidableTabs() as $t)
-		{
-			if ($_POST["tab_".$t["id"]])
-			{
-				$a_set_templ->addHiddenTab($t["id"]);
-			}
-		}
+    public function setValuesFromForm(ilSettingsTemplate $a_set_templ): void
+    {
+        // perform update
+        $a_set_templ->setTitle($this->form->getInput("title"));
+        $a_set_templ->setDescription($this->form->getInput("description"));
 
-		// save settings values
-		$a_set_templ->removeAllSettings();
-		foreach($this->getConfig()->getSettings() as $s)
-		{
-                        if ($_POST["set_".$s["id"]])
-                        {
-                           $a_set_templ->setSetting(
-					$s["id"], $_POST["value_".$s["id"]],
-                                    $_POST["hide_".$s["id"]]);
-                        }
-		}
-	}
+        // save tabs to be hidden
+        $a_set_templ->removeAllHiddenTabs();
+        foreach ($this->getConfig()->getHidableTabs() as $t) {
+            if ($this->request->getTab($t["id"])) {
+                $a_set_templ->addHiddenTab($t["id"]);
+            }
+        }
 
-	/**
-	 * Confirm settings template deletion
-	 */
-	function confirmSettingsTemplateDeletion()
-	{
-		$ilCtrl = $this->ctrl;
-		$tpl = $this->tpl;
-		$lng = $this->lng;
+        // save settings values
+        $a_set_templ->removeAllSettings();
+        foreach ($this->getConfig()->getSettings() as $s) {
+            if ($this->request->getSetting($s["id"])) {
+                $a_set_templ->setSetting(
+                    $s["id"],
+                    $this->request->getValue($s["id"]),
+                    $this->request->getHide($s["id"])
+                );
+            }
+        }
+    }
 
-		if (!is_array($_POST["tid"]) || count($_POST["tid"]) == 0)
-		{
-			ilUtil::sendInfo($lng->txt("no_checkbox"), true);
-			$ilCtrl->redirect($this, "listSettingsTemplates");
-		}
-		else
-		{
-			include_once("./Services/Utilities/classes/class.ilConfirmationGUI.php");
-			$cgui = new ilConfirmationGUI();
-			$cgui->setFormAction($ilCtrl->getFormAction($this));
-			$cgui->setHeaderText($lng->txt("adm_sure_delete_settings_template"));
-			$cgui->setCancel($lng->txt("cancel"), "listSettingsTemplates");
-			$cgui->setConfirm($lng->txt("delete"), "deleteSettingsTemplate");
+    public function confirmSettingsTemplateDeletion(): void
+    {
+        $ilCtrl = $this->ctrl;
+        $tpl = $this->tpl;
+        $lng = $this->lng;
 
-			foreach ($_POST["tid"] as $i)
-			{
-				$cgui->addItem("tid[]", $i, ilSettingsTemplate::lookupTitle($i));
-			}
+        if (count($this->request->getTemplateIds()) === 0) {
+            $this->tpl->setOnScreenMessage('info', $lng->txt("no_checkbox"), true);
+            $ilCtrl->redirect($this, "listSettingsTemplates");
+        } else {
+            $cgui = new ilConfirmationGUI();
+            $cgui->setFormAction($ilCtrl->getFormAction($this));
+            $cgui->setHeaderText($lng->txt("adm_sure_delete_settings_template"));
+            $cgui->setCancel($lng->txt("cancel"), "listSettingsTemplates");
+            $cgui->setConfirm($lng->txt("delete"), "deleteSettingsTemplate");
 
-			$tpl->setContent($cgui->getHTML());
-		}
-	}
+            foreach ($this->request->getTemplateIds() as $i) {
+                $cgui->addItem("tid[]", (string) $i, ilSettingsTemplate::lookupTitle($i));
+            }
 
-	/**
-	 * Delete settings template
-	 *
-	 * @param
-	 * @return
-	 */
-	function deleteSettingsTemplate()
-	{
-		$ilCtrl = $this->ctrl;
-		$lng = $this->lng;
+            $tpl->setContent($cgui->getHTML());
+        }
+    }
 
-		if (is_array($_POST["tid"]))
-		{
-			foreach ($_POST["tid"] as $i)
-			{
-				$templ = new ilSettingsTemplate($i);
-				$templ->delete();
-			}
-		}
-		ilUtil::sendSuccess("msg_obj_modified");
-		$ilCtrl->redirect($this, "listSettingsTemplates");
-	}
+    public function deleteSettingsTemplate(): void
+    {
+        $ilCtrl = $this->ctrl;
 
+        foreach ($this->request->getTemplateIds() as $i) {
+            $templ = new ilSettingsTemplate($i);
+            $templ->delete();
+        }
+        $this->tpl->setOnScreenMessage('success', "msg_obj_modified");
+        $ilCtrl->redirect($this, "listSettingsTemplates");
+    }
 }
-
-?>

@@ -1,43 +1,81 @@
 <?php
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
- * Class ilStrictCliCronManager
- * @author Michael Jansen <mjansen@databay.de>
- */
-class ilStrictCliCronManager implements \ilCronManagerInterface
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+class ilStrictCliCronManager implements ilCronManager
 {
-	/**
-	 * @var \ilCronManagerInterface
-	 */
-	protected $cronManager;
+    protected ilCronManager $cronManager;
 
-	/**
-	 * ilStrictCliCronManager constructor.
-	 * @param ilCronManagerInterface $cronManager
-	 */
-	public function __construct(\ilCronManagerInterface $cronManager)
-	{
-		$this->cronManager = $cronManager;
-	}
+    public function __construct(ilCronManager $cronManager)
+    {
+        $this->cronManager = $cronManager;
+    }
 
-	/**
-	 * @return string[]
-	 */
-	private function getValidPhpApis(): array
-	{
-		return [
-			'cli'
-		];
-	}
+    /**
+     * @return string[]
+     */
+    private function getValidPhpApis(): array
+    {
+        return [
+            'cli'
+        ];
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function runActiveJobs()
-	{
-		if (in_array(php_sapi_name(), array_map('strtolower', $this->getValidPhpApis()))) {
-			$this->cronManager->runActiveJobs();
-		}
-	}
+    public function runActiveJobs(ilObjUser $actor): void
+    {
+        if (in_array(PHP_SAPI, array_map('strtolower', $this->getValidPhpApis()), true)) {
+            $this->cronManager->runActiveJobs($actor);
+        }
+    }
+
+    public function runJobManual(string $jobId, ilObjUser $actor): bool
+    {
+        return $this->cronManager->runJobManual($jobId, $actor);
+    }
+
+    public function resetJob(ilCronJob $job, ilObjUser $actor): void
+    {
+        $this->cronManager->resetJob($job, $actor);
+    }
+
+    public function activateJob(ilCronJob $job, ilObjUser $actor, bool $wasManuallyExecuted = false): void
+    {
+        $this->cronManager->activateJob($job, $actor, $wasManuallyExecuted);
+    }
+
+    public function deactivateJob(ilCronJob $job, ilObjUser $actor, bool $wasManuallyExecuted = false): void
+    {
+        $this->cronManager->deactivateJob($job, $actor, $wasManuallyExecuted);
+    }
+
+    public function isJobActive(string $jobId): bool
+    {
+        return $this->cronManager->isJobActive($jobId);
+    }
+
+    public function isJobInactive(string $jobId): bool
+    {
+        return $this->cronManager->isJobInactive($jobId);
+    }
+
+    public function ping(string $jobId): void
+    {
+        $this->cronManager->ping($jobId);
+    }
 }

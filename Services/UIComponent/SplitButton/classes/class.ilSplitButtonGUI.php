@@ -1,183 +1,140 @@
 <?php
-/* Copyright (c) 1998-2015 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/UIComponent/SplitButton/classes/class.ilButtonToSplitButtonMenuItemAdapter.php';
-require_once 'Services/UIComponent/SplitButton/classes/class.ilSplitButtonItemDivider.php';
-require_once 'Services/UIComponent/SplitButton/exceptions/class.ilSplitButtonException.php';
-require_once "Services/UIComponent/Button/classes/class.ilButtonBase.php";
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Class ilSplitButton
  * @author Michael Jansen <mjansen@databay.de>
- * @ingroup ServicesUIComponent
  */
 class ilSplitButtonGUI extends ilButtonBase
 {
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+    protected ilButtonBase $default_button;
+    /**
+     * @var ilSplitButtonMenuItem[]
+     */
+    protected array $menu_items = [];
 
-	/**
-	 * @var ilButtonBase
-	 */
-	protected $default_button;
+    protected function __construct(int $a_type)
+    {
+        parent::__construct($a_type);
+    }
 
-	/**
-	 * @var ilSplitButtonMenuItem[]
-	 */
-	protected $menu_items = array();
+    public static function getInstance(): self
+    {
+        return new self(self::TYPE_SPLIT);
+    }
 
-	/**
-	 * 
-	 */
-	public function __construct($a_type)
-	{
-		global $DIC;
+    public function addMenuItem(ilSplitButtonMenuItem $menu_item): void
+    {
+        $this->menu_items[] = $menu_item;
+    }
 
-		/**
-		 * @var $lng ilLanguage
-		 */
-		$lng = $DIC->language();
+    public function removeMenuItem(ilSplitButtonMenuItem $menu_item): void
+    {
+        $key = array_search($menu_item, $this->menu_items);
+        if ($key !== false) {
+            unset($this->menu_items[$key]);
+        }
+    }
 
-		$this->lng = $lng;
+    public function hasMenuItems(): bool
+    {
+        return count($this->menu_items) > 0;
+    }
 
-		parent::__construct($a_type);
-	}
+    /**
+     * @return ilSplitButtonMenuItem[]
+     */
+    public function getMenuItems(): array
+    {
+        return $this->menu_items;
+    }
 
-	/**
-	 * @return self;
-	 */
-	public static function getInstance()
-	{
-		return new self(self::TYPE_SPLIT);
-	}
+    /**
+     * @param ilSplitButtonMenuItem[] $menu_items
+     * @throws ilSplitButtonException
+     */
+    public function setMenuItems(array $menu_items): void
+    {
+        array_walk($menu_items, static function ($item, $idx): void {
+            if (!($item instanceof ilSplitButtonMenuItem)) {
+                throw new ilSplitButtonException(sprintf(
+                    "Cannot set menu items, element at index '%s' is not of type 'ilSplitButtonItem'",
+                    $idx
+                ));
+            }
+        });
 
-	/**
-	 * @param ilSplitButtonMenuItem $menu_item
-	 */
-	public function addMenuItem(ilSplitButtonMenuItem $menu_item)
-	{
-		$this->menu_items[] = $menu_item;
-	}
+        $this->menu_items = $menu_items;
+    }
 
-	/**
-	 * @param ilSplitButtonMenuItem $menu_item
-	 */
-	public function removeMenuItem(ilSplitButtonMenuItem $menu_item)
-	{
-		$key = array_search($menu_item, $this->menu_items);
-		if($key !== false)
-		{
-			unset($this->menu_items[$key]);
-		}
-	}
+    public function getDefaultButton(): ilButtonBase
+    {
+        return $this->default_button;
+    }
 
-	/**
-	 * @return boolean
-	 */
-	public function hasMenuItems()
-	{
-		return count($this->menu_items) > 0;
-	}
+    public function hasDefaultButton(): bool
+    {
+        return ($this->default_button instanceof ilButtonBase);
+    }
 
-	/**
-	 * @return ilSplitButtonMenuItem[]
-	 */
-	public function getMenuItems()
-	{
-		return $this->menu_items;
-	}
+    public function setDefaultButton(ilButtonBase $default_button): void
+    {
+        $this->default_button = $default_button;
+    }
 
-	/**
-	 * @param ilSplitButtonMenuItem[] $menu_items
-	 * @throws ilSplitButtonException
-	 */
-	public function setMenuItems($menu_items)
-	{
-		array_walk($menu_items, function(&$item, $idx) {
-			if(!($item instanceof ilSplitButtonMenuItem))
-			{
-				throw new ilSplitButtonException(sprintf(
-					"Cannot set menu items, element at index '%s' is not of type 'ilSplitButtonItem'", $idx
-				));
-			}
-		});
+    /**
+     * @throws ilSplitButtonException
+     */
+    public function render(): string
+    {
+        $tpl = new ilTemplate('tpl.split_button.html', true, true, 'Services/UIComponent/SplitButton');
 
-		$this->menu_items = $menu_items;
-	}
+        if (!$this->hasDefaultButton()) {
+            throw new ilSplitButtonException(
+                "Cannot render a split button without a default button"
+            );
+        }
 
-	/**
-	 * @return ilButtonBase
-	 */
-	public function getDefaultButton()
-	{
-		return $this->default_button;
-	}
+        $tpl->setVariable('DEFAULT_ITEM_CONTENT', $this->getDefaultButton()->render());
+        if ($this->hasMenuItems()) {
+            $btn_classes = $this->getDefaultButton()->getCSSClasses();
+            if ($this->getDefaultButton()->isPrimary()) {
+                $btn_classes[] = 'btn-primary';
+            }
+            $tpl->setVariable('BTN_CSS_CLASS', implode(' ', $btn_classes));
 
-	/**
-	 * @return boolean
-	 */
-	public function hasDefaultButton()
-	{
-		return ($this->default_button instanceof ilButtonBase);
-	}
+            foreach ($this->getMenuItems() as $item) {
+                if ($item instanceof ilSplitButtonSeparatorMenuItem) {
+                    $tpl->setCurrentBlock('separator');
+                    $tpl->touchBlock('separator');
+                } else {
+                    $tpl->setCurrentBlock('item');
+                    $tpl->setVariable('CONTENT', $item->getContent());
+                }
+                $tpl->parseCurrentBlock();
 
-	/**
-	 * @param ilButtonBase $default_button
-	 */
-	public function setDefaultButton(ilButtonBase $default_button)
-	{
-		$this->default_button = $default_button;
-	}
+                $tpl->setCurrentBlock('items');
+                $tpl->parseCurrentBlock();
+            }
 
-	/**
-	 * @return string
-	 * @throws ilSplitButtonException
-	 */
-	public function render()
-	{
-		$tpl = new ilTemplate('tpl.split_button.html', true, true, 'Services/UIComponent/SplitButton');
+            $tpl->setVariable('TXT_TOGGLE_DROPDOWN', $this->lng->txt('toggle_dropdown'));
+        }
 
-		if(!$this->hasDefaultButton())
-		{
-			throw new ilSplitButtonException(
-				"Cannot render a split button without a default button"
-			);
-		}
-
-		$tpl->setVariable('DEFAULT_ITEM_CONTENT', $this->getDefaultButton()->render());
-		if($this->hasMenuItems())
-		{
-			$btn_classes = $this->getDefaultButton()->getCSSClasses();
-			if($this->getDefaultButton()->isPrimary())
-			{
-				$btn_classes[] = 'btn-primary';
-			}
-			$tpl->setVariable('BTN_CSS_CLASS', implode(' ', $btn_classes));
-
-			foreach($this->getMenuItems() as $item)
-			{
-				if($item instanceof ilSplitButtonSeparatorMenuItem)
-				{
-					$tpl->setCurrentBlock('separator');
-					$tpl->touchBlock('separator');
-					$tpl->parseCurrentBlock();
-				}
-				else
-				{
-					$tpl->setCurrentBlock('item');
-					$tpl->setVariable('CONTENT', $item->getContent());
-					$tpl->parseCurrentBlock();
-				}
-
-				$tpl->setCurrentBlock('items');
-				$tpl->parseCurrentBlock();
-			}
-
-			$tpl->setVariable('TXT_TOGGLE_DROPDOWN', $this->lng->txt('toggle_dropdown'));
-		}
-
-		return $tpl->get();
-	}
+        return $tpl->get();
+    }
 }

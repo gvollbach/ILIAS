@@ -1,278 +1,270 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
+declare(strict_types=1);
 
 /**
-* Class ilObjectFactory
-*
-* This class offers methods to get instances of
-* the type-specific object classes (derived from
-* ilObject) by their object or reference id
-*
-* Note: The term "Ilias objects" means all
-* object types that are stored in the
-* database table "object_data"
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* @version $Id$
-*
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Class ilObjectFactory
+ * This class offers methods to get instances of
+ * the type-specific object classes (derived from
+ * ilObject) by their object or reference id
+ * Note: The term "Ilias objects" means all
+ * object types that are stored in the
+ * database table "object_data"
+ * @author  Alex Killing <alex.killing@gmx.de>
+ * @version $Id$
+ */
 class ilObjectFactory
 {
-	/**
-	* check if obj_id exists. To check for ref_ids use ilTree::isInTree()
-	*
-	* @param	int		$obj_id		object id
-	* @return	bool	
-	*/
-	function ObjectIdExists($a_obj_id)
-	{
-		global $DIC;
+    /**
+     * check if obj_id exists. To check for ref_ids use ilTree::isInTree()
+     */
+    public function ObjectIdExists(int $obj_id): bool
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
 
-		$ilDB = $DIC->database();
+        $sql =
+            "SELECT obj_id, type, title, description, owner, create_date, last_update, import_id, offline" . PHP_EOL
+            . "FROM object_data" . PHP_EOL
+            . "WHERE obj_id = " . $ilDB->quote($obj_id, 'integer') . PHP_EOL
+        ;
 
-		$query = "SELECT * FROM object_data ".
-			"WHERE obj_id = ".$ilDB->quote($a_obj_id ,'integer');
+        $result = $ilDB->query($sql);
 
-		$res = $ilDB->query($query);
-		
-		return $res->numRows() ? true : false;
-	}
-	
-	/**
-	 * returns all objects of an owner, filtered by type, objects are not deleted!
-	 *
-	 * @param unknown_type $object_type
-	 * @param unknown_type $owner_id
-	 * @return unknown
-	 */
-	function getObjectsForOwner ($object_type, $owner_id)
-	{
-		global $DIC;
+        return (bool) $result->numRows();
+    }
 
-		$ilDB = $DIC->database();
+    /**
+     * returns all objects of an owner, filtered by type, objects are not deleted!
+     */
+    public static function getObjectsForOwner(string $object_type, int $owner_id): array
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
 
-		$query = "SELECT * FROM object_data,object_reference ".
-			"WHERE object_reference.obj_id = object_data.obj_id ".
-			" AND object_data.type=".$ilDB->quote($object_type,'text').
-			" AND object_data.owner = ".$ilDB->quote($owner_id,'integer');
-		$res = $ilDB->query($query);
+        $sql =
+            "SELECT object_data.obj_id" . PHP_EOL
+            . "FROM object_data, object_reference" . PHP_EOL
+            . "WHERE object_reference.obj_id = object_data.obj_id" . PHP_EOL
+            . "AND object_data.type = " . $ilDB->quote($object_type, 'text') . PHP_EOL
+            . "AND object_data.owner = " . $ilDB->quote($owner_id, 'integer') . PHP_EOL
+        ;
 
-		$obj_ids = array();
-		while($object_rec = $res->fetchRow(ilDBConstants::FETCHMODE_ASSOC)) {
-			$obj_ids [] = $object_rec["obj_id"];
-		}
-		
-		return $obj_ids;
-		
-	}
-		
-	/**
-	 * get an instance of an Ilias object by object id
-	 * @param $a_obj_id
-	 * @param bool $stop_on_error
-	 * @return bool|ilObject
-	 * @throws ilDatabaseException
-	 * @throws ilObjectNotFoundException
-	 */
-	static function getInstanceByObjId($a_obj_id,$stop_on_error = true)
-	{
-		global $DIC;
+        $result = $ilDB->query($sql);
 
-		$objDefinition = $DIC["objDefinition"];
-		$ilDB = $DIC->database();
+        $obj_ids = [];
+        while ($row = $result->fetchRow(ilDBConstants::FETCHMODE_ASSOC)) {
+            $obj_ids [] = $row["obj_id"];
+        }
 
-		// check object id
-		if (!isset($a_obj_id))
-		{
-			$message = "ilObjectFactory::getInstanceByObjId(): No obj_id given!";
-			if ($stop_on_error === true)
-			{
-				throw new ilObjectNotFoundException($message);
-			}
+        return $obj_ids;
+    }
 
-			return false;
-		}
+    /**
+     * get an instance of an Ilias object by object id
+     * @throws ilDatabaseException
+     * @throws ilObjectNotFoundException
+     */
+    public static function getInstanceByObjId(?int $obj_id, bool $stop_on_error = true): ?ilObject
+    {
+        global $DIC;
+        $objDefinition = $DIC["objDefinition"];
+        $ilDB = $DIC->database();
 
-		// read object data
-		$q = "SELECT * FROM object_data ".
-			 "WHERE obj_id = ".$ilDB->quote($a_obj_id ,'integer');
-		$object_set = $ilDB->query($q);
-		// check number of records
-		if ($object_set->numRows() == 0)
-		{
-			$message = "ilObjectFactory::getInstanceByObjId(): Object with obj_id: ".$a_obj_id." not found!";
-			if ($stop_on_error === true)
-			{
-				throw new ilObjectNotFoundException($message);
-			}
-			return false;
-		}
+        // check object id
+        if (!isset($obj_id)) {
+            $message = "ilObjectFactory::getInstanceByObjId(): No obj_id given!";
+            if ($stop_on_error === true) {
+                throw new ilObjectNotFoundException($message);
+            }
+            return null;
+        }
 
-		$object_rec = $object_set->fetchRow(ilDBConstants::FETCHMODE_ASSOC);
-		$class_name = "ilObj".$objDefinition->getClassName($object_rec["type"]);
-		
-		// check class
-		if ($class_name == "ilObj")
-		{
-			$message = "ilObjectFactory::getInstanceByObjId(): Not able to determine object ".
-				"class for type".$object_rec["type"].".";
-			if ($stop_on_error === true)
-			{
-				throw new ilObjectNotFoundException($message);
-			}
-			return false;
-		}
+        // read object data
+        $sql =
+            "SELECT obj_id, type, title, description, owner, create_date, last_update, import_id, offline" . PHP_EOL
+            . "FROM object_data" . PHP_EOL
+            . "WHERE obj_id = " . $ilDB->quote($obj_id, 'integer') . PHP_EOL
+        ;
+        $result = $ilDB->query($sql);
+        // check number of records
+        if ($result->numRows() == 0) {
+            $message = "ilObjectFactory::getInstanceByObjId(): Object with obj_id: " . $obj_id . " not found!";
+            if ($stop_on_error === true) {
+                throw new ilObjectNotFoundException($message);
+            }
+            return null;
+        }
 
-		// get location
-		$location = $objDefinition->getLocation($object_rec["type"]);
+        $row = $result->fetchRow(ilDBConstants::FETCHMODE_ASSOC);
+        $class_name = "ilObj" . $objDefinition->getClassName($row["type"]);
 
-		// create instance
-		$obj = new $class_name(0, false);	// this avoids reading of data
-		$obj->setId($a_obj_id);
-		$obj->read();
+        // check class
+        if ($class_name == "ilObj") {
+            $message = "ilObjectFactory::getInstanceByObjId(): Not able to determine object " .
+                "class for type" . $row["type"] . ".";
+            if ($stop_on_error === true) {
+                throw new ilObjectNotFoundException($message);
+            }
+            return null;
+        }
 
-		return $obj;
-	}
+        (new self())->includeClassIfNotExists($class_name, $row["type"], $objDefinition);
 
+        // create instance
+        $obj = new $class_name(0, false);    // this avoids reading of data
+        $obj->setId($obj_id);
+        $obj->read();
 
-	/**
-	 * get an instance of an Ilias object by reference id
-	 * @param $a_ref_id
-	 * @param bool $stop_on_error
-	 * @return bool|ilObject
-	 * @throws ilDatabaseException
-	 * @throws ilObjectNotFoundException
-	 */
-	static function getInstanceByRefId($a_ref_id,$stop_on_error = true)
-	{
-		global $DIC;
+        return $obj;
+    }
 
-		$objDefinition = $DIC["objDefinition"];
-		$ilDB = $DIC->database();
+    /**
+     * get an instance of an Ilias object by reference id
+     * @throws ilDatabaseException
+     * @throws ilObjectNotFoundException
+     */
+    public static function getInstanceByRefId(int $ref_id, bool $stop_on_error = true): ?ilObject
+    {
+        global $DIC;
+        $objDefinition = $DIC["objDefinition"];
+        $ilDB = $DIC->database();
 
-		// check reference id
-		if (!isset($a_ref_id))
-		{
-			if ($stop_on_error === true)
-			{
-				$message = "ilObjectFactory::getInstanceByRefId(): No ref_id given!";
-				throw new ilObjectNotFoundException($message);
-			}
-			
-			return false;
-		}
+        // check reference id
+        if (!isset($ref_id)) {
+            if ($stop_on_error === true) {
+                $message = "ilObjectFactory::getInstanceByRefId(): No ref_id given!";
+                throw new ilObjectNotFoundException($message);
+            }
+            return null;
+        }
 
-		// read object data
-		
-		$query = "SELECT * FROM object_data,object_reference ".
-			"WHERE object_reference.obj_id = object_data.obj_id ".
-			"AND object_reference.ref_id = ".$ilDB->quote($a_ref_id,'integer');
-		$object_set = $ilDB->query($query);
+        // read object data
+        $sql =
+            "SELECT object_data.obj_id, object_data.type" . PHP_EOL
+            . "FROM object_data, object_reference" . PHP_EOL
+            . "WHERE object_reference.obj_id = object_data.obj_id" . PHP_EOL
+            . "AND object_reference.ref_id = " . $ilDB->quote($ref_id, 'integer') . PHP_EOL
+        ;
 
-		// check number of records
-		if ($object_set->numRows() == 0)
-		{
-			if ($stop_on_error === true)
-			{
-				$message = "ilObjectFactory::getInstanceByRefId(): Object with ref_id ".$a_ref_id." not found!";
-				throw new ilObjectNotFoundException($message);
-			}
-			
-			return false;
-		}
+        $result = $ilDB->query($sql);
 
-		$object_rec = $object_set->fetchRow(ilDBConstants::FETCHMODE_ASSOC);
-		$class_name = "ilObj".$objDefinition->getClassName($object_rec["type"]);
+        // check number of records
+        if ($result->numRows() == 0) {
+            if ($stop_on_error === true) {
+                $message = "ilObjectFactory::getInstanceByRefId(): Object with ref_id " . $ref_id . " not found!";
+                throw new ilObjectNotFoundException($message);
+            }
+            return null;
+        }
 
-		// check class
-		if ($class_name == "ilObj")
-		{
-			if ($stop_on_error === true)
-			{
-				$message = "ilObjectFactory::getInstanceByRefId(): Not able to determine object ".
-						   "class for type".$object_rec["type"].".";
-				throw new ilObjectNotFoundException($message);
-			}
-			
-			return false;
-		}
+        $row = $result->fetchRow(ilDBConstants::FETCHMODE_ASSOC);
+        $class_name = "ilObj" . $objDefinition->getClassName($row["type"]);
 
-		// get location
-		$location = $objDefinition->getLocation($object_rec["type"]);
+        // check class
+        if ($class_name == "ilObj") {
+            if ($stop_on_error === true) {
+                $message = "ilObjectFactory::getInstanceByRefId(): Not able to determine object " .
+                    "class for type" . $row["type"] . ".";
+                throw new ilObjectNotFoundException($message);
+            }
+            return null;
+        }
 
-		// create instance
-		$obj = new $class_name(0, false);	// this avoids reading of data
-		$obj->setId($object_rec["obj_id"]);
-		$obj->setRefId($a_ref_id);
-		$obj->read();
-		return $obj;
-	}
+        (new self())->includeClassIfNotExists($class_name, $row["type"], $objDefinition);
 
-	/**
-	 * get object type by reference id
-	 *
-	 * @deprecated since version 5.3
-	 * @param $a_ref_id
-	 * @param bool $stop_on_error
-	 * @return bool
-	 * @throws ilDatabaseException
-	 * @throws ilObjectNotFoundException
-	 */
-	public static function getTypeByRefId($a_ref_id, $stop_on_error = true)
-	{
-		global $DIC;
+        // create instance
+        $obj = new $class_name(0, false);    // this avoids reading of data
+        $obj->setId((int) $row["obj_id"]);
+        $obj->setRefId($ref_id);
+        $obj->read();
+        return $obj;
+    }
 
-		$ilDB = $DIC->database();
+    /**
+     * get object type by reference id
+     * @throws ilObjectNotFoundException
+     * @deprecated since version 5.3
+     */
+    public static function getTypeByRefId(int $ref_id, bool $stop_on_error = true): ?string
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
 
-		// check reference id
-		if (!isset($a_ref_id))
-		{
-			if ($stop_on_error === true)
-			{
-				$message = "ilObjectFactory::getTypeByRefId(): No ref_id given!";
-				throw new ilObjectNotFoundException($message);
-			}
-			
-			return false;
-		}
+        // check reference id
+        if (!isset($ref_id)) {
+            if ($stop_on_error === true) {
+                $message = "ilObjectFactory::getTypeByRefId(): No ref_id given!";
+                throw new ilObjectNotFoundException($message);
+            }
+            return null;
+        }
 
-		// read object data
-		$q = "SELECT * FROM object_data ".
-			 "LEFT JOIN object_reference ON object_data.obj_id=object_reference.obj_id ".
-			 "WHERE object_reference.ref_id=".$ilDB->quote($a_ref_id,'integer');
-		$object_set = $ilDB->query($q);
+        // read object data
+        $sql =
+            "SELECT object_data.obj_id, object_data.type" . PHP_EOL
+            . "FROM object_data" . PHP_EOL
+            . "LEFT JOIN object_reference ON object_data.obj_id=object_reference.obj_id " . PHP_EOL
+            . "WHERE object_reference.ref_id=" . $ilDB->quote($ref_id, 'integer') . PHP_EOL
+        ;
+        $result = $ilDB->query($sql);
 
-		if ($object_set->numRows() == 0)
-		{
-			if ($stop_on_error === true)
-			{
-				$message = "ilObjectFactory::getTypeByRefId(): Object with ref_id ".$a_ref_id." not found!";
-				throw new ilObjectNotFoundException($message);
-			}
-			
-			return false;
-		}
+        if ($result->numRows() == 0) {
+            if ($stop_on_error === true) {
+                $message = "ilObjectFactory::getTypeByRefId(): Object with ref_id " . $ref_id . " not found!";
+                throw new ilObjectNotFoundException($message);
+            }
+            return null;
+        }
 
-		$object_rec = $object_set->fetchRow(ilDBConstants::FETCHMODE_ASSOC);
-		return $object_rec["type"];
-	}
-	
-	/**
-	 * Get class by type
-	 * 
-	 * @return 
-	 */
-	public static function getClassByType($a_obj_type)
-	{
-		global $DIC;
+        $row = $result->fetchRow(ilDBConstants::FETCHMODE_ASSOC);
+        return $row["type"];
+    }
 
-		$objDefinition = $DIC["objDefinition"];
+    public static function getClassByType(string $obj_type): string
+    {
+        global $DIC;
+        $objDefinition = $DIC["objDefinition"];
 
-		$class_name = "ilObj".$objDefinition->getClassName($a_obj_type);
+        $class_name = "ilObj" . $objDefinition->getClassName($obj_type);
 
-		// create instance
-		return $class_name;
-	}
+        (new self())->includeClassIfNotExists($class_name, $obj_type, $objDefinition);
+
+        return $class_name;
+    }
+
+    /**
+     * Ensures a class is properly included. This is needed, since not
+     * all possible classes are yet part of the autoloader (e.g. repo-plugins).
+     * See: #27073
+     * @param string $class_name
+     * @param string $a_obj_type
+     * @param ilObjectDefinition $objDefinition
+     */
+    protected function includeClassIfNotExists(
+        string $class_name,
+        string $a_obj_type,
+        ilObjectDefinition $objDefinition
+    ): void {
+        if (!class_exists($class_name)) {
+            $location = $objDefinition->getLocation($a_obj_type);
+            include_once($location . "/class." . $class_name . ".php");
+        }
+    }
 }
-?>

@@ -1,4 +1,9 @@
 <?php
+
+declare(strict_types=1);
+
+namespace ILIAS\UI\examples\Input\Field\Password;
+
 /**
  * Passwords (when setting) usually have some constraints.
   */
@@ -28,7 +33,7 @@ function with_contraints()
         );
 
     //Step 2: Define the form and attach the field.
-    $form = $ui->input()->container()->form()->standard('#', ['pwd'=>$pwd_input]);
+    $form = $ui->input()->container()->form()->standard('#', ['pwd' => $pwd_input]);
 
     //Step 3: Define some data processing.
     $result = '';

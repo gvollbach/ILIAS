@@ -1,73 +1,68 @@
 <?php
-/* Copyright (c) 1998-2015 ILIAS open source, Extended GPL, see docs/LICENSE */
-require_once 'Services/User/Gallery/classes/class.ilAbstractUsersGalleryCollectionProvider.php';
-require_once 'Services/Contact/BuddySystem/classes/class.ilBuddyList.php';
+
+declare(strict_types=1);
 
 /**
- * Class ilUsersGalleryUsers
- */
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 class ilUsersGalleryContacts extends ilAbstractUsersGalleryCollectionProvider
 {
-	/**
-	 * @return array
-	 */
-	protected function getRelationSequence()
-	{
-		$requested_for_me = ilBuddyList::getInstanceByGlobalUser()->getRequestRelationsForOwner()->toArray();
-		$linked           = ilBuddyList::getInstanceByGlobalUser()->getLinkedRelations()->toArray();
-		$requested_by_me  = ilBuddyList::getInstanceByGlobalUser()->getRequestRelationsByOwner()->toArray();
-		$me_ignored       = ilBuddyList::getInstanceByGlobalUser()->getIgnoredRelationsByOwner()->toArray();
-		$ignored          = ilBuddyList::getInstanceByGlobalUser()->getIgnoredRelationsForOwner()->toArray();
+    /**
+     * @return Generator<array<int, ilBuddySystemRelation>>
+     */
+    protected function getRelationSequence(): Generator
+    {
+        yield ilBuddyList::getInstanceByGlobalUser()->getRequestRelationsForOwner()->toArray();
+        yield ilBuddyList::getInstanceByGlobalUser()->getLinkedRelations()->toArray();
+        yield ilBuddyList::getInstanceByGlobalUser()->getRequestRelationsByOwner()->toArray() + ilBuddyList::getInstanceByGlobalUser()->getIgnoredRelationsByOwner()->toArray();
+        yield ilBuddyList::getInstanceByGlobalUser()->getIgnoredRelationsForOwner()->toArray();
+    }
 
-		return [$requested_for_me, $linked, $requested_by_me + $me_ignored,  $ignored];
-	}
+    public function getGroupedCollections(bool $ignore_myself = false): array
+    {
+        global $DIC;
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getGroupedCollections($ignore_myself = false)
-	{
-		global $DIC;
+        $groups = [];
 
-		$relations = $this->getRelationSequence();
-		$groups    = [];
+        foreach ($this->getRelationSequence() as $relations) {
+            $user_data = [];
 
-		foreach($relations as $sorted_relation)
-		{
-			$user_data = [];
+            foreach ($relations as $usr_id => $relation) {
+                if (!($user = ilObjectFactory::getInstanceByObjId($usr_id, false)) || !($user instanceof ilObjUser)) {
+                    continue;
+                }
 
-			foreach($sorted_relation as $usr_id => $users)
-			{
-				/** @var $user ilObjUser */
-				if(!($user = ilObjectFactory::getInstanceByObjId($usr_id, false)))
-				{
-					continue;
-				}
+                if (!$user->getActive()) {
+                    continue;
+                }
 
-				if(!$user->getActive())
-				{
-					continue;
-				}
+                if ($ignore_myself && $user->getId() === $DIC->user()->getId()) {
+                    continue;
+                }
 
-				if($ignore_myself && $user->getId() == $DIC->user()->getId())
-				{
-					continue;
-				}
+                $user_data[$user->getId()] = $user;
+            }
 
-				$user_data[$user->getId()] = $user;
-			}
+            $groups[] = $this->getPopulatedGroup($user_data);
+        }
 
-			$groups[] = $this->getPopulatedGroup($user_data);
-		}
+        return $groups;
+    }
 
-		return $groups;
-	}
-
-	/**
-	 * @inheritdoc
-	 */
-	public function hasRemovableUsers()
-	{
-		return true;
-	}
+    public function hasRemovableUsers(): bool
+    {
+        return true;
+    }
 }

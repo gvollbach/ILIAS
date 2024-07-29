@@ -19,42 +19,42 @@ use PHPUnit\Framework\TestCase;
  * @backupGlobals          disabled
  * @backupStaticAttributes disabled
  */
-class BlacklistFileHeaderPreProcessorTest extends TestCase {
+class BlacklistFileHeaderPreProcessorTest extends TestCase
+{
+    /**
+     * @Test
+     * @small
+     */
+    public function testProcessWhichShouldSucceed()
+    {
+        $fileHeaderBlacklist = hex2bin('FFD8FF'); //jpg header start
+        $fileHeaderStart = hex2bin('FFD8FB'); //jpg header start
+        $trailer = hex2bin('FFD9'); //jpg trailer
+        $subject = new BlacklistFileHeaderPreProcessor($fileHeaderBlacklist);
+        $stream = Streams::ofString("$fileHeaderStart bla bla bla $trailer");
+        $stream->rewind();
 
-	/**
-	 * @Test
-	 * @small
-	 */
-	public function testProcessWhichShouldSucceed() {
+        $result = $subject->process($stream, new Metadata('hello.jpg', $stream->getSize(), 'image/jpg'));
 
-		$fileHeaderBlacklist = hex2bin('FFD8FF'); //jpg header start
-		$fileHeaderStart = hex2bin('FFD8FB'); //jpg header start
-		$trailer = hex2bin('FFD9'); //jpg trailer
-		$subject = new BlacklistFileHeaderPreProcessor($fileHeaderBlacklist);
-		$stream = Streams::ofString("$fileHeaderStart bla bla bla $trailer");
-		$stream->rewind();
+        $this->assertSame(ProcessingStatus::OK, $result->getCode());
+        $this->assertSame('File header does not match blacklist.', $result->getMessage());
+    }
 
-		$result = $subject->process($stream, new Metadata('hello.jpg', $stream->getSize(), 'image/jpg'));
+    /**
+     * @Test
+     * @small
+     */
+    public function testProcessWithHeaderMismatchWhichShouldGetRejected()
+    {
+        $fileHeaderStart = hex2bin('FFD8FF'); //jpg header start
+        $trailer = hex2bin('FFD9'); //jpg trailer
+        $subject = new BlacklistFileHeaderPreProcessor($fileHeaderStart);
+        $stream = Streams::ofString("$fileHeaderStart bla bla bla $trailer");
+        $stream->rewind();
 
-		$this->assertSame(ProcessingStatus::OK, $result->getCode());
-		$this->assertSame('File header does not match blacklist.', $result->getMessage());
-	}
+        $result = $subject->process($stream, new Metadata('hello.jpg', $stream->getSize(), 'image/jpg'));
 
-	/**
-	 * @Test
-	 * @small
-	 */
-	public function testProcessWithHeaderMismatchWhichShouldGetRejected() {
-
-		$fileHeaderStart = hex2bin('FFD8FF'); //jpg header start
-		$trailer = hex2bin('FFD9'); //jpg trailer
-		$subject = new BlacklistFileHeaderPreProcessor($fileHeaderStart);
-		$stream = Streams::ofString("$fileHeaderStart bla bla bla $trailer");
-		$stream->rewind();
-
-		$result = $subject->process($stream, new Metadata('hello.jpg', $stream->getSize(), 'image/jpg'));
-
-		$this->assertSame(ProcessingStatus::REJECTED, $result->getCode());
-		$this->assertSame('File header matches blacklist.', $result->getMessage());
-	}
+        $this->assertSame(ProcessingStatus::REJECTED, $result->getCode());
+        $this->assertSame('File header matches blacklist.', $result->getMessage());
+    }
 }

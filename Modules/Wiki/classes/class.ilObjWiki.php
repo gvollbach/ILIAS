@@ -1,1191 +1,900 @@
 <?php
 
-/* Copyright (c) 1998-2011 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-/** @defgroup ModulesWiki Modules/Wiki
- */
-
-include_once "./Services/Object/classes/class.ilObject.php";
-include_once "./Modules/Wiki/classes/class.ilWikiUtil.php";
-include_once "./Services/AdvancedMetaData/interfaces/interface.ilAdvancedMetaDataSubItems.php";
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Class ilObjWiki
  *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- *
- * @ingroup ModulesWiki
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilObjWiki extends ilObject implements ilAdvancedMetaDataSubItems
 {
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
-
-	protected $online = false;
-	protected $public_notes = true;
-	protected $empty_page_templ = true;
-	protected $link_md_values = false;
-
-	/**
-	* Constructor
-	* @access	public
-	* @param	integer	reference_id or object_id
-	* @param	boolean	treat the id as reference_id (true) or object_id (false)
-	*/
-	function __construct($a_id = 0,$a_call_by_reference = true)
-	{
-		global $DIC;
-
-		$this->db = $DIC->database();
-		$this->user = $DIC->user();
-		$this->type = "wiki";
-		parent::__construct($a_id,$a_call_by_reference);
-	}
-
-	/**
-	* Set Online.
-	*
-	* @param	boolean	$a_online	Online
-	*/
-	function setOnline($a_online)
-	{
-		$this->online = $a_online;
-	}
-
-	/**
-	* Get Online.
-	*
-	* @return	boolean	Online
-	*/
-	function getOnline()
-	{
-		return $this->online;
-	}
-
-	/**
-	* Set Enable Rating For Object.
-	*
-	* @param	boolean	$a_rating	Enable Rating
-	*/
-	function setRatingOverall($a_rating)
-	{
-		$this->rating_overall = (bool)$a_rating;
-	}
-
-	/**
-	* Get Enable Rating For Object.
-	*
-	* @return	boolean	Enable Rating
-	*/
-	function getRatingOverall()
-	{
-		return $this->rating_overall;
-	}
-	
-	/**
-	* Set Enable Rating.
-	*
-	* @param	boolean	$a_rating	Enable Rating
-	*/
-	function setRating($a_rating)
-	{
-		$this->rating = (bool)$a_rating;
-	}
-
-	/**
-	* Get Enable Rating.
-	*
-	* @return	boolean	Enable Rating
-	*/
-	function getRating()
-	{
-		return $this->rating;
-	}
-	
-	/**
-	* Set Enable Rating Side Block.
-	*
-	* @param	boolean	$a_rating	
-	*/
-	function setRatingAsBlock($a_rating)
-	{
-		$this->rating_block = (bool)$a_rating;
-	}
-
-	/**
-	* Get Enable Rating Side Block.
-	*
-	* @return	boolean
-	*/
-	function getRatingAsBlock()
-	{
-		return $this->rating_block;
-	}
-	
-	/**
-	* Set Enable Rating For New Pages.
-	*
-	* @param	boolean	$a_rating	
-	*/
-	function setRatingForNewPages($a_rating)
-	{
-		$this->rating_new_pages = (bool)$a_rating;
-	}
-
-	/**
-	* Get Enable Rating For New Pages.
-	*
-	* @return	boolean
-	*/
-	function getRatingForNewPages()
-	{
-		return $this->rating_new_pages;
-	}
-		
-	/**
-	* Set Enable Rating Categories.
-	*
-	* @param	boolean	$a_rating	
-	*/
-	function setRatingCategories($a_rating)
-	{
-		$this->rating_categories = (bool)$a_rating;
-	}
-
-	/**
-	* Get Enable Rating Categories.
-	*
-	* @return	boolean
-	*/
-	function getRatingCategories()
-	{
-		return $this->rating_categories;
-	}
-	
-	/**
-	 * Set public notes
-	 */
-	public function setPublicNotes($a_val)
-	{
-		$this->public_notes = $a_val;
-	}
-
-	/**
-	 * Get public notes
-	 */
-	public function getPublicNotes()
-	{
-		return $this->public_notes;
-	}
-
-	/**
-	 * Set important pages
-	 *
-	 * @param	boolean	$a_val	important pages
-	 */
-	public function setImportantPages($a_val)
-	{
-		$this->imp_pages = $a_val;
-	}
-
-	/**
-	 * Get important pages
-	 *
-	 * @return	boolean	important pages
-	 */
-	public function getImportantPages()
-	{
-		return $this->imp_pages;
-	}
-
-	/**
-	* Set Start Page.
-	*
-	* @param	string	$a_startpage	Start Page
-	*/
-	function setStartPage($a_startpage)
-	{
-		$this->startpage = ilWikiUtil::makeDbTitle($a_startpage);
-	}
-
-	/**
-	* Get Start Page.
-	*
-	* @return	string	Start Page
-	*/
-	function getStartPage()
-	{
-		return $this->startpage;
-	}
-
-	/**
-	* Set ShortTitle.
-	*
-	* @param	string	$a_shorttitle	ShortTitle
-	*/
-	function setShortTitle($a_shorttitle)
-	{
-		$this->shorttitle = $a_shorttitle;
-	}
-
-	/**
-	* Get ShortTitle.
-	*
-	* @return	string	ShortTitle
-	*/
-	function getShortTitle()
-	{
-		return $this->shorttitle;
-	}
-
-		/**
-	* Set Introduction.
-	*
-	* @param	string	$a_introduction	Introduction
-	*/
-	function setIntroduction($a_introduction)
-	{
-		$this->introduction = $a_introduction;
-	}
-
-	/**
-	* Get Introduction.
-	*
-	* @return	string	Introduction
-	*/
-	function getIntroduction()
-	{
-		return $this->introduction;
-	}
-
-	/**
-	* get ID of assigned style sheet object
-	*/
-	function getStyleSheetId()
-	{
-		return $this->style_id;
-	}
-
-	/**
-	* set ID of assigned style sheet object
-	*/
-	function setStyleSheetId($a_style_id)
-	{
-		$this->style_id = $a_style_id;
-	}
-
-	/**
-	 * Set page toc
-	 *
-	 * @param	boolean	$a_val	page toc
-	 */
-	public function setPageToc($a_val)
-	{
-		$this->page_toc = $a_val;
-	}
-
-	/**
-	 * Get page toc
-	 *
-	 * @return	boolean	page toc
-	 */
-	public function getPageToc()
-	{
-		return $this->page_toc;
-	}
-
-	/**
-	 * Set empty page template
-	 *
-	 * @param boolean $a_val empty page template	
-	 */
-	function setEmptyPageTemplate($a_val)
-	{
-		$this->empty_page_templ = $a_val;
-	}
-	
-	/**
-	 * Get empty page template
-	 *
-	 * @return boolean empty page template
-	 */
-	function getEmptyPageTemplate()
-	{
-		return $this->empty_page_templ;
-	}
-	
-	/**
-	 * Set link md values
-	 *
-	 * @param bool $a_val link metadata values	
-	 */
-	function setLinkMetadataValues($a_val)
-	{
-		$this->link_md_values = $a_val;
-	}
-	
-	/**
-	 * Get link md values
-	 *
-	 * @return bool link metadata values
-	 */
-	function getLinkMetadataValues()
-	{
-		return $this->link_md_values;
-	}
-	
-	/**
-	 * Is wiki an online help wiki?
-	 *
-	 * @return boolean true, if current wiki is an online help wiki
-	 */
-	static function isOnlineHelpWiki($a_ref_id)
-	{
-		if ($a_ref_id > 0 && $a_ref_id == OH_REF_ID)
-		{
-//			return true;
-		}
-		return false;
-	}
-
-	/**
-	* Create new wiki
-	*/
-	function create($a_prevent_start_page_creation = false)
-	{
-		$ilDB = $this->db;
-
-		parent::create();
-		
-		$ilDB->insert("il_wiki_data", array(
-			"id" => array("integer", $this->getId()),
-			"is_online" => array("integer", (int) $this->getOnline()),
-			"startpage" => array("text", $this->getStartPage()),
-			"short" => array("text", $this->getShortTitle()),
-			"rating" => array("integer", (int) $this->getRating()),
-			"public_notes" => array("integer", (int) $this->getPublicNotes()),
-			"introduction" => array("clob", $this->getIntroduction()),
-			"empty_page_templ" => array("integer", (int) $this->getEmptyPageTemplate()),
-			));
-
-		// create start page
-		if ($this->getStartPage() != "" && !$a_prevent_start_page_creation)
-		{
-			include_once("./Modules/Wiki/classes/class.ilWikiPage.php");
-			$start_page = new ilWikiPage();
-			$start_page->setWikiId($this->getId());
-			$start_page->setTitle($this->getStartPage());
-			$start_page->create();
-		}
-
-		if (((int) $this->getStyleSheetId()) > 0)
-		{
-			include_once("./Services/Style/Content/classes/class.ilObjStyleSheet.php");
-			ilObjStyleSheet::writeStyleUsage($this->getId(), $this->getStyleSheetId());
-		}
-	}
-
-	/**
-	* update object data
-	*
-	* @access	public
-	* @return	boolean
-	*/
-	function update($a_prevent_start_page_creation = false)
-	{
-		$ilDB = $this->db;
-		
-		if (!parent::update())
-		{			
-			return false;
-		}
-		
-		$ilDB->update("il_wiki_data", array(
-			"is_online" => array("integer", $this->getOnline()),
-			"startpage" => array("text", $this->getStartPage()),
-			"short" => array("text", $this->getShortTitle()),
-			"rating_overall" => array("integer", $this->getRatingOverall()),
-			"rating" => array("integer", $this->getRating()),
-			"rating_side" => array("integer", (bool)$this->getRatingAsBlock()), // #13455
-			"rating_new" => array("integer", $this->getRatingForNewPages()),
-			"rating_ext" => array("integer", $this->getRatingCategories()),
-			"public_notes" => array("integer", $this->getPublicNotes()),
-			"introduction" => array("clob", $this->getIntroduction()),
-			"imp_pages" => array("integer", $this->getImportantPages()),
-			"page_toc" => array("integer", $this->getPageToc()),
-			"link_md_values" => array("integer", $this->getLinkMetadataValues()),
-			"empty_page_templ" => array("integer", $this->getEmptyPageTemplate())
-			), array(
-			"id" => array("integer", $this->getId())
-			));
-
-		// check whether start page exists
-		include_once("./Modules/Wiki/classes/class.ilWikiPage.php");
-		if (!ilWikiPage::exists($this->getId(), $this->getStartPage())
-			&& !$a_prevent_start_page_creation)
-		{
-			$start_page = new ilWikiPage();
-			$start_page->setWikiId($this->getId());
-			$start_page->setTitle($this->getStartPage());
-			$start_page->create();
-		}
-
-		include_once("./Services/Style/Content/classes/class.ilObjStyleSheet.php");
-		ilObjStyleSheet::writeStyleUsage($this->getId(), $this->getStyleSheetId());
-
-		return true;
-	}
-	
-	/**
-	* Read wiki data
-	*/
-	function read()
-	{
-		$ilDB = $this->db;
-		
-		parent::read();
-		
-		$query = "SELECT * FROM il_wiki_data WHERE id = ".
-			$ilDB->quote($this->getId(), "integer");
-		$set = $ilDB->query($query);
-		$rec = $ilDB->fetchAssoc($set);
-
-		$this->setOnline($rec["is_online"]);
-		$this->setStartPage($rec["startpage"]);
-		$this->setShortTitle($rec["short"]);
-		$this->setRatingOverall($rec["rating_overall"]);
-		$this->setRating($rec["rating"]);
-		$this->setRatingAsBlock($rec["rating_side"]);
-		$this->setRatingForNewPages($rec["rating_new"]);
-		$this->setRatingCategories($rec["rating_ext"]);
-		$this->setPublicNotes($rec["public_notes"]);
-		$this->setIntroduction($rec["introduction"]);
-		$this->setImportantPages($rec["imp_pages"]);
-		$this->setPageToc($rec["page_toc"]);
-		$this->setEmptyPageTemplate($rec["empty_page_templ"]);
-		$this->setLinkMetadataValues($rec["link_md_values"]);
-
-		include_once("./Services/Style/Content/classes/class.ilObjStyleSheet.php");
-		$this->setStyleSheetId((int) ilObjStyleSheet::lookupObjectStyle($this->getId()));
-
-	}
-
-
-	/**
-	* delete object and all related data	
-	*
-	* @access	public
-	* @return	boolean	true if all object data were removed; false if only a references were removed
-	*/
-	function delete()
-	{
-		$ilDB = $this->db;
-		
-		// always call parent delete function first!!
-		if (!parent::delete())
-		{
-			return false;
-		}
-				
-		// delete record of table il_wiki_data
-		$query = "DELETE FROM il_wiki_data".
-			" WHERE id = ".$ilDB->quote($this->getId(), "integer");
-		$ilDB->manipulate($query);
-
-		// remove all notifications
-		include_once "./Services/Notification/classes/class.ilNotification.php";
-		ilNotification::removeForObject(ilNotification::TYPE_WIKI, $this->getId());
-		
-		include_once("./Modules/Wiki/classes/class.ilWikiPage.php");
-		ilWikiPage::deleteAllPagesOfWiki($this->getId());
-		
-		return true;
-	}
-
-	/**
-	* Check availability of short title
-	*/
-	static function checkShortTitleAvailability($a_short_title)
-	{
-		global $DIC;
-
-		$ilDB = $DIC->database();
-		
-		$res = $ilDB->queryF("SELECT id FROM il_wiki_data WHERE short = %s",
-			array("text"), array($a_short_title));
-		if ($ilDB->fetchAssoc($res))
-		{
-			return false;
-		}
-		
-		return true;
-	}
-	
-	/**
-	 * Lookup whether rating is activated for whole object.
-	 *
-	 * @param	int			$a_wiki_id		Wiki ID
-	 *
-	 * @return	boolean		Rating activated?
-	 */
-	static function _lookupRatingOverall($a_wiki_id)
-	{
-		return ilObjWiki::_lookup($a_wiki_id, "rating_overall");
-	}
-	
-	/**
-	 * Lookup whether rating is activated.
-	 *
-	 * @param	int			$a_wiki_id		Wiki ID
-	 *
-	 * @return	boolean		Rating activated?
-	 */
-	static function _lookupRating($a_wiki_id)
-	{
-		return ilObjWiki::_lookup($a_wiki_id, "rating");
-	}
-	
-	/**
-	 * Lookup whether rating categories are activated.
-	 *
-	 * @param	int			$a_wiki_id		Wiki ID
-	 *
-	 * @return	boolean		Rating categories activated?
-	 */
-	static function _lookupRatingCategories($a_wiki_id)
-	{
-		return ilObjWiki::_lookup($a_wiki_id, "rating_ext");
-	}
-	
-	/**
-	 * Lookup whether rating side block is activated.
-	 *
-	 * @param	int			$a_wiki_id		Wiki ID
-	 *
-	 * @return	boolean		Rating side block activated?
-	 */
-	static function _lookupRatingAsBlock($a_wiki_id)
-	{
-		return ilObjWiki::_lookup($a_wiki_id, "rating_side");
-	}
-
-	/**
-	 * Lookup whether public notes are activated
-	 *
-	 * @param	int			$a_wiki_id		Wiki ID
-	 *
-	 * @return	boolean		public notes activated?
-	 */
-	static function _lookupPublicNotes($a_wiki_id)
-	{
-		return ilObjWiki::_lookup($a_wiki_id, "public_notes");
-	}
-
-	/**
-	 * Lookup whether metadata should be auto linked
-	 *
-	 * @param	int			$a_wiki_id		Wiki ID
-	 *
-	 * @return	boolean		auto linking activated?
-	 */
-	static function _lookupLinkMetadataValues($a_wiki_id)
-	{
-		return ilObjWiki::_lookup($a_wiki_id, "link_md_values");
-	}
-
-	/**
-	* Lookup a data field
-	*
-	* @param	int			$a_wiki_id		Wiki ID
-	* @param	string		$a_field		Field Name
-	*
-	* @return	mixed		field value
-	*/
-	private static function _lookup($a_wiki_id, $a_field)
-	{
-		global $DIC;
-
-		$ilDB = $DIC->database();
-
-		$query = "SELECT $a_field FROM il_wiki_data WHERE id = ".
-			$ilDB->quote($a_wiki_id, "integer");
-		$set = $ilDB->query($query);
-		$rec = $ilDB->fetchAssoc($set);
-		return $rec[$a_field];
-	}
-
-	/**
-	* Lookup start page
-	*
-	* @param	int			$a_wiki_id		Wiki ID
-	*
-	* @return	boolean		
-	*/
-	static function _lookupStartPage($a_wiki_id)
-	{
-		return ilObjWiki::_lookup($a_wiki_id, "startpage");
-	}
-
-	/**
-	 * Write start page
-	 */
-	static function writeStartPage($a_id, $a_name)
-	{
-		global $DIC;
-
-		$ilDB = $DIC->database();
-
-		include_once("./Modules/Wiki/classes/class.ilWikiUtil.php");
-		$ilDB->manipulate("UPDATE il_wiki_data SET ".
-			" startpage = ".$ilDB->quote(ilWikiUtil::makeDbTitle($a_name), "text").
-			" WHERE id = ".$ilDB->quote($a_id, "integer")
-			);
-	}
-
-		/**
-	* Search in Wiki
-	*/
-	static function _performSearch($a_wiki_id, $a_searchterm)
-	{
-		// query parser
-		include_once 'Services/Search/classes/class.ilQueryParser.php';
-
-		$query_parser = new ilQueryParser($a_searchterm);
-		$query_parser->setCombination("or");
-		$query_parser->parse();
-
-		include_once 'Services/Search/classes/class.ilSearchResult.php';
-		$search_result = new ilSearchResult();
-		if($query_parser->validate())
-		{
-
-			include_once 'Services/Search/classes/class.ilObjectSearchFactory.php';
-			$wiki_search = ilObjectSearchFactory::_getWikiContentSearchInstance($query_parser);
-			$wiki_search->setFilter(array('wpg'));
-			$search_result->mergeEntries($wiki_search->performSearch());
-		}
-		
-		$entries = $search_result->getEntries();
-		
-		$found_pages = array();
-		foreach($entries as $entry)
-		{
-			if ($entry["obj_id"] == $a_wiki_id && is_array($entry["child"]))
-			{
-				foreach($entry["child"] as $child)
-				{
-					$found_pages[] = array("page_id" => $child);
-				}
-			}
-		}
-
-		return $found_pages;
-	}
-
-	//
-	// Important pages
-	//
-
-	/**
-	 * Lookup whether important pages are activated.
-	 *
-	 * @param	int			$a_wiki_id		Wiki ID
-	 *
-	 * @return	boolean		Important pages activated?
-	 */
-	static function _lookupImportantPages($a_wiki_id)
-	{
-		return ilObjWiki::_lookup($a_wiki_id, "imp_pages");
-	}
-
-	/**
-	 * Get important pages list
-	 *
-	 * @param
-	 * @return
-	 */
-	static function _lookupImportantPagesList($a_wiki_id)
-	{
-		global $DIC;
-
-		$ilDB = $DIC->database();
-
-		$set = $ilDB->query("SELECT * FROM il_wiki_imp_pages WHERE ".
-			" wiki_id = ".$ilDB->quote($a_wiki_id, "integer")." ORDER BY ord ASC "
-			);
-
-		$imp_pages = array();
-
-		while ($rec = $ilDB->fetchAssoc($set))
-		{
-			$imp_pages[] = $rec;
-		}
-		return $imp_pages;
-	}
-
-	/**
-	 * Get important pages list
-	 *
-	 * @param
-	 * @return
-	 */
-	static function _lookupMaxOrdNrImportantPages($a_wiki_id)
-	{
-		global $DIC;
-
-		$ilDB = $DIC->database();
-
-		$set = $ilDB->query("SELECT MAX(ord) as m FROM il_wiki_imp_pages WHERE ".
-			" wiki_id = ".$ilDB->quote($a_wiki_id, "integer")
-			);
-
-		$rec = $ilDB->fetchAssoc($set);
-		return (int) $rec["m"];
-	}
-
-
-	/**
-	 * Add important page
-	 *
-	 * @param	int		page id
-	 */
-	function addImportantPage($a_page_id, $a_nr = 0, $a_indent = 0)
-	{
-		$ilDB = $this->db;
-
-		if (!$this->isImportantPage($a_page_id))
-		{
-			if ($a_nr == 0)
-			{
-				$a_nr = ilObjWiki::_lookupMaxOrdNrImportantPages($this->getId()) + 10;
-			}
-
-			$ilDB->manipulate("INSERT INTO il_wiki_imp_pages ".
-				"(wiki_id, ord, indent, page_id) VALUES (".
-				$ilDB->quote($this->getId(), "integer").",".
-				$ilDB->quote($a_nr, "integer").",".
-				$ilDB->quote($a_indent, "integer").",".
-				$ilDB->quote($a_page_id, "integer").
-				")");
-		}
-	}
-
-	/**
-	 * Is page an important page?
-	 *
-	 * @param
-	 * @return
-	 */
-	function isImportantPage($a_page_id)
-	{
-		$ilDB = $this->db;
-
-		$set = $ilDB->query("SELECT * FROM il_wiki_imp_pages WHERE ".
-			" wiki_id = ".$ilDB->quote($this->getId(), "integer")." AND ".
-			" page_id = ".$ilDB->quote($a_page_id, "integer")
-		);
-		if ($rec = $ilDB->fetchAssoc($set))
-		{
-			return true;
-		}
-		return false;
-	}
-
-	/**
-	 * Remove important page
-	 *
-	 * @param	int		page id
-	 */
-	function removeImportantPage($a_id)
-	{
-		$ilDB = $this->db;
-
-		$ilDB->manipulate("DELETE FROM il_wiki_imp_pages WHERE "
-			." wiki_id = ".$ilDB->quote($this->getId(), "integer")
-			." AND page_id = ".$ilDB->quote($a_id, "integer")
-			);
-
-		$this->fixImportantPagesNumbering();
-	}
-
-	/**
-	 * Save ordering and indentation
-	 *
-	 * @param
-	 * @return
-	 */
-	function saveOrderingAndIndentation($a_ord, $a_indent)
-	{
-		$ilDB = $this->db;
-
-		$ipages = ilObjWiki::_lookupImportantPagesList($this->getId());
-
-		foreach ($ipages as $k => $v)
-		{
-			if (isset($a_ord[$v["page_id"]]))
-			{
-				$ipages[$k]["ord"] = (int) $a_ord[$v["page_id"]];
-			}
-			if (isset($a_indent[$v["page_id"]]))
-			{
-				$ipages[$k]["indent"] = (int) $a_indent[$v["page_id"]];
-			}
-		}
-		$ipages = ilUtil::sortArray($ipages, "ord", "asc", true);
-
-		// fix indentation: no 2 is allowed after a 0
-		$c_indent = 0;
-		$fixed = false;
-		foreach ($ipages as $k => $v)
-		{
-			if ($ipages[$k]["indent"] == 2 && $c_indent == 0)
-			{
-				$ipages[$k]["indent"] = 1;
-				$fixed = true;
-			}
-			$c_indent = $ipages[$k]["indent"];
-		}
-		
-		$ord = 10;
-		reset($ipages);
-		foreach ($ipages as $k => $v)
-		{
-			$ilDB->manipulate($q = "UPDATE il_wiki_imp_pages SET ".
-				" ord = ".$ilDB->quote($ord, "integer").",".
-				" indent = ".$ilDB->quote($v["indent"], "integer").
-				" WHERE wiki_id = ".$ilDB->quote($v["wiki_id"], "integer").
-				" AND page_id = ".$ilDB->quote($v["page_id"], "integer")
-				);
-			$ord+=10;
-		}
-		
-		return $fixed;
-	}
-
-	/**
-	 * Fix important pages numbering
-	 */
-	function fixImportantPagesNumbering()
-	{
-		$ilDB = $this->db;
-
-		$ipages = ilObjWiki::_lookupImportantPagesList($this->getId());
-
-		// fix indentation: no 2 is allowed after a 0
-		$c_indent = 0;
-		$fixed = false;
-		foreach ($ipages as $k => $v)
-		{
-			if ($ipages[$k]["indent"] == 2 && $c_indent == 0)
-			{
-				$ipages[$k]["indent"] = 1;
-				$fixed = true;
-			}
-			$c_indent = $ipages[$k]["indent"];
-		}
-
-		$ord = 10;
-		foreach ($ipages as $k => $v)
-		{
-			$ilDB->manipulate($q = "UPDATE il_wiki_imp_pages SET ".
-				" ord = ".$ilDB->quote($ord, "integer").
-				", indent = ".$ilDB->quote($v["indent"], "integer").
-				" WHERE wiki_id = ".$ilDB->quote($v["wiki_id"], "integer").
-				" AND page_id = ".$ilDB->quote($v["page_id"], "integer")
-				);
-			$ord+=10;
-		}
-
-	}
-
-	//
-	// Page TOC
-	//
-
-	/**
-	 * Lookup whether important pages are activated.
-	 *
-	 * @param	int			$a_wiki_id		Wiki ID
-	 *
-	 * @return	boolean		Important pages activated?
-	 */
-	static function _lookupPageToc($a_wiki_id)
-	{
-		return ilObjWiki::_lookup($a_wiki_id, "page_toc");
-	}
-
-	/**
-	 * Clone wiki
-	 *
-	 * @param int target ref_id
-	 * @param int copy id
-	 */
-	public function cloneObject($a_target_id,$a_copy_id = 0, $a_omit_tree = false)
-	{
-		$new_obj = parent::cloneObject($a_target_id,$a_copy_id, $a_omit_tree);
-
-		//copy online status if object is not the root copy object
-		$cp_options = ilCopyWizardOptions::_getInstance($a_copy_id);
-
-		if(!$cp_options->isRootNode($this->getRefId()))
-		{
-			$new_obj->setOnline($this->getOnline());
-		}
-	 	
-		//$new_obj->setTitle($this->getTitle());		// see #20074
-		$new_obj->setStartPage($this->getStartPage());
-		$new_obj->setShortTitle($this->getShortTitle());
-		$new_obj->setRatingOverall($this->getRatingOverall());
-		$new_obj->setRating($this->getRating());
-		$new_obj->setRatingAsBlock($this->getRatingAsBlock());
-		$new_obj->setRatingForNewPages($this->getRatingForNewPages());
-		$new_obj->setRatingCategories($this->getRatingCategories());
-		$new_obj->setPublicNotes($this->getPublicNotes());
-		$new_obj->setIntroduction($this->getIntroduction());
-		$new_obj->setImportantPages($this->getImportantPages());
-		$new_obj->setPageToc($this->getPageToc());
-		$new_obj->update();
-
-		// set/copy stylesheet
-		include_once("./Services/Style/Content/classes/class.ilObjStyleSheet.php");
-		$style_id = $this->getStyleSheetId();
-		if ($style_id > 0 && !ilObjStyleSheet::_lookupStandard($style_id))
-		{
-			$style_obj = ilObjectFactory::getInstanceByObjId($style_id);
-			$new_id = $style_obj->ilClone();
-			$new_obj->setStyleSheetId($new_id);
-			$new_obj->update();
-		}
-
-		// copy content
-		include_once("./Modules/Wiki/classes/class.ilWikiPage.php");
-		$pages = ilWikiPage::getAllWikiPages($this->getId());
-		if (count($pages) > 0)
-		{
-			// if we have any pages, delete the start page first
-			$pg_id = ilWikiPage::getPageIdForTitle($new_obj->getId(), $new_obj->getStartPage());
-			$start_page = new ilWikiPage($pg_id);
-			$start_page->delete();
-		}
-		$map = array();
-		foreach ($pages as $p)
-		{
-			$page = new ilWikiPage($p["id"]);
-			$new_page = new ilWikiPage();
-			$new_page->setTitle($page->getTitle());
-			$new_page->setWikiId($new_obj->getId());
-			$new_page->setTitle($page->getTitle());
-			$new_page->setBlocked($page->getBlocked());
-			$new_page->setRating($page->getRating());
-			$new_page->hideAdvancedMetadata($page->isAdvancedMetadataHidden());
-			$new_page->create();
-
-			$page->copy($new_page->getId(), "", 0, true);
-			//$new_page->setXMLContent($page->copyXMLContent(true));
-			//$new_page->buildDom(true);
-			//$new_page->update();
-			$map[$p["id"]] = $new_page->getId();
-		}
-		
-		// copy important pages
-		foreach (ilObjWiki::_lookupImportantPagesList($this->getId()) as $ip)
-		{
-			$new_obj->addImportantPage($map[$ip["page_id"]], $ip["ord"], $ip["indent"]);
-		}
-
-		// copy rating categories
-		include_once("./Services/Rating/classes/class.ilRatingCategory.php");
-		foreach (ilRatingCategory::getAllForObject($this->getId()) as $rc)
-		{
-			$new_rc = new ilRatingCategory();
-			$new_rc->setParentId($new_obj->getId());
-			$new_rc->setTitle($rc["title"]);
-			$new_rc->setDescription($rc["description"]);
-			$new_rc->save();
-		}
-		
-		return $new_obj;
-	}
-
-	/**
-	 * Get template selection on creation? If more than one template (including empty page template)
-	 * is activated -> return true
-	 *
-	 * @return boolean true, if manual template selection needed
-	 */
-	function getTemplateSelectionOnCreation()
-	{
-		$num = (int) $this->getEmptyPageTemplate();
-		include_once("./Modules/Wiki/classes/class.ilWikiPageTemplate.php");
-		$wt = new ilWikiPageTemplate($this->getId());
-		$ts = $wt->getAllInfo(ilWikiPageTemplate::TYPE_NEW_PAGES);
-		$num += count($ts);
-		if ($num > 1)
-		{
-			return true;
-		}
-		return false;
-	}
-
-	/**
-	 * Create new wiki page
-	 *
-	 * @param string $a_page_title page title
-	 * @param int $a_template_page template page id
-	 * @return ilWikiPage new wiki page
-	 */
-	function createWikiPage($a_page_title, $a_template_page = 0)
-	{
-		// check if template has to be used
-		if ($a_template_page == 0)
-		{
-			if (!$this->getEmptyPageTemplate())
-			{
-				include_once("./Modules/Wiki/classes/class.ilWikiPageTemplate.php");
-				$wt = new ilWikiPageTemplate($this->getId());
-				$ts = $wt->getAllInfo(ilWikiPageTemplate::TYPE_NEW_PAGES);
-				if (count($ts) == 1)
-				{
-					$t = current($ts);
-					$a_template_page = $t["wpage_id"];
-				}
-			}
-		}
-
-		// create the page
-		$page = new ilWikiPage();
-		$page->setWikiId($this->getId());
-		$page->setTitle(ilWikiUtil::makeDbTitle($a_page_title));
-		if($this->getRating() && $this->getRatingForNewPages())
-		{
-			$page->setRating(true);
-		}
-
-		// needed for notification
-		$page->setWikiRefId($this->getRefId());
-		$page->create();
-
-		// copy template into new page
-		if ($a_template_page > 0)
-		{
-			$orig = new ilWikiPage($a_template_page);
-			$orig->copy($page->getId());
-			
-			// #15718
-			include_once "Services/AdvancedMetaData/classes/class.ilAdvancedMDValues.php";
-			ilAdvancedMDValues::_cloneValues(
-				$this->getId(),
-				$this->getId(),
-				"wpg",
-				$a_template_page,
-				$page->getId()
-			);
-		}
-
-		return $page;
-	}
-
-	public static function getAdvMDSubItemTitle($a_obj_id, $a_sub_type, $a_sub_id)
-	{
-		global $DIC;
-
-		$lng = $DIC->language();
-	
-		if($a_sub_type == "wpg")
-		{
-			$lng->loadLanguageModule("wiki");
-			include_once "./Modules/Wiki/classes/class.ilWikiPage.php";						
-			return $lng->txt("wiki_wpg").' "'.ilWikiPage::lookupTitle($a_sub_id).'"';
-		}
-	}
-
-	/**
-	 * Init user html export
-	 *
-	 * @param
-	 * @return
-	 */
-	function initUserHTMLExport()
-	{
-		$ilDB = $this->db;
-		$ilUser = $this->user;
-
-		include_once("./Modules/Wiki/classes/class.ilWikiUserHTMLExport.php");
-
-		$user_export = new ilWikiUserHTMLExport($this, $ilDB, $ilUser);
-		$user_export->initUserHTMLExport();
-	}
-
-	/**
-	 * Start user html export
-	 *
-	 * @param
-	 * @return
-	 */
-	function startUserHTMLExport()
-	{
-		$ilDB = $this->db;
-		$ilUser = $this->user;
-
-		include_once("./Modules/Wiki/classes/class.ilWikiUserHTMLExport.php");
-
-		$user_export = new ilWikiUserHTMLExport($this, $ilDB, $ilUser);
-		$user_export->startUserHTMLExport();
-	}
-
-	/**
-	 * Get user html export progress
-	 *
-	 * @return array progress info
-	 */
-	function getUserHTMLExportProgress()
-	{
-		$ilDB = $this->db;
-		$ilUser = $this->user;
-
-		include_once("./Modules/Wiki/classes/class.ilWikiUserHTMLExport.php");
-
-		$user_export = new ilWikiUserHTMLExport($this, $ilDB, $ilUser);
-		return $user_export->getProgress();
-	}
-
-	/**
-	 * Send user html export file
-	 */
-	function deliverUserHTMLExport()
-	{
-		$ilDB = $this->db;
-		$ilUser = $this->user;
-
-		include_once("./Modules/Wiki/classes/class.ilWikiUserHTMLExport.php");
-
-		$user_export = new ilWikiUserHTMLExport($this, $ilDB, $ilUser);
-		return $user_export->deliverFile();
-	}
-	
-	
-	/**
-	 * Decorate adv md value
-	 *
-	 * @param string $a_value value
-	 * @return string decorated value (includes HTML)
-	 */
-	public function decorateAdvMDValue($a_value)
-	{		
-		include_once("./Modules/Wiki/classes/class.ilWikiPage.php");
-		if (ilWikiPage::_wikiPageExists($this->getId(), $a_value))
-		{
-			$url = ilObjWikiGUI::getGotoLink($this->getRefId(), $a_value);
-			return "<a href='".$url."'>".$a_value."</a>";
-		}		
-
-		return $a_value;
-	}
-
-
-
+    protected bool $page_toc = false;
+    protected int $style_id = 0;
+    protected string $introduction = "";
+    protected string $shorttitle = "";
+    protected string $startpage = "";
+    protected bool $rating_categories = false;
+    protected bool $rating_new_pages = false;
+    protected bool $rating = false;
+    protected bool $rating_block = false;
+    protected bool $rating_overall = false;
+    protected ilObjUser $user;
+    protected bool $online = false;
+    protected bool $public_notes = true;
+    protected bool $empty_page_templ = true;
+    protected bool $link_md_values = false;
+    protected ilSetting $setting;
+    protected \ILIAS\Style\Content\DomainService $content_style_service;
+
+    public function __construct(
+        int $a_id = 0,
+        bool $a_call_by_reference = true
+    ) {
+        global $DIC;
+
+        $this->db = $DIC->database();
+        $this->user = $DIC->user();
+        $this->type = "wiki";
+        $this->setting = $DIC->settings();
+        parent::__construct($a_id, $a_call_by_reference);
+
+        $this->content_style_service = $DIC
+            ->contentStyle()
+            ->domain();
+    }
+
+    public function setOnline(bool $a_online): void
+    {
+        $this->online = $a_online;
+    }
+
+    public function getOnline(): bool
+    {
+        return $this->online;
+    }
+
+    // Set Enable Rating For Object.
+    public function setRatingOverall(bool $a_rating): void
+    {
+        $this->rating_overall = $a_rating;
+    }
+
+    public function getRatingOverall(): bool
+    {
+        return $this->rating_overall;
+    }
+
+    // Set Enable Rating.
+    public function setRating(bool $a_rating): void
+    {
+        $this->rating = $a_rating;
+    }
+
+    public function getRating(): bool
+    {
+        return $this->rating;
+    }
+
+    public function setRatingAsBlock(bool $a_rating): void
+    {
+        $this->rating_block = $a_rating;
+    }
+
+    public function getRatingAsBlock(): bool
+    {
+        return $this->rating_block;
+    }
+
+    public function setRatingForNewPages(bool $a_rating): void
+    {
+        $this->rating_new_pages = $a_rating;
+    }
+
+    public function getRatingForNewPages(): bool
+    {
+        return $this->rating_new_pages;
+    }
+
+    public function setRatingCategories(bool $a_rating): void
+    {
+        $this->rating_categories = $a_rating;
+    }
+
+    public function getRatingCategories(): bool
+    {
+        return $this->rating_categories;
+    }
+
+    public function setPublicNotes(bool $a_val): void
+    {
+        $this->public_notes = $a_val;
+    }
+
+    public function getPublicNotes(): bool
+    {
+        return $this->public_notes;
+    }
+
+    public function setStartPage(string $a_startpage): void
+    {
+        $this->startpage = ilWikiUtil::makeDbTitle($a_startpage);
+    }
+
+    public function getStartPage(): string
+    {
+        return $this->startpage;
+    }
+
+    public function setShortTitle(string $a_shorttitle): void
+    {
+        $this->shorttitle = $a_shorttitle;
+    }
+
+    public function getShortTitle(): string
+    {
+        return $this->shorttitle;
+    }
+
+    public function setIntroduction(string $a_introduction): void
+    {
+        $this->introduction = $a_introduction;
+    }
+
+    public function getIntroduction(): string
+    {
+        return $this->introduction;
+    }
+
+    public function setPageToc(bool $a_val): void
+    {
+        $this->page_toc = $a_val;
+    }
+
+    public function getPageToc(): bool
+    {
+        return $this->page_toc;
+    }
+
+    public function setEmptyPageTemplate(bool $a_val): void
+    {
+        $this->empty_page_templ = $a_val;
+    }
+
+    public function getEmptyPageTemplate(): bool
+    {
+        return $this->empty_page_templ;
+    }
+
+    public function setLinkMetadataValues(bool $a_val): void
+    {
+        $this->link_md_values = $a_val;
+    }
+
+    public function getLinkMetadataValues(): bool
+    {
+        return $this->link_md_values;
+    }
+
+    public function create(
+        bool $a_prevent_start_page_creation = false
+    ): int {
+        $ilDB = $this->db;
+
+        $id = parent::create();
+
+        $ilDB->insert("il_wiki_data", array(
+            "id" => array("integer", $this->getId()),
+            "is_online" => array("integer", (int) $this->getOnline()),
+            "startpage" => array("text", $this->getStartPage()),
+            "short" => array("text", $this->getShortTitle()),
+            "rating" => array("integer", (int) $this->getRating()),
+            "public_notes" => array("integer", (int) $this->getPublicNotes()),
+            "introduction" => array("clob", $this->getIntroduction()),
+            "empty_page_templ" => array("integer", (int) $this->getEmptyPageTemplate()),
+            ));
+
+        // create start page
+        if ($this->getStartPage() !== "" && !$a_prevent_start_page_creation) {
+            $start_page = new ilWikiPage();
+            $start_page->setWikiId($this->getId());
+            $start_page->setTitle($this->getStartPage());
+            $start_page->create();
+        }
+
+        return $id;
+    }
+
+    public function update(
+        bool $a_prevent_start_page_creation = false
+    ): bool {
+        $ilDB = $this->db;
+
+        if (!parent::update()) {
+            return false;
+        }
+
+        $ilDB->update("il_wiki_data", array(
+            "is_online" => array("integer", $this->getOnline()),
+            "startpage" => array("text", $this->getStartPage()),
+            "short" => array("text", $this->getShortTitle()),
+            "rating_overall" => array("integer", $this->getRatingOverall()),
+            "rating" => array("integer", $this->getRating()),
+            "rating_side" => array("integer", $this->getRatingAsBlock()), // #13455
+            "rating_new" => array("integer", $this->getRatingForNewPages()),
+            "rating_ext" => array("integer", $this->getRatingCategories()),
+            "public_notes" => array("integer", $this->getPublicNotes()),
+            "introduction" => array("clob", $this->getIntroduction()),
+            "page_toc" => array("integer", $this->getPageToc()),
+            "link_md_values" => array("integer", $this->getLinkMetadataValues()),
+            "empty_page_templ" => array("integer", $this->getEmptyPageTemplate())
+            ), array(
+            "id" => array("integer", $this->getId())
+            ));
+
+        // check whether start page exists
+        if (!ilWikiPage::exists($this->getId(), $this->getStartPage())
+            && !$a_prevent_start_page_creation) {
+            $start_page = new ilWikiPage();
+            $start_page->setWikiId($this->getId());
+            $start_page->setTitle($this->getStartPage());
+            $start_page->create();
+        }
+
+        return true;
+    }
+
+    public function read(): void
+    {
+        $ilDB = $this->db;
+
+        parent::read();
+
+        $query = "SELECT * FROM il_wiki_data WHERE id = " .
+            $ilDB->quote($this->getId(), "integer");
+        $set = $ilDB->query($query);
+        $rec = $ilDB->fetchAssoc($set);
+
+        $this->setOnline((bool) $rec["is_online"]);
+        $this->setStartPage((string) $rec["startpage"]);
+        $this->setShortTitle((string) $rec["short"]);
+        $this->setRatingOverall((bool) $rec["rating_overall"]);
+        $this->setRating((bool) $rec["rating"]);
+        $this->setRatingAsBlock((bool) $rec["rating_side"]);
+        $this->setRatingForNewPages((bool) $rec["rating_new"]);
+        $this->setRatingCategories((bool) $rec["rating_ext"]);
+        $this->setPublicNotes((bool) $rec["public_notes"]);
+        $this->setIntroduction((string) $rec["introduction"]);
+        $this->setPageToc((bool) $rec["page_toc"]);
+        $this->setEmptyPageTemplate((bool) $rec["empty_page_templ"]);
+        $this->setLinkMetadataValues((bool) $rec["link_md_values"]);
+    }
+
+
+    /**
+     * delete object and all related data
+     */
+    public function delete(): bool
+    {
+        $ilDB = $this->db;
+
+        // always call parent delete function first!!
+        if (!parent::delete()) {
+            return false;
+        }
+
+        // delete record of table il_wiki_data
+        $query = "DELETE FROM il_wiki_data" .
+            " WHERE id = " . $ilDB->quote($this->getId(), "integer");
+        $ilDB->manipulate($query);
+
+        // remove all notifications
+        ilNotification::removeForObject(ilNotification::TYPE_WIKI, $this->getId());
+
+        ilWikiPage::deleteAllPagesOfWiki($this->getId());
+
+        return true;
+    }
+
+    public static function checkShortTitleAvailability(
+        string $a_short_title
+    ): bool {
+        global $DIC;
+        $ilDB = $DIC->database();
+
+        if ($a_short_title === "") {
+            return true;
+        }
+        $res = $ilDB->queryF(
+            "SELECT id FROM il_wiki_data WHERE short = %s",
+            array("text"),
+            array($a_short_title)
+        );
+        if ($ilDB->fetchAssoc($res)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Lookup whether rating is activated for whole object.
+     */
+    public static function _lookupRatingOverall(int $a_wiki_id): bool
+    {
+        return (bool) self::_lookup($a_wiki_id, "rating_overall");
+    }
+
+    /**
+     * Lookup whether rating is activated.
+     */
+    public static function _lookupRating(int $a_wiki_id): bool
+    {
+        return (bool) self::_lookup($a_wiki_id, "rating");
+    }
+
+    /**
+     * Lookup whether rating categories are activated.
+     */
+    public static function _lookupRatingCategories(int $a_wiki_id): bool
+    {
+        return (bool) self::_lookup($a_wiki_id, "rating_ext");
+    }
+
+    /**
+     * Lookup whether rating side block is activated.
+     */
+    public static function _lookupRatingAsBlock(int $a_wiki_id): bool
+    {
+        return (bool) self::_lookup($a_wiki_id, "rating_side");
+    }
+
+    /**
+     * Lookup whether public notes are activated
+     */
+    public static function _lookupPublicNotes(int $a_wiki_id): bool
+    {
+        return (bool) self::_lookup($a_wiki_id, "public_notes");
+    }
+
+    /**
+     * Lookup whether metadata should be auto linked
+     */
+    public static function _lookupLinkMetadataValues(int $a_wiki_id): bool
+    {
+        return (bool) self::_lookup($a_wiki_id, "link_md_values");
+    }
+
+    /**
+     * Lookup a data field
+     * @return mixed
+     */
+    private static function _lookup(int $a_wiki_id, string $a_field)
+    {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+
+        $query = "SELECT $a_field FROM il_wiki_data WHERE id = " .
+            $ilDB->quote($a_wiki_id, "integer");
+        $set = $ilDB->query($query);
+        $rec = $ilDB->fetchAssoc($set);
+        return $rec[$a_field] ?? null;
+    }
+
+    public static function _lookupStartPage(int $a_wiki_id): string
+    {
+        return (string) self::_lookup($a_wiki_id, "startpage");
+    }
+
+    public static function writeStartPage(int $a_id, string $a_name): void
+    {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+
+        $ilDB->manipulate(
+            "UPDATE il_wiki_data SET " .
+            " startpage = " . $ilDB->quote(ilWikiUtil::makeDbTitle($a_name), "text") .
+            " WHERE id = " . $ilDB->quote($a_id, "integer")
+        );
+    }
+
+    /**
+     * Search in Wiki
+     */
+    public static function _performSearch(
+        int $a_wiki_id,
+        string $a_searchterm
+    ): array {
+        // query parser
+        $query_parser = new ilQueryParser($a_searchterm);
+        $query_parser->setCombination("or");
+        $query_parser->parse();
+
+        $search_result = new ilSearchResult();
+        if ($query_parser->validate()) {
+            $wiki_search = ilObjectSearchFactory::_getWikiContentSearchInstance($query_parser);
+            $wiki_search->setFilter(array('wpg'));
+            $r = $wiki_search->performSearch();
+            $search_result->mergeEntries($r);
+        }
+
+        $entries = $search_result->getEntries();
+
+        $found_pages = array();
+        foreach ($entries as $entry) {
+            if ($entry["obj_id"] == $a_wiki_id && is_array($entry["child"])) {
+                foreach ($entry["child"] as $child) {
+                    $found_pages[] = array("page_id" => $child);
+                }
+            }
+        }
+        return $found_pages;
+    }
+
+    //
+    // Important pages
+    //
+
+    public static function _lookupImportantPagesList(int $a_wiki_id): array
+    {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+
+        $set = $ilDB->query(
+            "SELECT * FROM il_wiki_imp_pages WHERE " .
+            " wiki_id = " . $ilDB->quote($a_wiki_id, "integer") . " ORDER BY ord ASC "
+        );
+
+        $imp_pages = array();
+
+        while ($rec = $ilDB->fetchAssoc($set)) {
+            $imp_pages[] = $rec;
+        }
+        return $imp_pages;
+    }
+
+    public static function _lookupMaxOrdNrImportantPages(
+        int $a_wiki_id
+    ): int {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+
+        $set = $ilDB->query(
+            "SELECT MAX(ord) as m FROM il_wiki_imp_pages WHERE " .
+            " wiki_id = " . $ilDB->quote($a_wiki_id, "integer")
+        );
+
+        $rec = $ilDB->fetchAssoc($set);
+        return (int) $rec["m"];
+    }
+
+
+    public function addImportantPage(
+        int $a_page_id,
+        int $a_nr = 0,
+        int $a_indent = 0
+    ): void {
+        $ilDB = $this->db;
+
+        if (!$this->isImportantPage($a_page_id)) {
+            if ($a_nr === 0) {
+                $a_nr = self::_lookupMaxOrdNrImportantPages($this->getId()) + 10;
+            }
+
+            $ilDB->manipulate("INSERT INTO il_wiki_imp_pages " .
+                "(wiki_id, ord, indent, page_id) VALUES (" .
+                $ilDB->quote($this->getId(), "integer") . "," .
+                $ilDB->quote($a_nr, "integer") . "," .
+                $ilDB->quote($a_indent, "integer") . "," .
+                $ilDB->quote($a_page_id, "integer") .
+                ")");
+        }
+    }
+
+    public function isImportantPage(
+        int $a_page_id
+    ): bool {
+        $ilDB = $this->db;
+
+        $set = $ilDB->query(
+            "SELECT * FROM il_wiki_imp_pages WHERE " .
+            " wiki_id = " . $ilDB->quote($this->getId(), "integer") . " AND " .
+            " page_id = " . $ilDB->quote($a_page_id, "integer")
+        );
+        if ($ilDB->fetchAssoc($set)) {
+            return true;
+        }
+        return false;
+    }
+
+    public function removeImportantPage(
+        int $a_id
+    ): void {
+        $ilDB = $this->db;
+
+        $ilDB->manipulate(
+            "DELETE FROM il_wiki_imp_pages WHERE "
+            . " wiki_id = " . $ilDB->quote($this->getId(), "integer")
+            . " AND page_id = " . $ilDB->quote($a_id, "integer")
+        );
+
+        $this->fixImportantPagesNumbering();
+    }
+
+    public function saveOrderingAndIndentation(
+        array $a_ord,
+        array $a_indent
+    ): bool {
+        $ilDB = $this->db;
+
+        $ipages = self::_lookupImportantPagesList($this->getId());
+
+        foreach ($ipages as $k => $v) {
+            if (isset($a_ord[$v["page_id"]])) {
+                $ipages[$k]["ord"] = (int) $a_ord[$v["page_id"]];
+            }
+            if (isset($a_indent[$v["page_id"]])) {
+                $ipages[$k]["indent"] = (int) $a_indent[$v["page_id"]];
+            }
+        }
+        $ipages = ilArrayUtil::sortArray($ipages, "ord", "asc", true);
+
+        // fix indentation: no 2 is allowed after a 0
+        $c_indent = 0;
+        $fixed = false;
+        foreach ($ipages as $k => $v) {
+            if ($v["indent"] == 2 && $c_indent == 0) {
+                $ipages[$k]["indent"] = 1;
+                $fixed = true;
+            }
+            $c_indent = $ipages[$k]["indent"];
+        }
+
+        $ord = 10;
+        reset($ipages);
+        foreach ($ipages as $k => $v) {
+            $ilDB->manipulate(
+                $q = "UPDATE il_wiki_imp_pages SET " .
+                " ord = " . $ilDB->quote($ord, "integer") . "," .
+                " indent = " . $ilDB->quote($v["indent"], "integer") .
+                " WHERE wiki_id = " . $ilDB->quote($v["wiki_id"], "integer") .
+                " AND page_id = " . $ilDB->quote($v["page_id"], "integer")
+            );
+            $ord += 10;
+        }
+
+        return $fixed;
+    }
+
+    public function fixImportantPagesNumbering(): void
+    {
+        $ilDB = $this->db;
+
+        $ipages = self::_lookupImportantPagesList($this->getId());
+
+        // fix indentation: no 2 is allowed after a 0
+        $c_indent = 0;
+        foreach ($ipages as $k => $v) {
+            if ($v["indent"] == 2 && $c_indent == 0) {
+                $ipages[$k]["indent"] = 1;
+            }
+            $c_indent = $ipages[$k]["indent"];
+        }
+
+        $ord = 10;
+        foreach ($ipages as $k => $v) {
+            $ilDB->manipulate(
+                $q = "UPDATE il_wiki_imp_pages SET " .
+                " ord = " . $ilDB->quote($ord, "integer") .
+                ", indent = " . $ilDB->quote($v["indent"], "integer") .
+                " WHERE wiki_id = " . $ilDB->quote($v["wiki_id"], "integer") .
+                " AND page_id = " . $ilDB->quote($v["page_id"], "integer")
+            );
+            $ord += 10;
+        }
+    }
+
+    //
+    // Page TOC
+    //
+
+    public static function _lookupPageToc(
+        int $a_wiki_id
+    ): bool {
+        return (bool) self::_lookup($a_wiki_id, "page_toc");
+    }
+
+    public function cloneObject(int $target_id, int $copy_id = 0, bool $omit_tree = false): ?ilObject
+    {
+        $new_obj = parent::cloneObject($target_id, $copy_id, $omit_tree);
+
+        // Custom meta data activation is stored in a container setting
+        ilContainer::_writeContainerSetting(
+            $new_obj->getId(),
+            ilObjectServiceSettingsGUI::CUSTOM_METADATA,
+            ilContainer::_lookupContainerSetting(
+                $this->getId(),
+                ilObjectServiceSettingsGUI::CUSTOM_METADATA,
+                0
+            )
+        );
+
+        //copy online status if object is not the root copy object
+        $cp_options = ilCopyWizardOptions::_getInstance($copy_id);
+
+        if (!$cp_options->isRootNode($this->getRefId())) {
+            $new_obj->setOnline($this->getOnline());
+        }
+
+        //$new_obj->setTitle($this->getTitle());		// see #20074
+        $new_obj->setStartPage($this->getStartPage());
+        $new_obj->setShortTitle($this->getShortTitle());
+        $new_obj->setRatingOverall($this->getRatingOverall());
+        $new_obj->setRating($this->getRating());
+        $new_obj->setRatingAsBlock($this->getRatingAsBlock());
+        $new_obj->setRatingForNewPages($this->getRatingForNewPages());
+        $new_obj->setRatingCategories($this->getRatingCategories());
+        $new_obj->setPublicNotes($this->getPublicNotes());
+        $new_obj->setIntroduction($this->getIntroduction());
+        $new_obj->setPageToc($this->getPageToc());
+        $new_obj->update();
+
+        $this->content_style_service
+            ->styleForRefId($this->getRefId())
+            ->cloneTo($new_obj->getId());
+
+        // copy content
+        $pages = ilWikiPage::getAllWikiPages($this->getId());
+        if (count($pages) > 0) {
+            // if we have any pages, delete the start page first
+            $pg_id = ilWikiPage::getPageIdForTitle($new_obj->getId(), $new_obj->getStartPage());
+            $start_page = new ilWikiPage($pg_id);
+            $start_page->delete();
+        }
+        $map = array();
+        foreach ($pages as $p) {
+            $page = new ilWikiPage($p["id"]);
+            $new_page = new ilWikiPage();
+            $new_page->setTitle($page->getTitle());
+            $new_page->setWikiId($new_obj->getId());
+            $new_page->setTitle($page->getTitle());
+            $new_page->setBlocked($page->getBlocked());
+            $new_page->setRating($page->getRating());
+            $new_page->hideAdvancedMetadata($page->isAdvancedMetadataHidden());
+            $new_page->create();
+
+            $page->copy($new_page->getId(), "", 0, true);
+            //$new_page->setXMLContent($page->copyXMLContent(true));
+            //$new_page->buildDom(true);
+            //$new_page->update();
+            $map[$p["id"]] = $new_page->getId();
+
+            ilAdvancedMDValues::_cloneValues(
+                $copy_id,
+                $this->getId(),
+                $new_obj->getId(),
+                "wpg",
+                (int) $p["id"],
+                $new_page->getId(),
+            );
+        }
+
+        // copy important pages
+        foreach (self::_lookupImportantPagesList($this->getId()) as $ip) {
+            $new_obj->addImportantPage($map[$ip["page_id"]], $ip["ord"], $ip["indent"]);
+        }
+        $this->updateInternalLinksOnCopy($map);
+
+        // copy rating categories
+        foreach (ilRatingCategory::getAllForObject($this->getId()) as $rc) {
+            $new_rc = new ilRatingCategory();
+            $new_rc->setParentId($new_obj->getId());
+            $new_rc->setTitle((string) $rc["title"]);
+            $new_rc->setDescription((string) $rc["description"]);
+            $new_rc->save();
+        }
+
+        return $new_obj;
+    }
+
+    protected function updateInternalLinksOnCopy(array $map) : void
+    {
+        foreach ($map as $old_page_id => $new_page_id) {
+            // get links with targets inside the wiki
+            $targets = ilInternalLink::_getTargetsOfSource(
+                "wpg:pg",
+                $old_page_id,
+                "-"
+            );
+            foreach ($targets as $t) {
+                if ((int) $t["inst"] === 0 && in_array($t["type"], ["wpag", "wpage"]) && isset($map[(int) $t["id"]])) {
+                    $new_page = new ilWikiPage($new_page_id);
+                    if ($new_page->moveIntLinks([$t["id"] => $map[(int) $t["id"]]])) {
+                        $new_page->update(true, true);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Get template selection on creation? If more than one template (including empty page template)
+     * is activated -> return true
+     * @return bool true, if manual template selection needed
+     */
+    public function getTemplateSelectionOnCreation(): bool
+    {
+        $num = (int) $this->getEmptyPageTemplate();
+        $wt = new ilWikiPageTemplate($this->getId());
+        $ts = $wt->getAllInfo(ilWikiPageTemplate::TYPE_NEW_PAGES);
+        $num += count($ts);
+        if ($num > 1) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Create new wiki page
+     */
+    public function createWikiPage(
+        string $a_page_title,
+        int $a_template_page = 0
+    ): ilWikiPage {
+        // check if template has to be used
+        if ($a_template_page === 0) {
+            if (!$this->getEmptyPageTemplate()) {
+                $wt = new ilWikiPageTemplate($this->getId());
+                $ts = $wt->getAllInfo(ilWikiPageTemplate::TYPE_NEW_PAGES);
+                if (count($ts) === 1) {
+                    $t = current($ts);
+                    $a_template_page = $t["wpage_id"];
+                }
+            }
+        }
+
+        // create the page
+        $page = new ilWikiPage();
+        $page->setWikiId($this->getId());
+        $page->setTitle(ilWikiUtil::makeDbTitle($a_page_title));
+        if ($this->getRating() && $this->getRatingForNewPages()) {
+            $page->setRating(true);
+        }
+
+        // needed for notification
+        $page->setWikiRefId($this->getRefId());
+        $page->create();
+
+        // copy template into new page
+        if ($a_template_page > 0) {
+            $orig = new ilWikiPage($a_template_page);
+            $orig->copy($page->getId());
+
+            // #15718
+            ilAdvancedMDValues::_cloneValues(
+                0,
+                $this->getId(),
+                $this->getId(),
+                "wpg",
+                $a_template_page,
+                $page->getId()
+            );
+        }
+
+        return $page;
+    }
+
+    public static function getAdvMDSubItemTitle(
+        int $a_obj_id,
+        string $a_sub_type,
+        int $a_sub_id
+    ): string {
+        global $DIC;
+
+        $lng = $DIC->language();
+
+        if ($a_sub_type === "wpg") {
+            $lng->loadLanguageModule("wiki");
+            return $lng->txt("wiki_wpg") . ' "' . ilWikiPage::lookupTitle($a_sub_id) . '"';
+        }
+        return "";
+    }
+
+    public function initUserHTMLExport(
+        bool $with_comments = false
+    ): void {
+        $ilDB = $this->db;
+        $ilUser = $this->user;
+
+        $user_export = new ilWikiUserHTMLExport($this, $ilDB, $ilUser, $with_comments);
+        $user_export->initUserHTMLExport();
+    }
+
+    public function startUserHTMLExport(
+        bool $with_comments = false
+    ): void {
+        $ilDB = $this->db;
+        $ilUser = $this->user;
+
+        $user_export = new ilWikiUserHTMLExport($this, $ilDB, $ilUser, $with_comments);
+        $user_export->startUserHTMLExport();
+    }
+
+    /**
+     * Get user html export progress
+     * @return array progress info
+     */
+    public function getUserHTMLExportProgress(
+        bool $with_comments = false
+    ): array {
+        $ilDB = $this->db;
+        $ilUser = $this->user;
+
+        $user_export = new ilWikiUserHTMLExport($this, $ilDB, $ilUser, $with_comments);
+        return $user_export->getProgress();
+    }
+
+    public function deliverUserHTMLExport(
+        bool $with_comments = false
+    ): void {
+        $ilDB = $this->db;
+        $ilUser = $this->user;
+
+        $user_export = new ilWikiUserHTMLExport($this, $ilDB, $ilUser, $with_comments);
+        $user_export->deliverFile();
+    }
+
+
+    /**
+     * Decorate adv md value
+     * @param string $a_value value
+     * @return string decorated value (includes HTML)
+     */
+    public function decorateAdvMDValue(string $a_value): string
+    {
+        if (ilWikiPage::_wikiPageExists($this->getId(), $a_value)) {
+            $url = ilObjWikiGUI::getGotoLink($this->getRefId(), $a_value);
+            return "<a href='" . $url . "'>" . $a_value . "</a>";
+        }
+
+        return $a_value;
+    }
+
+    /**
+     * Is export possible
+     */
+    public function isCommentsExportPossible(): bool
+    {
+        $setting = $this->setting;
+        $privacy = ilPrivacySettings::getInstance();
+        if ($setting->get("disable_comments")) {
+            return false;
+        }
+
+        if (!$this->getPublicNotes()) {
+            return false;
+        }
+        if (!$privacy->enabledCommentsExport()) {
+            return false;
+        }
+        return true;
+    }
 }
-?>

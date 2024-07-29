@@ -7,6 +7,19 @@ use ILIAS\FileUpload\DTO\Metadata;
 use ILIAS\FileUpload\DTO\ProcessingStatus;
 use Psr\Http\Message\StreamInterface;
 
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ *      https://www.ilias.de
+ *      https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 /**
  * Class WhitelistExtensionPreProcessor
  *
@@ -16,57 +29,57 @@ use Psr\Http\Message\StreamInterface;
  * @since   5.3
  * @version 1.0.0
  */
-final class WhitelistExtensionPreProcessor implements PreProcessor {
-
-	/**
-	 * @var string[]
-	 */
-	private $whitelist;
-
-
-	/**
-	 * WhitelistExtensionPreProcessor constructor.
-	 *
-	 * Example:
-	 * ['jpg', 'svg', 'png']
-	 *
-	 * Matches:
-	 * example.jpg
-	 * example.svg
-	 * example.png
-	 *
-	 * No Match:
-	 * example.apng
-	 * example.png.exe
-	 * ...
-	 *
-	 * @param \string[] $whitelist The file extensions which should be whitelisted.
-	 */
-	public function __construct(array $whitelist) { $this->whitelist = $whitelist; }
+final class WhitelistExtensionPreProcessor implements PreProcessor
+{
+    /**
+     * @var string[]
+     */
+    private array $whitelist;
 
 
-	/**
-	 * @inheritDoc
-	 */
-	public function process(FileStream $stream, Metadata $metadata) {
-		if ($this->isWhitelisted($metadata->getFilename())) {
-			return new ProcessingStatus(ProcessingStatus::OK, 'Extension complies with whitelist.');
-		}
+    /**
+     * WhitelistExtensionPreProcessor constructor.
+     *
+     * Example:
+     * ['jpg', 'svg', 'png']
+     *
+     * Matches:
+     * example.jpg
+     * example.svg
+     * example.png
+     *
+     * No Match:
+     * example.apng
+     * example.png.exe
+     * ...
+     *
+     * @param \string[] $whitelist The file extensions which should be whitelisted.
+     */
+    public function __construct(array $whitelist)
+    {
+        $this->whitelist = $whitelist;
+    }
 
-		return new ProcessingStatus(ProcessingStatus::REJECTED, 'Extension don\'t complies with whitelist.');
-	}
+
+    /**
+     * @inheritDoc
+     */
+    public function process(FileStream $stream, Metadata $metadata): ProcessingStatus
+    {
+        if ($this->isWhitelisted($metadata->getFilename())) {
+            return new ProcessingStatus(ProcessingStatus::OK, 'Extension complies with whitelist.');
+        }
+
+        return new ProcessingStatus(ProcessingStatus::REJECTED, 'Extension don\'t complies with whitelist.');
+    }
 
 
-	private function isWhitelisted($filename) {
-		$extensions = explode('.', $filename);
-		$extension = null;
+    private function isWhitelisted(string $filename): bool
+    {
+        $extensions = explode('.', $filename);
 
-		if (count($extensions) === 1) {
-			$extension = '';
-		} else {
-			$extension = end($extensions);
-		}
+        $extension = count($extensions) === 1 ? '' : end($extensions);
 
-		return in_array(strtolower($extension), $this->whitelist);
-	}
+        return in_array(strtolower($extension), $this->whitelist);
+    }
 }

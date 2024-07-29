@@ -1,6 +1,20 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * @author		Björn Heyser <bheyser@databay.de>
@@ -10,131 +24,127 @@
  */
 class ilTestDynamicQuestionSetFilterSelection
 {
-	CONST ANSWER_STATUS_FILTER_VALUE_ALL_NON_CORRECT = 'allNonCorrect';
-	CONST ANSWER_STATUS_FILTER_VALUE_NON_ANSWERED = 'nonAnswered';
-	CONST ANSWER_STATUS_FILTER_VALUE_WRONG_ANSWERED = 'wrongAnswered';
-	
-	/**
-	 * @var integer
-	 */
-	private $answerStatusActiveId = null;
-	
-	/**
-	 * @var string
-	 */
-	private $answerStatusSelection = null;
+    public const ANSWER_STATUS_FILTER_VALUE_ALL_NON_CORRECT = 'allNonCorrect';
+    public const ANSWER_STATUS_FILTER_VALUE_NON_ANSWERED = 'nonAnswered';
+    public const ANSWER_STATUS_FILTER_VALUE_WRONG_ANSWERED = 'wrongAnswered';
 
-	/**
-	 * @var array
-	 */
-	private $taxonomySelection = array();
+    /**
+     * @var integer
+     */
+    private $answerStatusActiveId = null;
 
-	/**
-	 * @var array
-	 */
-	private $forcedQuestionIds = array();
+    /**
+     * @var string
+     */
+    private $answerStatusSelection = null;
 
-	/**
-	 * @param int $answerStatusActiveId
-	 */
-	public function setAnswerStatusActiveId($answerStatusActiveId)
-	{
-		$this->answerStatusActiveId = $answerStatusActiveId;
-	}
+    /**
+     * @var array
+     */
+    private $taxonomySelection = array();
 
-	/**
-	 * @return int
-	 */
-	public function getAnswerStatusActiveId()
-	{
-		return $this->answerStatusActiveId;
-	}
+    /**
+     * @var array
+     */
+    private $forcedQuestionIds = array();
 
-	/**
-	 * @param null $answerStatusSelection
-	 */
-	public function setAnswerStatusSelection($answerStatusSelection)
-	{
-		$this->answerStatusSelection = $answerStatusSelection;
-	}
+    /**
+     * @param int $answerStatusActiveId
+     */
+    public function setAnswerStatusActiveId($answerStatusActiveId): void
+    {
+        $this->answerStatusActiveId = $answerStatusActiveId;
+    }
 
-	/**
-	 * @return null
-	 */
-	public function getAnswerStatusSelection()
-	{
-		return $this->answerStatusSelection;
-	}
-	
-	/**
-	 * @return bool
-	 */
-	public function hasAnswerStatusSelection()
-	{
-		switch( $this->getAnswerStatusSelection() )
-		{
-			case self::ANSWER_STATUS_FILTER_VALUE_ALL_NON_CORRECT:
-			case self::ANSWER_STATUS_FILTER_VALUE_NON_ANSWERED:
-			case self::ANSWER_STATUS_FILTER_VALUE_WRONG_ANSWERED:
-				
-				return true;
-		}
-		
-		return false;
-	}
+    /**
+     * @return int
+     */
+    public function getAnswerStatusActiveId(): ?int
+    {
+        return $this->answerStatusActiveId;
+    }
 
-	public function isAnswerStatusSelectionWrongAnswered()
-	{
-		return $this->getAnswerStatusSelection() == self::ANSWER_STATUS_FILTER_VALUE_WRONG_ANSWERED;
-	}
+    public function setAnswerStatusSelection($answerStatusSelection): void
+    {
+        $this->answerStatusSelection = $answerStatusSelection;
+    }
 
-	/**
-	 * @param array $taxonomySelection
-	 */
-	public function setTaxonomySelection($taxonomySelection)
-	{
-		$this->taxonomySelection = $taxonomySelection;
-	}
+    /**
+     * @return null
+     */
+    public function getAnswerStatusSelection(): ?string
+    {
+        return $this->answerStatusSelection;
+    }
 
-	/**
-	 * @return array
-	 */
-	public function getTaxonomySelection()
-	{
-		return $this->taxonomySelection;
-	}
-	
-	/**
-	 * @param $taxonomyId
-	 * @return bool
-	 */
-	public function hasSelectedTaxonomy($taxonomyId)
-	{
-		return isset($this->taxonomySelection[$taxonomyId]);
-	}
-	
-	/**
-	 * @param integer $taxonomyId
-	 * @return array
-	 */
-	public function getSelectedTaxonomy($taxonomyId)
-	{
-		return $this->taxonomySelection[$taxonomyId];
-	}
+    /**
+     * @return bool
+     */
+    public function hasAnswerStatusSelection(): bool
+    {
+        switch ($this->getAnswerStatusSelection()) {
+            case self::ANSWER_STATUS_FILTER_VALUE_ALL_NON_CORRECT:
+            case self::ANSWER_STATUS_FILTER_VALUE_NON_ANSWERED:
+            case self::ANSWER_STATUS_FILTER_VALUE_WRONG_ANSWERED:
 
-	/**
-	 * @param array $forcedQuestionIds
-	 */
-	public function setForcedQuestionIds($forcedQuestionIds)
-	{
-		$this->forcedQuestionIds = $forcedQuestionIds;
-	}
+                return true;
+        }
 
-	/**
-	 * @return array
-	 */
-	public function getForcedQuestionIds()
-	{
-		return $this->forcedQuestionIds;
-	}
+        return false;
+    }
+
+    public function isAnswerStatusSelectionWrongAnswered(): bool
+    {
+        return $this->getAnswerStatusSelection() == self::ANSWER_STATUS_FILTER_VALUE_WRONG_ANSWERED;
+    }
+
+    /**
+     * @param array $taxonomySelection
+     */
+    public function setTaxonomySelection($taxonomySelection): void
+    {
+        $this->taxonomySelection = $taxonomySelection;
+    }
+
+    /**
+     * @return array
+     */
+    public function getTaxonomySelection(): array
+    {
+        return $this->taxonomySelection;
+    }
+
+    /**
+     * @param $taxonomyId
+     * @return bool
+     */
+    public function hasSelectedTaxonomy($taxonomyId): bool
+    {
+        return isset($this->taxonomySelection[$taxonomyId]);
+    }
+
+    /**
+     * @param integer $taxonomyId
+     * @return array
+     */
+    public function getSelectedTaxonomy($taxonomyId): array
+    {
+        return $this->taxonomySelection[$taxonomyId];
+    }
+
+    /**
+     * @param array $forcedQuestionIds
+     */
+    public function setForcedQuestionIds($forcedQuestionIds): void
+    {
+        $this->forcedQuestionIds = $forcedQuestionIds;
+    }
+
+    /**
+     * @return array
+     */
+    public function getForcedQuestionIds(): array
+    {
+        return $this->forcedQuestionIds;
+    }
 }

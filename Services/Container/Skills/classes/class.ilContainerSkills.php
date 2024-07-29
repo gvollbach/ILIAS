@@ -1,6 +1,23 @@
 <?php
 
-/* Copyright (c) 1998-2017 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
+
+use ILIAS\Skill\Service\SkillTreeService;
 
 /**
  * Skills of a container
@@ -9,164 +26,97 @@
  */
 class ilContainerSkills
 {
+    protected ilDBInterface $db;
+    protected SkillTreeService $tree_service;
+    protected array $skills = [];
+    protected int $id = 0;
 
-	/**
-	 * @var ilDB
-	 */
-	protected $db;
+    public function __construct(int $a_obj_id)
+    {
+        global $DIC;
 
-	/**
-	 * @var array
-	 */
-	protected $skills = array();
+        $this->db = $DIC->database();
+        $this->tree_service = $DIC->skills()->tree();
 
-	/**
-	 * @var int object id
-	 */
-	protected $id;
+        $this->setId($a_obj_id);
+        if ($a_obj_id > 0) {
+            $this->read();
+        }
+    }
 
-	/**
-	 * Constrictor
-	 *
-	 * @param int $a_obj_id
-	 */
-	function __construct($a_obj_id)
-	{
-		global $DIC;
+    public function setId(int $a_val): void
+    {
+        $this->id = $a_val;
+    }
 
-		$this->db = $DIC->database();
+    public function getId(): int
+    {
+        return $this->id;
+    }
 
-		$this->setId($a_obj_id);
-		if ($a_obj_id > 0)
-		{
-			$this->read();
-		}
-	}
+    public function resetSkills(): void
+    {
+        $this->skills = [];
+    }
 
-	/**
-	 * Set id
-	 *
-	 * @param int $a_val object id
-	 */
-	function setId($a_val)
-	{
-		$this->id = $a_val;
-	}
+    public function addSkill(int $a_skill_id, int $a_tref_id): void
+    {
+        $this->skills[$a_skill_id . "-" . $a_tref_id] = [
+            "skill_id" => $a_skill_id,
+            "tref_id" => $a_tref_id
+        ];
+    }
 
-	/**
-	 * Get id
-	 *
-	 * @return int object id
-	 */
-	function getId()
-	{
-		return $this->id;
-	}
+    public function removeSkill(int $a_skill_id, int $a_tref_id): void
+    {
+        unset($this->skills[$a_skill_id . "-" . $a_tref_id]);
+    }
 
-	/**
-	 * Reset skills
-	 */
-	function resetSkills()
-	{
-		$this->skills = array();
-	}
+    public function getSkills(): array
+    {
+        return $this->skills;
+    }
 
-	/**
-	 * Add skill
-	 *
-	 * @param int $a_skill_id skill id
-	 * @param int $a_val tref id
-	 */
-	function addSkill($a_skill_id, $a_tref_id)
-	{
-		$this->skills[$a_skill_id."-".$a_tref_id] = array(
-			"skill_id" => $a_skill_id,
-			"tref_id" => $a_tref_id
-		);
-	}
+    /**
+     * @return array[]|string[]
+     */
+    public function getOrderedSkills(): array
+    {
+        $vtree = $this->tree_service->getGlobalVirtualSkillTree();
+        return $vtree->getOrderedNodeset($this->getSkills(), "skill_id", "tref_id");
+    }
 
-	/**
-	 * Remove skill
-	 *
-	 * @param int $a_skill_id skill id
-	 * @param int $a_val tref id
-	 */
-	function removeSkill($a_skill_id, $a_tref_id)
-	{
-		unset($this->skills[$a_skill_id."-".$a_tref_id]);
-	}
+    public function read(): void
+    {
+        $db = $this->db;
 
+        $this->skills = [];
+        $set = $db->query("SELECT * FROM cont_skills " .
+            " WHERE id  = " . $db->quote($this->getId(), "integer"));
+        while ($rec = $db->fetchAssoc($set)) {
+            $this->skills[$rec["skill_id"] . "-" . $rec["tref_id"]] = $rec;
+        }
+    }
 
-	/**
-	 * Get skills
-	 *
-	 * @return
-	 */
-	function getSkills()
-	{
-		return $this->skills;
-	}
+    public function delete(): void
+    {
+        $db = $this->db;
 
-	/**
-	 * Get odered skills
-	 *
-	 * @param
-	 * @return
-	 */
-	function getOrderedSkills()
-	{
-		include_once("./Services/Skill/classes/class.ilVirtualSkillTree.php");
-		$vtree = new ilVirtualSkillTree();
-		return $vtree->getOrderedNodeset($this->getSkills(), "skill_id", "tref_id");
-	}
+        $db->manipulate("DELETE FROM cont_skills WHERE " .
+            " id = " . $db->quote($this->getId(), "integer"));
+    }
 
+    public function save(): void
+    {
+        $db = $this->db;
 
-	/**
-	 * Read
-	 */
-	function read()
-	{
-		$db = $this->db;
-
-		$this->skills = array();
-		$set = $db->query("SELECT * FROM cont_skills ".
-			" WHERE id  = ".$db->quote($this->getId(), "integer"));
-		while ($rec = $db->fetchAssoc($set))
-		{
-			$this->skills[$rec["skill_id"]."-".$rec["tref_id"]] = $rec;
-		}
-	}
-
-	/**
-	 * Delete
-	 */
-	function delete()
-	{
-		$db = $this->db;
-
-		$db->manipulate("DELETE FROM cont_skills WHERE ".
-			" id = ".$db->quote($this->getId(), "integer"));
-
-	}
-
-	/**
-	 * Save
-	 */
-	function save()
-	{
-		$db = $this->db;
-
-		$this->delete();
-		foreach ($this->skills as $s)
-		{
-			$db->manipulate("INSERT INTO cont_skills ".
-				"(id, skill_id, tref_id) VALUES (".
-				$db->quote($this->getId(), "integer").",".
-				$db->quote($s["skill_id"], "integer").",".
-				$db->quote($s["tref_id"], "integer").")");
-		}
-	}
-
+        $this->delete();
+        foreach ($this->skills as $s) {
+            $db->manipulate("INSERT INTO cont_skills " .
+                "(id, skill_id, tref_id) VALUES (" .
+                $db->quote($this->getId(), "integer") . "," .
+                $db->quote($s["skill_id"], "integer") . "," .
+                $db->quote($s["tref_id"], "integer") . ")");
+        }
+    }
 }
-
-?>

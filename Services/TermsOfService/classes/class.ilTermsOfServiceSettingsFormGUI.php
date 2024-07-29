@@ -1,97 +1,90 @@
-<?php declare(strict_types=1);
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+<?php
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilTermsOfServiceSettingsFormGUI
  */
 class ilTermsOfServiceSettingsFormGUI extends ilPropertyFormGUI
 {
-    /** @var ilObjTermsOfService */
-    protected $tos;
+    protected ilObjTermsOfService $tos;
+    protected string $formAction = '';
+    protected string $saveCommand = '';
+    protected bool $isEditable = false;
+    protected string $translatedError = '';
 
-    /** @var string */
-    protected $formAction = '';
-
-    /** @var string */
-    protected $saveCommand = '';
-
-    /** @var $bool */
-    protected $isEditable = false;
-
-    /** @var string */
-    protected $translatedError = '';
-
-    /**
-     * ilTermsOfServiceSettingsForm constructor.
-     * @param ilObjTermsOfService $tos
-     * @param string              $formAction
-     * @param string              $saveCommand
-     * @param bool                $isEditable
-     */
     public function __construct(
         ilObjTermsOfService $tos,
         string $formAction = '',
         string $saveCommand = 'saveSettings',
         bool $isEditable = false
     ) {
-        $this->tos         = $tos;
-        $this->formAction  = $formAction;
+        $this->tos = $tos;
+        $this->formAction = $formAction;
         $this->saveCommand = $saveCommand;
-        $this->isEditable  = $isEditable;
+        $this->isEditable = $isEditable;
 
         parent::__construct();
 
         $this->initForm();
     }
 
-    /**
-     *
-     */
-    protected function initForm() : void
+    protected function initForm(): void
     {
         $this->setTitle($this->lng->txt('tos_tos_settings'));
         $this->setFormAction($this->formAction);
 
         $status = new ilCheckboxInputGUI($this->lng->txt('tos_status_enable'), 'tos_status');
-        $status->setValue(1);
-        $status->setChecked((bool) $this->tos->getStatus());
+        $status->setValue('1');
+        $status->setChecked($this->tos->getStatus());
         $status->setInfo($this->lng->txt('tos_status_desc'));
         $status->setDisabled(!$this->isEditable);
         $this->addItem($status);
+
+        $reevaluateOnLogin = new ilCheckboxInputGUI($this->lng->txt('tos_reevaluate_on_login'), 'tos_reevaluate_on_login');
+        $reevaluateOnLogin->setValue('1');
+        $reevaluateOnLogin->setChecked($this->tos->shouldReevaluateOnLogin());
+        $reevaluateOnLogin->setInfo($this->lng->txt('tos_reevaluate_on_login_desc'));
+        $reevaluateOnLogin->setDisabled(!$this->isEditable);
+        $status->addSubItem($reevaluateOnLogin);
 
         if ($this->isEditable) {
             $this->addCommandButton($this->saveCommand, $this->lng->txt('save'));
         }
     }
 
-    /**
-     * @param bool $status
-     */
-    public function setCheckInputCalled(bool $status) : void
+    public function setCheckInputCalled(bool $status): void
     {
         $this->check_input_called = $status;
     }
 
-    /**
-     * @return bool
-     */
-    public function hasTranslatedError() : bool
+    public function hasTranslatedError(): bool
     {
-        return strlen($this->translatedError) > 0;
+        return $this->translatedError !== '';
     }
 
-    /**
-     * @return string
-     */
-    public function getTranslatedError() : string
+    public function getTranslatedError(): string
     {
         return $this->translatedError;
     }
 
-    /**
-     * @return bool
-     */
-    public function saveObject() : bool
+    public function saveObject(): bool
     {
         if (!$this->fillObject()) {
             $this->setValuesByPost();
@@ -106,23 +99,24 @@ class ilTermsOfServiceSettingsFormGUI extends ilPropertyFormGUI
         $hasDocuments = ilTermsOfServiceDocument::where([])->count() > 0;
         if ($hasDocuments) {
             $this->tos->saveStatus((bool) $this->getInput('tos_status'));
+            $this->tos->setReevaluateOnLogin((bool) $this->getInput('tos_reevaluate_on_login'));
             return true;
         }
 
         if (!$this->tos->getStatus()) {
             $this->translatedError = $this->lng->txt('tos_no_documents_exist_cant_save');
-            $this->getItemByPostVar('tos_status')->setChecked(false);
+            /** @var ilCheckboxInputGUI $item */
+            $item = $this->getItemByPostVar('tos_status');
+            $item->setChecked(false);
             return false;
         }
 
         $this->tos->saveStatus((bool) $this->getInput('tos_status'));
+        $this->tos->setReevaluateOnLogin((bool) $this->getInput('tos_reevaluate_on_login'));
         return true;
     }
 
-    /**
-     *
-     */
-    protected function fillObject() : bool
+    protected function fillObject(): bool
     {
         if (!$this->checkInput()) {
             return false;

@@ -1,118 +1,82 @@
 <?php
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 namespace ILIAS\FileUpload\Processor;
 
-use ILIAS\Filesystem\Stream\FileStream;
-use ILIAS\FileUpload\DTO\Metadata;
-use ILIAS\FileUpload\DTO\ProcessingStatus;
+class BlacklistExtensionPreProcessor extends AbstractRecursiveZipPreProcessor implements PreProcessor
+{
+    private string $reason;
+    /**
+     * @var string[]
+     */
+    private array $blacklist;
 
-/**
- * Class BlacklistExtensionPreProcessor
- *
- * PreProcessor which denies all blacklisted file extensions.
- *
- * @author  Nicolas Schäfli <ns@studer-raimann.ch>
- * @since   5.3
- * @version 1.0.0
- */
-final class BlacklistExtensionPreProcessor implements PreProcessor {
+    /**
+     * BlacklistExtensionPreProcessor constructor.
+     * Example:
+     * ['jpg', 'svg', 'png', '']
+     * Matches:
+     * example.jpg
+     * example.svg
+     * example.png
+     * example
+     * No Match:
+     * example.apng
+     * example.png.exe
+     * ...
+     *
+     * @param \string[] $blacklist The file extensions which should be blacklisted.
+     */
+    public function __construct(array $blacklist, string $reason = 'Extension is blacklisted.')
+    {
+        $this->blacklist = $blacklist;
+        $this->reason = $reason;
+    }
 
-	/**
-	 * @var string
-	 */
-	private $reason;
-	/**
-	 * @var string[]
-	 */
-	private $blacklist;
+    protected function checkPath(string $path): bool
+    {
+        $extension = $this->getExtensionForFilename($path);
+        if (preg_match('/^ph(p[3457]?|t|tml|ar)$/i', $extension)) {
+            return false;
+        }
 
+        $in_array = in_array($extension, $this->blacklist, true);
+        if ($in_array) {
+            $this->reason = $this->reason .= " ($path)";
+            return false;
+        }
+        return true;
+    }
 
-	/**
-	 * BlacklistExtensionPreProcessor constructor.
-	 *
-	 * Example:
-	 * ['jpg', 'svg', 'png', '']
-	 *
-	 * Matches:
-	 * example.jpg
-	 * example.svg
-	 * example.png
-	 * example
-	 *
-	 * No Match:
-	 * example.apng
-	 * example.png.exe
-	 * ...
-	 *
-	 * @param \string[] $blacklist The file extensions which should be blacklisted.
-	 * @param string    $reason
-	 */
-	public function __construct(array $blacklist, $reason = 'Extension is blacklisted.') {
-		$this->blacklist = $blacklist;
-		$this->reason = $reason;
-	}
+    protected function getRejectionMessage(): string
+    {
+        return $this->reason;
+    }
 
+    protected function getOKMessage(): string
+    {
+        return 'Extension is not blacklisted.';
+    }
 
-	/**
-	 * @inheritDoc
-	 */
-	public function process(FileStream $stream, Metadata $metadata) {
-		if ($this->isBlacklisted($metadata, $stream)) {
-			return new ProcessingStatus(ProcessingStatus::REJECTED, $this->reason);
-		}
+    private function getExtensionForFilename(string $filename): string
+    {
+        $extensions = explode('.', $filename);
 
-		return new ProcessingStatus(ProcessingStatus::OK, 'Extension is not blacklisted.');
-	}
-
-
-	/**
-	 * Checks if the current filename has a listed extension. (*.png, *.mp4 etc ...)
-	 *
-	 * @param Metadata   $metadata
-	 *
-	 * @param FileStream $stream
-	 *
-	 * @return bool True if the extension is listed, otherwise false.
-	 */
-	private function isBlacklisted(Metadata $metadata, FileStream $stream) {
-		$filename = $metadata->getFilename();
-		$extension = $this->getExtensionForFilename($filename);
-
-		if (strtolower($extension) === 'zip') {
-			$zip_file_path = $stream->getMetadata('uri');
-			$zip = new \ZipArchive();
-			$zip->open($zip_file_path);
-
-			for ($i = 0; $i < $zip->numFiles; $i++) {
-				$original_path = $zip->getNameIndex($i);
-				if (in_array($this->getExtensionForFilename($original_path), $this->blacklist)) {
-					$zip->close();
-
-					return true;
-				}
-			}
-			$zip->close();
-		}
-
-		return in_array($extension, $this->blacklist);
-	}
-
-
-	/**
-	 * @param $filename
-	 *
-	 * @return null|string
-	 */
-	private function getExtensionForFilename($filename) {
-		$extensions = explode('.', $filename);
-		$extension = null;
-
-		if (count($extensions) <= 1) {
-			$extension = '';
-		} else {
-			$extension = strtolower(end($extensions));
-		}
-
-		return $extension;
-	}
+        return count($extensions) <= 1 ? '' : strtolower(end($extensions));
+    }
 }

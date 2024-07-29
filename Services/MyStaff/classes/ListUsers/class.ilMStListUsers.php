@@ -1,41 +1,61 @@
 <?php
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
+declare(strict_types=1);
+
+namespace ILIAS\MyStaff\ListUsers;
+
+use ILIAS\DI\Container;
+use ILIAS\Services\MyStaff\Utils\ListFetcherResult;
 
 /**
  * Class ilListUser
- *
  * @author Martin Studer <ms@studer-raimann.ch>
  */
-class ilMStListUsers {
+class ilMStListUsers
+{
+    private Container $dic;
 
-	/**
-	 * @param array $arr_usr_ids
-	 * @param array $options
-	 *
-	 * @return array|int
-	 */
-	public static function getData(array $arr_usr_ids = array(), array $options = array()) {
-		global $DIC;
+    /**
+     * ilMStListUsers constructor.
+     * @param Container $dic
+     */
+    public function __construct(Container $dic)
+    {
+        $this->dic = $dic;
+    }
 
-		//Permissions
-		if (count($arr_usr_ids) == 0) {
-			if ($options['count']) {
-				return 0;
-			} else {
-				return array();
-			}
-		}
+    final public function getData(array $arr_usr_ids = array(), array $options = array()): ListFetcherResult
+    {
+        //Permissions
+        if (count($arr_usr_ids) == 0) {
+            return new ListFetcherResult([], 0);
+        }
 
-		$_options = array(
-			'filters' => array(),
-			'sort' => array(),
-			'limit' => array(),
-			'count' => false,
-		);
-		$options = array_merge($_options, $options);
+        $_options = array(
+            'filters' => array(),
+            'sort' => array(),
+            'limit' => array(),
+            'count' => false,
+        );
+        $options = array_merge($_options, $options);
 
-		$select = 'SELECT
+        $select = 'SELECT
 				   usr_id,
-				   time_limit_owner,
 				   login,
 				   gender,
 	               firstname,
@@ -50,118 +70,153 @@ class ilMStListUsers {
 	               sel_country,
 	               hobby,
 	               email,
+	               second_email,
 	               matriculation,
-	               phone_office,
-	               phone_mobile,
 	               active
-	               FROM ' . $DIC->database()->quoteIdentifier('usr_data') .
+	               FROM ' . $this->dic->database()->quoteIdentifier('usr_data') .
 
-			self::createWhereStatement($arr_usr_ids, $options['filters']);
+            self::createWhereStatement($arr_usr_ids, $options['filters']);
 
-		if ($options['count']) {
-			$result = $DIC->database()->query($select);
+        $result = $this->dic->database()->query($select);
+        $numRows = $this->dic->database()->numRows($result);
 
-			return $DIC->database()->numRows($result);
-		}
+        if ($options['sort']) {
+            $select .= " ORDER BY " . $options['sort']['field'] . " " . $options['sort']['direction'];
+        }
 
-		if ($options['sort']) {
-			$select .= " ORDER BY " . $options['sort']['field'] . " " . $options['sort']['direction'];
-		}
+        if (isset($options['limit']['start']) && isset($options['limit']['end'])) {
+            $select .= " LIMIT " . $options['limit']['start'] . "," . $options['limit']['end'];
+        }
 
-		if (isset($options['limit']['start']) && isset($options['limit']['end'])) {
-			$select .= " LIMIT " . $options['limit']['start'] . "," . $options['limit']['end'];
-		}
+        $result = $this->dic->database()->query($select);
+        $user_data = array();
 
-		$result = $DIC->database()->query($select);
-		$user_data = array();
+        while ($user = $this->dic->database()->fetchAssoc($result)) {
+            $list_user = new ilMStListUser();
+            $list_user->setUsrId(intval($user['usr_id']));
+            $list_user->setGender($user['gender'] ?? "");
+            $list_user->setTitle($user['title'] ?? "");
+            $list_user->setInstitution($user['institution'] ?? "");
+            $list_user->setDepartment($user['department'] ?? "");
+            $list_user->setStreet($user['street'] ?? "");
+            $list_user->setZipcode($user['zipcode'] ?? "");
+            $list_user->setCity($user['city'] ?? "");
+            $list_user->setCountry($user['country'] ?? "");
+            $list_user->setSelCountry($user['sel_country'] ?? "");
+            $list_user->setHobby($user['hobby'] ?? "");
+            $list_user->setMatriculation($user['matriculation'] ?? "");
+            $list_user->setActive(intval($user['active']));
+            $list_user->setLogin($user['login']);
+            $list_user->setFirstname($user['firstname']);
+            $list_user->setLastname($user['lastname']);
+            $list_user->setEmail($user['email'] ?? "");
+            $list_user->setSecondEmail($user['second_email'] ?? "");
 
-		while ($user = $DIC->database()->fetchAssoc($result)) {
-			$list_user = new ilMStListUser();
-			$list_user->setUsrId($user['usr_id']);
-			$list_user->setGender($user['gender']);
-			$list_user->setTitle($user['title']);
-			$list_user->setInstitution($user['institution']);
-			$list_user->setDepartment($user['department']);
-			$list_user->setStreet($user['street']);
-			$list_user->setZipcode($user['zipcode']);
-			$list_user->setCity($user['city']);
-			$list_user->setCountry($user['country']);
-			$list_user->setSelCountry($user['sel_country']);
-			$list_user->setHobby($user['hobby']);
-			$list_user->setMatriculation($user['matriculation']);
-			$list_user->setActive($user['active']);
-			$list_user->setTimeLimitOwner($user['time_limit_owner']);
-			$list_user->setLogin($user['login']);
-			$list_user->setFirstname($user['firstname']);
-			$list_user->setLastname($user['lastname']);
-			$list_user->setEmail($user['email']);
-			$list_user->setPhone($user['phone_office']);
-			$list_user->setMobilePhone($user['phone_mobile']);
+            $user_data[] = $list_user;
+        }
 
-			$user_data[] = $list_user;
-		}
+        return new ListFetcherResult($user_data, $numRows);
+    }
 
-		return $user_data;
-	}
+    /**
+     * Returns the WHERE Part for the Queries using parameter $user_ids AND local variable $filters
+     */
+    private function createWhereStatement(array $arr_usr_ids, array $arr_filter): string
+    {
+        $where = array();
 
+        $where[] = $this->dic->database()->in('usr_data.usr_id', $arr_usr_ids, false, 'integer');
 
-	/**
-	 * Returns the WHERE Part for the Queries using parameter $user_ids AND local variable $filters
-	 *
-	 * @param array $arr_usr_ids
-	 * @param array $arr_filter
-	 *
-	 * @return string
-	 */
-	private static function createWhereStatement(array $arr_usr_ids, array $arr_filter) {
-		global $DIC;
+        if (!empty($arr_filter['user'])) {
+            $where[] = "(" . $this->dic->database()
+           ->like(
+               "usr_data.login",
+               "text",
+               "%" . $arr_filter['user'] . "%"
+           ) . " " . "OR " . $this->dic->database()
+           ->like(
+               "usr_data.firstname",
+               "text",
+               "%" . $arr_filter['user'] . "%"
+           ) . " " . "OR " . $this->dic->database()
+          ->like(
+              "usr_data.lastname",
+              "text",
+              "%" . $arr_filter['user'] . "%"
+          ) . " " . "OR " . $this->dic->database()
+        ->like(
+            "usr_data.email",
+            "text",
+            "%" . $arr_filter['user'] . "%"
+        ) . " " . "OR " . $this->dic->database()
+         ->like(
+             "usr_data.second_email",
+             "text",
+             "%" . $arr_filter['user'] . "%"
+         ) . ") ";
+        }
 
-		$where = array();
+        if (!empty($arr_filter['org_unit'])) {
+            $where[] = 'usr_data.usr_id IN (SELECT user_id FROM il_orgu_ua WHERE orgu_id = ' . $this->dic->database()
+                                                                                                         ->quote(
+                                                                                                             $arr_filter['org_unit'],
+                                                                                                             'integer'
+                                                                                                         ) . ')';
+        }
 
-		$where[] = $DIC->database()->in('usr_data.usr_id', $arr_usr_ids, false, 'integer');
+        if (!empty($arr_filter['lastname'])) {
+            $where[] = '(lastname LIKE ' . $this->dic->database()->quote('%' . str_replace(
+                '*',
+                '%',
+                $arr_filter['lastname']
+            ) . '%', 'text') . ')';
+        }
 
-		if (!empty($arr_filter['user'])) {
+        if (!empty($arr_filter['firstname'])) {
+            $where[] = '(firstname LIKE ' . $this->dic->database()->quote('%' . str_replace(
+                '*',
+                '%',
+                $arr_filter['firstname']
+            ) . '%', 'text') . ')';
+        }
 
-			$where[] = "(" . $DIC->database()->like("usr_data.login", "text", "%" . $arr_filter['user'] . "%") . " " . "OR " . $DIC->database()
-					->like("usr_data.firstname", "text", "%" . $arr_filter['user'] . "%") . " " . "OR " . $DIC->database()
-					->like("usr_data.lastname", "text", "%" . $arr_filter['user'] . "%") . " " . "OR " . $DIC->database()
-					->like("usr_data.email", "text", "%" . $arr_filter['user'] . "%") . ") ";
-		}
+        if (!empty($arr_filter['email'])) {
+            $where[] = '(email LIKE ' . $this->dic->database()->quote('%' . str_replace(
+                '*',
+                '%',
+                $arr_filter['email']
+            ) . '%', 'text') . ')';
+        }
 
-		if (!empty($arr_filter['org_unit'])) {
-			$where[] = 'usr_data.usr_id IN (SELECT user_id FROM il_orgu_ua WHERE orgu_id = ' . $DIC->database()
-					->quote($arr_filter['org_unit'], 'integer') . ')';
-		}
+        if (!empty($arr_filter['second_email'])) {
+            $where[] = '(second_email LIKE ' . $this->dic->database()->quote('%' . str_replace(
+                '*',
+                '%',
+                $arr_filter['second_email']
+            ) . '%', 'text') . ')';
+        }
 
-		if (!empty($arr_filter['lastname'])) {
-			$where[] = '(lastname LIKE ' . $DIC->database()->quote('%' . str_replace('*', '%', $arr_filter['lastname']) . '%', 'text') . ')';
-		}
+        if (!empty($arr_filter['title'])) {
+            $where[] = '(title LIKE ' . $this->dic->database()->quote('%' . str_replace(
+                '*',
+                '%',
+                $arr_filter['title']
+            ) . '%', 'text') . ')';
+        }
 
-		if (!empty($arr_filter['firstname'])) {
-			$where[] = '(firstname LIKE ' . $DIC->database()->quote('%' . str_replace('*', '%', $arr_filter['firstname']) . '%', 'text') . ')';
-		}
+        if ($arr_filter['activation'] ?? false) {
+            if ($arr_filter['activation'] == 'active') {
+                $where[] = '(active = "1")';
+            }
+            if ($arr_filter['activation'] == 'inactive') {
+                $where[] = '(active = "0")';
+            }
+        }
 
-		if (!empty($arr_filter['email'])) {
-			$where[] = '(email LIKE ' . $DIC->database()->quote('%' . str_replace('*', '%', $arr_filter['email']) . '%', 'text') . ')';
-		}
-
-		if (!empty($arr_filter['title'])) {
-			$where[] = '(title LIKE ' . $DIC->database()->quote('%' . str_replace('*', '%', $arr_filter['title']) . '%', 'text') . ')';
-		}
-
-		if ($arr_filter['activation']) {
-			if ($arr_filter['activation'] == 'active') {
-				$where[] = '(active = "1")';
-			}
-			if ($arr_filter['activation'] == 'inactive') {
-				$where[] = '(active = "0")';
-			}
-		}
-
-		if (!empty($where)) {
-			return ' WHERE ' . implode(' AND ', $where) . ' ';
-		} else {
-			return '';
-		}
-	}
+        if (!empty($where)) {
+            return ' WHERE ' . implode(' AND ', $where) . ' ';
+        } else {
+            return '';
+        }
+    }
 }

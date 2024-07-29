@@ -1,265 +1,222 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-require_once 'Modules/Test/classes/inc.AssessmentConstants.php';
-require_once 'Modules/Test/classes/class.ilTestTopList.php';
-require_once 'Services/Table/classes/class.ilTable2GUI.php';
 
 /**
- * Scoring class for tests
- * @author     Maximilian Becker <mbecker@databay.de>
- * @version    $Id$
- * @ingroup    ModulesTest
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\UI\Factory;
+use ILIAS\UI\Renderer;
+
+/**
+ * @author  Maximilian Becker <mbecker@databay.de>
+ * @ingroup ModulesTest
  */
 class ilTestToplistGUI
 {
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
-	
-	/**
-	 * @var ilTabsGUI
-	 */
-	protected $tabs;
-	
-	/**
-	 * @var ilTemplate
-	 */
-	protected $tpl;
-	
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
-	
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
-	
-	/** @var $object ilObjTest */
-	protected $object;
+    /** @var ilCtrl */
+    protected $ctrl;
+    /** @var ilTabsGUI */
+    protected $tabs;
+    /** @var ilTemplate */
+    protected $tpl;
+    /** @var ilLanguage */
+    protected $lng;
+    /** @var ilObjUser */
+    protected $user;
+    /** @var ilObjTest */
+    protected $object;
+    /** @var ilTestTopList */
+    protected $toplist;
+    /** @var Factory */
+    private $uiFactory;
+    /** @var Renderer */
+    private $uiRenderer;
 
-	/**
-	 * @var ilTestTopList
-	 */
-	protected $toplist;
+    /**
+     * @param ilObjTest $testOBJ
+     */
+    public function __construct(ilObjTest $testOBJ)
+    {
+        global $DIC;
+        /* @var ILIAS\DI\Container $DIC */
 
-	/**
-	 * @param ilObjTest $testOBJ
-	 */
-	public function __construct(ilObjTest $testOBJ)
-	{
-		global $DIC; /* @var ILIAS\DI\Container $DIC */
-		$this->ctrl = $DIC['ilCtrl'];
-		$this->tpl = $DIC['tpl'];
-		$this->lng = $DIC['lng'];
-		$this->user = $DIC['ilUser'];
-		
-		$this->object = $testOBJ;
-		$this->toplist = new ilTestTopList($testOBJ);
-	}
+        $this->ctrl = $DIC['ilCtrl'];
+        $this->tpl = $DIC['tpl'];
+        $this->lng = $DIC['lng'];
+        $this->user = $DIC['ilUser'];
+        $this->uiFactory = $DIC->ui()->factory();
+        $this->uiRenderer = $DIC->ui()->renderer();
 
-	public function executeCommand()
-	{
-		if(!$this->object->getHighscoreEnabled())
-		{
-			ilUtil::sendFailure($this->lng->txt('permission_denied'), true);
-			$this->ctrl->redirectByClass('ilObjTestGUI');
-		}
-		
-		$this->ctrl->saveParameter($this, 'active_id');
-		
-		$cmd = $this->ctrl->getCmd();
-		
-		switch($cmd)
-		{
-			default:
-				$this->showResultsToplistsCmd();
-		}
-	}
-	
-	protected function showResultsToplistsCmd()
-	{
-		$html = $this->renderMedianMarkPanel();
-		$html .= $this->renderResultsToplistByScore();
-		$html .= $this->renderResultsToplistByTime();
-		
-		$this->tpl->setVariable("ADM_CONTENT", $html);
-	}
-	
-	protected function renderMedianMarkPanel()
-	{
-		global $DIC; /* @var ILIAS\DI\Container $DIC */
-		
-		$title = $DIC->language()->txt('tst_median_mark_panel');
-		
-		// BH: this really is the "mark of median" ??!
-		$activeId = $this->object->getActiveIdOfUser($DIC->user()->getId());
-		$data = $this->object->getCompleteEvaluationData();
-		$median = $data->getStatistics()->getStatistics()->median();
-		$pct    = $data->getParticipant($activeId)->getMaxpoints() ? ($median / $data->getParticipant($activeId)->getMaxpoints()) * 100.0 : 0;
-		$mark   = $this->object->mark_schema->getMatchingMark($pct);
-		$content = $mark->getShortName();
-		
-		$panel = $DIC->ui()->factory()->panel()->standard(
-			$title, $DIC->ui()->factory()->legacy($content)
-		);
-		
-		return $DIC->ui()->renderer()->render($panel);
-	}
-	
-	protected function renderResultsToplistByScore()
-	{
-		$title = $this->lng->txt('toplist_by_score');
-		$html = '';
-		
-		if( $this->isTopTenRankingTableRequired() )
-		{
-			$data = $this->toplist->getGeneralToplistByPercentage($_GET['ref_id'], $this->user->getId());
-			
-			$table_gui = $this->buildTableGUI();
-			
-			$table_gui->setData($data);
-			$table_gui->setTitle($title);
+        $this->object = $testOBJ;
+        $this->toplist = new ilTestTopList($testOBJ);
+    }
 
-			$html .= $table_gui->getHTML();
-		}
+    /**
+     *
+     */
+    public function executeCommand(): void
+    {
+        if (!$this->object->getHighscoreEnabled()) {
+            $this->tpl->setOnScreenMessage('failure', $this->lng->txt('permission_denied'), true);
+            $this->ctrl->redirectByClass(ilObjTestGUI::class);
+        }
 
-		if( $this->isOwnRankingTableRequired() )
-		{
-			$table_gui = $this->buildTableGUI();
-			
-			$table_gui->setData(
-				$this->toplist->getUserToplistByPercentage($_GET['ref_id'], $this->user->getID())
-			);
-			
-			if( !$this->isTopTenRankingTableRequired() )
-			{
-				$table_gui->setTitle($title);
-			}
+        $this->ctrl->saveParameter($this, 'active_id');
 
-			$html .= $table_gui->getHTML();
-		}
+        $cmd = $this->ctrl->getCmd();
 
-		return $html;
-	}
-	
-	protected function renderResultsToplistByTime()
-	{
-		$title = $this->lng->txt('toplist_by_time');
-		$html = '';
+        switch ($cmd) {
+            default:
+                $this->showResultsToplistsCmd();
+        }
+    }
 
-		if( $this->isTopTenRankingTableRequired() )
-		{
-			$topData = $this->toplist->getGeneralToplistByWorkingtime($_GET['ref_id'], $this->user->getId());
-			
-			$table_gui = $this->buildTableGUI();
-			$table_gui->setData($topData);
-			$table_gui->setTitle($title);
+    protected function showResultsToplistsCmd(): void
+    {
+        $this->tpl->setContent(implode('', [
+            $this->renderMedianMarkPanel(),
+            $this->renderResultsToplistByScore(),
+            $this->renderResultsToplistByTime(),
+        ]));
+    }
 
-			$html .= $table_gui->getHTML();
-		}
+    /**
+     * @return string
+     */
+    protected function renderMedianMarkPanel(): string
+    {
+        $title = $this->lng->txt('tst_median_mark_panel');
 
-		if( $this->isOwnRankingTableRequired() )
-		{
-			$ownData = $this->toplist->getUserToplistByWorkingtime($_GET['ref_id'], $this->user->getID());
-			
-			$table_gui = $this->buildTableGUI();
-			
-			$table_gui->setData($ownData);
-			
-			if( !$this->isTopTenRankingTableRequired() )
-			{
-				$table_gui->setTitle($title);
-			}
-			
-			$html .= $table_gui->getHTML();
-		}
+        // BH: this really is the "mark of median" ??!
+        $activeId = $this->object->getActiveIdOfUser($this->user->getId());
+        $data = $this->object->getCompleteEvaluationData();
+        $median = $data->getStatistics()->getStatistics()->median();
+        $pct = $data->getParticipant($activeId)->getMaxpoints() ? ($median / $data->getParticipant($activeId)->getMaxpoints()) * 100.0 : 0;
+        $mark = $this->object->mark_schema->getMatchingMark($pct);
+        $content = $mark->getShortName();
 
-		return $html;
-	}
+        $panel = $this->uiFactory->panel()->standard(
+            $title,
+            $this->uiFactory->legacy($content)
+        );
 
-	/**
-	 * @param ilTable2GUI $table_gui
-	 */
-	private function prepareTable(ilTable2GUI $table_gui)
-	{
-		$table_gui->addColumn($this->lng->txt('toplist_col_rank'));
-		$table_gui->addColumn($this->lng->txt('toplist_col_participant'));
-		if($this->object->getHighscoreAchievedTS())
-		{
-			$table_gui->addColumn($this->lng->txt('toplist_col_achieved'));
-		}
+        return $this->uiRenderer->render($panel);
+    }
 
-		if($this->object->getHighscoreScore())
-		{
-			$table_gui->addColumn($this->lng->txt('toplist_col_score'));
-		}
+    /**
+     * @return string
+     */
+    protected function renderResultsToplistByScore(): string
+    {
+        $title = $this->lng->txt('toplist_by_score');
+        $html = '';
 
-		if($this->object->getHighscorePercentage())
-		{
-			$table_gui->addColumn($this->lng->txt('toplist_col_percentage'));
-		}
+        if ($this->isTopTenRankingTableRequired()) {
+            $topData = $this->toplist->getGeneralToplistByPercentage(
+                $this->object->getRefId(),
+                (int) $this->user->getId()
+            );
 
-		if($this->object->getHighscoreHints())
-		{
-			$table_gui->addColumn($this->lng->txt('toplist_col_hints'));
-		}
+            $table = $this->buildTableGUI();
+            $table->setData($topData);
+            $table->setTitle($title);
 
-		if($this->object->getHighscoreWTime())
-		{
-			$table_gui->addColumn($this->lng->txt('toplist_col_wtime'));
-		}
-		$table_gui->setEnableNumInfo(false);
-		$table_gui->setLimit(10);
-	}
-	
-	/**
-	 * @return ilTable2GUI
-	 */
-	protected function buildTableGUI()
-	{
-		$table_gui = new ilTable2GUI($this);
-		$this->prepareTable($table_gui);
-		$table_gui->setRowTemplate('tpl.toplist_tbl_rows.html', 'Modules/Test');
-		return $table_gui;
-	}
-	
-	/**
-	 * @return bool
-	 */
-	protected function isTopTenRankingTableRequired()
-	{
-		if( $this->object->getHighscoreMode() == ilObjTest::HIGHSCORE_SHOW_TOP_TABLE )
-		{
-			return true;
-		}
-		
-		if( $this->object->getHighscoreMode() == ilObjTest::HIGHSCORE_SHOW_ALL_TABLES )
-		{
-			return true;
-		}
-		
-		return false;
-	}
-	
-	/**
-	 * @return bool
-	 */
-	protected function isOwnRankingTableRequired()
-	{
-		if( $this->object->getHighscoreMode() == ilObjTest::HIGHSCORE_SHOW_OWN_TABLE )
-		{
-			return true;
-		}
-		
-		if( $this->object->getHighscoreMode() == ilObjTest::HIGHSCORE_SHOW_ALL_TABLES )
-		{
-			return true;
-		}
-		
-		return false;
-	}
+            $html .= $table->getHTML();
+        }
+
+        if ($this->isOwnRankingTableRequired()) {
+            $ownData = $this->toplist->getUserToplistByPercentage(
+                $this->object->getRefId(),
+                (int) $this->user->getId()
+            );
+
+            $table = $this->buildTableGUI();
+            $table->setData($ownData);
+            if (!$this->isTopTenRankingTableRequired()) {
+                $table->setTitle($title);
+            }
+
+            $html .= $table->getHTML();
+        }
+
+        return $html;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderResultsToplistByTime(): string
+    {
+        $title = $this->lng->txt('toplist_by_time');
+        $html = '';
+
+        if ($this->isTopTenRankingTableRequired()) {
+            $topData = $this->toplist->getGeneralToplistByWorkingtime(
+                $this->object->getRefId(),
+                $this->user->getId()
+            );
+
+            $table = $this->buildTableGUI();
+            $table->setData($topData);
+            $table->setTitle($title);
+
+            $html .= $table->getHTML();
+        }
+
+        if ($this->isOwnRankingTableRequired()) {
+            $ownData = $this->toplist->getUserToplistByWorkingtime(
+                $this->object->getRefId(),
+                (int) $this->user->getId()
+            );
+
+            $table = $this->buildTableGUI();
+            $table->setData($ownData);
+
+            if (!$this->isTopTenRankingTableRequired()) {
+                $table->setTitle($title);
+            }
+
+            $html .= $table->getHTML();
+        }
+
+        return $html;
+    }
+
+    /**
+     * @return ilTestTopListTableGUI
+     */
+    protected function buildTableGUI(): ilTestTopListTableGUI
+    {
+        $table = new ilTestTopListTableGUI($this, $this->object);
+
+        return $table;
+    }
+
+    /**
+     * @return bool
+     */
+    protected function isTopTenRankingTableRequired(): bool
+    {
+        return $this->object->getHighscoreTopTable();
+    }
+
+    /**
+     * @return bool
+     */
+    protected function isOwnRankingTableRequired(): bool
+    {
+        return $this->object->getHighscoreOwnTable();
+    }
 }

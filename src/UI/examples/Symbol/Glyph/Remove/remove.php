@@ -1,4 +1,9 @@
 <?php
+
+declare(strict_types=1);
+
+namespace ILIAS\UI\examples\Symbol\Glyph\Remove;
+
 function remove()
 {
     global $DIC;
@@ -9,9 +14,9 @@ function remove()
 
     //Showcase the various states of this Glyph
     $list = $f->listing()->descriptive([
-        "Active"=>$glyph,
-        "Inactive"=>$glyph->withUnavailableAction(),
-        "Highlighted"=>$glyph->withHighlight()
+        "Active" => $glyph,
+        "Inactive" => $glyph->withUnavailableAction(),
+        "Highlighted" => $glyph->withHighlight()
     ]);
 
     return $renderer->render($list);

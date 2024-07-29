@@ -29,7 +29,7 @@
 
 This guideline is going to show you some best practice examples how to improve the security of your ILIAS installation, of the webserver and it's associated components.
 The ILIAS e.V. requested a documentation for a "Secure ILIAS" in march 2019.
-The section "Hardening and Security Guidance" should be removed and the security related instructions have to be mantained in a own document.
+The section "Hardening and Security Guidance" should be removed and the security related instructions have to be maintained in a own document.
 
 ## List of placeholder names
 
@@ -43,14 +43,14 @@ For a better identification, they will describe here:
 | %HOSTNAME% | your specific fully qualified domain name of ILIAS |
 | %IPADDRESS% | ip address in CIDR notation |
 | %DOCROOT% | directory that forms the main document tree visible from the web |
-| %EXTERNALDATA% | ILIAS data directory outside of the web documenation root |
+| %EXTERNALDATA% | ILIAS data directory outside of the web document root |
 | %LOGDIR% | path to the directory containing log files |
 | %CLIENTID% | the client name of the ILIAS installation  |
 
 ## Firewall
 
 Block all traffic by default and explicitly allow only specific traffic to port 443/TCP for HTTPS secured traffic.
-For "quality of life", it is recommend to also permit 80/TCP for a [redirect to HTTPS](#redirect-all-unencrypted-traffic-to-https-1).
+For "quality of life", it is recommend to also permit 80/TCP for a [redirect to HTTPS](#redirect-all-unencrypted-traffic-to-https).
 
 ## File Access Rights
 
@@ -170,7 +170,7 @@ If you use, the following suggestion, please note that the oldest compatible cli
 
 * Firefox 27
 * Chrome 30
-* IE 11 on Windows 7,
+* IE 11 on Windows 7
 * Edge
 * Opera 17
 * Safari 9
@@ -235,13 +235,13 @@ server {
 `ssl_dhparam /etc/ssl/private/dhparam.pem;`:
 
 This specifies a file with DH parameters for EDH (Ephemeral Diffie-Hellman) ciphers.
-By default, NGINX will use the default DHE paramaters provided by openssl. This uses a weak key that gets lower scores.
+By default, NGINX will use the default DHE parameters provided by openssl. This uses a weak key that gets lower scores.
 Run `openssl dhparam -out /etc/ssl/private/dhparam.pem 4096` in terminal to generate it.
 
-We RECOMMEND to use the [Mozilla SSL Configuration Generator](https://ssl-config.mozilla.org/) to generate a suitable configuration and the [Qualys SSL Labs Tests](https://www.ssllabs.com/ssltest/) or the [High-Tech Bridge SSL Server Test](https://www.htbridge.com/ssl/) to check your settings. It is recommended, to reach a "A" rating as minimum.
+We RECOMMEND to use the [Mozilla SSL Configuration Generator](https://ssl-config.mozilla.org/) to generate a suitable configuration and the [Qualys SSL Labs Tests](https://www.ssllabs.com/ssltest/) or the [High-Tech Bridge SSL Server Test](https://www.htbridge.com/ssl/) to check your settings. It is recommended to reach a "A" rating as minimum.
 
 It is necessary to often revise these configuration.
-In best case, you allways use the latest "Modern" configuration.
+In best case, you always use the latest "Modern" configuration.
 
 ### Serve security related Headers
 
@@ -264,6 +264,26 @@ add_header X-Content-Security-Policy "default-src 'self'; connect-src 'self'; sc
 ```
 
 see also: [Browser compatibility of HTTP headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP#Browser_compatibility)
+
+The proposed CSP is to be understood as a starting point. ILIAS is a generic software to support many different LMS scenarios and thus can't
+provide a suggestion which fits all circumstances and guarantees the best security.
+Depending on the content your users can provide (embedded media, SCORM packages, etc.) you should try to
+initially define a CSP which is as strict as possible.
+
+You could use the [Reporting Feature](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP#enabling_reporting) to
+log and analyse CSP violations to loosen the CSP gradually and carefully, if necessary.
+
+A minimum endpoint to log the CSP violations could be:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+file_put_contents('csp.log', file_get_contents('php://input') . "\n", FILE_APPEND);
+```
+
+This is not a production ready solution, but a starting point to get an idea how to log the CSP violations.
 
 ##### Apache
 
@@ -400,7 +420,7 @@ Ensure you have `mod_headers.so` enabled in Apache2:
 #### NGINX
 
 ```
-    add_header Strict-Transport-Security max-age=15552000; includeSubDomains" preload;
+    add_header Strict-Transport-Security "max-age=15552000; includeSubDomains" preload;
 ```
 
 **Warning:** Before activating the configuration above you MUST make sure that you have a good workflow for maintaining your SSL settings (including certificate renewals) as you will not be able to disable HTTPS access to your site for up to 6 months.
@@ -440,7 +460,7 @@ You can simply add for example `add_header Set-Cookie` in your `server` configur
 
 note:
 For nginx, you have to generate a specific cookie for your ILIAS client.
-This will overide the cookie deliverd by ILIAS, so it is necessary to generate the whole cookie.
+This will override the cookie delivered by ILIAS, so it is necessary to generate the whole cookie.
 
 ## Suppress server signature and PHP version information
 
@@ -455,8 +475,8 @@ It is recommended to suppress these header informations to prevent detection and
 
 ```
 <IfModule mod_headers.c>
-    Headers unset Server
-    Headers always unset Server
+    Header unset Server
+    Header always unset Server
 </IfModule>
 ```
 
@@ -550,7 +570,7 @@ Nginx:
 
 ### Prevent execution of PHP-Code in data-directory
 
-There may be situations where there is no oppurtunity to disallow uploading php-files e.g. in Computer Science courses. In this case you SHOULD disallow these uploaded code to be executed by the webserver.
+There may be situations where there is no opportunity to disallow uploading php-files e.g. in Computer Science courses. In this case you SHOULD disallow these uploaded code to be executed by the webserver.
 
 Apache2:
 
@@ -595,7 +615,7 @@ Nginx:
 Local changes of the code of ILIAS can indicate a potential intrusion.
 
 To determine local changes of the code of ILIAS use `git status` / `git diff`.
-This will show you the uncommited local changes.
+This will show you the uncommitted local changes.
 (Beware: Committed local changes remain undetected using this method.)
 (If you have conscious code local changes, this can lead to a false positive.)
 
@@ -610,8 +630,8 @@ This is a NGINX recommended configuration. (note: inside the `%DOCROOT%/data` no
 ```
     server {
         [...]
+        set $root $document_root;
         location ~ /data/ {
-            set $root $document_root;
             rewrite ^/data/(.*)/(.*)/(.*)$ /Services/WebAccessChecker/wac.php last;
 
             location ~ [^/]\.php(/|$) { access_log off; log_not_found off; deny all; }
@@ -645,9 +665,9 @@ to
 
 ## Use secure passwords
 
-Please keep in mind, that your plattform might me be accessible to the world wide web. To avoid unauthorized access to your Ilias-Installation, it his highly recommended to use secure passwords. Especially the root password and the Ilias-Master-Password are potentially endangered.
+Please keep in mind, that your platform might me be accessible to the world wide web. To avoid unauthorized access to your Ilias-Installation, it his highly recommended to use secure passwords. Especially the root password and the Ilias-Master-Password are potentially endangered.
 
-Your passwords should fullfil the following criterias:
+Your passwords should fulfil the following criterias:
 
 * at least 8 characters in length
 * lowercase and uppercase alphabetic characters [possible:  `a-z`, `A-Z`]

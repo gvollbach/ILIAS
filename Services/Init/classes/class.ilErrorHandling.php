@@ -1,545 +1,467 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
-/* Copyright (c) 2015 Richard Klees, Extended GPL, see docs/LICENSE */
-/* Copyright (c) 2016 Stefan Hecken, Extended GPL, see docs/LICENSE */
-
-require_once 'Services/Environment/classes/class.ilRuntime.php';
 
 /**
-* Error Handling & global info handling
-* uses PEAR error class
-*
-* @author	Stefan Meyer <meyer@leifos.com>
-* @author	Sascha Hofmann <shofmann@databay.de>
-* @author	Richard Klees <richard.klees@concepts-and-training.de>
-* @author	Stefan Hecken <stefan.hecken@concepts-and-training.de>
-* @version	$Id$
-* @extends PEAR
-* @todo		when an error occured and clicking the back button to return to previous page the referer-var in session is deleted -> server error
-* @todo		This class is a candidate for a singleton. initHandlers could only be called once per process anyways, as it checks for static $handlers_registered.
-*/
-
-require_once("Services/Exceptions/classes/class.ilDelegatingHandler.php");
-require_once("Services/Exceptions/classes/class.ilPlainTextHandler.php");
-require_once("Services/Exceptions/classes/class.ilTestingHandler.php");
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 use Whoops\Run;
+use Whoops\RunInterface;
 use Whoops\Handler\PrettyPageHandler;
 use Whoops\Handler\CallbackHandler;
 use Whoops\Exception\Inspector;
+use Whoops\Handler\HandlerInterface;
 
+/**
+ * Error Handling & global info handling
+ * uses PEAR error class
+ * @author      Stefan Meyer <meyer@leifos.com>
+ * @author      Sascha Hofmann <shofmann@databay.de>
+ * @author      Richard Klees <richard.klees@concepts-and-training.de>
+ * @author      Stefan Hecken <stefan.hecken@concepts-and-training.de>
+ * @version     $Id$
+ * @extends     PEAR
+ * @todo        when an error occured and clicking the back button to return to previous page the referer-var in session is deleted -> server error
+ * @todo        This class is a candidate for a singleton. initHandlers could only be called once per process anyways, as it checks for static $handlers_registered.
+ */
 class ilErrorHandling extends PEAR
 {
-	/**
-	* Toggle debugging on/off
-	* @var		boolean
-	* @access	private
-	*/
-	var $DEBUG_ENV;
+    private const SENSTIVE_PARAMETER_NAMES = [
+        'password',
+        'passwd',
+        'passwd_retype',
+        'current_password',
+        'usr_password',
+        'usr_password_retype',
+        'new_password',
+        'new_password_retype',
+    ];
 
-	/**
-	* Error level 1: exit application immedietly
-	* @var		integer
-	* @access	public
-	*/
-	var $FATAL;
+    protected ?RunInterface $whoops;
 
-	/**
-	* Error level 2: show warning page
-	* @var		integer
-	* @access	public
-	*/
-	var $WARNING;
+    protected string $message;
+    protected bool $DEBUG_ENV;
 
-	/**
-	* Error level 3: show message in recent page
-	* @var		integer
-	* @access	public
-	*/
-	var $MESSAGE;
+    /**
+     * Error level 1: exit application immedietly
+     */
+    public int $FATAL = 1;
 
-	/**
-	 * Are the whoops error handlers already registered?
-	 * @var bool
-	 */
-	protected static $whoops_handlers_registered = false;
+    /**
+     * Error level 2: show warning page
+     */
+    public int $WARNING = 2;
 
-	/**
-	* Constructor
-	* @access	public
-	*/
-	public function __construct()
-	{
-		parent::__construct();
+    /**
+     * Error level 3: show message in recent page
+     */
+    public int $MESSAGE = 3;
 
-		// init vars
-		$this->DEBUG_ENV = true;
-		$this->FATAL	 = 1;
-		$this->WARNING	 = 2;
-		$this->MESSAGE	 = 3;
+    /**
+     * Are the whoops error handlers already registered?
+     * @var bool
+     */
+    protected static bool $whoops_handlers_registered = false;
 
-		$this->error_obj = false;
-		
-		$this->initWhoopsHandlers();
-		
-		// somehow we need to get rid of the whoops error handler
-		restore_error_handler();
-		set_error_handler(array($this, "handlePreWhoops"));
-	}
-	
-	/**
-	 * Initialize Error and Exception Handlers.
-	 *
-	 * Initializes Whoops, a logging handler and a delegate handler for the late initialisation
-	 * of an appropriate error handler.
-	 *
-	 * @return void
-	 */
-	protected function initWhoopsHandlers() {
-		if (self::$whoops_handlers_registered) {
-			// Only register whoops error handlers once.
-			return;
-		}
-		
-		$ilRuntime = $this->getIlRuntime();
-		$this->whoops = $this->getWhoops();
-		
-		$this->whoops->pushHandler(new ilDelegatingHandler($this));
-		
-		if ($ilRuntime->shouldLogErrors()) {
-			$this->whoops->pushHandler($this->loggingHandler());
-		}
-		
-		$this->whoops->register();
-		
-		self::$whoops_handlers_registered = true;
-	}
+    /**
+     * @var ?PEAR_Error error obj
+     */
+    protected $error_obj = null;
 
-	/**
-	 * Get a handler for an error or exception.
-	 *
-	 * Uses Whoops Pretty Page Handler in DEVMODE and the legacy ILIAS-Error handlers otherwise.
-	 *
-	 * @return Whoops\Handler
-	 */
-	public function getHandler() {
-		// TODO: * Use Whoops in production mode? This would require an appropriate
-		//		   error-handler.
-		//		 * Check for context? The current implementation e.g. would output HTML for
-		//		   for SOAP.
+    /**
+     * Constructor
+     * @access    public
+     */
+    public function __construct()
+    {
+        parent::__construct();
 
-		if ($this->isDevmodeActive()) {
-			return $this->devmodeHandler();
-		}
+        // init vars
+        $this->DEBUG_ENV = true;
+        $this->FATAL = 1;
+        $this->WARNING = 2;
+        $this->MESSAGE = 3;
 
-		return $this->defaultHandler();
-	}
+        $this->error_obj = null;
 
-	function getLastError()
-	{
-		return $this->error_obj;
-	}
+        $this->initWhoopsHandlers();
 
-	/**
-	* defines what has to happen in case of error
-	* @access	private
-	* @param	object	Error
-	*/
-	function errorHandler($a_error_obj)
-	{
-		global $log;
+        // somehow we need to get rid of the whoops error handler
+        restore_error_handler();
+        set_error_handler([$this, "handlePreWhoops"]);
+    }
 
-		// see bug 18499 (some calls to raiseError do not pass a code, which leads to security issues, if these calls
-		// are done due to permission checks)
-		if ($a_error_obj->getCode() == null)
-		{
-			$a_error_obj->code = $this->WARNING;
-		}
+    /**
+     * Initialize Error and Exception Handlers.
+     * Initializes Whoops, a logging handler and a delegate handler for the late initialisation
+     * of an appropriate error handler.
+     */
+    protected function initWhoopsHandlers(): void
+    {
+        if (self::$whoops_handlers_registered) {
+            // Only register whoops error handlers once.
+            return;
+        }
+        $ilRuntime = $this->getIlRuntime();
+        $this->whoops = $this->getWhoops();
+        $this->whoops->pushHandler(new ilDelegatingHandler($this));
+        if ($ilRuntime->shouldLogErrors()) {
+            $this->whoops->pushHandler($this->loggingHandler());
+        }
+        $this->whoops->register();
+        self::$whoops_handlers_registered = true;
+    }
 
-		$this->error_obj =& $a_error_obj;
-//echo "-".$_SESSION["referer"]."-";
-		if ($_SESSION["failure"] && substr($a_error_obj->getMessage(), 0, 22) != "Cannot find this block")
-		{
-			$m = "Fatal Error: Called raise error two times.<br>".
-				"First error: ".$_SESSION["failure"].'<br>'.
-				"Last Error:". $a_error_obj->getMessage();
-			//return;
-			$log->write($m);
-			#$log->writeWarning($m);
-			#$log->logError($a_error_obj->getCode(), $m);
-			unset($_SESSION["failure"]);
-			die ($m);
-		}
+    /**
+     * Get a handler for an error or exception.
+     * Uses Whoops Pretty Page Handler in DEVMODE and the legacy ILIAS-Error handlers otherwise.
+     */
+    public function getHandler(): HandlerInterface
+    {
+        // TODO: * Use Whoops in production mode? This would require an appropriate
+        //		   error-handler.
+        //		 * Check for context? The current implementation e.g. would output HTML for
+        //		   for SOAP.
+        if ($this->isDevmodeActive()) {
+            return $this->devmodeHandler();
+        }
 
-		if (substr($a_error_obj->getMessage(), 0, 22) == "Cannot find this block")
-		{
-			if (DEVMODE == 1)
-			{
-				echo "<b>DEVMODE</b><br><br>";
-				echo "<b>Template Block not found.</b><br>";
-				echo "You used a template block in your code that is not available.<br>";
-				echo "Native Messge: <b>".$a_error_obj->getMessage()."</b><br>";
-				if (is_array($a_error_obj->backtrace))
-				{
-					echo "Backtrace:<br>";
-					foreach ($a_error_obj->backtrace as $b)
-					{
-						if ($b["function"] == "setCurrentBlock" &&
-							basename($b["file"]) != "class.ilTemplate.php")
-						{
-							echo "<b>";
-						}
-						echo "File: ".$b["file"].", ";
-						echo "Line: ".$b["line"].", ";
-						echo $b["function"]."()<br>";
-						if ($b["function"] == "setCurrentBlock" &&
-							basename($b["file"]) != "class.ilTemplate.php")
-						{
-							echo "</b>";
-						}
-					}
-				}
-				exit;
-			}
-			return;
-		}
+        return $this->defaultHandler();
+    }
 
-		if (is_object($log) and $log->enabled == true)
-		{
-			$log->write($a_error_obj->getMessage());
-			#$log->logError($a_error_obj->getCode(),$a_error_obj->getMessage());
-		}
+    /**
+     * Defines what has to happen in case of error
+     * @param PEAR_Error $a_error_obj PEAR Error object
+     */
+    public function errorHandler($a_error_obj): void
+    {
+        global $log;
 
-//echo $a_error_obj->getCode().":"; exit;
-		if ($a_error_obj->getCode() == $this->FATAL)
-		{
-			trigger_error(stripslashes($a_error_obj->getMessage()), E_USER_ERROR);
-			exit();
-		}
+        // see bug 18499 (some calls to raiseError do not pass a code, which leads to security issues, if these calls
+        // are done due to permission checks)
+        if ($a_error_obj->getCode() == null) {
+            $a_error_obj->code = $this->WARNING;
+        }
 
-		if ($a_error_obj->getCode() == $this->WARNING)
-		{
-			if ($this->DEBUG_ENV)
-			{
-				$message = $a_error_obj->getMessage();
-			}
-			else
-			{
-				$message = "Under Construction";
-			}
+        $this->error_obj = &$a_error_obj;
+        //echo "-".$_SESSION["referer"]."-";
+        $session_failure = ilSession::get('failure');
+        if ($session_failure && strpos($a_error_obj->getMessage(), "Cannot find this block") !== 0) {
+            $m = "Fatal Error: Called raise error two times.<br>" .
+                "First error: " . $session_failure . '<br>' .
+                "Last Error:" . $a_error_obj->getMessage();
+            //return;
+            $log->write($m);
+            #$log->writeWarning($m);
+            #$log->logError($a_error_obj->getCode(), $m);
+            ilSession::clear('failure');
+            die($m);
+        }
 
-			$_SESSION["failure"] = $message;
+        if (strpos($a_error_obj->getMessage(), "Cannot find this block") === 0) {
+            if (DEVMODE == 1) {
+                echo "<b>DEVMODE</b><br><br>";
+                echo "<b>Template Block not found.</b><br>";
+                echo "You used a template block in your code that is not available.<br>";
+                echo "Native Messge: <b>" . $a_error_obj->getMessage() . "</b><br>";
+                if (is_array($a_error_obj->backtrace)) {
+                    echo "Backtrace:<br>";
+                    foreach ($a_error_obj->backtrace as $b) {
+                        if ($b["function"] === "setCurrentBlock" &&
+                            basename($b["file"]) !== "class.ilTemplate.php") {
+                            echo "<b>";
+                        }
+                        echo "File: " . $b["file"] . ", ";
+                        echo "Line: " . $b["line"] . ", ";
+                        echo $b["function"] . "()<br>";
+                        if ($b["function"] === "setCurrentBlock" &&
+                            basename($b["file"]) !== "class.ilTemplate.php") {
+                            echo "</b>";
+                        }
+                    }
+                }
+                exit;
+            }
+            return;
+        }
 
-			if (!defined("ILIAS_MODULE"))
-			{
-				ilUtil::redirect("error.php");
-			}
-			else
-			{
-				ilUtil::redirect("../error.php");
-			}
-		}
+        if ($log instanceof ilLogger) {
+            $log->write($a_error_obj->getMessage());
+        }
+        if ($a_error_obj->getCode() == $this->FATAL) {
+            trigger_error(stripslashes($a_error_obj->getMessage()), E_USER_ERROR);
+            exit();
+        }
 
-		if ($a_error_obj->getCode() == $this->MESSAGE)
-		{
-			$_SESSION["failure"] = $a_error_obj->getMessage();
-			// save post vars to session in case of error
-			$_SESSION["error_post_vars"] = $_POST;
+        if ($a_error_obj->getCode() == $this->WARNING) {
+            if ($this->DEBUG_ENV) {
+                $message = $a_error_obj->getMessage();
+            } else {
+                $message = "Under Construction";
+            }
 
-			if (empty($_SESSION["referer"]))
-			{
-				$dirname = dirname($_SERVER["PHP_SELF"]);
-				$ilurl = parse_url(ILIAS_HTTP_PATH);
-				$subdir = substr(strstr($dirname,$ilurl["path"]),strlen($ilurl["path"]));
-				$updir = "";
+            ilSession::set('failure', $message);
 
-				if ($subdir)
-				{
-					$num_subdirs = substr_count($subdir,"/");
+            if (!defined("ILIAS_MODULE")) {
+                ilUtil::redirect("error.php");
+            } else {
+                ilUtil::redirect("../error.php");
+            }
+        }
+        $updir = '';
+        if ($a_error_obj->getCode() == $this->MESSAGE) {
+            ilSession::set('failure', $a_error_obj->getMessage());
+            // save post vars to session in case of error
+            $_SESSION["error_post_vars"] = $_POST;
 
-					for ($i=1;$i<=$num_subdirs;$i++)
-					{
-						$updir .= "../";
-					}
-				}
-				ilUtil::redirect($updir."index.php");
-			}
+            if (empty($_SESSION["referer"])) {
+                $dirname = dirname($_SERVER["PHP_SELF"]);
+                $ilurl = parse_url(ILIAS_HTTP_PATH);
 
-			/* #12104 
-			check if already GET-Parameters exists in Referer-URI			 
-			if (substr($_SESSION["referer"],-4) == ".php")
-			{
-				$glue = "?";
-			}
-			else
-			{
-			    // this did break permanent links (".html&")
-				$glue = "&";
-			}
-			*/
-			ilUtil::redirect($_SESSION["referer"]);			
-		}
-	}
+                $subdir = '';
+                if (is_array($ilurl) && array_key_exists('path', $ilurl) && strlen($ilurl['path'])) {
+                    $subdir = substr(strstr($dirname, (string) $ilurl["path"]), strlen((string) $ilurl["path"]));
+                    $updir = "";
+                }
+                if ($subdir) {
+                    $num_subdirs = substr_count($subdir, "/");
 
-	function getMessage()
-	{
-		return $this->message;
-	}
-	function setMessage($a_message)
-	{
-		$this->message = $a_message;
-	}
-	function appendMessage($a_message)
-	{
-		if($this->getMessage())
-		{
-			$this->message .= "<br /> ";
-		}
-		$this->message .= $a_message;
-	}
-	
-	/**
-	 * This is used in Soap calls to write PHP error in ILIAS Logfile
-	 * Not used yet!!!
-	 *
-	 * @access public
-	 * @static
-	 *
-	 * @param
-	 */
-	public static function _ilErrorWriter($errno, $errstr, $errfile, $errline)
-	{
-		global $ilLog;
-		
-		switch($errno)
-		{
-			case E_USER_ERROR:
-				$ilLog->write('PHP errror: '.$errstr.'. FATAL error on line '.$errline.' in file '.$errfile);
-				unset($ilLog);
-				exit(1);
-			
-			case E_USER_WARNING:
-				$ilLog->write('PHP warning: ['.$errno.'] '.$errstr.' on line '.$errline.' in file '.$errfile);
-				break;
-			
-		}				
-		return true;
-	}
-	
-	/**
-	 * Get ilRuntime.
-	 * @return ilRuntime
-	 */
-	protected function getIlRuntime() {
-		return ilRuntime::getInstance();
-	}
-	
-	/**
-	 * Get an instance of Whoops/Run.
-	 * @return Whoops\Run
-	 */
-	protected function getWhoops() {
-		return new Run();
-	}
-	
-	/**
-	 * Is the DEVMODE switched on?
-	 * @return bool
-	 */
-	protected function isDevmodeActive() {
-		return defined("DEVMODE") && (int)DEVMODE === 1;
-	}
+                    for ($i = 1; $i <= $num_subdirs; $i++) {
+                        $updir .= "../";
+                    }
+                }
+                ilUtil::redirect($updir . "index.php");
+            }
+            ilUtil::redirect($_SESSION["referer"]);
+        }
+    }
 
-	/**
-	 * Get a default error handler.
-	 * @return Whoops\Handler
-	 */
-	protected function defaultHandler() {
-		// php7-todo : alex, 1.3.2016: Exception -> Throwable, please check
-		return new CallbackHandler(function($exception, Inspector $inspector, Run $run) {
-			global $lng;
+    public function getMessage(): string
+    {
+        return $this->message;
+    }
 
-			require_once("Services/Logging/classes/error/class.ilLoggingErrorSettings.php");
-			require_once("Services/Logging/classes/error/class.ilLoggingErrorFileStorage.php");
-			require_once("Services/Utilities/classes/class.ilUtil.php");
+    public function setMessage(string $a_message): void
+    {
+        $this->message = $a_message;
+    }
 
-			$session_id = substr(session_id(),0,5);
-			$err_num = rand(1, 9999);
-			$file_name = $session_id."_".$err_num;
+    public function appendMessage(string $a_message): void
+    {
+        if ($this->getMessage()) {
+            $this->message .= "<br /> ";
+        }
+        $this->message .= $a_message;
+    }
 
-			$logger = ilLoggingErrorSettings::getInstance();
-			if(!empty($logger->folder())) {
-				$lwriter = new ilLoggingErrorFileStorage($inspector, $logger->folder(), $file_name);
-				$lwriter->write();
-			}
+    protected function getIlRuntime(): ilRuntime
+    {
+        return ilRuntime::getInstance();
+    }
 
-			//Use $lng if defined or fallback to english
-			if($lng !== null) {
-				$lng->loadLanguageModule('logging');
-				$message = sprintf($lng->txt("log_error_message"), $file_name);
+    protected function getWhoops(): RunInterface
+    {
+        return new Run();
+    }
 
-				if($logger->mail()) {
-					$message .= " ".sprintf($lng->txt("log_error_message_send_mail"), $logger->mail(), $file_name, $logger->mail());
-				}
-			} else {
-				$message = 'Sorry, an error occured. A logfile has been created which can be identified via the code "'.$file_name.'"';
+    protected function isDevmodeActive(): bool
+    {
+        return defined("DEVMODE") && (int) DEVMODE === 1;
+    }
 
-				if($logger->mail()) {
-					$message .= ' '.'Please send a mail to <a href="mailto:'.$logger->mail().'?subject=code: '.$file_name.'">'.$logger->mail().'</a>';
-				}
-			}
+    protected function defaultHandler(): HandlerInterface
+    {
+        // php7-todo : alex, 1.3.2016: Exception -> Throwable, please check
+        return new CallbackHandler(function ($exception, Inspector $inspector, Run $run) {
+            global $DIC;
 
-			ilUtil::sendFailure($message, true);
-			ilUtil::redirect("error.php");
-		});
-	}
+            require_once("Services/Logging/classes/error/class.ilLoggingErrorSettings.php");
+            require_once("Services/Logging/classes/error/class.ilLoggingErrorFileStorage.php");
+            require_once("Services/Utilities/classes/class.ilUtil.php");
 
-	/**
-	 * Get the handler to be used in DEVMODE.
-	 * @return Whoops\Handler\HandlerInterface
-	 */
-	protected function devmodeHandler() {
-		global $ilLog;
-		
-		switch (ERROR_HANDLER) {
-			case "TESTING":
-				return new ilTestingHandler();
-			case "PLAIN_TEXT":
-				return new ilPlainTextHandler();
-			case "PRETTY_PAGE":
-				// fallthrough
-			default:
-				if ((!defined('ERROR_HANDLER') || ERROR_HANDLER != 'PRETTY_PAGE') && $ilLog) {
-					$ilLog->write(
-						"Unknown or undefined error handler '".ERROR_HANDLER."'. " .
-						"Falling back to PrettyPageHandler."
-					);
-				}
+            $session_id = substr(session_id(), 0, 5);
+            $random = new \ilRandom();
+            $err_num = $random->int(1, 9999);
+            $file_name = $session_id . "_" . $err_num;
 
-				$prettyPageHandler = new PrettyPageHandler();
+            $logger = ilLoggingErrorSettings::getInstance();
+            if (!empty($logger->folder())) {
+                $lwriter = new ilLoggingErrorFileStorage($inspector, $logger->folder(), $file_name);
+                $lwriter = $lwriter->withExclusionList(self::SENSTIVE_PARAMETER_NAMES);
+                $lwriter->write();
+            }
 
-				$this->addEditorSupport($prettyPageHandler);
+            //Use $lng if defined or fallback to english
+            if ($DIC->isDependencyAvailable('language')) {
+                $DIC->language()->loadLanguageModule('logging');
+                $message = sprintf($DIC->language()->txt("log_error_message"), $file_name);
 
-				return $prettyPageHandler;
-		}
-	}
+                if ($logger->mail()) {
+                    $message .= " " . sprintf(
+                        $DIC->language()->txt("log_error_message_send_mail"),
+                        $logger->mail(),
+                        $file_name,
+                        $logger->mail()
+                    );
+                }
+            } else {
+                $message = 'Sorry, an error occured. A logfile has been created which can be identified via the code "' . $file_name . '"';
 
-	/**
-	 * @param PrettyPageHandler $handler
-	 */
-	protected function addEditorSupport(PrettyPageHandler $handler)
-	{
-		$editorUrl = defined('ERROR_EDITOR_URL') ? ERROR_EDITOR_URL : '';
-		if (!is_string($editorUrl) || 0 === strlen($editorUrl)) {
-			return;
-		}
+                if ($logger->mail()) {
+                    $message .= ' ' . 'Please send a mail to <a href="mailto:' . $logger->mail() . '?subject=code: ' . $file_name . '">' . $logger->mail() . '</a>';
+                }
+            }
+            if ($DIC->isDependencyAvailable('ui') && isset($DIC['tpl']) && $DIC->isDependencyAvailable('ctrl')) {
+                $DIC->ui()->mainTemplate()->setOnScreenMessage('failure', $message, true);
+                $DIC->ctrl()->redirectToURL("error.php");
+            } else {
+                ilSession::set('failure', $message);
+                header("Location: error.php");
+                exit;
+            }
+        });
+    }
 
-		$pathTranslationConfig = defined('ERROR_EDITOR_PATH_TRANSLATIONS') ? ERROR_EDITOR_PATH_TRANSLATIONS : '';
+    /**
+     * Get the handler to be used in DEVMODE.
+     */
+    protected function devmodeHandler(): HandlerInterface
+    {
+        global $ilLog;
 
-		$pathTranslations = $this->parseEditorPathTranslation($pathTranslationConfig);
+        switch (ERROR_HANDLER) {
+            case "TESTING":
+                return (new ilTestingHandler())->withExclusionList(self::SENSTIVE_PARAMETER_NAMES);
 
-		$handler->setEditor(function ($file, $line) use ($editorUrl, $pathTranslations) {
-			$this->applyEditorPathTranslations($file, $pathTranslations);
+            case "PLAIN_TEXT":
+                return (new ilPlainTextHandler())->withExclusionList(self::SENSTIVE_PARAMETER_NAMES);
 
-			return str_ireplace(
-				['[FILE]', '[LINE]'],
-				[$file, $line],
-				$editorUrl
-			);
-		});
-	}
+            case "PRETTY_PAGE":
+                // fallthrough
+            default:
+                if ((!defined('ERROR_HANDLER') || ERROR_HANDLER !== 'PRETTY_PAGE') && $ilLog) {
+                    $ilLog->write(
+                        "Unknown or undefined error handler '" . ERROR_HANDLER . "'. " .
+                        "Falling back to PrettyPageHandler."
+                    );
+                }
 
-	/**
-	 * @param string $file
-	 * @param array $pathTranslations
-	 */
-	protected function applyEditorPathTranslations(string &$file, array $pathTranslations)
-	{
-		foreach ($pathTranslations as $from => $to) {
-			$file = preg_replace('@' . $from . '@' , $to, $file);
-		}
-	}
+                $prettyPageHandler = new PrettyPageHandler();
 
+                $this->addEditorSupport($prettyPageHandler);
 
-	/**
-	 * @param string $pathTranslationConfig
-	 * @return array
-	 */
-	protected function parseEditorPathTranslation(string $pathTranslationConfig)
-	{
-		$pathTranslations = [];
+                foreach (self::SENSTIVE_PARAMETER_NAMES as $param) {
+                    $prettyPageHandler->blacklist('_POST', $param);
+                }
 
-		$mappings = explode('|', $pathTranslationConfig);
-		foreach ($mappings as $mapping) {
-			$parts = explode(',', $mapping);
-			$pathTranslations[trim($parts[0])] = trim($parts[1]);
-		}
+                return $prettyPageHandler;
+        }
+    }
 
-		return $pathTranslations;
-	}
-	
-	/**
-	 * Get the handler to be used to log errors.
-	 * @return Whoops\Handler
-	 */
-	protected function loggingHandler() {
-		// php7-todo : alex, 1.3.2016: Exception -> Throwable, please check
-		return new CallbackHandler(function($exception, Inspector $inspector, Run $run) {
-			/**
-			 * Don't move this out of this callable
-			 * @var ilLog $ilLog;
-			 */
-			global $ilLog;
+    protected function addEditorSupport(PrettyPageHandler $handler): void
+    {
+        $editorUrl = defined('ERROR_EDITOR_URL') ? ERROR_EDITOR_URL : '';
+        if (!is_string($editorUrl) || $editorUrl === '') {
+            return;
+        }
 
-			if(is_object($ilLog)) {
-				$message = $exception->getMessage().' in '.$exception->getFile().":".$exception->getLine();
-				$ilLog->error($exception->getCode().' '.$message);
-			}
-			
-			// Send to system logger
-			error_log($exception->getMessage());
-		});
-	}
-	
-	public function handlePreWhoops($level, $message, $file, $line)
-	{
-		global $ilLog;
-		
-		if ($level & error_reporting()) {
-			
-			// correct-with-php5-removal JL start
-			// ignore all E_STRICT that are E_NOTICE (or nothing at all) in PHP7
-			if (version_compare(PHP_VERSION, '7.0.0', '<')) {
-				if ($level == E_STRICT) {
-					if (!stristr($message, "should be compatible") &&
-						!stristr($message, "should not be called statically") &&
-						!stristr($message, "should not be abstract")) {
-						return true;
-					};
-				}
-			}
-			// correct-with-php5-removal end
+        $pathTranslationConfig = defined('ERROR_EDITOR_PATH_TRANSLATIONS') ? ERROR_EDITOR_PATH_TRANSLATIONS : '';
 
-			if (!$this->isDevmodeActive()) {
-				// log E_USER_NOTICE, E_STRICT, E_DEPRECATED, E_USER_DEPRECATED only
-				if ($level >= E_USER_NOTICE) {	
-					
-					if ($ilLog) {				
-						$severity = Whoops\Util\Misc::TranslateErrorCode($level);
-						$ilLog->write("\n\n".$severity." - ".$message."\n".$file." - line ".$line."\n");
-					}
-					return true;
-				}
-			}
-			
-			// trigger whoops error handling
-			if($this->whoops)
-			{
-				return $this->whoops->handleError($level, $message, $file, $line);
-			}
-		}
-		
-		return false;
-	}
+        $pathTranslations = $this->parseEditorPathTranslation($pathTranslationConfig);
 
-} // END class.ilErrorHandling
+        $handler->setEditor(function ($file, $line) use ($editorUrl, $pathTranslations) {
+            $this->applyEditorPathTranslations($file, $pathTranslations);
+
+            return str_ireplace(
+                ['[FILE]', '[LINE]'],
+                [$file, $line],
+                $editorUrl
+            );
+        });
+    }
+
+    protected function applyEditorPathTranslations(string &$file, array $pathTranslations): void
+    {
+        foreach ($pathTranslations as $from => $to) {
+            $file = preg_replace('@' . $from . '@', $to, $file);
+        }
+    }
+
+    protected function parseEditorPathTranslation(string $pathTranslationConfig): array
+    {
+        $pathTranslations = [];
+
+        $mappings = explode('|', $pathTranslationConfig);
+        foreach ($mappings as $mapping) {
+            $parts = explode(',', $mapping);
+            if (count($parts) === 2) {
+                $pathTranslations[trim($parts[0])] = trim($parts[1]);
+            }
+        }
+
+        return $pathTranslations;
+    }
+
+    protected function loggingHandler(): HandlerInterface
+    {
+        // php7-todo : alex, 1.3.2016: Exception -> Throwable, please check
+        return new CallbackHandler(function ($exception, Inspector $inspector, Run $run) {
+            /**
+             * Don't move this out of this callable
+             * @var ilLogger $ilLog ;
+             */
+            global $ilLog;
+
+            if (is_object($ilLog)) {
+                $message = $exception->getMessage() . ' in ' . $exception->getFile() . ":" . $exception->getLine();
+                $message .= $exception->getTraceAsString();
+                $ilLog->error($exception->getCode() . ' ' . $message);
+            }
+
+            // Send to system logger
+            error_log($exception->getMessage());
+        });
+    }
+
+    /**
+     * Parameter types according to PHP doc: set_error_handler
+     * @throws \Whoops\Exception\ErrorException
+     */
+    public function handlePreWhoops(int $level, string $message, string $file, int $line): bool
+    {
+        global $ilLog;
+
+        if ($level & error_reporting()) {
+            if (!$this->isDevmodeActive()) {
+                // log E_USER_NOTICE, E_STRICT, E_DEPRECATED, E_USER_DEPRECATED only
+                if ($level >= E_USER_NOTICE) {
+                    if ($ilLog) {
+                        $severity = Whoops\Util\Misc::translateErrorCode($level);
+                        $ilLog->write("\n\n" . $severity . " - " . $message . "\n" . $file . " - line " . $line . "\n");
+                    }
+                    return true;
+                }
+            }
+
+            // trigger whoops error handling
+            if ($this->whoops instanceof RunInterface) {
+                return $this->whoops->handleError($level, $message, $file, $line);
+            }
+            if ($this->whoops) {
+                return $this->whoops->handleError($level, $message, $file, $line);
+            }
+        }
+        return true;
+    }
+}

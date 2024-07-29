@@ -1,180 +1,131 @@
 <?php
 
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Abstract parent class for all page component plugin gui classes.
- *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- *
- * @ingroup ServicesCOPage
+ * @author Alexander Killing <killing@leifos.de>
  */
 abstract class ilPageComponentPluginGUI
 {
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+    protected string $mode;
+    protected ilLanguage $lng;
+    protected ilPageComponentPlugin $plugin;
+    protected ilPCPluggedGUI $pc_gui;
 
+    public function __construct()
+    {
+        global $DIC;
 
-	/**
-	 * Constructor
-	 */
-	function __construct()
-	{
-		global $DIC;
+        $this->lng = $DIC->language();
+    }
 
-		$this->lng = $DIC->language();
-	}
+    public function setPCGUI(ilPCPluggedGUI $a_val): void
+    {
+        $this->pc_gui = $a_val;
+    }
 
-	protected $plugin;
-	protected $pc_gui;
-	protected $pc;
-	
-	/**
-	 * Set pc gui object
-	 *
-	 * @param object $a_val pc gui object	
-	 */
-	function setPCGUI($a_val)
-	{
-		$this->pc_gui = $a_val;
-	}
-	
-	/**
-	 * Get pc gui object
-	 *
-	 * @return object pc gui object
-	 */
-	function getPCGUI()
-	{
-		return $this->pc_gui;
-	}
-	
-	/**
-	 * Set plugin object
-	 *
-	 * @param object $a_val plugin object	
-	 */
-	function setPlugin($a_val)
-	{
-		$this->plugin = $a_val;
-	}
-	
-	/**
-	 * Get plugin object
-	 *
-	 * @return object plugin object
-	 */
-	function getPlugin()
-	{
-		return $this->plugin;
-	}
-	
-	/**
-	 * Set Mode.
-	 *
-	 * @param	string	$a_mode	Mode
-	 */
-	final function setMode($a_mode)
-	{
-		$this->mode = $a_mode;
-	}
+    public function getPCGUI(): ilPCPluggedGUI
+    {
+        return $this->pc_gui;
+    }
 
-	/**
-	 * Get Mode.
-	 *
-	 * @return	string	Mode
-	 */
-	final function getMode()
-	{
-		return $this->mode;
-	}
+    public function setPlugin(ilPageComponentPlugin $a_val): void
+    {
+        $this->plugin = $a_val;
+    }
 
-	/**
-	 * Get HTML
-	 *
-	 * @param
-	 * @return
-	 */
-	function getHTML()
-	{
-		if ($this->getMode() == ilPageComponentPlugin::CMD_INSERT)
-		{
-			$this->insert();
-		}
-		else if ($this->getMode() == ilPageComponentPlugin::CMD_EDIT)
-		{
-			$this->edit();
-		}
-		
-	}
+    public function getPlugin(): ilPageComponentPlugin
+    {
+        return $this->plugin;
+    }
 
-	abstract function executeCommand();
-	abstract function insert();
-	abstract function edit();
-	abstract function create();
-	abstract function getElementHTML($a_mode, array $a_properties, $plugin_version);
-	
-	function createElement(array $a_properties)
-	{
-		return $this->getPCGUI()->createElement($a_properties);
-	}
-	
-	function updateElement(array $a_properties)
-	{
-		return $this->getPCGUI()->updateElement($a_properties);
-	}
-	
-	/**
-	 * Return to parent
-	 */
-	function returnToParent()
-	{
-		$this->getPCGUI()->returnToParent();
-	}
+    final public function setMode(string $a_mode): void
+    {
+        $this->mode = $a_mode;
+    }
 
-	/**
-	 * Set properties
-	 *
-	 * @param array $a_val properties array	
-	 */
-	function setProperties(array $a_val)
-	{
-		$co = $this->getPCGUI()->getContentObject();
-		if (is_object($co))
-		{
-			$co->setProperties($a_val);
-		}
-	}
-	
-	/**
-	 * Get properties
-	 *
-	 * @return array properties array
-	 */
-	function getProperties()
-	{
-		$co = $this->getPCGUI()->getContentObject();
-		if (is_object($co))
-		{
-			return $co->getProperties($a_val);
-		}
-		return array();
-	}
+    final public function getMode(): string
+    {
+        return $this->mode;
+    }
 
-	/**
-	 * Add creation button
-	 *
-	 * @param
-	 * @return
-	 */
-	final protected function addCreationButton($a_form)
-	{
-		$lng = $this->lng;
-		
-		$a_form->addCommandButton("create_plug", $lng->txt("save"));
-	}
+    /**
+     * Get HTML
+     */
+    public function getHTML(): string
+    {
+        if ($this->getMode() == ilPageComponentPlugin::CMD_INSERT) {
+            $this->insert();
+        } elseif ($this->getMode() == ilPageComponentPlugin::CMD_EDIT) {
+            $this->edit();
+        }
+        return "";
+    }
+
+    abstract public function executeCommand(): void;
+    abstract public function insert(): void;
+    abstract public function edit(): void;
+    abstract public function create(): void;
+    abstract public function getElementHTML(
+        string $a_mode,
+        array $a_properties,
+        string $plugin_version
+    ): string;
+
+    public function createElement(array $a_properties): bool
+    {
+        return $this->getPCGUI()->createElement($a_properties);
+    }
+
+    public function updateElement(array $a_properties): bool
+    {
+        return $this->getPCGUI()->updateElement($a_properties);
+    }
+
+    public function returnToParent(): void
+    {
+        $this->getPCGUI()->returnToParent();
+    }
+
+    /**
+     * Set properties
+     */
+    public function setProperties(array $a_val): void
+    {
+        $co = $this->getPCGUI()->getContentObject();
+        if (is_object($co)) {
+            $co->setProperties($a_val);
+        }
+    }
+
+    public function getProperties(): array
+    {
+        $co = $this->getPCGUI()->getContentObject();
+        if (is_object($co)) {
+            return $co->getProperties();
+        }
+        return array();
+    }
+
+    final protected function addCreationButton(ilPropertyFormGUI $a_form): void
+    {
+        $lng = $this->lng;
+
+        $a_form->addCommandButton("create_plug", $lng->txt("save"));
+    }
 }
-?>

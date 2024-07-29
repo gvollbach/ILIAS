@@ -1,187 +1,151 @@
 <?php
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once "./Services/Object/classes/class.ilObjectGUI.php";
-include_once("./Services/COPage/Layout/classes/class.ilPageLayout.php");
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Style settings GUI class
  *
  * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- *
  * @ilCtrl_Calls ilObjStyleSettingsGUI: ilPermissionGUI, ilSystemStyleMainGUI, ilContentStyleSettingsGUI
  * @ilCtrl_Calls ilObjStyleSettingsGUI: ilPageLayoutAdministrationGUI
- *
- * @ingroup	ServicesStyle
  */
 class ilObjStyleSettingsGUI extends ilObjectGUI
 {
-	/**
-	 * @var ilRbacSystem
-	 */
-	protected $rbacsystem;
+    /**
+     * Constructor
+     */
+    public function __construct($a_data, $a_id, $a_call_by_reference, $a_prepare_output = true)
+    {
+        $this->type = "stys";
 
-	//page_layout editing
-	var $pg_id = null;
+        parent::__construct($a_data, $a_id, $a_call_by_reference, $a_prepare_output);
 
-	/**
-	 * @var ILIAS\DI\Container
-	 */
-	protected $DIC;
+        $this->lng->loadLanguageModule("style");
+    }
 
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    /**
+     * Execute command
+     */
+    public function executeCommand(): void
+    {
+        $next_class = $this->ctrl->getNextClass($this);
+        $cmd = $this->ctrl->getCmd();
 
-	/**
-	 * @var ilTabsGUI
-	 */
-	protected $tabs;
+        if ($next_class == "" && in_array($cmd, array("view", ""))) {
+            $this->ctrl->redirectByClass("ilSystemStyleMainGUI", "");
+        }
 
-	/**
-	 * @var ilLanguage
-	 */
-	public $lng;
+        switch ($next_class) {
+            case 'ilpermissiongui':
+                $this->prepareOutput();
+                $this->tabs_gui->activateTab("perm_settings");
+                $perm_gui = new ilPermissionGUI($this);
+                $this->ctrl->forwardCommand($perm_gui);
+                break;
 
-	/**
-	 * @var ilTemplate
-	 */
-	public $tpl;
+            case 'ilsystemstylemaingui':
+                $this->prepareOutput();
+                $this->tabs_gui->activateTab("system_styles");
+                $gui = new ilSystemStyleMainGUI();
+                $this->ctrl->forwardCommand($gui);
+                break;
 
-	/**
-	 * Constructor
-	 */
-	function __construct($a_data,$a_id,$a_call_by_reference,$a_prepare_output = true)
-	{
-		global $DIC;
-		$this->rbacsystem = $DIC->rbac()->system();
+            case 'ilpagelayoutadministrationgui':
+                $this->prepareOutput();
+                $this->tabs_gui->activateTab("page_layouts");
+                $gui = new ilPageLayoutAdministrationGUI();
+                $this->ctrl->forwardCommand($gui);
+                break;
 
-		$this->type = "stys";
+            case 'ilcontentstylesettingsgui':
+                $gui = new ilContentStyleSettingsGUI($this);
+                $this->ctrl->forwardCommand($gui);
+                if ($this->ctrl->getCmdClass() == "ilcontentstylesettingsgui") {
+                    $this->tabs_gui->activateTab("content_styles");
+                }
+                break;
 
-		$this->dic = $DIC;
-		$this->ctrl = $DIC->ctrl();
-		$this->lng = $DIC->language();
-		$this->tabs = $DIC->tabs();
+            default:
+                $this->prepareOutput();
+                $cmd .= "Object";
+                $this->$cmd();
 
-		parent::__construct($a_data,$a_id,$a_call_by_reference,$a_prepare_output);
+                break;
+        }
+    }
 
-		$this->lng->loadLanguageModule("style");
-	}
+    /**
+     * ???
+     * Save object
+     */
+    /*	function saveObject()
+        {
+            global $rbacadmin;
 
-	/**
-	 * Execute command
-	 */
-	function executeCommand()
-	{
-		$next_class = $this->ctrl->getNextClass($this);
-		$cmd = $this->ctrl->getCmd();
+            // create and insert forum in objecttree
+            $newObj = parent::saveObject();
 
-		if ($next_class == "" && in_array($cmd, array("view", "")))
-		{
-			$this->ctrl->redirectByClass("ilSystemStyleMainGUI", "");
-		}
+            // put here object specific stuff
 
-		switch($next_class)
-		{
-			case 'ilpermissiongui':
-				$this->prepareOutput();
-				$this->tabs->activateTab("perm_settings");
-				include_once("Services/AccessControl/classes/class.ilPermissionGUI.php");
-				$perm_gui = new ilPermissionGUI($this);
-				$ret = $this->ctrl->forwardCommand($perm_gui);
-				break;
+            // always send a message
+            ilUtil::sendInfo($this->lng->txt("object_added"),true);
 
-			case 'ilsystemstylemaingui':
-				$this->prepareOutput();
-				$this->tabs->activateTab("system_styles");
-				include_once("./Services/Style/System/classes/class.ilSystemStyleMainGUI.php");
-				$gui = new ilSystemStyleMainGUI();
-				$this->ctrl->forwardCommand($gui);
-				break;
-
-			case 'ilpagelayoutadministrationgui':
-				$this->prepareOutput();
-				$this->tabs->activateTab("page_layouts");
-				include_once("./Services/COPage/Layout/classes/class.ilPageLayoutAdministrationGUI.php");
-				$gui = new ilPageLayoutAdministrationGUI();
-				$this->ctrl->forwardCommand($gui);
-				break;
-
-			case 'ilcontentstylesettingsgui':
-				include_once("./Services/Style/Content/classes/class.ilContentStyleSettingsGUI.php");
-				$gui = new ilContentStyleSettingsGUI($this);
-				$this->ctrl->forwardCommand($gui);
-				if ($this->ctrl->getCmdClass() == "ilcontentstylesettingsgui")
-				{
-					$this->tabs->activateTab("content_styles");
-				}
-				break;
-
-			default:
-				$this->prepareOutput();
-				$cmd .= "Object";
-				$this->$cmd();
-
-				break;
-		}
-		return true;
-	}
-
-	/**
-	 * ???
-	 * Save object
-	 */
-/*	function saveObject()
-	{
-		global $rbacadmin;
-
-		// create and insert forum in objecttree
-		$newObj = parent::saveObject();
-
-		// put here object specific stuff
-
-		// always send a message
-		ilUtil::sendInfo($this->lng->txt("object_added"),true);
-
-		ilUtil::redirect($this->getReturnLocation("save",$this->ctrl->getLinkTarget($this,"","",false,false)));
-	}*/
+            ilUtil::redirect($this->getReturnLocation("save",$this->ctrl->getLinkTarget($this,"","",false,false)));
+        }*/
 
 
-	function getAdminTabs()
-	{
-		$this->getTabs();
-	}
+    public function getAdminTabs(): void
+    {
+        $this->getTabs();
+    }
 
-	/**
-	* get tabs
-	* @access	public
-	* @param	object	tabs gui object
-	*/
-	function getTabs()
-	{
-		$rbacsystem = $this->rbacsystem;
-		$lng = $this->lng;
-		$ilTabs = $this->tabs;
+    /**
+    * get tabs
+    * @access	public
+    * @param	object	tabs gui object
+    */
+    public function getTabs(): void
+    {
+        if ($this->rbac_system->checkAccess("visible,read", $this->object->getRefId())) {
+            $this->tabs_gui->addTab(
+                "system_styles",
+                $this->lng->txt("system_styles"),
+                $this->ctrl->getLinkTargetByClass("ilsystemstylemaingui")
+            );
 
-		if ($rbacsystem->checkAccess("visible,read",$this->object->getRefId()))
-		{
-			$this->tabs_gui->addTab("system_styles", $this->lng->txt("system_styles"),
-				$this->ctrl->getLinkTargetByClass("ilsystemstylemaingui"));
+            $this->tabs_gui->addTab(
+                "content_styles",
+                $this->lng->txt("content_styles"),
+                $this->ctrl->getLinkTargetByClass("ilcontentstylesettingsgui", "edit")
+            );
 
-			$this->tabs_gui->addTab("content_styles", $this->lng->txt("content_styles"),
-				$this->ctrl->getLinkTargetByClass("ilcontentstylesettingsgui", "edit"));
+            $this->tabs_gui->addTab(
+                "page_layouts",
+                $this->lng->txt("page_layouts"),
+                $this->ctrl->getLinkTargetByClass("ilpagelayoutadministrationgui", "")
+            );
+        }
 
-			$this->tabs_gui->addTab("page_layouts", $this->lng->txt("page_layouts"),
-				$this->ctrl->getLinkTargetByClass("ilpagelayoutadministrationgui", ""));
-		}
-
-		if ($rbacsystem->checkAccess('edit_permission',$this->object->getRefId()))
-		{
-			$this->tabs_gui->addTab("perm_settings", $this->lng->txt("perm_settings"),
-				$this->ctrl->getLinkTargetByClass(array(get_class($this),'ilpermissiongui'), "perm"));
-		}
-	}
-
+        if ($this->rbac_system->checkAccess('edit_permission', $this->object->getRefId())) {
+            $this->tabs_gui->addTab(
+                "perm_settings",
+                $this->lng->txt("perm_settings"),
+                $this->ctrl->getLinkTargetByClass(array(get_class($this),'ilpermissiongui'), "perm")
+            );
+        }
+    }
 }

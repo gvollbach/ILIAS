@@ -1,5 +1,22 @@
 <?php
+
 declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 namespace ILIAS\UI\Component\Symbol;
 
@@ -10,12 +27,11 @@ namespace ILIAS\UI\Component\Symbol;
  */
 interface Factory
 {
-
     /**
      * ---
      * description:
      *   purpose: >
-     *     Icons are quickly comprehensible and recognizable graphics that are presented with a text label.
+     *     Icons are quickly comprehensible and recognizable graphics.
      *     They indicate the functionality or nature of the element they illustrate:
      *     Icons will mainly be used in front of object-titles, e.g. in the
      *     header, the tree and in repository listing.
@@ -23,8 +39,6 @@ interface Factory
      *     functionality is not available for the intended audience.
      *   composition: >
      *     Icons come in three fixed sizes: small, medium and large.
-     *     They can be presented with an additional "abbreviation",
-     *     a text of a few characters that will be rendered on top of the image.
      *     The Disabled Icons are visually muted: A color shade covers the Icon.
      *   effect: >
      *     Icons themselves are not interactive; however they are allowed
@@ -46,16 +60,14 @@ interface Factory
      *     1: Icons MUST have a class indicating their usage.
      *     2: Icons MUST be tagged with a CSS-class indicating their size.
      *   accessibility:
-     *     1: Icons MUST bear an aria-label.
+     *     1: Icons MUST bear an alt-text. If the Icon has a purely decorative purpose, the aria-label MUST be set to "".
      *     2: Disabled Icons MUST bear an aria-label indicating the disabled status.
      *   wording:
-     *     1: The aria-label MUST state the represented object-type.
-     *     2: The abbreviation SHOULD consist of one or two letters.
+     *     1: The alt-text MUST state the represented object-type.
      * ---
-     *
      * @return \ILIAS\UI\Component\Symbol\Icon\Factory
      **/
-    public function icon() : Icon\Factory;
+    public function icon(): Icon\Factory;
 
     /**
      * ---
@@ -102,8 +114,63 @@ interface Factory
      *       1: >
      *          The functionality triggered by the Glyph MUST be indicated to
      *          screen readers with the attributes aria-label or aria-labelledby.
+     *          If the Glyph has a purely decorative purpose, the aria-label MUST be set to "" or be completely omitted.
      * ---
      * @return  \ILIAS\UI\Component\Symbol\Glyph\Factory
      */
-    public function glyph() : Glyph\Factory;
+    public function glyph(): Glyph\Factory;
+
+    /**
+     * ---
+     * description:
+     *   purpose: >
+     *     Avatars are graphical representations of a user. They contain a
+     *     user-defined picture, a deputy-picture or an abbreviation for its username.
+     *     Avatars are used in places where there is a direct reference to a user
+     *     (-account), such as the entries in the Metabar entry "user", a members
+     *     gallery the of a course or the avatar in a forum-post.
+     *   composition: >
+     *     Avatars are available in a fixed size. They always contain either a
+     *     picture (defined by the user himself or a general replacement) or an
+     *     abbreviation that indicates the username of the user.
+     *     In the case of abbreviations, the avatar receives a colored background.
+     *   effect: >
+     *     The Avatar itself has no own interaction but can be used in a context
+     *     which triggers further actions (such as a Bulky Button in the Meta Bar).
+     *   rivals:
+     *     Glyph: >
+     *       Glyphs are typographical characters that act as a trigger for
+     *       some action. There is a user Glyph as well.
+     *     Image: >
+     *       Images belong to the content and can be purely decorative.
+     *     Icon: >
+     *       Avatars represent a User in the System, Icons just an Object which is
+     *       not defined further.
+     * context:
+     *   1: user slate in the Meta Bar
+     *   2: members gallery in a course
+     *   3: forum posts
+     * rules:
+     *   usage:
+     *     1: Avatars MUST be used to represent a specific user.
+     *     2: Avatars MUST be used in combination with the represented username.
+     *   accessibility:
+     *     1:  >
+     *       Avatars MUST bear an aria-label or contain an image with an alt tag with some alternative text. Note,
+     *       that it MUST NOT contain both, a aria-label and an image with a non-empty alt tag.
+     *     2:  >
+     *       If the Avatar is accompanied by the name of the user shown in the image
+     *       (e.g. in the Members Gallery), the alternative text attribute MUST be "User Avatar".
+     *     3:  >
+     *       If the Avatar is not or might not (due to some setting) be accompanied by the
+     *       name of the user shown in the image, the alternative text MUST be "User Avatar of NameOfUser".
+     *     4:  >
+     *       Avatars that show the currently logged-in user outside some list with other users,
+     *       the alternative text MUST be "Your user avatar".
+     *   responsiveness:
+     *     1: the avatar MUST adjust it's size to the parent container.
+     * ---
+     * @return \ILIAS\UI\Component\Symbol\Avatar\Factory
+     **/
+    public function avatar(): Avatar\Factory;
 }

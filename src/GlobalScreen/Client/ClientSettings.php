@@ -1,83 +1,49 @@
 <?php
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
 namespace ILIAS\GlobalScreen\Client;
 
 use JsonSerializable;
 
 /**
  * Class Client
- *
  * @package ILIAS\GlobalScreen\Client
  */
 class ClientSettings implements JsonSerializable
 {
+    private bool $hashing = true;
+    private bool $logging = false;
 
-    /**
-     * @var array
-     */
-    private $clear_states_for_levels
-        = [
-            ItemState::LEVEL_OF_TOPITEM => [ItemState::LEVEL_OF_TOPITEM],
-            ItemState::LEVEL_OF_TOOL    => [ItemState::LEVEL_OF_TOPITEM, ItemState::LEVEL_OF_TOOL],
-            ItemState::LEVEL_OF_SUBITEM => [],
-        ];
-    /**
-     * @var bool
-     */
-    private $hashing = true;
-    /**
-     * @var bool
-     */
-    private $logging = false;
-    /**
-     * @var array
-     */
-    private $store_state_for_levels
-        = [
-            ItemState::LEVEL_OF_TOPITEM,
-            ItemState::LEVEL_OF_TOOL,
-            ItemState::LEVEL_OF_SUBITEM,
-        ];
-
-
-    /**
-     * @param array $store_state_for_levels
-     *
-     * @return ClientSettings
-     */
-    public function setStoreStateForLevels(array $store_state_for_levels) : ClientSettings
-    {
-        $this->store_state_for_levels = $store_state_for_levels;
-
-        return $this;
-    }
-
-
-    /**
-     * @param bool $hashing
-     *
-     * @return ClientSettings
-     */
-    public function setHashing(bool $hashing) : ClientSettings
+    public function setHashing(bool $hashing): self
     {
         $this->hashing = $hashing;
 
         return $this;
     }
 
-
-    /**
-     * @param bool $logging
-     *
-     * @return ClientSettings
-     */
-    public function setLogging(bool $logging) : ClientSettings
+    public function setLogging(bool $logging): self
     {
         $this->logging = $logging;
 
         return $this;
     }
-
 
     /**
      * @inheritDoc
@@ -85,10 +51,8 @@ class ClientSettings implements JsonSerializable
     public function jsonSerialize()
     {
         return [
-            'clear_states_for_levels' => $this->clear_states_for_levels,
-            'hashing'                 => $this->hashing,
-            'logging'                 => $this->logging,
-            'store_state_for_levels'  => $this->store_state_for_levels,
+            'hashing' => $this->hashing,
+            'logging' => $this->logging,
         ];
     }
 }

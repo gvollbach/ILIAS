@@ -1,4 +1,5 @@
 <?php
+
 /* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 chdir('../../..');
@@ -13,15 +14,11 @@ include_once './include/inc.header.php';
 
 include_once './Services/WebServices/Rest/classes/class.ilRestServer.php';
 $server = new ilRestServer(
-	[
-		'settings' => [
-			'displayErrorDetails' => true
-		]
-	]
+    [
+        'settings' => [
+            'displayErrorDetails' => true
+        ]
+    ]
 );
 $server->init();
 $server->run();
-
-
-
-?>

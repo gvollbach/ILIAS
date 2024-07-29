@@ -1,263 +1,232 @@
 <?php
 
-class ilIndividualAssessmentSettingsGUI {
+declare(strict_types=1);
 
-	const PROP_CONTENT = "content";
-	const PROP_RECORD_TEMPLATE = "record_template";
-	const PROP_TITLE = "title";
-	const PROP_DESCRIPTION = "description";
-	const PROP_EVENT_TIME_PLACE_REQUIRED = "event_time_place_required";
-	const PROP_FILE_REQUIRED = "file_required";
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
-	const PROP_INFO_CONTACT = "contact";
-	const PROP_INFO_RESPONSIBILITY = "responsibility";
-	const PROP_INFO_PHONE = "phone";
-	const PROP_INFO_MAILS = "mails";
-	const PROP_INFO_CONSULTATION = "consultation";
+use ILIAS\UI\Component\Input\Container\Form;
+use ILIAS\UI\Component\Input;
+use ILIAS\Refinery;
+use ILIAS\UI;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
-	const TAB_EDIT = 'settings';
-	const TAB_EDIT_INFO = 'infoSettings';
+/**
+ * @ilCtrl_Calls ilIndividualAssessmentSettingsGUI: ilIndividualAssessmentCommonSettingsGUI
+ */
+class ilIndividualAssessmentSettingsGUI
+{
+    public const TAB_EDIT = 'settings';
+    public const TAB_EDIT_INFO = 'infoSettings';
+    public const TAB_COMMON_SETTINGS = 'commonSettings';
 
-	public function __construct($a_parent_gui, $a_ref_id) {
-		global $DIC;
-		$this->ctrl = $DIC['ilCtrl'];
-		$this->parent_gui = $a_parent_gui;
-		/** @var ilObjIndividualAssessment object */
-		$this->object = $a_parent_gui->object;
-		$this->ref_id = $a_ref_id;
-		$this->tpl = $DIC['tpl'];
-		$this->lng = $DIC['lng'];
-		$this->tabs_gui = $a_parent_gui->tabsGUI();
-		$this->getSubTabs($this->tabs_gui);
-		$this->iass_access = $this->object->accessHandler();
-		$this->obj_service = $DIC->object();
+    protected ilCtrl $ctrl;
+    protected ilObjIndividualAssessment $object;
+    protected ilGlobalPageTemplate $tpl;
+    protected ilLanguage $lng;
+    protected ilTabsGUI $tabs_gui;
+    protected IndividualAssessmentAccessHandler $iass_access;
+    protected Input\Factory $input_factory;
+    protected Refinery\Factory $refinery;
+    protected UI\Renderer $ui_renderer;
 
-		$this->lng->loadLanguageModule('content');
-		$this->lng->loadLanguageModule('obj');
-		$this->lng->loadLanguageModule('cntr');
-	}
+    /**
+     * @var RequestInterface|ServerRequestInterface
+     */
+    protected $http_request;
+    protected ilErrorHandling $error_object;
+    protected ilIndividualAssessmentCommonSettingsGUI $common_settings_gui;
 
-	protected function getSubTabs(ilTabsGUI $tabs) {
-		$tabs->addSubTab(self::TAB_EDIT,
-									$this->lng->txt("edit"),
-									 $this->ctrl->getLinkTarget($this,'edit'));
-		$tabs->addSubTab(self::TAB_EDIT_INFO,
-									$this->lng->txt("iass_edit_info"),
-									 $this->ctrl->getLinkTarget($this,'editInfo'));
-	}
+    public function __construct(
+        ilObjIndividualAssessment $object,
+        ilCtrl $ctrl,
+        ilGlobalPageTemplate $tpl,
+        ilLanguage $lng,
+        ilTabsGUI $tabs_gui,
+        Input\Factory $factory,
+        Refinery\Factory $refinery,
+        UI\Renderer $ui_renderer,
+        $http_request,
+        ilErrorHandling $error_object,
+        ilIndividualAssessmentCommonSettingsGUI $common_settings_gui
+    ) {
+        $this->ctrl = $ctrl;
+        $this->object = $object;
+        $this->tpl = $tpl;
+        $this->lng = $lng;
+        $this->tabs_gui = $tabs_gui;
+        $this->iass_access = $this->object->accessHandler();
 
-	public function executeCommand() {
-		$cmd = $this->ctrl->getCmd();
-		switch($cmd) {
-			case 'edit':
-			case 'update':
-			case 'cancel':
-			case 'editInfo':
-			case 'updateInfo':
-				if(!$this->iass_access->mayEditObject()) {
-					$this->parent_gui->handleAccessViolation();
-				}
-				$this->$cmd();
-			break;
-		}
-	}
+        $this->input_factory = $factory;
+        $this->refinery = $refinery;
+        $this->ui_renderer = $ui_renderer;
+        $this->http_request = $http_request;
 
+        $this->error_object = $error_object;
+        $this->common_settings_gui = $common_settings_gui;
 
-	protected function cancel() {
-		$this->ctrl->redirect($this->parent_gui);
-	}
+        $this->getSubTabs($this->tabs_gui);
+        $this->lng->loadLanguageModule('content');
+        $this->lng->loadLanguageModule('obj');
+        $this->lng->loadLanguageModule('cntr');
+    }
 
-	protected function edit() {
-		$this->tabs_gui->setSubTabActive(self::TAB_EDIT);
-		$form = $this->fillForm($this->initSettingsForm()
-					,$this->object
-					,$this->object->getSettings());
-		$this->addCommonFieldsToForm($form);
-		$this->renderForm($form);
-	}
+    protected function getSubTabs(ilTabsGUI $tabs): void
+    {
+        $tabs->addSubTab(
+            self::TAB_EDIT,
+            $this->lng->txt("edit"),
+            $this->ctrl->getLinkTarget($this, 'edit')
+        );
+        $tabs->addSubTab(
+            self::TAB_COMMON_SETTINGS,
+            $this->lng->txt("obj_features"),
+            $this->ctrl->getLinkTargetByClass(
+                [
+                    self::class,
+                    ilIndividualAssessmentCommonSettingsGUI::class
+                ],
+                ilIndividualAssessmentCommonSettingsGUI::CMD_EDIT
+            )
+        );
+        $tabs->addSubTab(
+            self::TAB_EDIT_INFO,
+            $this->lng->txt("iass_edit_info"),
+            $this->ctrl->getLinkTarget($this, 'editInfo')
+        );
+    }
 
-	protected function editInfo() {
-		$this->tabs_gui->setSubTabActive(self::TAB_EDIT_INFO);
-		$form = $this->fillInfoForm($this->initInfoSettingsForm()
-					,$this->object->getInfoSettings());
-		$this->renderForm($form);
-	}
+    public function executeCommand(): void
+    {
+        if (!$this->iass_access->mayEditObject()) {
+            $this->handleAccessViolation();
+        }
+        $next_class = $this->ctrl->getNextClass();
+        $cmd = $this->ctrl->getCmd();
+        switch ($next_class) {
+            case 'ilindividualassessmentcommonsettingsgui':
+                $this->tabs_gui->activateSubTab(self::TAB_COMMON_SETTINGS);
+                $this->ctrl->forwardCommand($this->common_settings_gui);
+                break;
+            default:
+                switch ($cmd) {
+                    case 'edit':
+                        $this->edit();
+                        break;
+                    case 'update':
+                        $this->update();
+                        break;
+                    case 'editInfo':
+                        $this->editInfo();
+                        break;
+                    case 'updateInfo':
+                        $this->updateInfo();
+                        break;
+                }
+        }
+    }
 
-	protected function updateInfo() {
-		$this->tabs_gui->setSubTabActive(self::TAB_EDIT_INFO);
-		$form = $this->initInfoSettingsForm();
-		$form->setValuesByArray($_POST);
-		if($form->checkInput()) {
-			$this->object->getInfoSettings()
-				->setContact($_POST[self::PROP_INFO_CONTACT])
-				->setResponsibility($_POST[self::PROP_INFO_RESPONSIBILITY])
-				->setPhone($_POST[self::PROP_INFO_PHONE])
-				->setMails($_POST[self::PROP_INFO_MAILS])
-				->setConsultationHours($_POST[self::PROP_INFO_CONSULTATION]);
-			$this->object->updateInfo();
-			ilUtil::sendSuccess($this->lng->txt('iass_settings_saved'), true);
-		}
-		$this->ctrl->redirect($this, "editInfo");
-	}
+    protected function buildForm(): Form\Form
+    {
+        $settings = $this->object->getSettings();
+        $field = $settings->toFormInput(
+            $this->input_factory->field(),
+            $this->lng,
+            $this->refinery
+        );
+        return $this->input_factory->container()->form()->standard(
+            $this->ctrl->getFormAction($this, "update"),
+            [$field]
+        )
+        ->withAdditionalTransformation(
+            $this->refinery->custom()->transformation(function ($v) {
+                return array_shift($v);
+            })
+        );
+    }
 
-	protected function renderForm(ilPropertyFormGUI $a_form) {
-		$this->tpl->setContent($a_form->getHTML());
-	}
+    protected function edit(): void
+    {
+        $this->tabs_gui->setSubTabActive(self::TAB_EDIT);
+        $form = $this->buildForm();
+        $this->tpl->setContent($this->ui_renderer->render($form));
+    }
 
-	protected function update() {
-		$this->tabs_gui->setSubTabActive(self::TAB_EDIT);
-		$form = $this->initSettingsForm();
-		$form->setValuesByArray($_POST);
-		$this->addCommonFieldsToForm($form);
-		if($form->checkInput()) {
-			$this->object->setTitle($_POST[self::PROP_TITLE]);
-			$this->object->setDescription($_POST[self::PROP_DESCRIPTION]);
-			$this->object->getSettings()->setContent($_POST[self::PROP_CONTENT])
-								->setRecordTemplate($_POST[self::PROP_RECORD_TEMPLATE])
-								->setEventTimePlaceRequired((bool)$_POST[self::PROP_EVENT_TIME_PLACE_REQUIRED])
-								->setFileRequired((bool)$_POST[self::PROP_FILE_REQUIRED]);
-			$this->object->update();
-			ilObjectServiceSettingsGUI::updateServiceSettingsForm(
-				$this->object->getId(),
-				$form,
-				[
-					ilObjectServiceSettingsGUI::ORGU_POSITION_ACCESS,
-					ilObjectServiceSettingsGUI::CUSTOM_METADATA
-				]
-			);
-			$form_service = $this->obj_service->commonSettings()->legacyForm($form, $this->object);
-			$form_service->saveTitleIconVisibility();
-			$form_service->saveTopActionsVisibility();
-			$form_service->saveIcon();
-			$form_service->saveTileImage();
-			ilUtil::sendSuccess($this->lng->txt('iass_settings_saved'), true);
-		}
-		$this->ctrl->redirect($this, "edit");
-	}
+    protected function update(): void
+    {
+        $form = $this->buildForm();
+        $form = $form->withRequest($this->http_request);
 
+        $settings = $form->getData();
 
-	protected function initSettingsForm() {
-		$form = new ilPropertyFormGUI();
-		$form->setFormAction($this->ctrl->getFormAction($this));
-		$form->setTitle($this->lng->txt('iass_edit'));
+        if (!is_null($settings)) {
+            $this->object->setSettings($settings);
+            $this->object->update();
+            $this->tpl->setOnScreenMessage("success", $this->lng->txt("settings_saved"), true);
+            $this->ctrl->redirect($this, "edit");
+        } else {
+            $this->tpl->setContent($this->ui_renderer->render($form));
+        }
+    }
 
-		// title
-		$ti = new ilTextInputGUI($this->lng->txt('title'), self::PROP_TITLE);
-		$ti->setSize(40);
-		$ti->setRequired(true);
-		$form->addItem($ti);
+    protected function editInfo(): void
+    {
+        $this->tabs_gui->setSubTabActive(self::TAB_EDIT_INFO);
+        $form = $this->buildInfoSettingsForm();
+        $this->tpl->setContent($this->ui_renderer->render($form));
+    }
 
-		// description
-		$ta = new ilTextAreaInputGUI($this->lng->txt('description'), self::PROP_DESCRIPTION);
-		$ta->setCols(40);
-		$ta->setRows(2);
-		$form->addItem($ta);
+    protected function updateInfo(): void
+    {
+        $form = $this->buildInfoSettingsForm();
+        $form = $form->withRequest($this->http_request);
 
+        $info_settings = $form->getData();
 
-		$item = new ilTextAreaInputGUI($this->lng->txt('iass_content'), self::PROP_CONTENT);
-		$item->setInfo($this->lng->txt('iass_content_explanation'));
-		$form->addItem($item);
+        if (!is_null($info_settings)) {
+            $this->object->setInfoSettings($info_settings);
+            $this->object->updateInfo();
+            $this->ctrl->redirect($this, "editInfo");
+        } else {
+            $this->tpl->setContent($this->ui_renderer->render($form));
+        }
+    }
 
-		$item = new ilTextAreaInputGUI($this->lng->txt('iass_record_template'), self::PROP_RECORD_TEMPLATE);
-		$item->setInfo($this->lng->txt('iass_record_template_explanation'));
-		$form->addItem($item);
+    protected function buildInfoSettingsForm(): Form\Form
+    {
+        $info_settings = $this->object->getInfoSettings();
+        $field = $info_settings->toFormInput(
+            $this->input_factory->field(),
+            $this->lng,
+            $this->refinery
+        );
+        return $this->input_factory->container()->form()->standard(
+            $this->ctrl->getFormAction($this, "updateInfo"),
+            [$field]
+        )
+            ->withAdditionalTransformation(
+                $this->refinery->custom()->transformation(function ($v) {
+                    return array_shift($v);
+                })
+            );
+    }
 
-		$option = new ilCheckboxInputGUI($this->lng->txt('iass_event_time_place_required'), self::PROP_EVENT_TIME_PLACE_REQUIRED);
-		$option->setInfo($this->lng->txt('iass_event_time_place_required_info'));
-		$form->addItem($option);
-
-		$option = new ilCheckboxInputGUI($this->lng->txt('iass_file_required'), self::PROP_FILE_REQUIRED);
-		$option->setInfo($this->lng->txt('iass_file_required_info'));
-		$form->addItem($option);
-
-		$form->addCommandButton('update', $this->lng->txt('save'));
-		$form->addCommandButton('cancel', $this->lng->txt('cancel'));
-
-		$sh = new ilFormSectionHeaderGUI();
-		$sh->setTitle($this->lng->txt("obj_features"));
-		$form->addItem($sh);
-
-		ilObjectServiceSettingsGUI::initServiceSettingsForm(
-			$this->object->getId(),
-			$form,
-			[
-				ilObjectServiceSettingsGUI::ORGU_POSITION_ACCESS,
-				ilObjectServiceSettingsGUI::CUSTOM_METADATA
-			]
-		);
-
-		return $form;
-	}
-
-	protected function addCommonFieldsToForm(\ilPropertyFormGUI $form)
-	{
-		$section_appearance = new ilFormSectionHeaderGUI();
-		$section_appearance->setTitle($this->lng->txt('cont_presentation'));
-		$form->addItem($section_appearance);
-		$form_service = $this->obj_service->commonSettings()->legacyForm($form, $this->object);
-		$form = $form_service->addTitleIconVisibility();
-		$form = $form_service->addTopActionsVisibility();
-		$form = $form_service->addIcon();
-		$form = $form_service->addTileImage();
-	}
-
-	protected function initInfoSettingsForm() {
-		include_once("Services/Form/classes/class.ilPropertyFormGUI.php");
-		$form = new ilPropertyFormGUI();
-		$form->setFormAction($this->ctrl->getFormAction($this));
-		$form->setTitle($this->lng->txt('iass_edit_info'));
-
-		$ti = new ilTextInputGUI($this->lng->txt('iass_contact'), self::PROP_INFO_CONTACT);
-		$ti->setSize(40);
-		$form->addItem($ti);
-
-		$ti = new ilTextInputGUI($this->lng->txt('iass_responsibility'), self::PROP_INFO_RESPONSIBILITY);
-		$ti->setSize(40);
-		$form->addItem($ti);
-
-		$ti = new ilTextInputGUI($this->lng->txt('iass_phone'), self::PROP_INFO_PHONE);
-		$ti->setSize(40);
-		$form->addItem($ti);
-
-		$ti = new ilTextInputGUI($this->lng->txt('iass_mails'), self::PROP_INFO_MAILS);
-		$ti->setInfo($this->lng->txt('iass_info_emails_expl'));
-		$ti->setSize(300);
-		$form->addItem($ti);
-
-		$item = new ilTextAreaInputGUI($this->lng->txt('iass_consultation_hours'), self::PROP_INFO_CONSULTATION);
-		$form->addItem($item);
-
-		$form->addCommandButton('updateInfo', $this->lng->txt('save'));
-		$form->addCommandButton('cancel', $this->lng->txt('cancel'));
-		return $form;
-	}
-
-	protected function fillInfoForm(ilPropertyFormGUI $a_form, ilIndividualAssessmentInfoSettings $settings) {
-		$a_form->setValuesByArray(array(
-			  self::PROP_INFO_CONTACT => $settings->contact()
-			, self::PROP_INFO_RESPONSIBILITY => $settings->responsibility()
-			, self::PROP_INFO_PHONE => $settings->phone()
-			, self::PROP_INFO_MAILS => $settings->mails()
-			, self::PROP_INFO_CONSULTATION => $settings->consultationHours()
-			));
-		return $a_form;
-	}
-
-	protected function fillForm(ilPropertyFormGUI $a_form, ilObjIndividualAssessment $iass, ilIndividualAssessmentSettings $settings) {
-		$a_form->setValuesByArray(array(
-			  self::PROP_TITLE => $iass->getTitle()
-			, self::PROP_DESCRIPTION => $iass->getDescription()
-			, self::PROP_CONTENT => $settings->content()
-			, self::PROP_RECORD_TEMPLATE => $settings->recordTemplate()
-			, self::PROP_EVENT_TIME_PLACE_REQUIRED => $settings->eventTimePlaceRequired()
-			, self::PROP_FILE_REQUIRED => $settings->fileRequired()
-			, ilObjectServiceSettingsGUI::ORGU_POSITION_ACCESS => (bool) ilOrgUnitGlobalSettings::getInstance()->isPositionAccessActiveForObject($iass->getId())
-			, ilObjectServiceSettingsGUI::CUSTOM_METADATA => ilContainer::_lookupContainerSetting(
-					$this->object->getId(),
-					ilObjectServiceSettingsGUI::CUSTOM_METADATA,
-					false
-				)
-			));
-		return $a_form;
-	}
+    public function handleAccessViolation(): void
+    {
+        $this->error_object->raiseError($this->lng->txt("msg_no_perm_read"), $this->error_object->WARNING);
+    }
 }

@@ -1,86 +1,88 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2009 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
-
 
 /**
-* Class ilEditClipboard
-*
-* This class supports only a few basic clipboard functions for the
-* editor and should be further elaborated in the future.
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* @version $Id$
-*
-* @ingroup ModulesIliasLearningModule
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Class ilEditClipboard
+ *
+ * This class supports only a few basic clipboard functions for the
+ * editor and should be further elaborated in the future.
+ *
+ * @author Alexander Killing <killing@leifos.de>
+ */
 class ilEditClipboard
 {
-	static function getContentObjectType()
-	{
-		if (isset($_SESSION["ilEditClipboard"]))
-		{
-			return $_SESSION["ilEditClipboard"]["type"];
-		}
-		else
-		{
-			return false;
-		}
-	}
+    public static function getContentObjectType(): string
+    {
+        global $DIC;
+        $user = $DIC->user();
+        $lm_type = $user->getPref("lm_clipboard_type");
+        if ($lm_type != "") {
+            return $lm_type;
+        } else {
+            return "";
+        }
+    }
 
-	static function setAction($a_action)
-	{
-		$_SESSION["ilEditClipboard"] = array("action" => $a_action);
-	}
+    public static function setAction(string $a_action): void
+    {
+        global $DIC;
+        $user = $DIC->user();
+        $user->writePref("lm_clipboard_action", $a_action);
+    }
 
-	static function getAction()
-	{
-		if (isset($_SESSION["ilEditClipboard"]))
-		{
-			return $_SESSION["ilEditClipboard"]["action"];
-		}
-		else
-		{
-			return false;
-		}
-	}
+    public static function getAction(): string
+    {
+        global $DIC;
+        $user = $DIC->user();
+        return (string) $user->getPref("lm_clipboard_action");
+    }
 
-	static function getContentObjectId()
-	{
-		if (isset($_SESSION["ilEditClipboard"]))
-		{
-			return $_SESSION["ilEditClipboard"]["id"];
-		}
-	}
+    public static function getContentObjectId(): int
+    {
+        global $DIC;
+        $user = $DIC->user();
+        $lm_id = $user->getPref("lm_clipboard_id");
+        if ($lm_id != "") {
+            return (int) $lm_id;
+        }
+        return 0;
+    }
 
-	static function storeContentObject($a_type, $a_id, $a_action = "cut")
-	{
-		$_SESSION["ilEditClipboard"] = array("type" => $a_type,
-			"id" => $a_id, "action" => $a_action);
-	}
+    public static function storeContentObject(
+        string $a_type,
+        int $a_id,
+        string $a_action = "cut"
+    ): void {
+        global $DIC;
+        $user = $DIC->user();
+        $user->writePref("lm_clipboard_id", $a_id);
+        $user->writePref("lm_clipboard_type", $a_type);
+        self::setAction($a_action);
+    }
 
-	static function clear()
-	{
-		unset($_SESSION["ilEditClipboard"]);
-	}
+    public static function clear(): void
+    {
+        global $DIC;
+        $user = $DIC->user();
+        $user->clipboardDeleteObjectsOfType("pg");
+        $user->clipboardDeleteObjectsOfType("st");
+        $user->writePref("lm_clipboard_id", "");
+        $user->writePref("lm_clipboard_type", "");
+        $user->writePref("lm_clipboard_action", "");
+    }
 }
-?>

@@ -1,5 +1,23 @@
 <?php
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
 namespace ILIAS\Setup;
 
 /**
@@ -9,41 +27,71 @@ namespace ILIAS\Setup;
  */
 class ImplementationOfInterfaceFinder
 {
+    protected string $root;
 
     /**
-     * @var string
+     * @var string[]
      */
-    private $interface = "";
+    protected array $ignore = [
+        '.*/src/',
+        '.*/libs/',
+        '.*/test/',
+        '.*/tests/',
+        '.*/setup/',
+        // Classes using removed Auth-class from PEAR
+        '.*ilSOAPAuth.*',
+        // Classes using unknown
+        '.*ilPDExternalFeedBlockGUI.*',
+    ];
+
     /**
-     * @var array
+     * @var string[]|null
      */
-    private $ignore
-        = [
-            '.*/libs/',
-            '.*/test/',
-            '.*/tests/',
-            '.*/setup/',
-            // Classes using removed Auth-class from PEAR
-            '.*ilSOAPAuth.*',
-            // Classes using unknown
-            '.*ilPDExternalFeedBlockGUI.*',
-        ];
+    protected ?array $classmap = null;
 
-
-    public function __construct(string $interface)
+    public function __construct()
     {
-        $this->interface = $interface;
-        $this->getAllClassNames();
+        $this->root = substr(__FILE__, 0, strpos(__FILE__, DIRECTORY_SEPARATOR . "src"));
+        $external_classmap = include "./libs/composer/vendor/composer/autoload_classmap.php";
+        $this->classmap = $external_classmap ?: null;
     }
 
+    /**
+     * The matcher finds the class names implementing the given interface, while
+     * ignoring paths in self::$ignore and and the additional patterns provided.
+     *
+     * Patterns are regexps (without delimiters) to define complete paths on the
+     * filesystem to be ignored or selected.
+     *
+     * @param   string $interface
+     * @param   string[] $additional_ignore
+     * @param   string|null $matching_path
+     */
+    public function getMatchingClassNames(
+        string $interface,
+        array $additional_ignore = [],
+        string $matching_path = null
+    ): \Iterator {
+        foreach ($this->getAllClassNames($additional_ignore, $matching_path) as $class_name) {
+            try {
+                $r = new \ReflectionClass($class_name);
+                if ($r->isInstantiable() && $r->implementsInterface($interface)) {
+                    yield $class_name;
+                }
+            } catch (\Throwable $e) {
+                // noting to do here
+            }
+        }
+    }
 
-    private function getAllClassNames() : \Iterator
+    /**
+     * @param   string[] $additional_ignore
+     */
+    protected function getAllClassNames(array $additional_ignore, string $matching_path = null): \Iterator
     {
-        // We use the composer classmap ATM
-        $composer_classmap = include "./libs/composer/vendor/composer/autoload_classmap.php";
-        $root = substr(__FILE__, 0, strpos(__FILE__, "/src"));
+        $ignore = array_merge($this->ignore, $additional_ignore);
 
-        if (!is_array($composer_classmap)) {
+        if (!is_array($this->classmap)) {
             throw new \LogicException("Composer ClassMap not loaded");
         }
 
@@ -51,30 +99,32 @@ class ImplementationOfInterfaceFinder
             "|",
             array_map(
                 // fix path-separators to respect windows' backspaces.
-                function ($v) { return "(" . str_replace('/', '(/|\\\\)', $v) . ")"; },
-                $this->ignore
+                fn ($v): string => "(" . str_replace('/', '(/|\\\\)', $v) . ")",
+                $ignore
             )
         );
+        if ($matching_path) {
+            $matching_path = str_replace('/', '(/|\\\\)', $matching_path);
+        }
 
-        foreach ($composer_classmap as $class_name => $file_path) {
-            $path = str_replace($root, "", realpath($file_path));
+
+        foreach ($this->classmap as $class_name => $file_path) {
+            $real_path = realpath($file_path);
+            if ($real_path === false) {
+                throw new \RuntimeException(
+                    "Could not find file for class $class_name (path: $file_path). " .
+                    "Please check the composer classmap, maybe it is outdated. " .
+                    "You can regenerate it by executing 'composer du' or 'composer install' " .
+                    "(which also ensures dependencies are correctly installed) in the ILIAS root directory."
+                );
+            }
+
+            $path = str_replace($this->root, "", $real_path);
+            if ($matching_path && !preg_match("#^" . $matching_path . "$#", $path)) {
+                continue;
+            }
             if (!preg_match("#^" . $regexp . "$#", $path)) {
                 yield $class_name;
-            }
-        }
-    }
-
-
-    public function getMatchingClassNames() : \Iterator
-    {
-        foreach ($this->getAllClassNames() as $class_name) {
-            try {
-                $r = new \ReflectionClass($class_name);
-                if ($r->isInstantiable() && $r->implementsInterface($this->interface)) {
-                    yield $class_name;
-                }
-            } catch (\Throwable $e) {
-                // noting to do here
             }
         }
     }

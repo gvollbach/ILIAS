@@ -1,15 +1,30 @@
 <?php
-declare(strict_types=1);
 
-/* Copyright (c) 2019 Nils Haagen <nils.haagen@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 namespace ILIAS\UI\Implementation\Component\Tree\Node;
 
 use ILIAS\Data\URI;
+use ILIAS\UI\Implementation\Component\TriggeredSignal;
 use ILIAS\UI\Implementation\Render\AbstractComponentRenderer;
 use ILIAS\UI\Renderer as RendererInterface;
 use ILIAS\UI\Component;
-use ILIAS\UI\Component\Signal;
 use ILIAS\UI\Component\Tree\Node;
 
 class Renderer extends AbstractComponentRenderer
@@ -17,7 +32,7 @@ class Renderer extends AbstractComponentRenderer
     /**
      * @inheritdoc
      */
-    public function render(Component\Component $component, RendererInterface $default_renderer)
+    public function render(Component\Component $component, RendererInterface $default_renderer): string
     {
         $this->checkComponent($component);
 
@@ -32,8 +47,14 @@ class Renderer extends AbstractComponentRenderer
 
         $icon = $component->getIcon();
         $label = $component->getLabel();
+
+        if (!is_null($icon) && $icon->getLabel() === $label) {
+            $icon->setLabel("");
+        }
+
         /** @var URI|null $link */
         $link = $component->getLink();
+
         if (null !== $link) {
             $linkAsString = $this->getRefinery()
                 ->uri()
@@ -63,6 +84,9 @@ class Renderer extends AbstractComponentRenderer
             $tpl->touchBlock("highlighted");
         }
 
+        /**
+         * @var $component Node\Simple|Node\Bylined
+         */
         $triggered_signals = $component->getTriggeredSignals();
         if (count($triggered_signals) > 0) {
             $component = $this->triggerFurtherSignals($component, $triggered_signals);
@@ -75,14 +99,22 @@ class Renderer extends AbstractComponentRenderer
 
         if (count($subnodes) > 0 || $async) {
             $tpl->touchBlock("expandable");
+            $tpl->setCurrentBlock("aria_expanded");
             if ($component->isExpanded()) {
-                $tpl->touchBlock("expanded");
+                $tpl->setVariable("ARIA_EXPANDED", "true");
+            } else {
+                $tpl->setVariable("ARIA_EXPANDED", "false");
             }
-        }
+            $tpl->parseCurrentBlock();
 
-        if (count($subnodes) > 0) {
             $subnodes_html = $default_renderer->render($subnodes);
             $tpl->setVariable("SUBNODES", $subnodes_html);
+        }
+
+        if ($async || $link === null || count($subnodes) !== 0) {
+            $tpl->touchBlock("role_item");
+        } else {
+            $tpl->touchBlock("role_none");
         }
 
         return $tpl->get();
@@ -90,13 +122,18 @@ class Renderer extends AbstractComponentRenderer
 
     /**
      * Relay signals (beyond expansion) to the node's js.
-     * @param Node\Node $component
-     * @param Signal[] $triggered_signals
+     *
+     * @param TriggeredSignal[] $triggered_signals
      */
-    protected function triggerFurtherSignals(Node\Node $component, array $triggered_signals)
-    {
+    protected function triggerFurtherSignals(
+        Node\Node $component,
+        array $triggered_signals
+    ): Component\JavaScriptBindable {
         $signals = [];
         foreach ($triggered_signals as $s) {
+            /**
+             * @var $s TriggeredSignal
+             */
             $signals[] = [
                 "signal_id" => $s->getSignal()->getId(),
                 "event" => $s->getEvent(),
@@ -105,8 +142,7 @@ class Renderer extends AbstractComponentRenderer
         }
         $signals = json_encode($signals);
 
-        return $component->withAdditionalOnLoadCode(function ($id) use ($signals) {
-            return "
+        return $component->withAdditionalOnLoadCode(fn ($id) => "
 			$('#$id > span').click(function(e){
 				var node = $('#$id'),
 					signals = $signals;
@@ -117,14 +153,13 @@ class Renderer extends AbstractComponentRenderer
 				}
 
 				return false;
-			});";
-        });
+			});");
     }
 
     /**
      * @inheritdoc
      */
-    protected function getComponentInterfaceName()
+    protected function getComponentInterfaceName(): array
     {
         return array(
             Node\Simple::class,

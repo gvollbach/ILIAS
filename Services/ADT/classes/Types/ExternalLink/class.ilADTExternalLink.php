@@ -1,173 +1,181 @@
 <?php
 
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 class ilADTExternalLink extends ilADT
 {
-	const MAX_LENGTH = 500;
-	
-	/**
-	 * @var string
-	 */
-	protected $value; 
-	
-	/**
-	 * @var string
-	 */
-	protected $title;
-	
+    public const MAX_LENGTH = 2000;
 
-	/**
-	 * @param ilADTDefinition $a_def
-	 * @return bool
-	 */
-	protected function isValidDefinition(ilADTDefinition $a_def)
-	{
-		return $a_def instanceof ilADTExternalLinkDefinition;
-	}
+    protected ?string $value;
+    protected ?string $title;
 
-	/**
-	 * Reset
-	 */
-	public function reset()
-	{
-		parent::reset();
-		$this->value = null;
-		$this->title = null;
-	}
-	
-	/**
-	 * Set title
-	 * @param string $a_title
-	 */
-	public function setTitle($a_title = null)
-	{
-		if($a_title !== null)
-		{
-			$a_title = trim($a_title);
-		}
-		$this->title = $a_title;
-	}
-	
-	/**
-	 * Getb title
-	 * @return string
-	 */
-	public function getTitle()
-	{
-		return $this->title;
-	}
-	
-	/**
-	 * Set url
-	 * @param string $a_value
-	 */
-	public function setUrl($a_value = null)
-	{
-		if($a_value !== null)
-		{
-			$a_value = trim($a_value);
-		}
-		$this->value = $a_value;
-	}
+    /**
+     * @param ilADTDefinition $a_def
+     * @return bool
+     */
+    protected function isValidDefinition(ilADTDefinition $a_def): bool
+    {
+        return $a_def instanceof ilADTExternalLinkDefinition;
+    }
 
-	/**
-	 * Get url
-	 * @return type
-	 */
-	public function getUrl()
-	{
-		return $this->value;
-	}
+    /**
+     * Reset
+     */
+    public function reset(): void
+    {
+        parent::reset();
+        $this->value = null;
+        $this->title = null;
+    }
 
+    /**
+     * Set title
+     * @param string|null $a_title
+     */
+    public function setTitle(?string $a_title = null): void
+    {
+        if ($a_title !== null) {
+            $a_title = trim($a_title);
+        }
+        $this->title = $a_title;
+    }
 
-	/**
-	 * 
-	 * @param ilADT $a_adt
-	 * @return type
-	 */
-	public function equals(ilADT $a_adt)
-	{
-		if($this->getDefinition()->isComparableTo($a_adt))
-		{
-			return strcmp($this->getCheckSum(), $a_adt->getCheckSum()) === 0;
-		}
-	}
+    /**
+     * Get title
+     * @return string|null
+     */
+    public function getTitle(): ?string
+    {
+        return $this->title;
+    }
 
-	/**
-	 * Is larger
-	 * @param ilADT $a_adt
-	 */
-	public function isLarger(ilADT $a_adt)
-	{
-		
-	}
+    /**
+     * Set url
+     * @param string|null $a_value
+     */
+    public function setUrl(?string $a_value = null): void
+    {
+        if ($a_value !== null) {
+            $a_value = trim($a_value);
+        }
+        $this->value = $a_value;
+    }
 
-	/**
-	 * Is smaller
-	 * @param ilADT $a_adt
-	 */
-	public function isSmaller(ilADT $a_adt)
-	{
-		
-	}
+    /**
+     * Get url
+     * @return string|null
+     */
+    public function getUrl(): ?string
+    {
+        return $this->value;
+    }
 
-	/**
-	 * is null
-	 * @return bool
-	 */
-	public function isNull()
-	{
-		return (bool) !$this->getLength();
-	}
-	
-	/**
-	 * Get length
-	 * @return int
-	 */
-	public function getLength()
-	{
-		if(function_exists("mb_strlen"))
-		{
-			return mb_strlen($this->getUrl().$this->getTitle(), "UTF-8");
-		}
-		else
-		{
-			return strlen($this->getUrl().$this->getTitle());
-		}
-	}
-	
+    /**
+     * @param ilADT $a_adt
+     * @return bool
+     */
+    public function equals(ilADT $a_adt): ?bool
+    {
+        if ($this->getDefinition()->isComparableTo($a_adt)) {
+            return strcmp($this->getCheckSum() ?? '', $a_adt->getCheckSum() ?? '') === 0;
+        }
+        return null;
+    }
 
-	/**
-	 * is valid
-	 * @return boolean
-	 */
-	public function isValid()
-	{
-		$valid = parent::isValid();
+    public function isLarger(ilADT $a_adt): ?bool
+    {
+        return null;
+    }
 
-		if(!$this->isNull())
-		{
-			if(self::MAX_LENGTH < $this->getLength())
-			{
-				$valid = false;
-				$this->addValidationError(self::ADT_VALIDATION_ERROR_MAX_LENGTH);
-			}
-		}
+    public function isSmaller(ilADT $a_adt): ?bool
+    {
+        return null;
+    }
 
-		return $valid;
-	}
+    /**
+     * is null
+     * @return bool
+     */
+    public function isNull(): bool
+    {
+        return !$this->getLength();
+    }
 
-	/**
-	 * get checksum
-	 * @return string
-	 */
-	public function getCheckSum()
-	{
-		if(!$this->isNull())
-		{
-			return md5($this->getUrl().$this->getTitle());
-		}
-	}
+    /**
+     * Get length
+     * @return int
+     */
+    public function getLength(): int
+    {
+        if (function_exists("mb_strlen")) {
+            return mb_strlen($this->getUrl() . $this->getTitle(), "UTF-8");
+        } else {
+            return strlen($this->getUrl() . $this->getTitle());
+        }
+    }
 
+    public function isValid(): bool
+    {
+        $valid = parent::isValid();
+        if (!$this->isNull()) {
+            if (self::MAX_LENGTH < $this->getLength()) {
+                $valid = false;
+                $this->addValidationError(self::ADT_VALIDATION_ERROR_MAX_LENGTH);
+            }
+        }
+        return $valid;
+    }
+
+    /**
+     * get checksum
+     * @return string
+     */
+    public function getCheckSum(): ?string
+    {
+        if (!$this->isNull()) {
+            return md5($this->getUrl() . $this->getTitle());
+        }
+        return null;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function exportStdClass(): ?stdClass
+    {
+        if (!$this->isNull()) {
+            $obj = new stdClass();
+            $obj->url = $this->getUrl();
+            $obj->title = $this->getTitle();
+            return $obj;
+        }
+        return null;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function importStdClass(?stdClass $a_std): void
+    {
+        if (is_object($a_std)) {
+            $this->setTitle($a_std->title);
+            $this->setUrl($a_std->url);
+        }
+    }
 }
-
-?>

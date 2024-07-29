@@ -1,66 +1,91 @@
 <?php
 
-/* Copyright (c) 2019 Richard Klees <richard.klees@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 namespace ILIAS\Tests\Setup;
 
 use ILIAS\Setup;
-use ILIAS\UI\Component\Input\Field\Factory as FieldFactory;
 use ILIAS\UI\Component\Input\Field\Input as Input;
-use ILIAS\Refinery\Transformation;
-use ILIAS\Refinery\Factory as Refinery;
-use ILIAS\Data\Factory as DataFactory;
 
-trait Helper {
-	protected function newAgent() {
-		static $no = 0;
+trait Helper
+{
+    protected function newAgent(): Setup\Agent
+    {
+        static $no = 0;
 
-		$consumer = $this
-			->getMockBuilder(Setup\Agent::class)
-			->setMethods(["hasConfig", "getDefaultConfig", "getConfigInput", "getArrayToConfigTransformation", "getInstallObjective", "getUpdateObjective", "getBuildArtifactObjective"])
-			->setMockClassName("Mock_AgentNo".($no++))
-			->getMock();
+        $consumer = $this
+            ->getMockBuilder(Setup\Agent::class)
+            ->onlyMethods(["hasConfig", "getArrayToConfigTransformation", "getInstallObjective", "getUpdateObjective", "getBuildArtifactObjective", "getStatusObjective", "getMigrations", "getNamedObjectives"])
+            ->setMockClassName("Mock_AgentNo" . ($no++))
+            ->getMock();
 
-		return $consumer;
-	}
+        return $consumer;
+    }
 
-	protected function newObjective() {
-		static $no = 0;
+    protected function newObjectiveConstructor(): Setup\ObjectiveConstructor
+    {
+        static $no = 0;
+        return new Setup\ObjectiveConstructor("named-objective-" . ($no++), static function () {
+            return self::newObjective();
+        });
+    }
 
-		$goal = $this
-			->getMockBuilder(Setup\Objective::class)
-			->setMethods(["getHash", "getLabel", "isNotable", "withResourcesFrom", "getPreconditions", "achieve"])
-			->setMockClassName("Mock_ObjectiveNo".($no++))
-			->getMock();
+    protected function newObjective(): Setup\Objective
+    {
+        static $no = 0;
 
-		$goal
-			->method("getHash")
-			->willReturn("".$no);
+        $goal = $this
+            ->getMockBuilder(Setup\Objective::class)
+            ->onlyMethods(["getHash", "getLabel", "isNotable", "getPreconditions", "achieve", "isApplicable"])
+            ->setMockClassName("Mock_ObjectiveNo" . ($no++))
+            ->getMock();
 
-		return $goal;
-	}
+        $goal
+            ->method("getHash")
+            ->willReturn("" . $no);
 
-	protected function newInput() {
-		static $no = 0;
+        return $goal;
+    }
 
-		$input = $this
-			->getMockBuilder(Input::class)
-			->setMethods([])
-			->setMockClassName("Mock_InputNo".($no++))
-			->getMock();
+    protected function newInput(): Input
+    {
+        static $no = 0;
 
-		return $input;
-	}
+        $input = $this
+            ->getMockBuilder(Input::class)
+            ->onlyMethods([])
+            ->setMockClassName("Mock_InputNo" . ($no++))
+            ->getMock();
 
-	protected function newConfig() {
-		static $no = 0;
+        return $input;
+    }
 
-		$config = $this
-			->getMockBuilder(Setup\Config::class)
-			->setMethods([])
-			->setMockClassName("Mock_ConfigNo".($no++))
-			->getMock();
+    protected function newConfig(): Setup\Config
+    {
+        static $no = 0;
 
-		return $config;
-	}
+        $config = $this
+            ->getMockBuilder(Setup\Config::class)
+            ->onlyMethods([])
+            ->setMockClassName("Mock_ConfigNo" . ($no++))
+            ->getMock();
+
+        return $config;
+    }
 }

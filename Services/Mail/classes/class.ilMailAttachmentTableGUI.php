@@ -1,7 +1,22 @@
 <?php
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/Table/classes/class.ilTable2GUI.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * @author  Michael Jansen <mjansen@databay.de>
@@ -9,93 +24,76 @@ require_once 'Services/Table/classes/class.ilTable2GUI.php';
  */
 class ilMailAttachmentTableGUI extends ilTable2GUI
 {
-	/**
-	 * @var \ilCtrl
-	 */
-	protected $ctrl;
+    public function __construct(?object $a_parent_obj, string $a_parent_cmd)
+    {
+        $this->setId('mail_attachments');
 
-	/**
-	 * @param $a_parent_obj
-	 * @param $a_parent_cmd
-	 */
-	public function __construct($a_parent_obj, $a_parent_cmd)
-	{
-		global $DIC;
+        $this->setDefaultOrderDirection('ASC');
+        $this->setDefaultOrderField('filename');
 
-		$this->ctrl = $DIC->ctrl();
+        parent::__construct($a_parent_obj, $a_parent_cmd);
 
-		// Call this immediately in constructor
-		$this->setId('mail_attachments');
+        $this->setTitle($this->lng->txt('attachment'));
+        $this->setNoEntriesText($this->lng->txt('marked_entries'));
 
-		$this->setDefaultOrderDirection('ASC');
-		$this->setDefaultOrderField('filename');
+        $this->setFormAction($this->ctrl->getFormAction($a_parent_obj, 'applyFilter'));
 
-		parent::__construct($a_parent_obj, $a_parent_cmd);
+        $this->setSelectAllCheckbox('filename[]');
 
-		$this->setTitle($this->lng->txt('attachment'));
-		$this->setNoEntriesText($this->lng->txt('marked_entries'));
+        $this->setRowTemplate('tpl.mail_attachment_row.html', 'Services/Mail');
 
-		$this->setFormAction($this->ctrl->getFormAction($a_parent_obj, 'applyFilter'));
+        $this->addMultiCommand('saveAttachments', $this->lng->txt('adopt'));
+        $this->addMultiCommand('deleteAttachments', $this->lng->txt('delete'));
 
-		$this->setSelectAllCheckbox('filename[]');
+        $this->addCommandButton('cancelSaveAttachments', $this->lng->txt('cancel'));
 
-		$this->setRowTemplate('tpl.mail_attachment_row.html', 'Services/Mail');
+        $this->addColumn($this->lng->txt(''), '', '1px', true);
+        $this->addColumn($this->lng->txt('mail_file_name'), 'filename');
+        $this->addColumn($this->lng->txt('mail_file_size'), 'filesize');
+        $this->addColumn($this->lng->txt('create_date'), 'filecreatedate');
+        // Show all attachments on one page
+        $this->setLimit(PHP_INT_MAX);
+    }
 
-		$this->addMultiCommand('saveAttachments', $this->lng->txt('adopt'));
-		$this->addMultiCommand('deleteAttachments', $this->lng->txt('delete'));
+    protected function fillRow(array $a_set): void
+    {
+        /**
+         * We need to encode this because of filenames with the following format: "anystring".txt (with ")
+         */
+        $this->tpl->setVariable(
+            'VAL_CHECKBOX',
+            ilLegacyFormElementsUtil::formCheckbox($a_set['checked'], 'filename[]', urlencode($a_set['filename']))
+        );
+        $this->tpl->setVariable(
+            'VAL_FILENAME',
+            $this->formatValue('filename', $a_set['filename'])
+        );
+        $this->tpl->setVariable(
+            'VAL_FILESIZE',
+            $this->formatValue('filesize', (string) $a_set['filesize'])
+        );
+        $this->tpl->setVariable(
+            'VAL_FILECREATEDATE',
+            $this->formatValue('filecreatedate', (string) $a_set['filecreatedate'])
+        );
+    }
 
-		$this->addCommandButton('cancelSaveAttachments', $this->lng->txt('cancel'));
+    public function numericOrdering(string $a_field): bool
+    {
+        return $a_field === 'filesize' || $a_field === 'filecreatedate';
+    }
 
-		$this->addColumn($this->lng->txt(''), '', '1px', true);
-		$this->addColumn($this->lng->txt('mail_file_name'), 'filename');
-		$this->addColumn($this->lng->txt('mail_file_size'), 'filesize');
-		$this->addColumn($this->lng->txt('create_date'), 'filecreatedate');
-		// Show all attachments on one page
-		$this->setLimit(PHP_INT_MAX);
-	}
+    protected function formatValue(string $column, string $value): ?string
+    {
+        switch ($column) {
+            case 'filecreatedate':
+                return ilDatePresentation::formatDate(new ilDateTime($value, IL_CAL_UNIX));
 
-	/**
-	 * @inheritdoc
-	 */
-	protected function fillRow($a_set)
-	{
-		/**
-		 * We need to encode this because of filenames with the following format: "anystring".txt (with ")
-		 */
-		$this->tpl->setVariable('VAL_CHECKBOX', ilUtil::formCheckbox($a_set['checked'], 'filename[]', urlencode($a_set['filename'])));
-		$this->tpl->setVariable('VAL_FILENAME', $this->formatValue('filename', $a_set['filename']));
-		$this->tpl->setVariable('VAL_FILESIZE', $this->formatValue('filesize', $a_set['filesize']));
-		$this->tpl->setVariable('VAL_FILECREATEDATE', $this->formatValue('filecreatedate', $a_set['filecreatedate']));
-	}
+            case 'filesize':
+                return ilUtil::formatSize((int) $value, 'long');
 
-	/**
-	 * @param string $column
-	 * @return bool
-	 */
-	public function numericOrdering($column)
-	{
-		if($column == 'filesize' || $column == 'filecreatedate') return true;
-
-		return false;
-	}
-
-	/**
-	 * @param string $column
-	 * @param string $value
-	 * @return string
-	 */
-	protected function formatValue($column, $value)
-	{
-		switch($column)
-		{
-			case 'filecreatedate':
-				return ilDatePresentation::formatDate(new ilDateTime($value, IL_CAL_UNIX));
-
-			case 'filesize':
-				return ilUtil::formatSize($value);
-
-			default:
-				return $value;
-		}
-	}
+            default:
+                return $value;
+        }
+    }
 }

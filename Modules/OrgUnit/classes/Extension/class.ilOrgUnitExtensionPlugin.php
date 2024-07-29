@@ -1,101 +1,55 @@
 <?php
-
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
 
 /**
  * Class ilOrgUnitExtensionPlugin
- *
  * @author Oskar Truffer <ot@studer-raimann.ch>
  */
-abstract class ilOrgUnitExtensionPlugin extends ilRepositoryObjectPlugin {
+abstract class ilOrgUnitExtensionPlugin extends ilRepositoryObjectPlugin
+{
+    public function getParentTypes(): array
+    {
+        return ['orgu'];
+    }
 
-	/**
-	 * Get Component Type
-	 *
-	 * @return        string        Component Type
-	 */
-	public final function getComponentType() {
-		return IL_COMP_MODULE;
-	}
+    public static function _getIcon(string $a_type): string
+    {
+        global $DIC;
+        $componentRepositoryObject = $DIC["component.repository"];
 
+        return ilRepositoryObjectPlugin::_getImagePath(
+            ilComponentInfo::TYPE_MODULES,
+            "OrgUnit",
+            "orguext",
+            $componentRepositoryObject->getPluginById($a_type)->getName(),
+            "icon_" . $a_type . ".svg"
+        );
+    }
 
-	/**
-	 * Get Component Name.
-	 *
-	 * @return        string        Component Name
-	 */
-	public final function getComponentName() {
-		return 'OrgUnit';
-	}
+    public static function _getName(string $a_id): string
+    {
+        global $DIC;
+        $component_repository = $DIC["component.repository"];
+        return $component_repository->getPluginById($a_id)->getName();
+    }
 
-
-	/**
-	 * Get Slot Name.
-	 *
-	 * @return        string        Slot Name
-	 */
-	public final function getSlot() {
-		return 'OrgUnitExtension';
-	}
-
-
-	/**
-	 * Get Slot ID.
-	 *
-	 * @return        string        Slot Id
-	 */
-	public final function getSlotId() {
-		return 'orguext';
-	}
-
-
-	/**
-	 * Object initialization done by slot.
-	 */
-	protected final function slotInit() {
-		// nothing to do here
-	}
-
-
-	/**
-	 * @return array
-	 */
-	public function getParentTypes() {
-		$par_types = array( "orgu" );
-
-		return $par_types;
-	}
-
-
-	/**
-	 * @param $a_type
-	 * @param $a_size
-	 * @return string
-	 */
-	public static function _getIcon($a_type, $a_size) {
-		return ilPlugin::_getImagePath(IL_COMP_MODULE, "OrgUnit", "orguext", ilPlugin::lookupNameForId(IL_COMP_MODULE, "OrgUnit", "orguext", $a_type), "icon_"
-		                                                                                                                                               . $a_type
-		                                                                                                                                               . ".svg");
-	}
-
-
-	/**
-	 * @param $a_id
-	 * @return string
-	 */
-	static function _getName($a_id) {
-		$name = ilPlugin::lookupNameForId(IL_COMP_MODULE, "Repository", "orguext", $a_id);
-		if ($name != "") {
-			return $name;
-		}
-	}
-
-
-	/**
-	 * return true iff this item should be displayed in the tree.
-	 *
-	 * @return bool
-	 */
-	public function showInTree() {
-		return false;
-	}
+    public function showInTree(): bool
+    {
+        return false;
+    }
 }

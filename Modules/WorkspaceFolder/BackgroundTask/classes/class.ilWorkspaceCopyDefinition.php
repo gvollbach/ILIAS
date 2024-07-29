@@ -1,243 +1,176 @@
 <?php
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 use ILIAS\BackgroundTasks\Implementation\Values\AbstractValue;
 use ILIAS\BackgroundTasks\Value;
-
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+use ILIAS\BackgroundTasks\Implementation\Values\ScalarValues\BooleanValue;
 
 /**
- * Copy definition for worspace folders
- *
- * @author killing@leifos.de
- *
+ * Copy definition for workspace folders
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilWorkspaceCopyDefinition extends AbstractValue
 {
-	const COPY_SOURCE_DIR = 'source';
-	const COPY_TARGET_DIR = 'target';
+    public const COPY_SOURCE_DIR = 'source';
+    public const COPY_TARGET_DIR = 'target';
 
-	/**
-	 * Copy Jobs: source file => relative target file in zip directory.
-	 * @param string[]
-	 */
-	private $copy_definitions = [];
+    /**
+     * Copy Jobs: source file => relative target file in zip directory.
+     * @param string[]
+     */
+    private array $copy_definitions = [];
+    private string $temp_dir;
+    private array $object_wsp_ids = [];
+    private int $num_files = 0;
+    private int $sum_file_sizes = 0;
+    private ?BooleanValue $adheres_to_limit = null;
 
-	/**
-	 * Temporary directory using the normalized title of the bucket.
-	 * @var string
-	 */
-	private $temp_dir;
+    public function getCopyDefinitions(): array
+    {
+        return $this->copy_definitions;
+    }
 
-	/**
-	 * Workspace ids of all selected objects (files as well as folders)
-	 * @var string[]
-	 */
-	private $object_wsp_ids = [];
+    /**
+     * Set copy definitions
+     * @param string[] $a_definitions
+     */
+    public function setCopyDefinitions(array $a_definitions): void
+    {
+        $this->copy_definitions = $a_definitions;
+    }
 
-	/**
-	 * Number of files to be downloaded. Required to determine whether there is anything to download or not.
-	 * @var int
-	 */
-	private $num_files = 0;
+    public function getTempDir(): string
+    {
+        return $this->temp_dir;
+    }
 
-	/**
-	 * Sum of the size of all files. Required to determine whether the global limit has been violated or not.
-	 * @var int
-	 */
-	private $sum_file_sizes = 0;
+    /**
+     * Set directory name located in /temp/ directory.
+     */
+    public function setTempDir(string $temp_dir): void
+    {
+        $this->temp_dir = $temp_dir;
+    }
 
-	/**
-	 * States if the sum of all file sizes adheres to the global limit.
-	 * @var bool
-	 */
-	private $adheres_to_limit = false;
+    /**
+     * @return string[]
+     */
+    public function getObjectWspIds(): array
+    {
+        return $this->object_wsp_ids;
+    }
 
+    public function setObjectWspIds(
+        array $object_wps_ids,
+        bool $append = false
+    ): void {
+        if ($append) {
+            $this->object_wsp_ids = array_merge($this->object_wsp_ids, $object_wps_ids);
+        } else {
+            $this->object_wsp_ids = $object_wps_ids;
+        }
+    }
 
+    public function getNumFiles(): int
+    {
+        return $this->num_files;
+    }
 
-	/**
-	 * Get copy definitions
-	 * @return string[]
-	 */
-	public function getCopyDefinitions()
-	{
-		return $this->copy_definitions;
-	}
+    public function setNumFiles(int $num_files): void
+    {
+        $this->num_files = $num_files;
+    }
 
-	/**
-	 * Set copy definitions
-	 * @param string[] $a_definitions
-	 */
-	public function setCopyDefinitions($a_definitions)
-	{
-		$this->copy_definitions = $a_definitions;
-	}
+    public function getSumFileSizes(): int
+    {
+        return $this->sum_file_sizes;
+    }
 
-	/**
-	 * Get directory name located in /temp/ directory.
-	 * @return string
-	 */
-	public function getTempDir()
-	{
-		return $this->temp_dir;
-	}
+    public function setSumFileSizes(int $sum_file_sizes): void
+    {
+        $this->sum_file_sizes = $sum_file_sizes;
+    }
 
-	/**
-	 * Set directory name located in /temp/ directory.
-	 * @param $temp_dir
-	 */
-	public function setTempDir($temp_dir)
-	{
-		$this->temp_dir = $temp_dir;
-	}
+    public function getAdheresToLimit(): BooleanValue
+    {
+        return $this->adheres_to_limit;
+    }
 
-	/**
-	 * @return string[]
-	 */
-	public function getObjectWspIds()
-	{
-		return $this->object_wsp_ids;
-	}
+    public function setAdheresToLimit(BooleanValue $adheres_to_limit): void
+    {
+        $this->adheres_to_limit = $adheres_to_limit;
+    }
 
-	/**
-	 * @param $object_wsp_ids
-	 * @param $append
-	 */
-	public function setObjectWspIds($object_wps_ids, $append = false)
-	{
-		if($append)
-		{
-			array_merge($this->object_wsp_ids, $object_wps_ids);
-		}
-		else
-		{
-			$this->object_wsp_ids = $object_wps_ids;
-		}
-	}
+    public function addCopyDefinition(string $a_source, string $a_target): void
+    {
+        $this->copy_definitions[] =
+            [
+                self::COPY_SOURCE_DIR => $a_source,
+                self::COPY_TARGET_DIR => $a_target
+            ];
+    }
 
-	/**
-	 * @return int
-	 */
-	public function getNumFiles()
-	{
-		return $this->num_files;
-	}
+    public function equals(Value $other): bool
+    {
+        return strcmp($this->getHash(), $other->getHash());
+    }
 
-	/**
-	 * @param $num_files
-	 */
-	public function setNumFiles($num_files)
-	{
-		$this->num_files = $num_files;
-	}
+    public function getHash(): string
+    {
+        return md5($this->serialize());
+    }
 
-	/**
-	 * @return int
-	 */
-	public function getSumFileSizes()
-	{
-		return $this->sum_file_sizes;
-	}
+    public function serialize(): string
+    {
+        return serialize(
+            [
+                "copy_definition" => $this->getCopyDefinitions(),
+                "temp_dir" => $this->getTempDir(),
+                "object_wsp_ids" => implode(",", $this->getObjectWspIds()),
+                "num_files" => $this->getNumFiles(),
+                "sum_file_sizes" => $this->getSumFileSizes(),
+                "adheres_to_limit" => $this->getAdheresToLimit()
+            ]
+        );
+    }
 
-	/**
-	 * @param int $sum_file_sizes
-	 */
-	public function setSumFileSizes($sum_file_sizes) {
-		$this->sum_file_sizes = $sum_file_sizes;
-	}
+    /**
+     * Set value
+     * @param $value
+     */
+    public function setValue($value): void
+    {
+        $this->copy_definitions = $value;
+    }
 
-	/**
-	 * @return bool
-	 */
-	public function getAdheresToLimit()
-	{
-		return $this->adheres_to_limit;
-	}
+    /**
+     * Unserialize definitions
+     * @param string $data
+     */
+    public function unserialize($data)
+    {
+        $elements = unserialize($data, ['allowed_classes' => false]);
 
-	/**
-	 * @param bool $adheres_to_limit
-	 */
-	public function setAdheresToLimit($adheres_to_limit) {
-		$this->adheres_to_limit = $adheres_to_limit;
-	}
-
-
-	/**
-	 * Add copy definition
-	 * @param string $a_source
-	 * @param string $a_target
-	 */
-	public function addCopyDefinition($a_source, $a_target)
-	{
-		$this->copy_definitions[] =
-			[
-				self::COPY_SOURCE_DIR => $a_source,
-				self::COPY_TARGET_DIR => $a_target
-			];
-	}
-
-
-	/**
-	 * Check equality
-	 * @param Value $other
-	 * @return bool
-	 */
-	public function equals(Value $other)
-	{
-		return strcmp($this->getHash(), $other->getHash());
-	}
-
-
-	/**
-	 * Get hash
-	 * @return string
-	 */
-	public function getHash()
-	{
-		return md5($this->serialize());
-	}
-
-	/**
-	 * Serialize content
-	 */
-	public function serialize()
-	{
-		return serialize(
-			[
-				"copy_definition" => $this->getCopyDefinitions(),
-				"temp_dir" => $this->getTempDir(),
-				"object_wsp_ids" => implode(",", $this->getObjectWspIds()),
-				"num_files" => $this->getNumFiles(),
-				"sum_file_sizes" => $this->getSumFileSizes(),
-				"adheres_to_limit" => $this->getAdheresToLimit()
-			]
-		);
-
-	}
-
-	/**
-	 * Set value
-	 * @param string[] $value
-	 */
-	public function setValue($value)
-	{
-		$this->copy_definitions = $value;
-	}
-
-	/**
-	 * Unserialize definitions
-	 * @param string $serialized
-	 */
-	public function unserialize($serialized)
-	{
-		$elements = unserialize($serialized);
-
-		$this->setCopyDefinitions($elements["copy_definition"]);
-		$this->setTempDir($elements['temp_dir']);
-		$this->setObjectWspIds(explode(",", $elements["object_wsp_ids"]));
-		$this->setNumFiles($elements["num_files"]);
-		$this->setSumFileSizes($elements["sum_file_sizes"]);
-		$this->setAdheresToLimit($elements["adheres_to_limit"]);
-	}
-
+        $this->setCopyDefinitions($elements["copy_definition"]);
+        $this->setTempDir($elements['temp_dir']);
+        $this->setObjectWspIds(explode(",", $elements["object_wsp_ids"]));
+        $this->setNumFiles($elements["num_files"]);
+        $this->setSumFileSizes($elements["sum_file_sizes"]);
+        $this->setAdheresToLimit($elements["adheres_to_limit"]);
+    }
 }
-?>

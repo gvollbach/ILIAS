@@ -1,163 +1,121 @@
 <?php
 
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 /**
  * Class ilTableLock
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
-class ilTableLock implements ilTableLockInterface {
+class ilTableLock implements ilTableLockInterface
+{
+    protected string $table_name = '';
+    protected bool $lock_sequence = false;
+    protected string $alias = '';
+    protected int $lock_level = ilAtomQuery::LOCK_WRITE;
+    protected bool $checked = false;
+    protected \ilDBInterface $ilDBInstance;
 
-	/**
-	 * @var string
-	 */
-	protected $table_name = '';
-	/**
-	 * @var bool
-	 */
-	protected $lock_sequence = false;
-	/**
-	 * @var string
-	 */
-	protected $alias = '';
-	/**
-	 * @var int
-	 */
-	protected $lock_level = ilAtomQuery::LOCK_WRITE;
-	/**
-	 * @var bool
-	 */
-	protected $checked = false;
-	/**
-	 * @var ilDBInterface
-	 */
-	protected $ilDBInstance;
+    /**
+     * ilTableLock constructor.
+     */
+    public function __construct(string $table_name, ilDBInterface $ilDBInterface)
+    {
+        $this->table_name = $table_name;
+        $this->ilDBInstance = $ilDBInterface;
+    }
 
+    /**
+     * @throws \ilAtomQueryException
+     */
+    public function check(): void
+    {
+        if (!in_array($this->getLockLevel(), [ilAtomQuery::LOCK_READ, ilAtomQuery::LOCK_WRITE], true)) {
+            throw new ilAtomQueryException('', ilAtomQueryException::DB_ATOM_LOCK_WRONG_LEVEL);
+        }
+        if (!$this->getTableName() || !$this->ilDBInstance->tableExists($this->getTableName())) {
+            throw new ilAtomQueryException('', ilAtomQueryException::DB_ATOM_LOCK_TABLE_NONEXISTING);
+        }
 
-	/**
-	 * ilTableLock constructor.
-	 *
-	 * @param string $table_name
-	 */
-	public function __construct($table_name, ilDBInterface $ilDBInterface) {
-		$this->table_name = $table_name;
-		$this->ilDBInstance = $ilDBInterface;
-	}
+        $this->setChecked(true);
+    }
 
+    public function lockSequence(bool $lock_bool): ilTableLockInterface
+    {
+        $this->setLockSequence($lock_bool);
 
-	/**
-	 * @throws \ilAtomQueryException
-	 */
-	public function check() {
-		if (!in_array($this->getLockLevel(), array( ilAtomQuery::LOCK_READ, ilAtomQuery::LOCK_WRITE ))) {
-			throw new ilAtomQueryException('', ilAtomQueryException::DB_ATOM_LOCK_WRONG_LEVEL);
-		}
-		if (!$this->getTableName() || !$this->ilDBInstance->tableExists($this->getTableName())) {
-			throw new ilAtomQueryException('', ilAtomQueryException::DB_ATOM_LOCK_TABLE_NONEXISTING);
-		}
+        return $this;
+    }
 
-		$this->setChecked(true);
-	}
+    public function aliasName(string $alias_name): ilTableLockInterface
+    {
+        $this->setAlias($alias_name);
 
+        return $this;
+    }
 
-	/**
-	 * @param bool $lock_bool
-	 * @return $this
-	 */
-	public function lockSequence($lock_bool) {
-		$this->setLockSequence($lock_bool);
+    public function getTableName(): string
+    {
+        return $this->table_name;
+    }
 
-		return $this;
-	}
+    public function setTableName(string $table_name): void
+    {
+        $this->table_name = $table_name;
+    }
 
+    public function isLockSequence(): bool
+    {
+        return $this->lock_sequence;
+    }
 
-	/**
-	 * @param $alias_name
-	 * @return $this
-	 */
-	public function aliasName($alias_name) {
-		$this->setAlias($alias_name);
+    public function setLockSequence(bool $lock_sequence): void
+    {
+        $this->lock_sequence = $lock_sequence;
+    }
 
-		return $this;
-	}
+    public function getAlias(): string
+    {
+        return $this->alias;
+    }
 
+    public function setAlias(string $alias): void
+    {
+        $this->alias = $alias;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getTableName() {
-		return $this->table_name;
-	}
+    public function getLockLevel(): int
+    {
+        return $this->lock_level;
+    }
 
+    public function setLockLevel(int $lock_level): void
+    {
+        $this->lock_level = $lock_level;
+    }
 
-	/**
-	 * @param string $table_name
-	 */
-	public function setTableName($table_name) {
-		$this->table_name = $table_name;
-	}
+    public function isChecked(): bool
+    {
+        return $this->checked;
+    }
 
-
-	/**
-	 * @return boolean
-	 */
-	public function isLockSequence() {
-		return $this->lock_sequence;
-	}
-
-
-	/**
-	 * @param boolean $lock_sequence
-	 */
-	public function setLockSequence($lock_sequence) {
-		$this->lock_sequence = $lock_sequence;
-	}
-
-
-	/**
-	 * @return string
-	 */
-	public function getAlias() {
-		return $this->alias;
-	}
-
-
-	/**
-	 * @param string $alias
-	 */
-	public function setAlias($alias) {
-		$this->alias = $alias;
-	}
-
-
-	/**
-	 * @return int
-	 */
-	public function getLockLevel() {
-		return $this->lock_level;
-	}
-
-
-	/**
-	 * @param int $lock_level
-	 */
-	public function setLockLevel($lock_level) {
-		$this->lock_level = $lock_level;
-	}
-
-
-	/**
-	 * @return boolean
-	 */
-	public function isChecked() {
-		return $this->checked;
-	}
-
-
-	/**
-	 * @param boolean $checked
-	 */
-	public function setChecked($checked) {
-		$this->checked = $checked;
-	}
+    public function setChecked(bool $checked): void
+    {
+        $this->checked = $checked;
+    }
 }
-

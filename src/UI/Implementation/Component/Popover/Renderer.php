@@ -1,5 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 namespace ILIAS\UI\Implementation\Component\Popover;
 
 use ILIAS\UI\Implementation\Render\AbstractComponentRenderer;
@@ -15,11 +33,10 @@ use ILIAS\UI\Component;
  */
 class Renderer extends AbstractComponentRenderer
 {
-
     /**
      * @inheritdoc
      */
-    public function render(Component\Component $popover, RendererInterface $default_renderer)
+    public function render(Component\Component $popover, RendererInterface $default_renderer): string
     {
         $this->checkComponent($popover);
         $tpl = $this->getTemplate('tpl.popover.html', true, true);
@@ -27,17 +44,17 @@ class Renderer extends AbstractComponentRenderer
         /** @var Component\Popover\Popover $popover */
 
         $replacement = array(
-            '"'=> '\"',
-            "\n"=>"",
-            "\t"=>"",
-            "\r"=>"",
+            '"' => '\"',
+            "\n" => "",
+            "\t" => "",
+            "\r" => "",
         );
 
         $options = array(
-            'title'     => $this->escape($popover->getTitle()),
+            'title' => $this->escape($popover->getTitle()),
             'placement' => $popover->getPosition(),
-            'multi'     => true,
-            'template'  => str_replace(array_keys($replacement), array_values($replacement), $tpl->get()),
+            'multi' => true,
+            'template' => str_replace(array_keys($replacement), array_values($replacement), $tpl->get()),
         );
 
         if ($popover->isFixedPosition()) {
@@ -55,16 +72,16 @@ class Renderer extends AbstractComponentRenderer
 
         $popover = $popover->withAdditionalOnLoadCode(function ($id) use ($options, $show, $replace, $is_async) {
             if (!$is_async) {
-                $options["url"] = "#{$id}";
+                $options["url"] = "#$id";
             }
             $options = json_encode($options);
 
             return
-                "$(document).on('{$show}', function(event, signalData) {
-					il.UI.popover.showFromSignal(signalData, JSON.parse('{$options}'));
+                "$(document).on('$show', function(event, signalData) {
+					il.UI.popover.showFromSignal(signalData, JSON.parse('$options'));
 				});" .
-                "$(document).on('{$replace}', function(event, signalData) {
-					il.UI.popover.replaceContentFromSignal('{$show}', signalData);
+                "$(document).on('$replace', function(event, signalData) {
+					il.UI.popover.replaceContentFromSignal('$show', signalData);
 				});";
         });
 
@@ -76,36 +93,28 @@ class Renderer extends AbstractComponentRenderer
 
         if ($popover instanceof Component\Popover\Standard) {
             return $this->renderStandardPopover($popover, $default_renderer, $id);
-        } else {
-            if ($popover instanceof Component\Popover\Listing) {
-                return $this->renderListingPopover($popover, $default_renderer, $id);
-            }
+        } elseif ($popover instanceof Component\Popover\Listing) {
+            return $this->renderListingPopover($popover, $default_renderer, $id);
         }
 
         return '';
     }
 
-
     /**
      * @inheritdoc
      */
-    public function registerResources(ResourceRegistry $registry)
+    public function registerResources(ResourceRegistry $registry): void
     {
         parent::registerResources($registry);
         $registry->register('./libs/bower/bower_components/webui-popover/dist/jquery.webui-popover.js');
         $registry->register('./src/UI/templates/js/Popover/popover.js');
     }
 
-
-    /**
-     * @param Component\Popover\Standard $popover
-     * @param RendererInterface          $default_renderer
-     * @param string                     $id
-     *
-     * @return string
-     */
-    protected function renderStandardPopover(Component\Popover\Standard $popover, RendererInterface $default_renderer, $id)
-    {
+    protected function renderStandardPopover(
+        Component\Popover\Standard $popover,
+        RendererInterface $default_renderer,
+        string $id
+    ): string {
         $tpl = $this->getTemplate('tpl.standard-popover-content.html', true, true);
         $tpl->setVariable('ID', $id);
         $tpl->setVariable('CONTENT', $default_renderer->render($popover->getContent()));
@@ -113,16 +122,11 @@ class Renderer extends AbstractComponentRenderer
         return $tpl->get();
     }
 
-
-    /**
-     * @param Component\Popover\Listing $popover
-     * @param RendererInterface         $default_renderer
-     * @param string                    $id
-     *
-     * @return string
-     */
-    protected function renderListingPopover(Component\Popover\Listing $popover, RendererInterface $default_renderer, $id)
-    {
+    protected function renderListingPopover(
+        Component\Popover\Listing $popover,
+        RendererInterface $default_renderer,
+        string $id
+    ): string {
         $tpl = $this->getTemplate('tpl.listing-popover-content.html', true, true);
         $tpl->setVariable('ID', $id);
         foreach ($popover->getItems() as $item) {
@@ -134,22 +138,15 @@ class Renderer extends AbstractComponentRenderer
         return $tpl->get();
     }
 
-
-    /**
-     * @param string $str
-     *
-     * @return string
-     */
-    protected function escape($str)
+    protected function escape(string $str): string
     {
         return strip_tags(htmlentities($str, ENT_QUOTES, 'UTF-8'));
     }
 
-
     /**
      * @inheritdoc
      */
-    protected function getComponentInterfaceName()
+    protected function getComponentInterfaceName(): array
     {
         return array( Component\Popover\Standard::class, Component\Popover\Listing::class );
     }

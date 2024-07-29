@@ -1,6 +1,20 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * @author		Björn Heyser <bheyser@databay.de>
@@ -10,157 +24,151 @@
  */
 class ilAssQuestionPreviewSettings
 {
-	private $contextRefId = null;
-	
-	/**
-	 * @var bool
-	 */
-	protected $reachedPointsEnabled = false;
-	
-	private $genericFeedbackEnabled = false;
-	
-	private $specificFeedbackEnabled = false;
-	
-	private $hintProvidingEnabled = false;
-	
-	private $bestSolutionEnabled = false;
+    private $contextRefId = null;
 
-	public function __construct($contextRefId)
-	{
-		$this->contextRefId = $contextRefId;
-	}
+    /**
+     * @var bool
+     */
+    protected $reachedPointsEnabled = false;
 
-	public function init()
-	{
-		if( $this->isTestRefId() )
-		{
-			$this->initSettingsWithTestObject();
-		}
-		else
-		{
-			$this->initSettingsFromPostParameters();
-		}
-	}
-	
-	public function isTestRefId()
-	{
-		$objectType = ilObject::_lookupType($this->contextRefId, true);
-		
-		return $objectType == 'tst';
-	}
-	
-	private function initSettingsWithTestObject()
-	{
-		/* @var ilObjTest $testOBJ */
-		$testOBJ = ilObjectFactory::getInstanceByRefId($this->contextRefId);
-		$testOBJ->loadFromDb();
-		
-		$this->setGenericFeedbackEnabled($testOBJ->getGenericAnswerFeedback());
-		$this->setSpecificFeedbackEnabled($testOBJ->getSpecificAnswerFeedback());
-		$this->setHintProvidingEnabled($testOBJ->isOfferingQuestionHintsEnabled());
-		$this->setBestSolutionEnabled($testOBJ->getInstantFeedbackSolution());
-		$this->setReachedPointsEnabled($testOBJ->getAnswerFeedbackPoints());
-	}
+    private $genericFeedbackEnabled = false;
 
-	private function initSettingsFromPostParameters()
-	{
-		// get from post or from toolbar instance if possible
-		
-		$this->setGenericFeedbackEnabled(true);
-		$this->setSpecificFeedbackEnabled(true);
-		$this->setHintProvidingEnabled(true);
-		$this->setBestSolutionEnabled(true);
-		$this->setReachedPointsEnabled(true);
-	}
+    private $specificFeedbackEnabled = false;
 
-	public function setContextRefId($contextRefId)
-	{
-		$this->contextRefId = $contextRefId;
-	}
+    private $hintProvidingEnabled = false;
 
-	public function getContextRefId()
-	{
-		return $this->contextRefId;
-	}
-	
-	/**
-	 * @return bool
-	 */
-	public function isReachedPointsEnabled(): bool
-	{
-		return $this->reachedPointsEnabled;
-	}
-	
-	/**
-	 * @param bool $reachedPointsEnabled
-	 */
-	public function setReachedPointsEnabled(bool $reachedPointsEnabled)
-	{
-		$this->reachedPointsEnabled = $reachedPointsEnabled;
-	}
+    private $bestSolutionEnabled = false;
 
-	public function setGenericFeedbackEnabled($genericFeedbackEnabled)
-	{
-		$this->genericFeedbackEnabled = $genericFeedbackEnabled;
-	}
+    public function __construct($contextRefId)
+    {
+        $this->contextRefId = $contextRefId;
+    }
 
-	public function isGenericFeedbackEnabled()
-	{
-		return $this->genericFeedbackEnabled;
-	}
+    public function init(): void
+    {
+        if ($this->isTestRefId()) {
+            $this->initSettingsWithTestObject();
+        } else {
+            $this->initSettingsFromPostParameters();
+        }
+    }
 
-	public function setSpecificFeedbackEnabled($specificFeedbackEnabled)
-	{
-		$this->specificFeedbackEnabled = $specificFeedbackEnabled;
-	}
+    public function isTestRefId(): bool
+    {
+        $objectType = ilObject::_lookupType($this->contextRefId, true);
 
-	public function isSpecificFeedbackEnabled()
-	{
-		return $this->specificFeedbackEnabled;
-	}
+        return $objectType == 'tst';
+    }
 
-	public function setHintProvidingEnabled($hintProvidingEnabled)
-	{
-		$this->hintProvidingEnabled = $hintProvidingEnabled;
-	}
+    private function initSettingsWithTestObject(): void
+    {
+        /* @var ilObjTest $testOBJ */
+        $testOBJ = ilObjectFactory::getInstanceByRefId($this->contextRefId);
+        $testOBJ->loadFromDb();
 
-	public function isHintProvidingEnabled()
-	{
-		return $this->hintProvidingEnabled;
-	}
+        $this->setGenericFeedbackEnabled($testOBJ->getGenericAnswerFeedback());
+        $this->setSpecificFeedbackEnabled($testOBJ->getSpecificAnswerFeedback());
+        $this->setHintProvidingEnabled($testOBJ->isOfferingQuestionHintsEnabled());
+        $this->setBestSolutionEnabled($testOBJ->getInstantFeedbackSolution());
+        $this->setReachedPointsEnabled($testOBJ->getAnswerFeedbackPoints());
+    }
 
-	public function setBestSolutionEnabled($bestSolutionEnabled)
-	{
-		$this->bestSolutionEnabled = $bestSolutionEnabled;
-	}
+    private function initSettingsFromPostParameters(): void
+    {
+        // get from post or from toolbar instance if possible
 
-	public function isBestSolutionEnabled()
-	{
-		return $this->bestSolutionEnabled;
-	}
+        $this->setGenericFeedbackEnabled(true);
+        $this->setSpecificFeedbackEnabled(true);
+        $this->setHintProvidingEnabled(true);
+        $this->setBestSolutionEnabled(true);
+        $this->setReachedPointsEnabled(true);
+    }
 
-	public function isInstantFeedbackNavigationRequired()
-	{
-		if( $this->isGenericFeedbackEnabled() )
-		{
-			return true;
-		}
+    public function setContextRefId($contextRefId): void
+    {
+        $this->contextRefId = $contextRefId;
+    }
 
-		if( $this->isSpecificFeedbackEnabled() )
-		{
-			return true;
-		}
+    public function getContextRefId()
+    {
+        return $this->contextRefId;
+    }
 
-		if( $this->isBestSolutionEnabled() )
-		{
-			return true;
-		}
+    /**
+     * @return bool
+     */
+    public function isReachedPointsEnabled(): bool
+    {
+        return $this->reachedPointsEnabled;
+    }
 
-		return false;
-	}
+    /**
+     * @param bool $reachedPointsEnabled
+     */
+    public function setReachedPointsEnabled(bool $reachedPointsEnabled): void
+    {
+        $this->reachedPointsEnabled = $reachedPointsEnabled;
+    }
 
-	public function isHintProvidingNavigationRequired()
-	{
-		return $this->isHintProvidingEnabled();
-	}
+    public function setGenericFeedbackEnabled($genericFeedbackEnabled): void
+    {
+        $this->genericFeedbackEnabled = $genericFeedbackEnabled;
+    }
+
+    public function isGenericFeedbackEnabled(): bool
+    {
+        return $this->genericFeedbackEnabled;
+    }
+
+    public function setSpecificFeedbackEnabled($specificFeedbackEnabled): void
+    {
+        $this->specificFeedbackEnabled = $specificFeedbackEnabled;
+    }
+
+    public function isSpecificFeedbackEnabled(): bool
+    {
+        return $this->specificFeedbackEnabled;
+    }
+
+    public function setHintProvidingEnabled(bool $hintProvidingEnabled): void
+    {
+        $this->hintProvidingEnabled = $hintProvidingEnabled;
+    }
+
+    public function isHintProvidingEnabled(): bool
+    {
+        return $this->hintProvidingEnabled;
+    }
+
+    public function setBestSolutionEnabled($bestSolutionEnabled): void
+    {
+        $this->bestSolutionEnabled = $bestSolutionEnabled;
+    }
+
+    public function isBestSolutionEnabled(): bool
+    {
+        return $this->bestSolutionEnabled;
+    }
+
+    public function isInstantFeedbackNavigationRequired(): bool
+    {
+        if ($this->isGenericFeedbackEnabled()) {
+            return true;
+        }
+
+        if ($this->isSpecificFeedbackEnabled()) {
+            return true;
+        }
+
+        if ($this->isBestSolutionEnabled()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function isHintProvidingNavigationRequired(): bool
+    {
+        return $this->isHintProvidingEnabled();
+    }
 }

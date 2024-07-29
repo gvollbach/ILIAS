@@ -1,169 +1,384 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-include_once("./Services/COPage/classes/class.ilPageObjectGUI.php");
-include_once("./Modules/MediaPool/classes/class.ilMediaPoolPage.php");
-include_once("./Modules/MediaPool/classes/class.ilMediaPoolItem.php");
 
 /**
-* Class ilMediaPoolPage GUI class
-* 
-* @author Alex Killing <alex.killing@gmx.de> 
-* @version $Id$
-*
-* @ilCtrl_Calls ilMediaPoolPageGUI: ilPageEditorGUI, ilEditClipboardGUI, ilMediaPoolTargetSelector
-* @ilCtrl_Calls ilMediaPoolPageGUI: ilPublicUserProfileGUI
-*
-* @ingroup ModulesMediaPool
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\MediaPool;
+
+/**
+ * Class ilMediaPoolPage GUI class
+ * @author Alexander Killing <killing@leifos.de>
+ * @ilCtrl_Calls ilMediaPoolPageGUI: ilPageEditorGUI, ilEditClipboardGUI, ilMediaPoolTargetSelector
+ * @ilCtrl_Calls ilMediaPoolPageGUI: ilPublicUserProfileGUI, ilObjectMetaDataGUI
+ */
 class ilMediaPoolPageGUI extends ilPageObjectGUI
 {
-	/**
-	 * @var ilTabsGUI
-	 */
-	protected $tabs;
+    protected \ILIAS\Style\Content\GUIService $cs_gui;
+    protected MediaPool\StandardGUIRequest $mep_request;
+    protected ilTabsGUI $tabs;
+    protected ?ilObjMediaPoolGUI $pool_gui = null;
+    protected ?ilObjMediaPool $pool = null;
 
-	/**
-	* Constructor
-	*/
-	function __construct($a_id = 0, $a_old_nr = 0, $a_prevent_get_id = false, $a_lang = "")
-	{
-		global $DIC;
+    public function __construct(
+        int $a_id = 0,
+        int $a_old_nr = 0,
+        bool $a_prevent_get_id = false,
+        string $a_lang = ""
+    ) {
+        global $DIC;
 
-		$this->tpl = $DIC["tpl"];
-		$this->ctrl = $DIC->ctrl();
-		$this->tabs = $DIC->tabs();
-		$this->access = $DIC->access();
-		$this->lng = $DIC->language();
-		$tpl = $DIC["tpl"];
-		
-		parent::__construct("mep", $a_id, $a_old_nr, $a_prevent_get_id, $a_lang);
+        $this->tpl = $DIC["tpl"];
+        $this->ctrl = $DIC->ctrl();
+        $this->tabs = $DIC->tabs();
+        $this->access = $DIC->access();
+        $this->lng = $DIC->language();
 
-		include_once("./Services/Style/Content/classes/class.ilObjStyleSheet.php");
-		$this->setStyleId(ilObjStyleSheet::getEffectiveContentStyleId(0));
+        if (in_array($this->ctrl->getCmd(), ["createMediaPoolPage", "saveMediaPoolPage", "cancelSaveNewMediaPoolPage"])) {
+            $a_id = 0;
+        }
 
-		$this->setEditPreview(true);
-	}
-	
-	/**
-	* execute command
-	*/
-	function executeCommand()
-	{
-		$ilCtrl = $this->ctrl;
-		$ilTabs = $this->tabs;
-		
-		$next_class = $this->ctrl->getNextClass($this);
-		$cmd = $this->ctrl->getCmd();
+        parent::__construct("mep", $a_id, $a_old_nr, $a_prevent_get_id, $a_lang);
 
-		switch($next_class)
-		{				
-			default:
-				return parent::executeCommand();
-		}
-	}
+        $cs = $DIC->contentStyle()
+            ->domain()
+            ->styleForObjId($this->getPageObject()->getParentId());
+        $this->setStyleId($cs->getEffectiveStyleId());
+        $this->cs_gui = $DIC->contentStyle()->gui();
 
-	/**
-	* Set Media Pool Page Object.
-	*
-	* @param	object	$a_media_pool_page	Media Pool Page Object
-	*/
-	function setMediaPoolPage($a_media_pool_page)
-	{
-		$this->setPageObject($a_media_pool_page);
-	}
+        $this->setEditPreview(true);
+        $this->mep_request = $DIC->mediaPool()
+            ->internal()
+            ->gui()
+            ->standardRequest();
+    }
 
-	/**
-	* Get Media Pool Page Object.
-	*
-	* @return	object	Media Pool Page Object
-	*/
-	function getMediaPoolPage()
-	{
-		return $this->getPageObject();
-	}
+    public function setMediaPoolPage(
+        ilMediaPoolPage $a_media_pool_page
+    ): void {
+        $this->setPageObject($a_media_pool_page);
+    }
 
-	/**
-	* Get media pool page gui for id and title
-	*/
-	static function getGUIForTitle($a_media_pool_id, $a_title, $a_old_nr = 0)
-	{
-		global $DIC;
+    public function getMediaPoolPage(): ilMediaPoolPage
+    {
+        /** @var ilMediaPoolPage $p */
+        $p = $this->getPageObject();
+        return $p;
+    }
 
-		$ilDB = $DIC->database();
-		
-		include_once("./Modules/MediaPool/classes/class.ilMediaPoolPage.php");
-		$id = ilMediaPoolPage::getPageIdForTitle($a_media_pool_id, $a_title);
-		$page_gui = new ilMediaPoolPageGUI($id, $a_old_nr);
-		
-		return $page_gui;
-	}
-	
-	/**
-	* View media pool page.
-	*/
-	function preview()
-	{
-		$ilCtrl = $this->ctrl;
-		$ilAccess = $this->access;
-		$lng = $this->lng;
-		
-		return parent::preview();
-	}
-	
-	/**
-	 * Show page 
-	 */
-	function showPage($a_no_title = false)
-	{
-		$tpl = $this->tpl;
-		$ilCtrl = $this->ctrl;
+    public function setPoolGUI(ilObjMediaPoolGUI $pool_gui): void
+    {
+        $this->pool_gui = $pool_gui;
+        /** @var ilObjMediaPool $pool */
+        $pool = $pool_gui->getObject();
+        $this->pool = $pool;
 
-		// get raw page content is used for including into other pages
-		if (!$this->getRawPageContent())
-		{
-			include_once("./Services/Style/Content/classes/class.ilObjStyleSheet.php");
-			$tpl->setCurrentBlock("ContentStyle");
-			$tpl->setVariable("LOCATION_CONTENT_STYLESHEET",
-				ilObjStyleSheet::getContentStylePath(0));
-			$tpl->parseCurrentBlock();
+        $this->getMediaPoolPage()->setPool($this->pool);
 
-			$tpl->setCurrentBlock("SyntaxStyle");
-			$tpl->setVariable("LOCATION_SYNTAX_STYLESHEET",
-				ilObjStyleSheet::getSyntaxStylePath());
-			$tpl->parseCurrentBlock();
-		}
+        $this->activateMetaDataEditor(
+            $this->pool,
+            "mpg",
+            $this->getId(),
+            $this->getMediaPoolPage(),
+            "MDUpdateListener"
+        );
+    }
 
-		$this->setTemplateOutput(false);
-		if (!$a_no_title)
-		{
-			$this->setPresentationTitle(ilMediaPoolItem::lookupTitle($this->getMediaPoolPage()->getId()));
-		}
-		$output = parent::showPage();
-		
-		return $output;
-	}
+    public function showPage(
+        bool $a_no_title = false
+    ): string {
+        $tpl = $this->tpl;
 
-	function getTabs($a_activate = "")
-	{
-		$ilTabs = $this->tabs;
-		$ilCtrl = $this->ctrl;
+        // get raw page content is used for including into other pages
+        if (!$this->getRawPageContent()) {
+            $this->cs_gui->addCss($tpl, $this->requested_ref_id);
+        }
 
-		parent::getTabs($a_activate);		
-	}
-	
-	/**
-	 * Get raw content
-	 *
-	 * @param
-	 * @return
-	 */
-	function getRawContent()
-	{
-		$this->setRawPageContent(true);
-		$this->setLinkXML("");
-		return $this->showPage(true);	
-	}
+        $this->setTemplateOutput(false);
+        if (!$a_no_title) {
+            $this->setPresentationTitle(ilMediaPoolItem::lookupTitle($this->getMediaPoolPage()->getId()));
+        }
 
+        return parent::showPage();
+    }
+
+    public function getTabs(string $a_activate = ""): void
+    {
+        $this->setMediaPoolPageTabs();
+    }
+
+    public function getRawContent(): string
+    {
+        $this->setRawPageContent(true);
+        $this->setLinkXml("");
+        return $this->showPage(true);
+    }
+
+    public function setTemplate(ilGlobalTemplateInterface $tpl): void
+    {
+        $this->tpl = $tpl;
+    }
+
+    public function createMediaPoolPage(): void
+    {
+        $tpl = $this->tpl;
+
+        $form = $this->initMediaPoolPageForm("create");
+        $tpl->setContent($form->getHTML());
+        $this->tabs->clearTargets();
+    }
+
+    public function editMediaPoolPage(): void
+    {
+        $tpl = $this->tpl;
+        $form = $this->initMediaPoolPageForm("edit");
+        $this->getMediaPoolPageValues($form);
+        $tpl->setContent($form->getHTML());
+    }
+
+    public function saveMediaPoolPage(): void
+    {
+        $tpl = $this->tpl;
+        $lng = $this->lng;
+        $ilCtrl = $this->ctrl;
+
+        $form = $this->initMediaPoolPageForm("create");
+        if ($form->checkInput()) {
+            // create media pool item
+            $item = new ilMediaPoolItem();
+            $item->setTitle($form->getInput("title"));
+            $item->setType("pg");
+            $item->create();
+
+            if ($item->getId() > 0) {
+                // put in tree
+                $tree = $this->pool->getTree();
+                $parent = $this->mep_request->getItemId() > 0
+                    ? $this->mep_request->getItemId()
+                    : $tree->getRootId();
+                $this->pool->insertInTree($item->getId(), $parent);
+
+                // create page
+                $page = new ilMediaPoolPage();
+                $page->setId($item->getId());
+                $page->setParentId($this->pool->getId());
+                $page->create();
+                $page->createMetaData($this->pool->getId());
+
+                $ilCtrl->setParameterByClass("ilmediapoolpagegui", "mepitem_id", $item->getId());
+                $ilCtrl->redirectByClass("ilmediapoolpagegui", "edit");
+            }
+            $ilCtrl->returnToParent($this);
+        }
+
+        $form->setValuesByPost();
+        $tpl->setContent($form->getHtml());
+    }
+
+    public function updateMediaPoolPage(): void
+    {
+        $lng = $this->lng;
+        $ilCtrl = $this->ctrl;
+        $tpl = $this->tpl;
+
+        $form = $this->initMediaPoolPageForm("edit");
+        if ($form->checkInput()) {
+            $item = new ilMediaPoolItem($this->mep_request->getItemId());
+            $item->setTitle($form->getInput("title"));
+            $item->update();
+            $this->getMediaPoolPage()->updateMetaData();
+            $tpl->setOnScreenMessage("success", $lng->txt("msg_obj_modified"), true);
+            $ilCtrl->redirect($this, "editMediaPoolPage");
+        }
+
+        $form->setValuesByPost();
+        $tpl->setContent($form->getHtml());
+    }
+
+    public function initMediaPoolPageForm(string $a_mode = "edit"): ilPropertyFormGUI
+    {
+        $lng = $this->lng;
+        $ilCtrl = $this->ctrl;
+
+        $form = new ilPropertyFormGUI();
+
+        // title
+        $ti = new ilTextInputGUI($lng->txt("title"), "title");
+        $ti->setMaxLength(128);
+        $ti->setRequired(true);
+        $form->addItem($ti);
+
+        // save and cancel commands
+        if ($a_mode === "create") {
+            $form->addCommandButton("saveMediaPoolPage", $lng->txt("save"));
+            $form->addCommandButton("cancelSaveNewMediaPoolPage", $lng->txt("cancel"));
+            $form->setTitle($lng->txt("mep_new_content_snippet"));
+        } else {
+            $form->addCommandButton("updateMediaPoolPage", $lng->txt("save"));
+            $form->setTitle($lng->txt("mep_edit_content_snippet"));
+        }
+
+        $form->setFormAction($ilCtrl->getFormAction($this));
+
+        return $form;
+    }
+
+    protected function cancelSaveNewMediaPoolPage(): void
+    {
+        $ctrl = $this->ctrl;
+        $ctrl->returnToParent($this);
+    }
+
+    public function getMediaPoolPageValues(ilPropertyFormGUI $form): void
+    {
+        $values = array();
+
+        $values["title"] = ilMediaPoolItem::lookupTitle($this->mep_request->getItemId());
+
+        $form->setValuesByArray($values);
+    }
+
+    public function setMediaPoolPageTabs(): void
+    {
+        $ilTabs = $this->tabs;
+        $ilCtrl = $this->ctrl;
+        $lng = $this->lng;
+
+        if ($this->use_meta_data) {
+            $mdgui = new ilObjectMetaDataGUI(
+                $this->meta_data_rep_obj,
+                $this->meta_data_type,
+                $this->meta_data_sub_obj_id
+            );
+            $mdtab = $mdgui->getTab();
+            if ($mdtab) {
+                $this->tabs_gui->addTarget(
+                    "meta_data",
+                    $mdtab,
+                    "",
+                    "ilobjectmetadatagui"
+                );
+            }
+        }
+
+        $ilTabs->addTarget(
+            "cont_usage",
+            $ilCtrl->getLinkTarget($this, "showMediaPoolPageUsages"),
+            array("showMediaPoolPageUsages", "showAllMediaPoolPageUsages"),
+            get_class($this)
+        );
+        $ilTabs->addTarget(
+            "settings",
+            $ilCtrl->getLinkTarget($this, "editMediaPoolPage"),
+            "editMediaPoolPage",
+            get_class($this)
+        );
+        $ilCtrl->setParameter($this, "mepitem_id", $this->pool->getPoolTree()->getParentId($this->mep_request->getItemId()));
+        $ilTabs->setBackTarget($lng->txt("mep_folder"), $ilCtrl->getLinkTargetByClass(
+            ilObjMediaPoolGUI::class,
+            "returnFromItem"
+        ));
+        $ilCtrl->setParameter($this, "mepitem_id", $this->mep_request->getItemId());
+    }
+
+    public function showAllMediaPoolPageUsages(): void
+    {
+        $this->showMediaPoolPageUsages(true);
+    }
+
+
+    /**
+     * List usages of the contnet snippet
+     */
+    public function showMediaPoolPageUsages(bool $a_all = false): void
+    {
+        $ilTabs = $this->tabs;
+        $ilCtrl = $this->ctrl;
+        $lng = $this->lng;
+        $tpl = $this->tpl;
+
+        $ilTabs->clearTargets();
+
+        $ilTabs->addSubTab(
+            "current_usages",
+            $lng->txt("cont_current_usages"),
+            $ilCtrl->getLinkTarget($this, "showMediaPoolPageUsages")
+        );
+
+        $ilTabs->addSubTab(
+            "all_usages",
+            $lng->txt("cont_all_usages"),
+            $ilCtrl->getLinkTarget($this, "showAllMediaPoolPageUsages")
+        );
+
+        if ($a_all) {
+            $ilTabs->activateSubTab("all_usages");
+            $cmd = "showAllMediaPoolPageUsages";
+        } else {
+            $ilTabs->activateSubTab("current_usages");
+            $cmd = "showMediaPoolPageUsages";
+        }
+
+        $this->getTabs();
+        $page = new ilMediaPoolPage($this->mep_request->getItemId());
+        $table = new ilMediaPoolPageUsagesTableGUI($this, $cmd, $page, $a_all);
+
+        $tpl->setContent($table->getHTML());
+    }
+
+    public function finishEditing(): void
+    {
+        $this->ctrl->returnToParent($this);
+    }
+
+    public function getAdditionalPageActions(): array
+    {
+        $tabs = [];
+
+        $mdgui = new ilObjectMetaDataGUI(
+            $this->meta_data_rep_obj,
+            $this->meta_data_type,
+            $this->meta_data_sub_obj_id
+        );
+        $mdtab = $mdgui->getTab();
+        if ($mdtab) {
+            $tabs[] = $this->ui->factory()->link()->standard(
+                $this->lng->txt('meta_data'),
+                $mdtab
+            );
+        }
+
+        $tabs[] =
+            $this->ui->factory()->link()->standard(
+                $this->lng->txt('cont_usage'),
+                $this->ctrl->getLinkTargetByClass([
+                    self::class
+                ], 'showMediaPoolPageUsages')
+            );
+        $tabs[] =
+            $this->ui->factory()->link()->standard(
+                $this->lng->txt('settings'),
+                $this->ctrl->getLinkTargetByClass([
+                    self::class
+                ], 'editMediaPoolPage')
+            );
+        return $tabs;
+    }
+
+    public function getProfileBackUrl(): string
+    {
+        return "#";
+    }
 }
-?>

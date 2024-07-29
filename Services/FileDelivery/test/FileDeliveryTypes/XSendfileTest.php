@@ -1,14 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace ILIAS\FileDelivery\FileDeliveryTypes;
 
-require_once('./libs/composer/vendor/autoload.php');
-
-use ILIAS\DI\HTTPServices;
-use ILIAS\HTTP\GlobalHttpState;
+use ILIAS\HTTP\Services;
 use Mockery;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
+
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ *      https://www.ilias.de
+ *      https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 
 /**
  * Class XSendfile
@@ -20,53 +33,52 @@ use Psr\Http\Message\ResponseInterface;
  * @backupGlobals          disabled
  * @backupStaticAttributes disabled
  */
-class XSendfileTest extends TestCase {
+class XSendfileTest extends TestCase
+{
+    /**
+     * @var Services|\PHPUnit\Framework\MockObject\MockObject
+     */
+    public Services $httpServiceMock;
 
-	use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
+    /**
+     * @inheritDoc
+     */
+    protected function setUp(): void
+    {
+        $this->httpServiceMock = $this->getMockBuilder(Services::class)
+                                      ->disableOriginalConstructor()
+                                      ->getMock();
+    }
 
-	/**
-	 * @var \Mockery\MockInterface | GlobalHttpState
-	 */
-	private $httpServiceMock;
+    /**
+     * @Test
+     */
+    public function testSendFileWithXSendHeaderWhichShouldSucceed(): void
+    {
+        $expectedHeader = 'X-Sendfile';
+        $filePath = __FILE__;
 
+        $response = $this->getMockBuilder(ResponseInterface::class)
+                         ->disableOriginalConstructor()
+                         ->getMock();
 
-	/**
-	 * @inheritDoc
-	 */
-	protected function setUp(): void
-	{
-		parent::setUp();
+        $response->expects($this->once())
+                 ->method('withHeader')
+                 ->with($expectedHeader, $filePath)
+                 ->willReturnSelf();
 
-		$this->httpServiceMock = Mockery::mock(HTTPServices::class);
-		$this->httpServiceMock->shouldIgnoreMissing();
+        $this->httpServiceMock->expects($this->once())
+                              ->method('response')
+                              ->willReturn($response);
 
-		//set remote address to localhost
-		//$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+        $this->httpServiceMock->expects($this->once())
+                              ->method('saveResponse')
+                              ->with($response);
 
-		require_once './Services/FileDelivery/classes/FileDeliveryTypes/XSendfile.php';
-	}
+        $this->httpServiceMock->expects($this->once())
+                              ->method('sendResponse');
 
-
-	/**
-	 * @Test
-	 */
-	public function testSendFileWithXSendHeaderWhichShouldSucceed()
-	{
-		$expectedHeader = 'X-Sendfile';
-		$filePath = __FILE__;
-
-		$response = Mockery::mock(ResponseInterface::class);
-		$response->shouldIgnoreMissing()->shouldReceive("withHeader")->times(1)
-		         ->withArgs([ $expectedHeader, $filePath ])->andReturnSelf();
-
-		$this->httpServiceMock->shouldReceive("response")->times(1)->withNoArgs()
-		                      ->andReturn($response)->getMock()->shouldReceive("saveResponse")
-		                      ->times(1)->withArgs([ $response ])->getMock()
-		                      ->shouldReceive("sendResponse")->times(1)->withNoArgs();
-
-		$fileDeliveryType = new XSendfile($this->httpServiceMock);
-		$fileDeliveryOk = $fileDeliveryType->deliver($filePath, false);
-
-		$this->assertTrue($fileDeliveryOk);
-	}
+        $fileDeliveryType = new XSendfile($this->httpServiceMock);
+        $fileDeliveryType->deliver($filePath, false);
+    }
 }

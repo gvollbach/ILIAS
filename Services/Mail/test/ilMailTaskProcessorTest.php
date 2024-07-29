@@ -1,6 +1,22 @@
-<?php declare(strict_types=1);
+<?php
 
-/* Copyright (c) 1998-2019 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 use ILIAS\BackgroundTasks\Implementation\TaskManager\BasicTaskManager;
 use ILIAS\BackgroundTasks\Task\TaskFactory;
@@ -12,20 +28,18 @@ use ILIAS\DI\Container;
  */
 class ilMailTaskProcessorTest extends ilMailBaseTest
 {
-    /** @var ilLanguage */
-    private $languageMock;
-
-    /** @var Container */
-    private $dicMock;
-
-    /** @var ilLogger */
-    private $loggerMock;
+    private ilLanguage $languageMock;
+    private Container $dicMock;
+    private ilLogger $loggerMock;
+    protected const SOME_USER_ID = 113;
 
     /**
      * @throws ReflectionException
      */
-    public function setUp() : void
+    protected function setUp(): void
     {
+        parent::setUp();
+
         $this->languageMock = $this->getMockBuilder(ilLanguage::class)
             ->disableOriginalConstructor()
             ->getMock();
@@ -39,31 +53,46 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             ->getMock();
     }
 
+    public function testMailValueObjectCannotBeCreatedWithUnsupportedSubjectLength(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        $mailValueObject = new ilMailValueObject(
+            'ilias@server.com',
+            'somebody@iliase.de',
+            '',
+            '',
+            'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce mollis posuere tincidunt. Phasellus et euismod ligula. Suspendisse dignissim eget dui nec imperdiet. Donec in pretium tellus. Maecenas lacinia eleifend erat ut euismod. Aenean eu malesuada est.',
+            'Dear Steve, great!',
+            []
+        );
+    }
+
     /**
      * @throws ilException
      * @throws ReflectionException
      */
-    public function testOneTask() : void
+    public function testOneTask(): void
     {
         $taskManager = $this->getMockBuilder(BasicTaskManager::class)
-            ->setMethods(['run'])
+            ->onlyMethods(['run'])
             ->disableOriginalConstructor()
             ->getMock();
 
         $taskManager
-            ->expects($this->exactly(1))
+            ->expects($this->once())
             ->method('run');
 
         $taskFactory = $this->getMockBuilder(ILIAS\BackgroundTasks\Task\TaskFactory::class)
-            ->setMethods(['createTask'])
+            ->onlyMethods(['createTask'])
             ->disableOriginalConstructor()
             ->getMock();
 
-        $backgroundTask = $this->getMockbuilder(ilMailDeliveryJob::class)
+        $backgroundTask = $this->getMockBuilder(ilMailDeliveryJob::class)
             ->disableOriginalConstructor()
             ->getMock();
 
-        $backgroundTask->expects($this->any())->method('unfoldTask')
+        $backgroundTask->method('unfoldTask')
             ->willReturn([]);
 
         $taskFactory
@@ -79,7 +108,7 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             $this->loggerMock,
             $this->dicMock,
             new ilMailValueObjectJsonService(),
-            'SomeAnonymousUserId'
+            self::SOME_USER_ID
         );
 
         $mailValueObject = new ilMailValueObject(
@@ -89,11 +118,11 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             '',
             'That is awesome!',
             'Dear Steve, great!',
-            null
+            []
         );
 
         $mailValueObjects = [
-            $mailValueObject
+            $mailValueObject,
         ];
 
         $userId = 100;
@@ -112,28 +141,27 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
      * @throws ilException
      * @throws ReflectionException
      */
-    public function testRunTwoTasks() : void
+    public function testRunTwoTasks(): void
     {
         $taskManager = $this->getMockBuilder(BasicTaskManager::class)
-            ->setMethods(['run'])
+            ->onlyMethods(['run'])
             ->disableOriginalConstructor()
             ->getMock();
 
         $taskManager
-            ->expects($this->exactly(1))
+            ->expects($this->once())
             ->method('run');
 
         $taskFactory = $this->getMockBuilder(TaskFactory::class)
-            ->setMethods(['createTask'])
+            ->onlyMethods(['createTask'])
             ->disableOriginalConstructor()
             ->getMock();
 
-        $backgroundTask = $this->getMockbuilder(ilMailDeliveryJob::class)
+        $backgroundTask = $this->getMockBuilder(ilMailDeliveryJob::class)
             ->disableOriginalConstructor()
             ->getMock();
 
         $backgroundTask
-            ->expects($this->any())
             ->method('unfoldTask')
             ->willReturn([]);
 
@@ -149,7 +177,7 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             $this->loggerMock,
             $this->dicMock,
             new ilMailValueObjectJsonService(),
-            'SomeAnonymousUserId'
+            self::SOME_USER_ID
         );
 
         $mailValueObjects = [];
@@ -161,7 +189,7 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             '',
             'That is awesome!',
             'Dear Steve, great!',
-            null
+            []
         );
 
         $mailValueObjects[] = new ilMailValueObject(
@@ -171,7 +199,7 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             '',
             'Greate',
             'Steve, Steve, Steve. Wait that is not Steve',
-            null
+            []
         );
 
         $userId = 100;
@@ -190,10 +218,10 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
      * @throws ilException
      * @throws ReflectionException
      */
-    public function testRunThreeTasksInDifferentBuckets() : void
+    public function testRunThreeTasksInDifferentBuckets(): void
     {
         $taskManager = $this->getMockBuilder(BasicTaskManager::class)
-            ->setMethods(['run'])
+            ->onlyMethods(['run'])
             ->disableOriginalConstructor()
             ->getMock();
 
@@ -202,16 +230,15 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             ->method('run');
 
         $taskFactory = $this->getMockBuilder(TaskFactory::class)
-            ->setMethods(['createTask'])
+            ->onlyMethods(['createTask'])
             ->disableOriginalConstructor()
             ->getMock();
 
-        $backgroundTask = $this->getMockbuilder(ilMailDeliveryJob::class)
+        $backgroundTask = $this->getMockBuilder(ilMailDeliveryJob::class)
             ->disableOriginalConstructor()
             ->getMock();
 
         $backgroundTask
-            ->expects($this->any())
             ->method('unfoldTask')
             ->willReturn([]);
 
@@ -227,7 +254,7 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             $this->loggerMock,
             $this->dicMock,
             new ilMailValueObjectJsonService(),
-            'SomeAnonymousUserId'
+            self::SOME_USER_ID
         );
 
         $mailValueObjects = [];
@@ -239,7 +266,7 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             '',
             'That is awesome!',
             'Dear Steve, great!',
-            null
+            []
         );
 
         $mailValueObjects[] = new ilMailValueObject(
@@ -249,7 +276,7 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             '',
             'Greate',
             'Steve, Steve, Steve. Wait that is not Steve',
-            null
+            []
         );
 
         $mailValueObjects[] = new ilMailValueObject(
@@ -259,7 +286,7 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             '',
             'That is awesome!',
             'Hey Alan! Alan! Alan!',
-            null
+            []
         );
 
         $userId = 100;
@@ -279,12 +306,12 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
      * @throws ReflectionException
      * @throws ilException
      */
-    public function testRunHasWrongTypeAndWillResultInException() : void
+    public function testRunHasWrongTypeAndWillResultInException(): void
     {
         $this->expectException(ilException::class);
 
         $taskManager = $this->getMockBuilder(BasicTaskManager::class)
-            ->setMethods(['run'])
+            ->onlyMethods(['run'])
             ->disableOriginalConstructor()
             ->getMock();
 
@@ -293,16 +320,15 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             ->method('run');
 
         $taskFactory = $this->getMockBuilder(TaskFactory::class)
-            ->setMethods(['createTask'])
+            ->onlyMethods(['createTask'])
             ->disableOriginalConstructor()
             ->getMock();
 
-        $backgroundTask = $this->getMockbuilder(ilMailDeliveryJob::class)
+        $backgroundTask = $this->getMockBuilder(ilMailDeliveryJob::class)
             ->disableOriginalConstructor()
             ->getMock();
 
         $backgroundTask
-            ->expects($this->any())
             ->method('unfoldTask')
             ->willReturn([]);
 
@@ -318,7 +344,7 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             $this->loggerMock,
             $this->dicMock,
             new ilMailValueObjectJsonService(),
-            'SomeAnonymousUserId'
+            self::SOME_USER_ID
         );
 
         $mailValueObjects = [];
@@ -330,7 +356,7 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             '',
             'That is awesome!',
             'Dear Steve, great!',
-            null
+            []
         );
 
         $mailValueObjects[] = new ilMailValueObject(
@@ -340,7 +366,7 @@ class ilMailTaskProcessorTest extends ilMailBaseTest
             '',
             'Greate',
             'Steve, Steve, Steve. Wait that is not Steve',
-            null
+            []
         );
 
         $mailValueObjects[] = 'This should fail';

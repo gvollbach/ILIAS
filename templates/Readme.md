@@ -34,9 +34,13 @@ has the permission to read and execute your newly installed less compiler.
 
 #### Step 1: Activate "Manage System Styles"
 
-1. Browse to the ILIAS Setup (`your.installation.com/setup/setup.php`) and Login
-Using the Master Password
-2. Navigate to "Basic Settings" and activate "Manage System Styles"
+1. Open the ilias.ini.php file in your ILIAS Administration.
+2. Make sure that in the Section [tools] the setting enable_system_styles_management is activated.
+3. Make sure, that a lessc is set to your lessc installation:
+```
+enable_system_styles_management = "1"
+lessc = "/usr/local/bin/lessc"
+```
 
 #### Step 2: Create new System Style
 
@@ -149,24 +153,42 @@ ILIAS screens (e.g. the template file that defines the layout of the main menu).
 To replace a template file for your skin, you have to create a new one in your
 skin directory. Please note, that your skin should only contain template files
 that are modified. You do not need to copy all default template files to your
-new skin. Examples:
+new skin. 
 
-* To replace the template for the standard screen layout defined in
-`templates/default/tpl.adm_content.html`, create a new version at
-`Customizing/global/skin/myskin/tpl.adm_content.html`.
+Since ILIAS 5.3 we move aim to move most of the UI towards the UI Components. They
+are located in src/UI. To overwrite those you need to add the respective tpl files 
+in your skins folder. 
+
+Examples:
 * `Module/Service` related template files must be stored in a similar
 subdirectory structure (omit the `templates` subdirectory). E.g. to replace the
-template file `Services/MainMenu/templates/tpl.main_menu.html` create a new
-version at
-`Customizing/global/skin/myskin/Services/MainMenu/tpl.main_menu.html`. The
-following list contains some standard template files, that are often changed in
-skins.
-* Main Menu: `Services/MainMenu/templates/default/tpl.main_menu.html`
-* Startup Screens (Login, Registration, ...):
-`Services/Init/templates/default/tpl .startup_screen.html`
-* Breadcrumb: `Services/Locator/templates/default/tpl.locator.html`
-* Standard Screen Layout (used on many screens): 
-`templates/default/tpl.adm_content.html`
+template file `Services/XYZ/templates/tpl.xyz.html` create a new
+version at `Customizing/global/skin/myskin/Services/XYZ/tpl.xyz.html`. A template of a UI Component located in 
+`src/UI/templates/default/XYZ/tpl.xyz.html` can be customized by creating a 
+`Customizing/global/skin/myskin/UI/XYZ/tpl.xyz.html` file.
+
+The following list contains some standard template files, that are often changed in
+skins:
+
+- [Standard Layout](https://test6.ilias.de/goto_test6_stys_21_LayoutPageStandardStandard_default_delos.html?), 
+template file: src/UI/templates/default/Layout/tpl.standardpage.html, the frame of the DOM for the complete ILIAS page. 
+Also checkout the according less variable under section Layout (UI Layout Page).
+- [Meta Bar](https://test6.ilias.de/goto_test6_stys_21_MainControlsMetaBarMetaBar_default_delos.html?) 
+template file: src/UI/templates/default/MainControls/tpl.metabar.html, the Bar on the top holding Notification, Search User Avatar, etc.
+Also checkout the according metabar less variables.
+- [Main Bar](https://test6.ilias.de/goto_test6_stys_21_MainControlsMainBarMainBar_default_delos.html?) 
+template directory: src/UI/templates/default/MainControls/tpl.mainbar.html, the Bar on the left holding triggers for opening the slates for
+accessing Repository, Dasbhoard etc. Content.
+Also checkout the according mainbar less variables.
+- [Slate](https://test6.ilias.de/goto_test6_stys_21_MainControlsSlateFactorySlate_default_delos.html?) 
+template directory: src/UI/templates/default/MainControls/Slate/tpl.slate.html, the Slates triggered by opening items of the Main Bar.
+Also checkout the according slate less variables.
+- [Breadcrumbs](https://test6.ilias.de/goto_test6_stys_21_BreadcrumbsBreadcrumbsBreadcrumbs_default_delos.html?)
+template directory: src/UI/templates/default/Breadcrumbs/tpl.breadcrumbs.html, Breadcrumbs working as locator on the top of the page.
+Also checkout the breadcrumb less variables.
+
+* Startup Screens (Login, Registration, ...): `Services/Init/templates/default/tpl .startup_screen.html`
+
 
 #### Step 6: Change the ILIAS Icon
 
@@ -228,12 +250,58 @@ version you might find helpful information by consulting:
 [Installation and Maintenance » Prepare for a new
 skin](https://www.ilias.de/docu/goto_docu_pg_68693_367.html)
 
-#### ILIAS 5.3
+#### ILIAS 6
 
-The `icon-font-path` for glyphs has changed due to a move from the bootstrap
+Major parts of the UI of ILIAS 6 have changed. It is therefore recommended, to create a new skin
+for ILIAS think an manually move changes that are still needed from oder versions to the new skin.
+
+Also, most importantly the following components have been introduced:
+
+- [Standard Layout](https://test6.ilias.de/goto_test6_stys_21_LayoutPageStandardStandard_default_delos.html?), 
+template directory: src/UI/templates/default/Layout, the frame of the DOM for the complete ILIAS page. 
+Also checkout the according less variable under section Layout (UI Layout Page).
+- [Meta Bar](https://test6.ilias.de/goto_test6_stys_21_MainControlsMetaBarMetaBar_default_delos.html?) 
+template directory: src/UI/templates/default/MainControls, the Bar on the top holding Notification, Search User Avatar, etc.
+Also checkout the according metabar less variables.
+- [Main Bar](https://test6.ilias.de/goto_test6_stys_21_MainControlsMainBarMainBar_default_delos.html?) 
+template directory: src/UI/templates/default/MainControls, the Bar on the left holding triggers for opening the slates for
+accessing Repository, Dasbhoard etc. Content.
+Also checkout the according mainbar less variables.
+- [Slate](https://test6.ilias.de/goto_test6_stys_21_MainControlsSlateFactorySlate_default_delos.html?) 
+template directory: src/UI/templates/default/MainControls/Slate, the Slates triggered by opening items of the Main Bar.
+Also checkout the according slate less variables.
+- [Breadcrumbs](https://test6.ilias.de/goto_test6_stys_21_BreadcrumbsBreadcrumbsBreadcrumbs_default_delos.html?)
+template directory: src/UI/templates/default/Breadcrumbs, Breadcrumbs working as locator on the top of the page.
+Also checkout the breadcrumb less variables.
+
+See above section on information on how to customize those components.
+
+
+#### ILIAS 7
+
+The `icon-font-path` for glyphs has been renamend to `il-icon-font-path`
+and the location has changed due to a move from the bootstrap
 library to the new location for external libraries. The new location is:
-`"../../../../libs/bower/bower_components/bootstrap/fonts/"`. If a 5.2 style is
+`"../../../../node_modules/bootstrap/fonts/"`. If a 5.2 style is
 imported, the variable `icon-font-path` must be adapted accordingly.
+
+In March 2022, we moved the general Test & Assessment CSS (ta.css and
+ta_split.css) to `less/Modules/Test/delos.less` (like other CSS for modules)
+to start refactoring this module's style code. As part of this change,
+the override mechanism that fetches a custom style for just the T&A has been
+removed. Please use the standard skin setup described in this document to style
+the Test & Assessment like the rest of your custom skin.
+
+#### ILIAS 8
+The Main Background has been changed to white. Many style changes have been implemented.
+Maybe best start out with a fresh copy from Delos and move your changes over to this copy.
+
+
+The Icons have completely changed. The outlined items are now the one and only default.
+For this reason, we changed the styling of the Icons in the mainbar, they are now inverted
+with filter: `brightness(5);`. You might to need to change your custom Mainbar Icons if you
+adapted them through the Main Menu.
+
 
 ## Less Guideline
 
@@ -378,3 +446,17 @@ that we handle all mobile cases as special cases and the desktop as the default.
 * You should use: `max-width: @grid-float-breakpoint-max` instead of `min-width:
 @grid-float-breakpoint (or min-width: @screen-sm-min)`. With `max-width`,  the
 mobile version is declared as the special case version (desktop first).
+
+## CSS Guideline
+
+CSS is optained by using a lessc compiler on delos.less, e.g. like so:
+
+```
+lessc templates/default/delos.less templates/default/delos.css
+```
+
+Note that the output heavily depends on the used lessc version. If you observe that 
+there are changed appearing in your css output other than the ones to be expected, 
+please first make sure, that you are using the latest lessc version. If so, please inform
+the current CSS maintainer [amstutz](http://www.ilias.de/docu/goto_docu_usr_26468.html) and only push the changes
+caused by your changes in less.

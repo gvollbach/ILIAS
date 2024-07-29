@@ -1,8 +1,20 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-
-include_once('./Services/Table/classes/class.ilTable2GUI.php');
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
 *
@@ -14,62 +26,47 @@ include_once('./Services/Table/classes/class.ilTable2GUI.php');
 
 class ilTestInviteRolesTableGUI extends ilTable2GUI
 {
-	/**
-	 * Constructor
-	 *
-	 * @access public
-	 * @param
-	 * @return
-	 */
-	public function __construct($a_parent_obj, $a_parent_cmd)
-	{
-		parent::__construct($a_parent_obj, $a_parent_cmd);
+    public function __construct($a_parent_obj, $a_parent_cmd)
+    {
+        parent::__construct($a_parent_obj, $a_parent_cmd);
 
-		global $DIC;
-		$lng = $DIC['lng'];
-		$ilCtrl = $DIC['ilCtrl'];
+        global $DIC;
+        $lng = $DIC['lng'];
+        $ilCtrl = $DIC['ilCtrl'];
 
-		$this->lng = $lng;
-		$this->ctrl = $ilCtrl;
-		$this->counter = 1;
-		
-		$this->setFormName('inviteroles');
-		$this->setStyle('table', 'fullwidth');
+        $this->lng = $lng;
+        $this->ctrl = $ilCtrl;
+        $this->counter = 1;
 
-		$this->addColumn('','f','1%');
-		$this->addColumn($this->lng->txt("title"),'title', '');
-		$this->addColumn($this->lng->txt("description"),'description', '');
-	
-		$this->setTitle($this->lng->txt('search_roles'), 'icon_role.svg', $this->lng->txt('role'));
-	
-		$this->setRowTemplate("tpl.il_as_tst_invite_roles_row.html", "Modules/Test");
+        $this->setFormName('inviteroles');
+        $this->setStyle('table', 'fullwidth');
 
-		$this->addMultiCommand('addParticipants', $this->lng->txt('add'));
+        $this->addColumn('', 'f', '1%');
+        $this->addColumn($this->lng->txt("title"), 'title', '');
+        $this->addColumn($this->lng->txt("description"), 'description', '');
 
-		$this->setFormAction($this->ctrl->getFormAction($a_parent_obj, $a_parent_cmd));
+        $this->setTitle($this->lng->txt('search_roles'), 'icon_role.svg', $this->lng->txt('role'));
 
-		$this->setDefaultOrderField("login");
-		$this->setDefaultOrderDirection("asc");
-		$this->setPrefix('role_select');
-		$this->setSelectAllCheckbox('role_select');
-		
-		$this->enable('header');
-		$this->enable('sort');
-		$this->enable('select_all');
-	}
+        $this->setRowTemplate("tpl.il_as_tst_invite_roles_row.html", "Modules/Test");
 
-	/**
-	 * fill row 
-	 *
-	 * @access public
-	 * @param
-	 * @return
-	 */
-	public function fillRow($data)
-	{
-		$this->tpl->setVariable("ROLE_ID", $data['obj_id']);
-		$this->tpl->setVariable("TITLE", $data['title']);
-		$this->tpl->setVariable("DESCRIPTION", $data['description']);
-	}
+        $this->addMultiCommand('addParticipants', $this->lng->txt('add'));
+
+        $this->setFormAction($this->ctrl->getFormAction($a_parent_obj, $a_parent_cmd));
+
+        $this->setDefaultOrderField("login");
+        $this->setDefaultOrderDirection("asc");
+        $this->setPrefix('role_select');
+        $this->setSelectAllCheckbox('role_select');
+
+        $this->enable('header');
+        $this->enable('sort');
+        $this->enable('select_all');
+    }
+
+    public function fillRow(array $a_set): void
+    {
+        $this->tpl->setVariable("ROLE_ID", $a_set['obj_id']);
+        $this->tpl->setVariable("TITLE", $a_set['title']);
+        $this->tpl->setVariable("DESCRIPTION", $a_set['description']);
+    }
 }
-?>

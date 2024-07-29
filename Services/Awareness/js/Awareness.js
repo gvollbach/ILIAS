@@ -27,6 +27,9 @@ il.Awareness = {
 	},
 
 	init: function() {
+		if (!$('#awareness_trigger a').popover) {
+			return;
+		}
 		$('#awareness_trigger a').popover({
 			html : true,
 			placement : "bottom",
@@ -47,7 +50,14 @@ il.Awareness = {
 
 		}).on('hidden.bs.popover', function () {
 			$("body").removeClass("modal-open");
-		})
+		});
+
+		$('.ilAwarenessItem > div[role="button"]').on('keypress', function (e) {
+			if (e.which === 13 || e.which === 32) {
+				$(this).trigger('click');
+			}
+		});
+
 
 		// close popover when clicked outside. todo: move to a central place?
 		$('body').on('click', function (e) {
@@ -126,6 +136,7 @@ il.Awareness = {
 		{
 			t.content = o.html;
 			$('#awareness-content').replaceWith(o.html);
+			$('#il_awareness_filter').val(o.filter_val);
 			t.afterListUpdate();
 
 			cnt = o.cnt.split(":");
@@ -196,7 +207,6 @@ il.Awareness = {
 
 	updateList: function(filter) {
 		var t = il.Awareness;
-
 		$.ajax({
 			url: t.getBaseUrl() + "&cmd=getAwarenessList"
 				+ "&filter=" + encodeURIComponent(filter),
@@ -222,3 +232,8 @@ il.Awareness = {
 		}
 	}
 };
+
+/* temporary fix, since initial ajax loading does not work */
+il.Util.addOnLoad(function() {
+  il.Awareness.afterListUpdate();
+})

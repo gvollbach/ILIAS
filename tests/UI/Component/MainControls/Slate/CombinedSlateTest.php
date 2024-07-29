@@ -1,40 +1,68 @@
 <?php
 
-/* Copyright (c) 2019 Nils Haagen <nils.haagen@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 require_once("libs/composer/vendor/autoload.php");
 require_once(__DIR__ . "/../../../Base.php");
 
-use \ILIAS\UI\Component as C;
-use \ILIAS\UI\Implementation\Component as I;
-use \ILIAS\UI\Implementation\Component\MainControls\Slate\Slate;
-use \ILIAS\UI\Implementation\Component\MainControls\Slate\Combined;
-use \ILIAS\UI\Component\Signal;
+use ILIAS\UI\Component as C;
+use ILIAS\UI\Implementation\Component as I;
+use ILIAS\UI\Implementation\Component\MainControls\Slate\Combined;
 
 /**
  * Tests for the Slate.
  */
 class CombinedSlateTest extends ILIAS_UI_TestBase
 {
-    public function setUp() : void
+    protected I\SignalGenerator $sig_gen;
+    protected I\Button\Factory $button_factory;
+    protected I\Divider\Factory $divider_factory;
+    protected I\Symbol\Icon\Factory $icon_factory;
+
+    public function setUp(): void
     {
         $this->sig_gen = new I\SignalGenerator();
-        $this->button_factory = new I\Button\Factory($this->sig_gen);
+        $this->button_factory = new I\Button\Factory();
+        $this->divider_factory = new I\Divider\Factory();
         $this->icon_factory = new I\Symbol\Icon\Factory();
     }
 
-    public function getUIFactory()
+    public function getUIFactory(): NoUIFactory
     {
-        $factory = new class extends NoUIFactory {
-            public function button()
+        $factory = new class () extends NoUIFactory {
+            public I\SignalGenerator $sig_gen;
+
+            public function button(): C\Button\Factory
             {
                 return $this->button_factory;
             }
-            public function glyph()
+            public function glyph(): C\Symbol\Glyph\Factory
             {
                 return new I\Symbol\Glyph\Factory();
             }
-            public function mainControls() : C\MainControls\Factory
+
+            public function divider(): C\Divider\Factory
+            {
+                return new I\Divider\Factory();
+            }
+
+            public function mainControls(): C\MainControls\Factory
             {
                 return new I\MainControls\Factory($this->sig_gen);
             }
@@ -44,14 +72,7 @@ class CombinedSlateTest extends ILIAS_UI_TestBase
         return $factory;
     }
 
-    public function brutallyTrimHTML($html)
-    {
-        $html = str_replace(["\n", "\r", "\t"], "", $html);
-        $html = preg_replace('# {2,}#', " ", $html);
-        return trim($html);
-    }
-
-    public function testRendering()
+    public function testRendering(): void
     {
         $name = 'name';
         $icon = $this->icon_factory->custom('', '');
@@ -67,13 +88,60 @@ class CombinedSlateTest extends ILIAS_UI_TestBase
         );
     }
 
-    public function testRenderingWithSubslateAndButton()
+    public function testRenderingWithAriaRole(): void
     {
         $name = 'name';
         $icon = $this->icon_factory->custom('', '');
-        $subslate = new Combined($this->sig_gen, $name, $icon);
-        $subbutton = $this->button_factory->bulky($icon, '', '');
         $slate = new Combined($this->sig_gen, $name, $icon);
+        $slate = $slate->withAriaRole(I\MainControls\Slate\Slate::MENU);
+
+        $r = $this->getDefaultRenderer();
+        $html = $r->render($slate);
+
+        $expected = '<div class="il-maincontrols-slate disengaged" id="id_1" role="menu"><div class="il-maincontrols-slate-content" data-replace-marker="content"></div></div>';
+        $this->assertEquals(
+            $expected,
+            $this->brutallyTrimHTML($html)
+        );
+    }
+
+    public function testRenderingWithSubDivider(): void
+    {
+        $name = 'name';
+        $icon = $this->icon_factory->custom('', '');
+        $subdivider = new I\Divider\Horizontal();
+        $subdivider_with_text = new I\Divider\Horizontal();
+        $subdivider_with_text = $subdivider_with_text->withLabel('Title');
+        $slate = new Combined($this->sig_gen, $name, $icon);
+        $slate = $slate
+            ->withAdditionalEntry($subdivider_with_text)
+            ->withAdditionalEntry($subdivider);
+
+        $r = $this->getDefaultRenderer();
+        $html = $r->render($slate);
+
+        $expected = <<<EOT
+        <div class="il-maincontrols-slate disengaged" id="id_1">
+            <div class="il-maincontrols-slate-content" data-replace-marker="content">
+                <ul>
+                    <li><hr class="il-divider-with-label" /><h4 class="il-divider">Title</h4></li>
+                    <li><hr /></li>
+                </ul>
+            </div>
+        </div>
+EOT;
+        $this->assertEquals(
+            $this->brutallyTrimHTML($expected),
+            $this->brutallyTrimHTML($html)
+        );
+    }
+
+    public function testRenderingWithSubslateAndButton(): void
+    {
+        $icon = $this->icon_factory->custom('', '');
+        $subslate = new Combined($this->sig_gen, 'subslate_name', $icon);
+        $subbutton = $this->button_factory->bulky($icon, 'button_name', '');
+        $slate = new Combined($this->sig_gen, 'slate_name', $icon);
         $slate = $slate
             ->withAdditionalEntry($subslate)
             ->withAdditionalEntry($subbutton);
@@ -82,33 +150,27 @@ class CombinedSlateTest extends ILIAS_UI_TestBase
         $html = $r->render($slate);
 
         $expected = <<<EOT
-		<div class="il-maincontrols-slate disengaged" id="id_3">
-			<div class="il-maincontrols-slate-content" data-replace-marker="content">
-
-				<button class="btn btn-bulky" id="id_1" >
-					<div class="icon custom small" aria-label="">
-						<img src="" />
-					</div>
-					<div>
-						<span class="bulky-label">name</span>
-					</div>
-				</button>
-				<div class="il-maincontrols-slate disengaged" id="id_2">
-					<div class="il-maincontrols-slate-content" data-replace-marker="content">
-					</div>
-				</div>
-
-				<button class="btn btn-bulky" data-action="" >
-					<div class="icon custom small" aria-label="">
-						<img src="" />
-					</div>
-					<div>
-						<span class="bulky-label"></span>
-					</div>
-				</button>
-
-			</div>
-		</div>
+            <div class="il-maincontrols-slate disengaged" id="id_3">
+              <div class="il-maincontrols-slate-content" data-replace-marker="content">
+                <ul>
+                  <li>
+                    <button class="btn btn-bulky" id="id_1">
+                      <img class="icon custom small" src="" alt=""/>
+                      <span class="bulky-label">subslate_name</span>
+                    </button>
+                    <div class="il-maincontrols-slate disengaged" id="id_2">
+                      <div class="il-maincontrols-slate-content" data-replace-marker="content"></div>
+                    </div>
+                  </li>
+                  <li>
+                    <button class="btn btn-bulky" data-action="">
+                      <img class="icon custom small" src="" alt=""/>
+                      <span class="bulky-label">button_name</span>
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
 EOT;
         $this->assertEquals(
             $this->brutallyTrimHTML($expected),

@@ -1,29 +1,40 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-require_once './Services/PDFGeneration/classes/factory/class.ilHtmlToPdfTransformerFactory.php';
-require_once './Services/PDFGeneration/classes/class.ilPDFGeneratorUtils.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Class ilTestPDFGenerator
- * 
+ *
  * Class that handles PDF generation for test and assessment.
- * 
+ *
  * @author Maximilian Becker <mbecker@databay.de>
  * @version $Id$
- * 
+ *
  */
-class ilTestPDFGenerator 
+class ilTestPDFGenerator
 {
-	const PDF_OUTPUT_DOWNLOAD = 'D';
-	const PDF_OUTPUT_INLINE = 'I';
-	const PDF_OUTPUT_FILE = 'F';
+    public const PDF_OUTPUT_DOWNLOAD = 'D';
+    public const PDF_OUTPUT_INLINE = 'I';
+    public const PDF_OUTPUT_FILE = 'F';
 
-	const service = "Test";
+    public const service = "Test";
 
-	private static function buildHtmlDocument($contentHtml, $styleHtml)
-	{
-		return "
+    private static function buildHtmlDocument($contentHtml, $styleHtml): string
+    {
+        return "
 			<html>
 				<head>
 					<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" />
@@ -32,118 +43,118 @@ class ilTestPDFGenerator
 				<body>$contentHtml</body>
 			</html>
 		";
-	}
+    }
 
-	/**
-	 * @param $html
-	 * @return string
-	 */
-	private static function makeHtmlDocument($contentHtml, $styleHtml)
-	{
-		if(!is_string($contentHtml) || !strlen(trim($contentHtml)))
-		{
-			return $contentHtml;
-		}
-		
-		$html = self::buildHtmlDocument($contentHtml, $styleHtml);
+    /**
+     * @param $contentHtml
+     * @param $styleHtml
+     * @return string
+     */
+    private static function makeHtmlDocument($contentHtml, $styleHtml): string
+    {
+        if (!is_string($contentHtml) || !strlen(trim($contentHtml))) {
+            return $contentHtml;
+        }
 
-		$dom = new DOMDocument("1.0", "utf-8");
-		if(!@$dom->loadHTML($html))
-		{
-			return $html;
-		}
-		
-		$invalid_elements = array();
+        $html = self::buildHtmlDocument($contentHtml, $styleHtml);
 
-		$script_elements     = $dom->getElementsByTagName('script');
-		foreach($script_elements as $elm)
-		{
-			$invalid_elements[] = $elm;
-		}
+        $dom = new DOMDocument("1.0", "utf-8");
+        if (!@$dom->loadHTML($html)) {
+            return $html;
+        }
 
-		foreach($invalid_elements as $elm)
-		{
-			$elm->parentNode->removeChild($elm);
-		}
+        $invalid_elements = array();
 
-		// remove noprint elems as tcpdf will make empty pdf when hidden by css rules
-		$domX = new DomXPath($dom);
-		foreach($domX->query("//*[contains(@class, 'noprint')]") as $node)
-		{
-			$node->parentNode->removeChild($node);
-		}
+        $script_elements = $dom->getElementsByTagName('script');
+        foreach ($script_elements as $elm) {
+            $invalid_elements[] = $elm;
+        }
 
-		$dom->encoding = 'UTF-8';
+        foreach ($invalid_elements as $elm) {
+            $elm->parentNode->removeChild($elm);
+        }
 
-		$img_src_map = array();
-		foreach($dom->getElementsByTagName('img') as $elm)
-		{
-			/** @var $elm DOMElement $uid */
-			$uid = 'img_src_' . uniqid();
-			$src = $elm->getAttribute('src');
+        // remove noprint elems as tcpdf will make empty pdf when hidden by css rules
+        $domX = new DomXPath($dom);
+        foreach ($domX->query("//*[contains(@class, 'noprint')]") as $node) {
+            $node->parentNode->removeChild($node);
+        }
 
-			$elm->setAttribute('src', $uid);
+        $dom->encoding = 'UTF-8';
 
-			$img_src_map[$uid] = $src;
-		}
+        $img_src_map = array();
+        foreach ($dom->getElementsByTagName('img') as $elm) {
+            /** @var $elm DOMElement $uid */
+            $uid = 'img_src_' . uniqid();
+            $src = $elm->getAttribute('src');
 
-		$cleaned_html = $dom->saveHTML();
+            $elm->setAttribute('src', $uid);
 
-		foreach($img_src_map as $uid => $src)
-		{
-			$cleaned_html = str_replace($uid, $src, $cleaned_html);
-		}
+            $img_src_map[$uid] = $src;
+        }
 
-		if(!$cleaned_html)
-		{
-			return $html;
-		}
+        $cleaned_html = $dom->saveHTML();
 
-		return $cleaned_html;
-	}
+        foreach ($img_src_map as $uid => $src) {
+            $cleaned_html = str_replace($uid, $src, $cleaned_html);
+        }
 
-	public static function generatePDF($pdf_output, $output_mode, $filename=null, $purpose = null)
-	{
-		$pdf_output = self::preprocessHTML($pdf_output);
+        if (!$cleaned_html) {
+            return $html;
+        }
 
-		if (substr($filename, strlen($filename) - 4, 4) != '.pdf')
-		{
-			$filename .= '.pdf';
-		}
-		$pdf_factory = new ilHtmlToPdfTransformerFactory();
-		return $pdf_factory->deliverPDFFromHTMLString($pdf_output, $filename, $output_mode, self::service, $purpose);
+        return $cleaned_html;
+    }
 
-	}
+    public static function generatePDF($pdf_output, $output_mode, $filename = null, $purpose = null)
+    {
+        $pdf_output = self::preprocessHTML($pdf_output);
 
-	public static function preprocessHTML($html)
-	{
-		$html = self::makeHtmlDocument($html, '<style>'.self::getCssContent().'</style>');
-		
-		return $html;
-	}
+        if (substr($filename, strlen($filename) - 4, 4) != '.pdf') {
+            $filename .= '.pdf';
+        }
+        $pdf_factory = new ilHtmlToPdfTransformerFactory();
 
-	protected static function getTemplatePath($a_filename, $module_path = 'Modules/Test/')
-	{
-			// use ilStyleDefinition instead of account to get the current skin
-			include_once "Services/Style/System/classes/class.ilStyleDefinition.php";
-			if (ilStyleDefinition::getCurrentSkin() != "default")
-			{
-				$fname = "./Customizing/global/skin/".
-					ilStyleDefinition::getCurrentSkin()."/".$module_path.basename($a_filename);
-			}
+        if (!$pdf_factory->deliverPDFFromHTMLString(
+            $pdf_output,
+            $filename,
+            $output_mode,
+            self::service,
+            $purpose
+        )) {
+            throw new \Exception('could not write PDF');
+        }
+        return true;
+    }
 
-			if($fname == "" || !file_exists($fname))
-			{
-				$fname = "./".$module_path."templates/default/".basename($a_filename);
-			}
-		return $fname;
-	}
+    public static function preprocessHTML($html): string
+    {
+        $html = self::makeHtmlDocument($html, '<style>' . self::getCssContent() . '</style>');
 
-	protected static function getCssContent()
-	{
-		$cssContent = file_get_contents( self::getTemplatePath('delos.css', '') );
-		$cssContent .= file_get_contents( self::getTemplatePath('test_pdf.css') );
-		
-		return $cssContent;
-	}
+        return $html;
+    }
+
+    protected static function getTemplatePath($a_filename, $module_path = 'Modules/Test/'): string
+    {
+        // use ilStyleDefinition instead of account to get the current skin
+        include_once "Services/Style/System/classes/class.ilStyleDefinition.php";
+        $fname = '';
+        if (ilStyleDefinition::getCurrentSkin() != "default") {
+            $fname = "./Customizing/global/skin/" .
+                    ilStyleDefinition::getCurrentSkin() . "/" . $module_path . basename($a_filename);
+        }
+
+        if ($fname == "" || !file_exists($fname)) {
+            $fname = "./" . $module_path . "templates/default/" . basename($a_filename);
+        }
+        return $fname;
+    }
+
+    protected static function getCssContent(): string
+    {
+        $cssContent = file_get_contents(self::getTemplatePath('delos.css', ''));
+        $cssContent .= file_get_contents(self::getTemplatePath('test_pdf.css'));
+
+        return $cssContent;
+    }
 }

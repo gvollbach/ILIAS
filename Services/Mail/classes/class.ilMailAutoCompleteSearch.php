@@ -1,53 +1,52 @@
 <?php
-/* Copyright (c) 1998-2014 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilMailAutoCompleteSearch
  */
 class ilMailAutoCompleteSearch
 {
-	/**
-	 * @var ilMailAutoCompleteRecipientResult
-	 */
-	protected $result;
+    protected ilMailAutoCompleteRecipientResult $result;
+    /** @var Iterator[] */
+    protected array $providers = [];
 
-	/**
-	 * @var Iterator[]
-	 */
-	protected $providers = array();
+    public function __construct(ilMailAutoCompleteRecipientResult $result)
+    {
+        $this->result = $result;
+    }
 
-	/**
-	 * @param ilMailAutoCompleteRecipientResult $result
-	 */
-	public function __construct(ilMailAutoCompleteRecipientResult $result)
-	{
-		$this->result = $result;
-	}
+    public function addProvider(Iterator $provider): void
+    {
+        $this->providers[] = $provider;
+    }
 
-	/**
-	 * @param Iterator $provider
-	 */
-	public function addProvider(Iterator $provider)
-	{
-		$this->providers[] = $provider;
-	}
-
-	/**
-	 *
-	 */
-	public function search()
-	{
-		foreach($this->providers as $provider)
-		{
-			foreach($provider as $row)
-			{
-				if(!$this->result->isResultAddable())
-				{
-					$this->result->result['hasMoreResults'] = true;
-					break 2;
-				}
-				$this->result->addResult($row['login'], $row['firstname'], $row['lastname']);
-			}
-		}
-	}
+    public function search(): void
+    {
+        foreach ($this->providers as $provider) {
+            foreach ($provider as $row) {
+                if (!$this->result->isResultAddable()) {
+                    $this->result->result['hasMoreResults'] = true;
+                    break 2;
+                }
+                $this->result->addResult($row['login'], $row['firstname'], $row['lastname']);
+            }
+        }
+    }
 }

@@ -1,9 +1,23 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
-include_once('./Services/Table/classes/class.ilTable2GUI.php');
-require_once 'Modules/Test/classes/class.ilTestPlayerCommands.php';
+use ILIAS\UI\Factory as UIFactory;
+use ILIAS\UI\Renderer as UIRenderer;
 
 /**
 *
@@ -15,262 +29,236 @@ require_once 'Modules/Test/classes/class.ilTestPlayerCommands.php';
 
 class ilListOfQuestionsTableGUI extends ilTable2GUI
 {
-	protected $showPointsEnabled = false;
-	protected $showMarkerEnabled = false;
+    protected ?bool $showPointsEnabled = false;
+    protected ?bool $showMarkerEnabled = false;
 
-	protected $showObligationsEnabled = false;
-	protected $obligationsFilterEnabled = false;
-	
-	protected $obligationsNotAnswered = false;
-	
-	protected $finishTestButtonEnabled = false;
-	
-	/**
-	 * Constructor
-	 *
-	 * @access public
-	 * @param
-	 * @return
-	 */
-	public function __construct($a_parent_obj, $a_parent_cmd)
-	{
-		parent::__construct($a_parent_obj, $a_parent_cmd);
+    protected ?bool $showObligationsEnabled = false;
+    protected ?bool $obligationsFilterEnabled = false;
 
-		global $DIC;
-		$lng = $DIC['lng'];
-		$ilCtrl = $DIC['ilCtrl'];
+    protected ?bool $obligationsNotAnswered = false;
 
-		$this->lng = $lng;
-		$this->ctrl = $ilCtrl;
+    protected ?bool $finishTestButtonEnabled = false;
+    protected UIFactory $ui_factory;
+    protected UIRenderer $ui_renderer;
 
-		$this->setFormName('listofquestions');
-		$this->setStyle('table', 'fullwidth');
+    public function __construct($a_parent_obj, $a_parent_cmd)
+    {
+        parent::__construct($a_parent_obj, $a_parent_cmd);
 
-		$this->setRowTemplate("tpl.il_as_tst_list_of_questions_row.html", "Modules/Test");
-		
-		$this->setLimit(999);
+        global $DIC;
+        $lng = $DIC['lng'];
+        $ilCtrl = $DIC['ilCtrl'];
 
-		$this->setFormAction($this->ctrl->getFormAction($a_parent_obj, $a_parent_cmd));
+        $this->lng = $lng;
+        $this->ctrl = $ilCtrl;
+        $this->ui_factory = $DIC['ui.factory'];
+        $this->ui_renderer = $DIC['ui.renderer'];
 
-		$this->enable('header');
-		$this->disable('sort');
-		$this->disable('select_all');
-	}
-	
-	public function init()
-	{
-		// table title
-		
-		if( $this->isObligationsFilterEnabled() )
-		{
-			$this->setTitle($this->lng->txt('obligations_summary'));
-		}
-		else
-		{
-			$this->setTitle($this->lng->txt('question_summary'));
-		}
-		
-		// columns
+        $this->setFormName('listofquestions');
+        $this->setStyle('table', 'fullwidth');
 
-		$this->addColumn($this->lng->txt("tst_qst_order"),'order', '');
-		$this->addColumn($this->lng->txt("tst_question_title"),'title', '');
-		
-		if( $this->isShowObligationsEnabled() )
-		{
-			$this->addColumn($this->lng->txt("obligatory"), 'obligatory', '');
-		}
-		
-		$this->addColumn('' ,'postponed', '');
-		
-		if ($this->isShowPointsEnabled())
-		{
-			$this->addColumn($this->lng->txt("tst_maximum_points"),'points', '');
-		}
-		
-		#$this->addColumn($this->lng->txt("worked_through"),'worked_through', '');
-		$this->addColumn($this->lng->txt("answered"),'answered', '');
-		
-		if( false && $this->isShowObligationsEnabled() )
-		{
-			$this->addColumn($this->lng->txt("answered"),'answered', '');
-		}
-		
-		if ($this->isShowMarkerEnabled())
-		{
-			$this->addColumn($this->lng->txt("tst_question_marker"),'marked', '');
-		}
-		
-		// command buttons
-		
-		$this->addCommandButton(
-			ilTestPlayerCommands::SHOW_QUESTION, $this->lng->txt('back')
-		);
+        $this->setRowTemplate("tpl.il_as_tst_list_of_questions_row.html", "Modules/Test");
 
-		if( !$this->areObligationsNotAnswered() && $this->isFinishTestButtonEnabled() )
-		{
-			$button = ilSubmitButton::getInstance();
-			$button->setCaption('finish_test');
-			$button->setCommand(ilTestPlayerCommands::FINISH_TEST);
-			$this->addCommandButtonInstance($button);
-		}
-	}
+        $this->setLimit(999);
 
-	/**
-	 * fill row 
-	 *
-	 * @access public
-	 * @param
-	 * @return
-	 */
-	public function fillRow($data)
-	{
-		if ($this->isShowPointsEnabled())
-		{
-			$this->tpl->setCurrentBlock('points');
-			$this->tpl->setVariable("POINTS", $data['points'].'&nbsp;'.$this->lng->txt("points_short"));
-			$this->tpl->parseCurrentBlock();
-		}
-		if (strlen($data['description']))
-		{
-			$this->tpl->setCurrentBlock('description');
-			$this->tpl->setVariable("DESCRIPTION", ilUtil::prepareFormOutput($data['description']));
-			$this->tpl->parseCurrentBlock();
-		}
-		if ($this->isShowMarkerEnabled())
-		{
-			if ($data['marked'])
-			{
-				$this->tpl->setCurrentBlock('marked_img');
-				$this->tpl->setVariable("HREF_MARKED", ilUtil::img('./templates/default/images/marked.svg', $this->lng->txt("tst_question_marked"), '24px', '24px'));
-				$this->tpl->parseCurrentBlock();
-			}
-			else
-			{
-				$this->tpl->touchBlock('marker');
-			}
-		}
-		if( $this->isShowObligationsEnabled() )
-		{
-			// obligatory answer status
-			if(false)
-			{
-				$value = '&nbsp;';
-				if($data['isAnswered'])
-				{
-					$value = $this->lng->txt("yes");
-				}
-				$this->tpl->setCurrentBlock('answered_col');
-				$this->tpl->setVariable('ANSWERED', $value);
-				$this->tpl->parseCurrentBlock();
-			}
+        $this->setFormAction($this->ctrl->getFormAction($a_parent_obj, $a_parent_cmd));
 
-			// obligatory icon
-			if( $data["obligatory"] )
-			{
-				require_once 'Services/UIComponent/Glyph/classes/class.ilGlyphGUI.php';
-				$OBLIGATORY = ilGlyphGUI::get(ilGlyphGUI::EXCLAMATION, $this->lng->txt('question_obligatory'));
-			}
-			else $OBLIGATORY = '';
-			$this->tpl->setVariable("QUESTION_OBLIGATORY", $OBLIGATORY);
-		}
-		
-		$postponed = (
-			$data['postponed'] ? $this->lng->txt('postponed') : ''
-		);
-		
-		if( $data['disabled'] )
-		{
-			$this->tpl->setCurrentBlock('static_title');
-			$this->tpl->setVariable("STATIC_TITLE", ilUtil::prepareFormOutput($data['title']));
-			$this->tpl->parseCurrentBlock();
-		}
-		else
-		{
-			$this->ctrl->setParameter($this->parent_obj, 'sequence', $data['sequence']);
-			$this->ctrl->setParameter($this->parent_obj, 'pmode', '');
-			$href = $this->ctrl->getLinkTarget($this->parent_obj, ilTestPlayerCommands::SHOW_QUESTION);
-			
-			$this->tpl->setCurrentBlock('linked_title');
-			$this->tpl->setVariable("LINKED_TITLE", ilUtil::prepareFormOutput($data['title']));
-			$this->tpl->setVariable("HREF", $href);
-			$this->tpl->parseCurrentBlock();
-		}
-		
-		$this->tpl->setVariable("ORDER", $data['order']);
-		$this->tpl->setVariable("POSTPONED", $postponed);
-		if ($data["worked_through"])
-		{
-			$this->tpl->setVariable("WORKED_THROUGH", $this->lng->txt("yes"));
-		}
-		else
-		{
-			$this->tpl->setVariable("WORKED_THROUGH", '&nbsp;');
-		}
-	}
+        $this->enable('header');
+        $this->disable('sort');
+        $this->disable('select_all');
+    }
 
-	public function isShowPointsEnabled()
-	{
-		return $this->showPointsEnabled;
-	}
+    public function init(): void
+    {
+        // table title
 
-	public function setShowPointsEnabled($showPointsEnabled)
-	{
-		$this->showPointsEnabled = $showPointsEnabled;
-	}
+        if ($this->isObligationsFilterEnabled()) {
+            $this->setTitle($this->lng->txt('obligations_summary'));
+        } else {
+            $this->setTitle($this->lng->txt('question_summary'));
+        }
 
-	public function isShowMarkerEnabled()
-	{
-		return $this->showMarkerEnabled;
-	}
+        // columns
 
-	public function setShowMarkerEnabled($showMarkerEnabled)
-	{
-		$this->showMarkerEnabled = $showMarkerEnabled;
-	}
+        $this->addColumn($this->lng->txt("tst_qst_order"), 'order', '');
+        $this->addColumn($this->lng->txt("tst_question_title"), 'title', '');
 
-	public function isShowObligationsEnabled()
-	{
-		return $this->showObligationsEnabled;
-	}
+        if ($this->isShowObligationsEnabled()) {
+            $this->addColumn($this->lng->txt("obligatory"), 'obligatory', '');
+        }
 
-	public function setShowObligationsEnabled($showObligationsEnabled)
-	{
-		$this->showObligationsEnabled = $showObligationsEnabled;
-	}
+        $this->addColumn('', 'postponed', '');
 
-	public function isObligationsFilterEnabled()
-	{
-		return $this->obligationsFilterEnabled;
-	}
+        if ($this->isShowPointsEnabled()) {
+            $this->addColumn($this->lng->txt("tst_maximum_points"), 'points', '');
+        }
 
-	public function setObligationsFilterEnabled($obligationsFilterEnabled)
-	{
-		$this->obligationsFilterEnabled = $obligationsFilterEnabled;
-	}
+        #$this->addColumn($this->lng->txt("worked_through"),'worked_through', '');
+        $this->addColumn($this->lng->txt("answered"), 'answered', '');
 
-	public function areObligationsNotAnswered()
-	{
-		return $this->obligationsNotAnswered;
-	}
+        if (false && $this->isShowObligationsEnabled()) {
+            $this->addColumn($this->lng->txt("answered"), 'answered', '');
+        }
 
-	public function setObligationsNotAnswered($obligationsNotAnswered)
-	{
-		$this->obligationsNotAnswered = $obligationsNotAnswered;
-	}
+        if ($this->isShowMarkerEnabled()) {
+            $this->addColumn($this->lng->txt("tst_question_marker"), 'marked', '');
+        }
 
-	/**
-	 * @return boolean
-	 */
-	public function isFinishTestButtonEnabled()
-	{
-		return $this->finishTestButtonEnabled;
-	}
+        // command buttons
 
-	/**
-	 * @param boolean $finishTestButtonEnabled
-	 */
-	public function setFinishTestButtonEnabled($finishTestButtonEnabled)
-	{
-		$this->finishTestButtonEnabled = $finishTestButtonEnabled;
-	}
+        $this->addCommandButton(
+            ilTestPlayerCommands::SHOW_QUESTION,
+            $this->lng->txt('tst_resume_test')
+        );
+
+        if (!$this->areObligationsNotAnswered() && $this->isFinishTestButtonEnabled()) {
+            $button = ilSubmitButton::getInstance();
+            $button->setCaption('finish_test');
+            $button->setCommand(ilTestPlayerCommands::FINISH_TEST);
+            $this->addCommandButtonInstance($button);
+        }
+    }
+
+    public function fillRow(array $a_set): void
+    {
+        if ($this->isShowPointsEnabled()) {
+            $this->tpl->setCurrentBlock('points');
+            $this->tpl->setVariable("POINTS", $a_set['points'] . '&nbsp;' . $this->lng->txt("points_short"));
+            $this->tpl->parseCurrentBlock();
+        }
+        if (strlen($a_set['description'])) {
+            $this->tpl->setCurrentBlock('description');
+            $this->tpl->setVariable("DESCRIPTION", ilLegacyFormElementsUtil::prepareFormOutput($a_set['description']));
+            $this->tpl->parseCurrentBlock();
+        }
+        if ($this->isShowMarkerEnabled()) {
+            if ($a_set['marked']) {
+                $this->tpl->setCurrentBlock('marked_img');
+                $this->tpl->setVariable(
+                    "HREF_MARKED",
+                    ilUtil::img(
+                        ilUtil::getImagePath('marked.svg'),
+                        $this->lng->txt("tst_question_marked"),
+                        '24px',
+                        '24px'
+                    )
+                );
+                $this->tpl->parseCurrentBlock();
+            } else {
+                $this->tpl->touchBlock('marker');
+            }
+        }
+        if ($this->isShowObligationsEnabled()) {
+            // obligatory answer status
+            if (false) {
+                $value = '&nbsp;';
+                if ($a_set['isAnswered']) {
+                    $value = $this->lng->txt("yes");
+                }
+                $this->tpl->setCurrentBlock('answered_col');
+                $this->tpl->setVariable('ANSWERED', $value);
+                $this->tpl->parseCurrentBlock();
+            }
+
+            // obligatory icon
+            if ($a_set["obligatory"]) {
+                $icon = $this->ui_factory->symbol()->icon()->custom(
+                    ilUtil::getImagePath("icon_checked.svg"),
+                    $this->lng->txt('question_obligatory')
+
+                );
+                $OBLIGATORY = $this->ui_renderer->render($icon);
+            } else {
+                $OBLIGATORY = '';
+            }
+            $this->tpl->setVariable("QUESTION_OBLIGATORY", $OBLIGATORY);
+        }
+
+        $postponed = (
+            $a_set['postponed'] ? $this->lng->txt('postponed') : ''
+        );
+
+        if ($a_set['disabled']) {
+            $this->tpl->setCurrentBlock('static_title');
+            $this->tpl->setVariable("STATIC_TITLE", ilLegacyFormElementsUtil::prepareFormOutput($a_set['title']));
+            $this->tpl->parseCurrentBlock();
+        } else {
+            $this->ctrl->setParameter($this->parent_obj, 'sequence', $a_set['sequence']);
+            $this->ctrl->setParameter($this->parent_obj, 'pmode', '');
+            $href = $this->ctrl->getLinkTarget($this->parent_obj, ilTestPlayerCommands::SHOW_QUESTION);
+
+            $this->tpl->setCurrentBlock('linked_title');
+            $this->tpl->setVariable("LINKED_TITLE", ilLegacyFormElementsUtil::prepareFormOutput($a_set['title']));
+            $this->tpl->setVariable("HREF", $href);
+            $this->tpl->parseCurrentBlock();
+        }
+
+        $this->tpl->setVariable("ORDER", $a_set['order']);
+        $this->tpl->setVariable("POSTPONED", $postponed);
+        if ($a_set["worked_through"]) {
+            $this->tpl->setVariable("WORKED_THROUGH", $this->lng->txt("yes"));
+        } else {
+            $this->tpl->setVariable("WORKED_THROUGH", '&nbsp;');
+        }
+    }
+
+    public function isShowPointsEnabled(): bool
+    {
+        return $this->showPointsEnabled;
+    }
+
+    public function setShowPointsEnabled($showPointsEnabled): void
+    {
+        $this->showPointsEnabled = $showPointsEnabled;
+    }
+
+    public function isShowMarkerEnabled(): bool
+    {
+        return $this->showMarkerEnabled;
+    }
+
+    public function setShowMarkerEnabled($showMarkerEnabled): void
+    {
+        $this->showMarkerEnabled = $showMarkerEnabled;
+    }
+
+    public function isShowObligationsEnabled(): bool
+    {
+        return $this->showObligationsEnabled;
+    }
+
+    public function setShowObligationsEnabled($showObligationsEnabled): void
+    {
+        $this->showObligationsEnabled = $showObligationsEnabled;
+    }
+
+    public function isObligationsFilterEnabled(): bool
+    {
+        return $this->obligationsFilterEnabled;
+    }
+
+    public function setObligationsFilterEnabled($obligationsFilterEnabled): void
+    {
+        $this->obligationsFilterEnabled = $obligationsFilterEnabled;
+    }
+
+    public function areObligationsNotAnswered(): bool
+    {
+        return $this->obligationsNotAnswered;
+    }
+
+    public function setObligationsNotAnswered($obligationsNotAnswered): void
+    {
+        $this->obligationsNotAnswered = $obligationsNotAnswered;
+    }
+
+    public function isFinishTestButtonEnabled(): bool
+    {
+        return $this->finishTestButtonEnabled;
+    }
+
+    public function setFinishTestButtonEnabled(bool $finishTestButtonEnabled): void
+    {
+        $this->finishTestButtonEnabled = $finishTestButtonEnabled;
+    }
 }

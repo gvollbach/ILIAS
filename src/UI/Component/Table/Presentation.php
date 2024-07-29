@@ -1,44 +1,34 @@
 <?php
-/* Copyright (c) 2017 Nils Haagen <nils.haagen@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 namespace ILIAS\UI\Component\Table;
+
+use ILIAS\UI\Component\ViewControl\HasViewControls;
+use Closure;
+use ILIAS\UI\Component\JavaScriptBindable;
 
 /**
  * This describes a Presentation Table
  */
-interface Presentation extends \ILIAS\UI\Component\Component
+interface Presentation extends Table, HasViewControls, JavaScriptBindable
 {
-
-    /**
-     * Get a table like this with title $title.
-     *
-     * @param string 	$title
-     * @return \Presentation
-     */
-    public function withTitle($title);
-
-    /**
-     * Get the title of the table.
-     *
-     * @return string
-     */
-    public function getTitle();
-
-    /**
-     * Get a table like this with these view controls.
-     *
-     * @param \ViewControl[] 	$view_controls
-     * @return \Presentation
-     */
-    public function withViewControls(array $view_controls);
-
-    /**
-     * Get view controls to be shown in the header of the table.
-     *
-     * @return ILIAS\UI\Component\ViewControl[]
-     */
-    public function getViewControls();
-
     /**
      * Get a table like this with the closure $row_mapping.
      * This closure is called by the renderer upon building a row from
@@ -51,7 +41,7 @@ interface Presentation extends \ILIAS\UI\Component\Component
      * 				This is the actually variable part when rendering rows.
      * $ui_factory	You might, e.g., want a descriptive listing or and image
      *				within the content of the row. Use the UI-Factory to build it.
-     * $environment When you need auxillary classes or functions to properly render
+     * $environment When you need auxiliary classes or functions to properly render
      * 				the data, this is the place to put it.
      *
      * In short:
@@ -61,44 +51,36 @@ interface Presentation extends \ILIAS\UI\Component\Component
      *   \Factory 			$ui_factory
      *   mixed 				$environment
      * The closure MUST return \PresentationRow
-     *
-     * @param \Closure 	$row_mapping
-     * @return \Presentation
      */
-    public function withRowMapping(\Closure $row_mapping);
-
+    public function withRowMapping(Closure $row_mapping): Presentation;
 
     /**
      * Get the closure to construct row-entries with.
-     *
-     * @return \Closure
      */
-    public function getRowMapping();
+    public function getRowMapping(): Closure;
 
     /**
      * Add a list of additional things the mapping-closure needs for processing.
      * These can be virtually anything.
      *
      * @param array<string,mixed> 	$environment
-     * @return \Presentation
      */
-    public function withEnvironment(array $environment);
+    public function withEnvironment(array $environment): Presentation;
 
     /**
      * Get an array of additionally needed elements to build a data-entry.
      *
      * @return array<string,mixed>
      */
-    public function getEnvironment();
+    public function getEnvironment(): array;
 
     /**
      * Fill a recordset into the table.
      * All elements in $records MUST be processable by the mapping-closure.
      *
      * @param array<mixed> 	$records
-     * @return \Presentation
      */
-    public function withData(array $records);
+    public function withData(array $records): Presentation;
 
     /**
      * Get the recordset of this table.
@@ -106,5 +88,5 @@ interface Presentation extends \ILIAS\UI\Component\Component
      *
      * @return array<mixed>
      */
-    public function getData();
+    public function getData(): array;
 }

@@ -2,6 +2,19 @@
 
 namespace ILIAS\FileUpload\Collection;
 
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ *      https://www.ilias.de
+ *      https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 /**
  * Class ImmutableMapWrapper
  *
@@ -14,44 +27,47 @@ namespace ILIAS\FileUpload\Collection;
  *
  * @Internal
  */
-final class ImmutableMapWrapper implements ImmutableStringMap {
-
-	/**
-	 * @var StringMap
-	 */
-	private $map;
+final class ImmutableMapWrapper implements ImmutableStringMap
+{
+    private \ILIAS\FileUpload\Collection\StringMap $map;
 
 
-	/**
-	 * ImmutableMapWrapper constructor.
-	 *
-	 * @param StringMap $map The mutable map which should be wrapped.
-	 *
-	 * @since 5.3
-	 */
-	public function __construct(StringMap $map) { $this->map = $map; }
+    /**
+     * ImmutableMapWrapper constructor.
+     *
+     * @param StringMap $map The mutable map which should be wrapped.
+     *
+     * @since 5.3
+     */
+    public function __construct(StringMap $map)
+    {
+        $this->map = $map;
+    }
 
 
-	/**
-	 * @inheritDoc
-	 */
-	public function get($key) {
-		return $this->map->get($key);
-	}
+    /**
+     * @inheritDoc
+     */
+    public function get(string $key): string
+    {
+        return $this->map->get($key);
+    }
 
 
-	/**
-	 * @inheritDoc
-	 */
-	public function toArray() {
-		return $this->map->toArray();
-	}
+    /**
+     * @inheritDoc
+     */
+    public function toArray(): array
+    {
+        return $this->map->toArray();
+    }
 
 
-	/**
-	 * @inheritDoc
-	 */
-	public function has($key) {
-		return $this->map->has($key);
-	}
+    /**
+     * @inheritDoc
+     */
+    public function has(string $key): bool
+    {
+        return $this->map->has($key);
+    }
 }

@@ -1,143 +1,103 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2005 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
-
 
 /**
-* GUI class for html lm presentation
-*
-* @author Alex Killing <alex.killing@gmx.de>
-*
-* @version $Id$
-*
-* @ilCtrl_Calls ilHTLMPresentationGUI: ilObjFileBasedLMGUI
-*
-* @ingroup ModulesHTMLLearningModule
-*/
-class ilHTLMPresentationGUI
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * @author Alexander Killing <killing@leifos.de>
+ * @ilCtrl_Calls ilHTLMPresentationGUI: ilObjFileBasedLMGUI
+ */
+class ilHTLMPresentationGUI implements ilCtrlBaseClassInterface
 {
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    protected \ILIAS\HTMLLearningModule\StandardGUIRequest $request;
+    protected ilCtrl $ctrl;
+    protected ilAccessHandler $access;
+    protected ilNavigationHistory $nav_history;
+    public ilGlobalTemplateInterface $tpl;
+    public ilLanguage $lng;
+    public ilObjectDefinition $objDefinition;
+    public int $ref_id;
 
-	/**
-	 * @var ilAccessHandler
-	 */
-	protected $access;
+    public function __construct()
+    {
+        global $DIC;
 
-	/**
-	 * @var ilErrorHandling
-	 */
-	protected $error;
+        $this->access = $DIC->access();
+        $this->nav_history = $DIC["ilNavigationHistory"];
+        $tpl = $DIC["tpl"];
+        $lng = $DIC->language();
+        $objDefinition = $DIC["objDefinition"];
+        $ilCtrl = $DIC->ctrl();
+        $ilAccess = $DIC->access();
+        $this->request = $DIC->htmlLearningModule()
+            ->internal()
+            ->gui()
+            ->standardRequest();
+        $this->ref_id = $this->request->getRefId();
 
-	/**
-	 * @var ilNavigationHistory
-	 */
-	protected $nav_history;
+        $lng->loadLanguageModule("content");
 
-	var $tpl;
-	var $lng;
-	var $objDefinition;
-	var $ref_id;
-
-	/**
-	* Constructor
-	* @access	public
-	*/
-	function __construct()
-	{
-		global $DIC;
-
-		$this->access = $DIC->access();
-		$this->error = $DIC["ilErr"];
-		$this->nav_history = $DIC["ilNavigationHistory"];
-		$tpl = $DIC["tpl"];
-		$lng = $DIC->language();
-		$objDefinition = $DIC["objDefinition"];
-		$ilCtrl = $DIC->ctrl();
-		$ilAccess = $DIC->access();
-		$ilErr = $DIC["ilErr"];
-		
-		$lng->loadLanguageModule("content");
-
-		// check write permission
-		if (!$ilAccess->checkAccess("read", "", $_GET["ref_id"]))
-		{
-			$ilErr->raiseError($lng->txt("permission_denied"), $ilErr->MESSAGE);
-		}
+        // check write permission
+        if (!$ilAccess->checkAccess("read", "", $this->ref_id)) {
+            throw new ilPermissionException($lng->txt("permission_denied"));
+        }
 
 
-		$this->ctrl = $ilCtrl;
+        $this->ctrl = $ilCtrl;
 
-		//$this->ctrl->saveParameter($this, array("ref_id", "obj_id"));
-		$this->ctrl->saveParameter($this, array("ref_id"));
+        //$this->ctrl->saveParameter($this, array("ref_id", "obj_id"));
+        $this->ctrl->saveParameter($this, array("ref_id"));
 
-		// initiate variables
-		$this->tpl = $tpl;
-		$this->lng = $lng;
-		$this->objDefinition = $objDefinition;
-		$this->ref_id = $_GET["ref_id"];
+        // initiate variables
+        $this->tpl = $tpl;
+        $this->lng = $lng;
+        $this->objDefinition = $objDefinition;
+    }
 
-	}
+    public function executeCommand(): void
+    {
+        $tpl = $this->tpl;
+        $ilCtrl = $this->ctrl;
+        $ilAccess = $this->access;
+        $ilNavigationHistory = $this->nav_history;
 
-	/**
-	* execute command
-	*/
-	function executeCommand()
-	{
-		$tpl = $this->tpl;
-		$ilCtrl = $this->ctrl;
-		$ilAccess = $this->access;
-		$ilNavigationHistory = $this->nav_history;
+        // add entry to navigation history
+        if ($ilAccess->checkAccess("read", "", $this->ref_id)) {
+            $ilCtrl->setParameterByClass("ilobjfilebasedlmgui", "ref_id", $this->ref_id);
+            $ilNavigationHistory->addItem(
+                $this->ref_id,
+                $ilCtrl->getLinkTargetByClass(array("ilrepositorygui", "ilobjfilebasedlmgui"), "infoScreen"),
+                "htlm"
+            );
+        }
 
-		// add entry to navigation history
-		if ($ilAccess->checkAccess("read", "", $_GET["ref_id"]))
-		{
-			$ilCtrl->setParameterByClass("ilobjfilebasedlmgui", "ref_id", $_GET["ref_id"]);
-			$ilNavigationHistory->addItem($_GET["ref_id"],
-				$ilCtrl->getLinkTargetByClass(array("ilrepositorygui", "ilobjfilebasedlmgui"), "infoScreen"), "htlm");
+        $next_class = $this->ctrl->getNextClass($this);
 
-		}
+        switch ($next_class) {
+            case "ilobjfilebasedlmgui":
+                $fblm_gui = new ilObjFileBasedLMGUI("", $this->ref_id, true, false);
+                $ilCtrl->forwardCommand($fblm_gui);
+                $tpl->printToStdout();
+                break;
 
-		$next_class = $this->ctrl->getNextClass($this);
-		$cmd = $this->ctrl->getCmd("");
-
-		switch($next_class)
-		{
-			case "ilobjfilebasedlmgui":
-				require_once ("./Modules/HTMLLearningModule/classes/class.ilObjFileBasedLMGUI.php");
-				$fblm_gui = new ilObjFileBasedLMGUI("", $_GET["ref_id"],true, false);
-				$ilCtrl->forwardCommand($fblm_gui);
-				$tpl->printToStdout();
-				break;
-
-			default:
-				$this->ctrl->setCmdClass("ilobjfilebasedlmgui");
-				$this->ctrl->setCmd("showLearningModule");
-				return $this->executeCommand();
-				break;
-		}
-	}
-
+            default:
+                $this->ctrl->setCmdClass("ilobjfilebasedlmgui");
+                $this->ctrl->setCmd("showLearningModule");
+                $this->executeCommand();
+                break;
+        }
+    }
 }
-?>

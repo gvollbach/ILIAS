@@ -1,286 +1,216 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2006 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ */
 
-/** 
-*
-* 
+declare(strict_types=1);
+
+/**
 * @author Stefan Meyer <meyer@leifos.com>
-* @version $Id$
-* 
-* 
-* @ilCtrl_Calls 
-* @ingroup ServicesWebServicesECS 
 */
-
 class ilECSCommunityReader
 {
-	private static $instances = null;
+    private static ?array $instances = null;
 
-	protected $position = 0;
+    private int $position = 0;
 
-	protected $log;
-	protected $settings = null;
-	protected $connector = null;
-	
-	protected $communities = array();
-	protected $participants = array();
-	protected $own_ids = array();
+    private ilLogger $logger;
+    private ilECSSetting $settings;
+    private ilECSConnector $connector;
 
-	/**
-	 * Singleton constructor
-	 *
-	 * @access private
-	 * @throws ilECSConnectorException 
-	 */
-	private function __construct(ilECSSetting $setting = null)
-	{
-	 	global $DIC;
+    /**
+     * @var ilECSCommunity[]
+     */
+    private array $communities = array();
+    private array $participants = array();
+    private array $own_ids = array();
 
-	 	$ilLog = $DIC['ilLog'];
-	 	
-	 	include_once('Services/WebServices/ECS/classes/class.ilECSSetting.php');
-	 	include_once('Services/WebServices/ECS/classes/class.ilECSConnector.php');
-		include_once('Services/WebServices/ECS/classes/class.ilECSConnectorException.php');
-		include_once('Services/WebServices/ECS/classes/class.ilECSCommunity.php');
+    /**
+     * Singleton constructor
+     *
+     * @access private
+     * @throws ilECSConnectorException
+     */
+    private function __construct(ilECSSetting $setting)
+    {
+        global $DIC;
 
-		if($setting)
-		{
-			$this->settings = $setting;
-		}
-		else
-		{
-			$GLOBALS['DIC']['ilLog']->write(__METHOD__.': Using deprecated call');
-			$GLOBALS['DIC']['ilLog']->logStack();
-		}
-	 	$this->connector = new ilECSConnector($this->settings);
-	 	$this->log = $ilLog;
-	 	
-	 	$this->read();
-	}
-	
-	/**
-	 * get singleton instance
-	 *
-	 * @access public
-	 * @static
-	 * @return ilECSCommunityReader
-	 */
-	public static function _getInstance()
-	{
-		$GLOBALS['DIC']['ilLog']->write(__METHOD__.': Using deprecated call');
-		return self::getInstanceByServerId(15);
-	}
+        $this->logger = $DIC->logger()->wsrv();
+        $this->logger->debug(print_r($setting->getServerId(), true));
+        $this->settings = $setting;
 
-	/**
-	 * Get instance by server id
-	 * @param int $a_server_id
-	 * @return ilECSCommunityReader
-	 */
-	public static function getInstanceByServerId($a_server_id)
-	{
-		if(isset(self::$instances[$a_server_id]))
-		{
-			return self::$instances[$a_server_id];
-		}
-		return self::$instances[$a_server_id] = new ilECSCommunityReader(ilECSSetting::getInstanceByServerId($a_server_id));
-	}
+        $this->connector = new ilECSConnector($this->settings);
 
-	/**
-	 * Get server setting
-	 * @return ilECSSetting
-	 */
-	public function getServer()
-	{
-		return $this->settings;
-	}
-	
-	/**
-	 * Get participants
-	 * @return ilECSParticipant[]
-	 */
-	public function getParticipants()
-	{
-		return $this->participants;
-	}
+        $this->read();
+        $this->logger->debug(__METHOD__ . ': Finished reading communities');
+    }
+
+    /**
+     * Get instance by server id
+     */
+    public static function getInstanceByServerId(int $a_server_id): \ilECSCommunityReader
+    {
+        return self::$instances[$a_server_id] ?? (self::$instances[$a_server_id] = new ilECSCommunityReader(ilECSSetting::getInstanceByServerId($a_server_id)));
+    }
+
+    /**
+     * Get server setting
+     */
+    public function getServer(): \ilECSSetting
+    {
+        return $this->settings;
+    }
+
+    /**
+     * Get participants
+     * @return ilECSParticipant[]
+     */
+    public function getParticipants(): array
+    {
+        return $this->participants;
+    }
 
 
-	/**
-	 * get publishable ids
-	 *
-	 * @access public
-	 * 
-	 */
-	public function getOwnMIDs()
-	{
-	 	return $this->own_ids ? $this->own_ids : array();
-	}
-	
-	/**
-	 * get communities
-	 *
-	 * @access public
-	 * @param
-	 * 
-	 */
-	public function getCommunities()
-	{
-	 	return $this->communities ? $this->communities : array();
-	}
-	
-	/**
-	 * get community by id
-	 *
-	 * @access public
-	 * @param int comm_id
-	 * 
-	 */
-	public function getCommunityById($a_id)
-	{
-	 	foreach($this->communities as $community)
-	 	{
-	 		if($community->getId() == $a_id)
-	 		{
-	 			return $community;
-	 		}
-	 	}
-	 	return null;
-	}
-	
-	/**
-	 * get participant by id
-	 *
-	 * @access public
-	 * @param int mid 
-	 */
-	public function getParticipantByMID($a_mid)
-	{
-	 	return isset($this->participants[$a_mid]) ? $this->participants[$a_mid] : false;
-	}
+    /**
+     * get publishable ids
+     */
+    public function getOwnMIDs(): array
+    {
+        return $this->own_ids ?: [];
+    }
 
-	/**
-	 * Get community by mid
-	 * @param int $a_mid
-	 * @return ilECSCommunity
-	 */
-	public function getCommunityByMID($a_mid)
-	{
-		foreach($this->communities as $community)
-		{
-			foreach($community->getParticipants() as $part)
-			{
-				if($part->getMID() == $a_mid)
-				{
-					return $community;
-				}
-			}
-		}
-		return null;
-	}
-	
-	/**
-	 * get publishable communities
-	 *
-	 * @access public
-	 * 
-	 */
-	public function getPublishableParticipants()
-	{
-	 	foreach($this->getCommunities() as $community)
-	 	{
-	 		foreach($community->getParticipants() as $participant)
-	 		{
-	 			if($participant->isPublishable())
-	 			{
-	 				$p_part[] = $participant;
-	 			}
-	 		}
-	 	}
-	 	return $p_part ? $p_part : array();
-	}
-	
-	/**
-	 * get enabled participants
-	 *
-	 * @access public
-	 * 
-	 */
-	public function getEnabledParticipants()
-	{
-		include_once './Services/WebServices/ECS/classes/class.ilECSParticipantSettings.php';
-		$ps = ilECSParticipantSettings::getInstanceByServerId($this->getServer()->getServerId());
-		$en = $ps->getEnabledParticipants();
-		foreach($this->getCommunities() as $community)
-	 	{
-	 		foreach($community->getParticipants() as $participant)
-	 		{
-	 			if(in_array($participant->getMid(), $en))
-				{
-					$e_part[] = $participant;
-				}
-	 		}
-	 	}
-	 	return $e_part ? $e_part : array();
-	}
+    /**
+     * get communities
+     *
+     * @access public
+     * @return \ilECSCommunity[]
+     */
+    public function getCommunities(): array
+    {
+        return $this->communities ?: [];
+    }
 
-	/**
-	 * Read
-	 * @access private
-	 * @throws ilECSConnectorException
-	 * 
-	 */
-	private function read()
-	{
-	 	global $DIC;
+    /**
+     * get community by id
+     *
+     * @access public
+     * @param int comm_id
+     */
+    public function getCommunityById($a_id): ?ilECSCommunity
+    {
+        foreach ($this->communities as $community) {
+            if ($community->getId() === $a_id) {
+                return $community;
+            }
+        }
+        return null;
+    }
 
-	 	$ilLog = $DIC['ilLog'];
-	 	
-	 	try
-	 	{
-	 		$res = $this->connector->getMemberships();
-			if(!is_array($res->getResult()))
-			{
-				return false;
-			}
-			foreach($res->getResult() as $community)
-			{
-				$tmp_comm = new ilECSCommunity($community);
-				foreach($tmp_comm->getParticipants() as $participant)
-				{
-					$this->participants[$participant->getMID()] = $participant;
-					if($participant->isSelf())
-					{
-						$this->own_ids[] = $participant->getMID();
-					}
-				}
-				$this->communities[] = $tmp_comm;
-			}	 		
-	 	}
-	 	catch(ilECSConnectorException $e)
-	 	{
-	 		$ilLog->write(__METHOD__.': Error connecting to ECS server. '.$e->getMessage());
-	 		throw $e;
-	 	}
-	}
+    /**
+     * @return \ilECSParticipant[]
+     */
+    public function getParticipantsByPid(int $a_pid): array
+    {
+        $participants = [];
+        foreach ($this->getCommunities() as $community) {
+            foreach ($community->getParticipants() as $participant) {
+                if ($participant->getPid() === $a_pid) {
+                    $participants[] = $participant;
+                }
+            }
+        }
+        return $participants;
+    }
+
+    /**
+     * get participant by id
+     *
+     * @access public
+     * @param int mid
+     */
+    public function getParticipantByMID($a_mid)
+    {
+        return $this->participants[$a_mid] ?? false;
+    }
+
+    public function getParticipantNameByMid($a_mid): string
+    {
+        return isset($this->participants[$a_mid]) ?
+            $this->participants[$a_mid]-> getParticipantName() :
+            '';
+    }
+
+    /**
+     * Get community by mid
+     */
+    public function getCommunityByMID(int $a_mid): ?\ilECSCommunity
+    {
+        foreach ($this->communities as $community) {
+            foreach ($community->getParticipants() as $part) {
+                if ($part->getMID() === $a_mid) {
+                    return $community;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * get enabled participants
+     */
+    public function getEnabledParticipants(): array
+    {
+        $ps = ilECSParticipantSettings::getInstanceByServerId($this->getServer()->getServerId());
+        $en = $ps->getEnabledParticipants();
+        $e_part = [];
+        foreach ($this->getCommunities() as $community) {
+            foreach ($community->getParticipants() as $participant) {
+                if (in_array($participant->getMid(), $en, true)) {
+                    $e_part[] = $participant;
+                }
+            }
+        }
+        return $e_part;
+    }
+
+    /**
+     * Read
+     *
+     * @throws ilECSConnectorException
+     */
+    private function read(): void
+    {
+        try {
+            $res = $this->connector->getMemberships();
+
+            if (!is_array($res->getResult())) {
+                return;
+            }
+            foreach ($res->getResult() as $community) {
+                $tmp_comm = new ilECSCommunity($community);
+                foreach ($tmp_comm->getParticipants() as $participant) {
+                    $this->participants[$participant->getMID()] = $participant;
+                    if ($participant->isSelf()) {
+                        $this->own_ids[] = $participant->getMID();
+                    }
+                }
+                $this->communities[] = $tmp_comm;
+            }
+        } catch (ilECSConnectorException $e) {
+            $this->logger->error(__METHOD__ . ': Error connecting to ECS server. ' . $e->getMessage());
+            throw $e;
+        }
+    }
 }
-?>

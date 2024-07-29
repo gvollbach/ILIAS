@@ -1,6 +1,20 @@
 <?php
 
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Interface for assignment types
@@ -9,54 +23,33 @@
  */
 interface ilExcRepoObjAssignmentInfoInterface
 {
-	/**
-	 * Get assignment id
-	 *
-	 * @return int assignment id
-	 */
-	function getId();
+    // Get assignment id
+    public function getId(): int;
 
-	/**
-	 * Get assignment title
-	 *
-	 * @return int assignment id
-	 */
-	function getTitle();
+    // Get assignment title
+    public function getTitle(): string;
 
-	/**
-	 * Get readable link urls to the assignment (key is the ref id)
-	 *
-	 * @return string[] assignment link url
-	 */
-	function getLinks();
+    /**
+     * Get readable link urls to the assignment (key is the ref id)
+     *
+     * @return string[] assignment link url
+     */
+    public function getLinks(): array;
 
-	/**
-	 * Check if this object has been submitted by the user provided or its team. If not, the
-	 * repository object is related to an assignment, but has been submitted by another user/team.
-	 *
-	 * @return bool
-	 */
-	function isUserSubmission();
+    /**
+     * Check if this object has been submitted by the user provided or its team. If not, the
+     * repository object is related to an assignment, but has been submitted by another user/team.
+     */
+    public function isUserSubmission(): bool;
 
-	/**
-	 * Get exercise id
-	 *
-	 * @return int
-	 */
-	function getExerciseId();
+    public function getExerciseId(): int;
 
-	/**
-	 * Get exercise title
-	 *
-	 * @return string
-	 */
-	function getExerciseTitle();
+    public function getExerciseTitle(): string;
 
-	/**
-	 * Get readable ref IDs
-	 *
-	 * @return int[]
-	 */
-	function getReadableRefIds();
-
+    /**
+     * Get readable ref IDs
+     *
+     * @return int[]
+     */
+    public function getReadableRefIds(): array;
 }

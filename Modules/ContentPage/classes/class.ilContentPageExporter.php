@@ -1,93 +1,111 @@
 <?php
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
- * Class ilContentPageExporter
- */
-class ilContentPageExporter extends \ilXmlExporter implements \ilContentPageObjectConstants
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+use ILIAS\Style\Content\DomainService;
+
+class ilContentPageExporter extends ilXmlExporter implements ilContentPageObjectConstants
 {
-	/**
-	 * @var \ilContentPageDataSet
-	 */
-	protected $ds;
+    protected ilContentPageDataSet $ds;
+    protected DomainService $content_style_domain;
 
-	/**
-	 * @inheritdoc
-	 */
-	public function init()
-	{
-		$this->ds = new \ilContentPageDataSet();
-		$this->ds->setDSPrefix('ds');
-	}
+    public function init(): void
+    {
+        global $DIC;
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getXmlRepresentation($a_entity, $a_schema_version, $a_id)
-	{
-		\ilUtil::makeDirParents($this->getAbsoluteExportDirectory());
-		$this->ds->setExportDirectories($this->dir_relative, $this->dir_absolute);
+        $this->ds = new ilContentPageDataSet();
+        $this->ds->setDSPrefix('ds');
+        $this->content_style_domain = $DIC->contentStyle()
+                                          ->domain();
+    }
 
-		return $this->ds->getXmlRepresentation($a_entity, $a_schema_version, $a_id, '', true, true);
-	}
+    public function getXmlRepresentation(string $a_entity, string $a_schema_version, string $a_id): string
+    {
+        ilFileUtils::makeDirParents($this->getAbsoluteExportDirectory());
+        $this->ds->setExportDirectories($this->dir_relative, $this->dir_absolute);
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getValidSchemaVersions($a_entity)
-	{
-		return array(
-			'5.4.0' => array(
-				'namespace'    => 'http://www.ilias.de/Modules/ContentPage/' . self::OBJ_TYPE . '/5_4',
-				'xsd_file'     => 'ilias_' . self::OBJ_TYPE .  '_5_4.xsd',
-				'uses_dataset' => true,
-				'min'          => '5.4.0',
-				'max'          => '',
-			),
-		);
-	}
+        return $this->ds->getXmlRepresentation($a_entity, $a_schema_version, [$a_id], '', true, true);
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getXmlExportTailDependencies($a_entity, $a_target_release, $a_ids) {
-		$pageObjectIds = [];
-		$styleIds      = [];
+    public function getValidSchemaVersions(string $a_entity): array
+    {
+        return [
+            '5.4.0' => [
+                'namespace' => 'http://www.ilias.de/Modules/ContentPage/' . self::OBJ_TYPE . '/5_4',
+                'xsd_file' => 'ilias_' . self::OBJ_TYPE . '_5_4.xsd',
+                'uses_dataset' => true,
+                'min' => '5.4.0',
+                'max' => '',
+            ],
+        ];
+    }
 
-		foreach ($a_ids as $copaObjId) {
-			$copa = \ilObjectFactory::getInstanceByObjId($copaObjId, false);
-			if (!$copa || !($copa instanceof \ilObjContentPage)) {
-				continue;
-			}
+    public function getXmlExportTailDependencies(string $a_entity, string $a_target_release, array $a_ids): array
+    {
+        $pageObjectIds = [];
+        $styleIds = [];
 
-			$copaPageObjIds = $copa->getPageObjIds();
-			foreach ($copaPageObjIds as $copaPageObjId) {
-				$pageObjectIds[] = self::OBJ_TYPE . ':' . $copaPageObjId;
-			}
+        foreach ($a_ids as $copaObjId) {
+            $copa = ilObjectFactory::getInstanceByObjId($copaObjId, false);
+            if (!$copa || !($copa instanceof ilObjContentPage)) {
+                continue;
+            }
 
-			if ($copa->getStyleSheetId() > 0) {
-				$styleIds[$copa->getStyleSheetId()] = $copa->getStyleSheetId();
-			}
-		}
+            $copaPageObjIds = $copa->getPageObjIds();
+            foreach ($copaPageObjIds as $copaPageObjId) {
+                $pageObjectIds[] = self::OBJ_TYPE . ':' . $copaPageObjId;
+            }
 
-		$deps = [];
+            $style_id = $this->content_style_domain
+                ->styleForObjId($copa->getId())
+                ->getStyleId();
+            if ($style_id > 0) {
+                $styleIds[$style_id] = $style_id;
+            }
+        }
 
-		if (count($pageObjectIds) > 0) {
-			$deps[] = [
-				'component' => 'Services/COPage',
-				'entity'    => 'pg',
-				'ids'       => $pageObjectIds,
-			];
-		}
+        $deps = [];
 
-		if (count($styleIds) > 0) {
-			$deps[] = [
-				'component' => 'Services/Style',
-				'entity' => 'sty',
-				'ids' => array_values($styleIds),
-			];
-		}
+        if (count($pageObjectIds) > 0) {
+            $deps[] = [
+                'component' => 'Services/COPage',
+                'entity' => 'pg',
+                'ids' => $pageObjectIds,
+            ];
+        }
 
-		return $deps;
-	}
+        if (count($styleIds) > 0) {
+            $deps[] = [
+                'component' => 'Services/Style',
+                'entity' => 'sty',
+                'ids' => array_values($styleIds),
+            ];
+        }
+
+        if (self::OBJ_TYPE === $a_entity) {
+            $deps[] = [
+                'component' => 'Services/Object',
+                'entity' => 'common',
+                'ids' => $a_ids
+            ];
+        }
+
+        return $deps;
+    }
 }

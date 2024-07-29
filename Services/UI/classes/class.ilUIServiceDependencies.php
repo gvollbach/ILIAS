@@ -1,6 +1,21 @@
 <?php
 
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
 
 use ILIAS\DI\UIServices;
 
@@ -12,58 +27,32 @@ use ILIAS\DI\UIServices;
  */
 class ilUIServiceDependencies
 {
-	/**
-	 * @var ilUIFilterRequestAdapter
-	 */
-	protected $request_adapter;
+    protected ilUIFilterRequestAdapter $request_adapter;
+    protected ilUIFilterServiceSessionGateway $session;
+    protected UIServices $ui;
 
-	/**
-	 * @var ilUIFilterServiceSessionGateway
-	 */
-	protected $session;
+    public function __construct(
+        UIServices $ui,
+        ilUIFilterRequestAdapter $request,
+        ?ilUIFilterServiceSessionGateway $session = null
+    ) {
+        $this->ui = $ui;
+        $this->request_adapter = $request;
+        $this->session = $session ?? new ilUIFilterServiceSessionGateway();
+    }
 
-	/**
-	 * @var UIServices
-	 */
-	protected $ui;
+    public function ui(): UIServices
+    {
+        return $this->ui;
+    }
 
-	/**
-	 * Constructor
-	 * @param UIServices
-	 * @param ilUIFilterRequestAdapter $request
-	 * @param ilUIFilterServiceSessionGateway|null $session
-	 */
-	public function __construct(UIServices $ui, ilUIFilterRequestAdapter $request, ilUIFilterServiceSessionGateway $session = null)
-	{
-		$this->ui = $ui;
-		$this->request_adapter = $request;
-		$this->session = (is_null($session))
-			? new ilUIFilterServiceSessionGateway()
-			: $session;
-	}
+    public function getRequest(): ilUIFilterRequestAdapter
+    {
+        return $this->request_adapter;
+    }
 
-	/**
-	 * @return UIServices
-	 */
-	public function ui()
-	{
-		return $this->ui;
-	}
-
-	/**
-	 * @return ilUIFilterRequestAdapter
-	 */
-	public function getRequest(): ilUIFilterRequestAdapter
-	{
-		return $this->request_adapter;
-	}
-
-	/**
-	 * @return ilUIFilterServiceSessionGateway
-	 */
-	public function getSession(): ilUIFilterServiceSessionGateway
-	{
-		return $this->session;
-	}
-
+    public function getSession(): ilUIFilterServiceSessionGateway
+    {
+        return $this->session;
+    }
 }

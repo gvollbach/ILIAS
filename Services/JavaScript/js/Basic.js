@@ -1,5 +1,19 @@
 
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /*
    Please note that this file should only contain common Javascript code
@@ -181,27 +195,6 @@ il.Util = {
 		}
 	},
 	
-	// Set standard screen reader focus
-	setStdScreenReaderFocus: function() {
-		var obj = document.getElementById("il_message_focus");
-		if (obj) {
-			obj.focus();
-			self.location.hash = 'il_message_focus';
-		} else {
-			obj = document.getElementById("il_lm_head");
-			if (obj && self.location.hash == '') {
-				obj.focus();
-				self.location.hash = 'il_lm_head';
-			} else {
-				obj = document.getElementById("il_mhead_t_focus");
-				if (obj && self.location.hash == '') {
-					obj.focus();
-					self.location.hash = 'il_mhead_t_focus';
-				}
-			}
-		}
-	},
-	
 	/**
 	 * Get region information (coordinates + size) for an element
 	 */
@@ -231,13 +224,12 @@ il.Util = {
 	fixPosition: function (el) {
 		var r = il.Util.getRegion(el),
 			vp = il.Util.getViewportRegion();
-
 		// we only fix absolute positioned items
 		if ($(el).css("position") != "absolute") {
 			return;
 		}
 
-		if (vp.right - 20 < r.right) {
+		if (vp.right - 15 < r.right) {
 			il.Util.setX(el, r.x - (r.right - vp.right + 20));
 		}
 
@@ -278,7 +270,7 @@ il.Util = {
 	 */
 	print: function () {
 		if (typeof(window.print) != 'undefined') {
-			if (typeof MathJax !== 'undefined') {
+			if (typeof MathJax != "undefined" && typeof MathJax.Hub != "undefined") {
 				MathJax.Hub.Queue(
 					["Delay",MathJax.Callback,700],
 					window.print
@@ -377,7 +369,7 @@ il.Object = {
 		this.url_rating = url;
 	},
 			
-	saveRating: function(mark) {		
+	saveRating: function(mark) {
 		il.Util.sendAjaxGetRequestToUrl(this.url_rating + "&rating=" + mark, {}, {url_redraw: this.url_redraw_ah}, this.redrawAfterRating);
 	},
 			
@@ -577,18 +569,22 @@ il.UICore = {
 		var tabs = $('#ilTab.ilCollapsable'), tabsHeight, count, children, collapsed;
 		if (tabs) {
 			tabsHeight = tabs.innerHeight();
-			if (tabsHeight >= 50) {
-				if (tabsHeight > 50) {
-					$('#ilLastTab a').removeClass("ilNoDisplay");
-				}
+			let more_than_two_lines;
+			more_than_two_lines = tabsHeight >= 50;
+			if (more_than_two_lines) {
+				$('#ilLastTab a').removeClass('ilNoDisplay');
 				// as long as we have two lines...
-				while (tabsHeight > 50) {
+				while (more_than_two_lines) {
 					children = tabs.children('li:not(:last-child)');
 					count = children.length;
 
 					// ...put last child into collapsed drop down
 					$(children[count-1]).prependTo('#ilTabDropDown');
-					tabsHeight = tabs.innerHeight();
+					if(count == 0) {
+						more_than_two_lines = false;
+					} else {
+						more_than_two_lines = tabs.innerHeight() >= 50;
+					}
 				}
 			} else {
 				// as long as we have one line...
@@ -657,27 +653,15 @@ il.UICore = {
 	},
 
 	showRightPanel: function () {
-		var n = document.getElementById('ilRightPanel');
-		if (!n) {
-			var b = $("body");
-			b.append("<div class='yui-skin-sam'><div id='ilRightPanel' class='ilOverlay ilRightPanel'>" +
-				"&nbsp;</div>");
-			var n = document.getElementById('ilRightPanel');
-			il.Overlay.add("ilRightPanel", {yuicfg: {}});
-			il.Overlay.show(null, "ilRightPanel");
-		}
-		else
-		{
-			il.Overlay.show(null, "ilRightPanel");
-		}
-		
-		il.Overlay.subscribe("ilRightPanel", "hide", function () {il.UICore.unloadWrapperFromRightPanel();});
-		
-		il.UICore.setRightPanelContent("");
 
-		n = document.getElementById('ilRightPanel');
-		n.style.width = '500px';
-		n.style.height = '100%';
+		this.right_panel = il.Modal.dialogue({
+			id:       "il_right_panel",
+			show: true,
+			body: "<div id='ilRightPanel'></div>",
+			buttons:  {
+			}
+		});
+		return;
 	},
 	
 	setRightPanelContent: function (c) {
@@ -700,6 +684,12 @@ il.UICore = {
 	
 	hideRightPanel: function () {
 		il.UICore.unloadWrapperFromRightPanel();
+
+		if (this.right_panel) {
+			this.right_panel.hide();
+		}
+		return;
+
 		il.Overlay.hide(null, "ilRightPanel");
 	}
 
@@ -983,38 +973,6 @@ il.Language = {
 //// The following methods should be moved to the corresponding components
 ////
 
-/**
- * Opens a chat window
- *
- * @param   object	the link which was clicked
- * @param   int		desired width of the new window
- * @param   int		desired height of the new window
- */
-function openChatWindow(oLink, width, height)
-{
-	if(width == null)
-	{
-		width = screen.availWidth;
-	}
-	leftPos = (screen.availWidth / 2)- (width / 2);	
-	
-	if(height == null)
-	{
-		height = screen.availHeight;
-	}
-	topPos = (screen.availHeight / 2)- (height / 2);				
-
-	oChatWindow = window.open(
-		oLink.href, 
-		oLink.target, 
-		'width=' + width + ',height=' + height + ',left=' + leftPos + ',top=' + topPos +
-		',resizable=yes,scrollbars=yes,status=yes,toolbar=yes,menubar=yes,location=yes'
-	);
-
-	oChatWindow.focus();
-}
-
-
 function startSAHS(SAHSurl, SAHStarget, SAHSopenMode, SAHSwidth, SAHSheight)
 {
 	if (SAHSopenMode == 1){
@@ -1033,3 +991,70 @@ function startSAHS(SAHSurl, SAHStarget, SAHSopenMode, SAHSwidth, SAHSheight)
 	}
 }
 
+/**
+ * Related to https://mantis.ilias.de/view.php?id=26494
+ * jQuery "inputFilter" Extension.
+ */
+(function($) {
+	/**
+	 * @param {mixed} inputFilter
+	 * @returns {jQuery}
+	 */
+	$.fn.inputFilter = function(inputFilter) {
+		return this.on("input keydown keyup mousedown mouseup select contextmenu drop", function(e) {
+			if ("-" === $.trim(this.value)) {
+				// https://mantis.ilias.de/view.php?id=29417
+			} else if (inputFilter(this.value)) {
+				this.oldValue = this.value;
+				this.oldSelectionStart = this.selectionStart;
+				this.oldSelectionEnd = this.selectionEnd;
+			} else if (this.hasOwnProperty("oldValue")) {
+				this.value = this.oldValue;
+				this.setSelectionRange(this.oldSelectionStart, this.oldSelectionEnd);
+			} else {
+				this.value = "";
+			}
+		});
+	};
+}(jQuery));
+
+/**
+ * Related to https://mantis.ilias.de/view.php?id=26494
+ * UI-Feedback : check if a numeric field isset but value is not numeric.
+ */
+function numericInputCheck() {
+
+	const numericInput = $( '.ilcqinput_NumericInput' );
+
+	// Only if present.
+	if ( numericInput.length ) {
+
+		// Append ilcqinput_NumericInputInvalid class for visually distinguishable numeric input fields.
+		// -> Onload.
+		let value = $( numericInput ).val().toString().replace( ',', '.' );
+		if ( value && !$.isNumeric( value ) ) {
+			$( numericInput ).addClass( 'ilcqinput_NumericInputInvalid' );
+		} else {
+			$( numericInput ).removeClass( 'ilcqinput_NumericInputInvalid' );
+		}
+		// -> OnChange.
+		$( numericInput ).on( 'change', function() {
+			let value = $( this ).val().toString().replace( ',', '.' );
+			if ( value && !$.isNumeric( value ) ) {
+				$( this ).addClass( 'ilcqinput_NumericInputInvalid' );
+			} else {
+				$( this ).removeClass( 'ilcqinput_NumericInputInvalid' );
+			}
+		} );
+
+		// Only allow numeric values foreach ".ilcqinput_NumericInput" classified input field.
+		$( numericInput ).inputFilter( function( value ) {
+			value = value.toString().replace( ',', '.' );
+			return !$.trim( value ) || $.isNumeric( value );
+		} );
+	}
+}
+
+$(document).ready( function(  ) {
+		numericInputCheck();
+});

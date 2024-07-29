@@ -1,6 +1,6 @@
-# Service "Badge"
+# Badge
 
-## In General
+# API
 
 Basic concepts are 
 * badge type, 
@@ -29,6 +29,11 @@ Examples of badges can be found in /Modules/Course/ and /Services/User/.
 
 ## Export
 
+The backpack features are currently disabled, see
+https://mantis.ilias.de/view.php?id=20124
+
+Older text:
+
 Exporting badges to an Open Badges Backpack (Mozilla) is supported, while importing from that backpack - or anywhere else - is not. 
 The export generates static badge files according to the open badges specification. It is not badge specific.
 
@@ -36,3 +41,8 @@ Useful resources:
 * https://github.com/mozilla/openbadges-backpack
 * https://openbadgespec.org/
 * https://backpack.openbadges.org/
+
+# General
+
+## Business Rules
+* Badges are not awarded retrospectively. If settings are changed they will affect only future actions. (see https://mantis.ilias.de/view.php?id=26766)

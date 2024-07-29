@@ -1,269 +1,245 @@
 <?php
 
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\Filesystem\Stream\Streams;
 
 /**
  * Learning history main GUI class
- *
- * @author killing@leifos.de
- * @ingroup ServicesLearningHistory
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilLearningHistoryGUI
 {
-	const TAB_ID_LEARNING_HISTORY = 'lhist_learning_history';
-	const TAB_ID_MY_CERTIFICATES = 'certificates';
-	const MAX = 50;
+    public const TAB_ID_LEARNING_HISTORY = 'lhist_learning_history';
+    public const TAB_ID_MY_CERTIFICATES = 'certificates';
+    public const MAX = 50;
+    protected \ILIAS\HTTP\Services $http;
+    protected ?int $to;
+    protected ?int $from;
+    protected int $user_id;
+    protected ilAccessHandler $access;
+    protected ilLearningHistoryService $lhist_service;
+    protected ilCtrl $ctrl;
+    protected ilGlobalTemplateInterface $main_tpl;
+    protected ilLanguage $lng;
+    protected \ILIAS\DI\UIServices $ui;
+    protected ilSetting $certificateSettings;
+    protected ilTabsGUI $tabs;
+    protected bool $show_more = false;
+    protected int $last_ts = 0;
 
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    public function __construct()
+    {
+        global $DIC;
 
-	/**
-	 * @var ilTemplate
-	 */
-	protected $main_tpl;
+        $this->ctrl = $DIC->ctrl();
 
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+        $this->lhist_service = $DIC->learningHistory();
+        $this->ui = $this->lhist_service->ui();
+        $this->main_tpl = $this->ui->mainTemplate();
+        $this->lng = $this->lhist_service->language();
+        $this->access = $this->lhist_service->access();
+        $this->tabs = $DIC->tabs();
 
-	/**
-	 * @var \ILIAS\DI\UIServices
-	 */
-	protected $ui;
+        $this->lng->loadLanguageModule("lhist");
 
-	/** @var ilSetting */
-	protected $certificateSettings;
+        $this->user_id = $this->lhist_service->user()->getId();
 
-	/** @var ilTabsGUI */
-	protected $tabs;
+        $this->certificateSettings = new ilSetting("certificate");
 
-	/** @var bool */
-	protected $show_more = false;
+        $request = $this->lhist_service->request();
+        $to = $request->getToTS();
+        $this->from = null;
+        $this->to = ($to > 0)
+            ? $to
+            : null;
 
-	/** @var int */
-	protected $last_ts = 0;
+        $this->main_tpl->addJavaScript("./Services/LearningHistory/js/LearningHistory.js");
+        $this->http = $DIC->http();
+    }
 
-	/**
-	 * Constructor
-	 */
-	public function __construct()
-	{
-		global $DIC;
+    public function setUserId(int $user_id): void
+    {
+        $this->user_id = $user_id;
+    }
 
-		$this->ctrl = $DIC->ctrl();
+    public function executeCommand(): void
+    {
+        $ctrl = $this->ctrl;
 
-		$this->lhist_service = $DIC->learningHistory();
-		$this->ui = $this->lhist_service->ui();
-		$this->main_tpl = $this->ui->mainTemplate();
-		$this->lng = $this->lhist_service->language();
-		$this->access = $this->lhist_service->access();
-		$this->tabs = $DIC->tabs();
+        $next_class = $ctrl->getNextClass($this);
+        $cmd = $ctrl->getCmd("show");
 
-		$this->lng->loadLanguageModule("lhist");
+        switch ($next_class) {
+            default:
+                if (in_array($cmd, array("show", "renderAsync"))) {
+                    $this->$cmd();
+                }
+        }
+    }
 
-		$this->user_id = $this->lhist_service->user()->getId();
+    protected function show(): void
+    {
+        $main_tpl = $this->main_tpl;
+        $lng = $this->lng;
+        $f = $this->ui->factory();
+        $renderer = $this->ui->renderer();
 
-		$this->certificateSettings =  new ilSetting("certificate");
+        $html = $this->getHistoryHtml($this->from, $this->to);
 
-		$this->from = null;
-		$this->to = ((int) $_GET["to_ts"] > 0)
-			? (int) $_GET["to_ts"]
-			: null;
+        if ($html !== "") {
+            $main_tpl->setContent($html);
+        } else {
+            $main_tpl->setContent(
+                $renderer->render(
+                    $f->messageBox()->info($lng->txt("lhist_no_entries"))
+                )
+            );
+        }
+    }
 
-		$this->main_tpl->addJavaScript("./Services/LearningHistory/js/LearningHistory.js");
-	}
+    protected function renderAsync(): void
+    {
+        $response["timeline"] = $this->renderTimeline($this->from, $this->to);
+        $response["more"] = $this->show_more ? $this->renderButton() : "";
+        $this->send(json_encode($response, JSON_THROW_ON_ERROR));
+    }
 
-	/**
-	 * Set user id
-	 *
-	 * @param int $user_id
-	 */
-	public function setUserId($user_id)
-	{
-		$this->user_id = $user_id;
-	}
+    /**
+     * @param string $output
+     * @throws \ILIAS\HTTP\Response\Sender\ResponseSendingException
+     */
+    protected function send(string $output): void
+    {
+        $this->http->saveResponse($this->http->response()->withBody(
+            Streams::ofString($output)
+        ));
+        $this->http->sendResponse();
+        $this->http->close();
+    }
 
+    /**
+     * @throws ilCtrlException
+     */
+    public function getEmbeddedHTML(
+        ?int $from = null,
+        ?int $to = null,
+        ?array $classes = null,
+        ?string $a_mode = null
+    ): string {
+        return $this->ctrl->getHTML($this, ["from" => $from, "to" => $to, "classes" => $classes, "mode" => $a_mode]);
+    }
 
-	/**
-	 * Execute command
-	 */
-	function executeCommand()
-	{
-		$ctrl = $this->ctrl;
-		
-		$next_class = $ctrl->getNextClass($this);
-		$cmd = $ctrl->getCmd("show");
+    /**
+     * Get HTML
+     */
+    public function getHTML(array $par): string
+    {
+        return $this->getHistoryHtml($par["from"], $par["to"], $par["classes"], $par["mode"]);
+    }
 
-		switch ($next_class)
-		{
-			default:
-				if (in_array($cmd, array("show", "renderAsync")))
-				{
-					$this->$cmd();
-				}
-		}
-	}
+    /**
+     * Get history html
+     */
+    protected function getHistoryHtml(
+        ?int $from = null,
+        ?int $to = null,
+        ?array $classes = null,
+        ?string $mode = null
+    ): string {
+        $tpl = new ilTemplate("tpl.timeline.html", true, true, "Services/LearningHistory");
 
+        $tpl->setVariable("TIMELINE", $this->renderTimeline($from, $to, $classes, $mode));
 
-	/**
-	 * Show
-	 */
-	protected function show()
-	{
-		$main_tpl = $this->main_tpl;
-		$lng = $this->lng;
-		$f = $this->ui->factory();
-		$renderer = $this->ui->renderer();
+        if ($this->show_more && $mode !== "print") {
+            $tpl->setCurrentBlock("show_more");
+            $tpl->setVariable("SHOW_MORE_BUTTON", $this->renderButton());
+            $tpl->parseCurrentBlock();
+        }
 
-		$html = $this->getHistoryHtml($this->from, $this->to);
+        return $tpl->get();
+    }
 
-		if ($html != "")
-		{
-			$main_tpl->setContent($html);
-		}
-		else
-		{
-			$main_tpl->setContent(
-				$renderer->render($f->messageBox()->info($lng->txt("lhist_no_entries"))
-				));
-		}
-	}
+    /**
+     * render timeline
+     */
+    protected function renderTimeline(
+        int $from = null,
+        int $to = null,
+        array $classes = null,
+        string $mode = null
+    ): string {
+        $collector = $this->lhist_service->factory()->collector();
+        $ctrl = $this->ctrl;
 
-	/**
-	 * Render Async
-	 */
-	protected function renderAsync()
-	{
-		$response["timeline"] = $this->renderTimeline($this->from, $this->to);
-		$response["more"] = $this->show_more ? $this->renderButton() : "";
-		echo json_encode($response);
-		exit;
-	}
+        $to = (is_null($to))
+            ? time()
+            : $to;
+        $from = (is_null($from))
+            ? $to - (365 * 24 * 60 * 60)
+            : $from;
 
-	/**
-	 * Get HTML
-	 *
-	 * @param null $from
-	 * @param null $to
-	 * @param null $classes
-	 * @return string
-	 * @throws ilCtrlException
-	 */
-	public function getEmbeddedHTML($from = null, $to = null, $classes = null, $a_mode = null)
-	{
-		$ctrl = $this->ctrl;
+        $entries = $collector->getEntries($from, $to, $this->user_id, $classes);
 
-		return $ctrl->getHTML($this, ["from" => $from, "to" => $to, "classes" => $classes, "mode" => $a_mode]);
-	}
+        $timeline = ilTimelineGUI::getInstance();
+        $cnt = 0;
 
-	/**
-	 * Get HTML
-	 *
-	 * @param
-	 * @return string
-	 */
-	public function getHTML($par)
-	{
-		return $this->getHistoryHtml($par["from"], $par["to"], $par["classes"], $par["mode"]);
-	}
-	
-	/**
-	 * Get history html
-	 *
-	 * @return string
-	 */
-	protected function getHistoryHtml($from = null, $to = null, $classes = null, $mode = null)
-	{
-		$tpl = new ilTemplate("tpl.timeline.html", true, true, "Services/LearningHistory");
+        reset($entries);
+        while (($e = current($entries)) && $cnt < self::MAX) {
+            /** @var ilLearningHistoryEntry $e */
+            $timeline->addItem(new ilLearningHistoryTimelineItem(
+                $e,
+                $this->ui,
+                $this->user_id,
+                $this->access,
+                $this->lhist_service->repositoryTree()
+            ));
+            $this->last_ts = $e->getTimestamp();
+            next($entries);
+            $cnt++;
+        }
 
-		$tpl->setVariable("TIMELINE", $this->renderTimeline($from, $to, $classes, $mode));
+        $html = "";
+        if (count($entries) > 0) {
+            $html = $timeline->render($ctrl->isAsynch());
+        }
 
-		if ($this->show_more && $mode != "print")
-		{
-			$tpl->setCurrentBlock("show_more");
-			$tpl->setVariable("SHOW_MORE_BUTTON", $this->renderButton());
-			$tpl->parseCurrentBlock();
-		}
+        $this->show_more = (count($entries) > $cnt);
 
-		return $tpl->get();
-	}
+        return $html;
+    }
 
-	/**
-	 * render timeline
-	 *
- 	 * @param int $from unix timestamp
-	 * @param int $to unix timestamp
-	 * @param array $classes
-	 * @return string
-	 */
-	protected function renderTimeline(int $from = null, int $to = null, array $classes = null, string $mode = null): string
-	{
-		$collector = $this->lhist_service->factory()->collector();
-		$ctrl = $this->ctrl;
+    protected function renderButton(): string
+    {
+        $ctrl = $this->ctrl;
+        $f = $this->ui->factory();
+        $renderer = $this->ui->renderer();
+        $ctrl->setParameter($this, "to_ts", $this->last_ts - 1);
+        $url = $ctrl->getLinkTarget($this, "renderAsync", "", true);
 
-		$to = (is_null($to))
-			? time()
-			: $to;
-		$from = (is_null($from))
-			? $to - (365 * 24 * 60 * 60)
-			: $from;
+        $button = $f->button()->standard($this->lng->txt("lhist_show_more"), "")
+            ->withLoadingAnimationOnClick(true)
+            ->withOnLoadCode(static function ($id) use ($url): string {
+                return "il.LearningHistory.initShowMore('$id', '" . $url . "');";
+            });
+        if ($ctrl->isAsynch()) {
+            return $renderer->renderAsync($button);
+        }
 
-		$entries = $collector->getEntries($from, $to, $this->user_id, $classes);
-
-		$timeline = ilTimelineGUI::getInstance();
-		$cnt = 0;
-
-		reset($entries);
-		/** @var ilLearningHistoryEntry $e */
-		while (($e = current($entries)) && $cnt < self::MAX) {
-			$timeline->addItem(new ilLearningHistoryTimelineItem($e, $this->ui, $this->user_id, $this->access,
-				$this->lhist_service->repositoryTree()));
-			$this->last_ts = $e->getTimestamp();
-			next($entries);
-			$cnt++;
-		}
-
-		$html = "";
-		if (count($entries) > 0)
-		{
-			$html = $timeline->render($ctrl->isAsynch());
-		}
-
-		$this->show_more = (count($entries) > $cnt);
-
-		return $html;
-	}
-
-
-	/**
-	 * render Button
-	 */
-	protected function renderButton()
-	{
-		$ctrl = $this->ctrl;
-		$f = $this->ui->factory();
-		$renderer = $this->ui->renderer();
-		$ctrl->setParameter($this, "to_ts", $this->last_ts - 1);
-		$url = $ctrl->getLinkTarget($this, "renderAsync", "", true);
-
-		$button = $f->button()->standard($this->lng->txt("lhist_show_more"), "")
-			->withLoadingAnimationOnClick(true)
-			->withOnLoadCode(function ($id) use ($url) {
-				return "il.LearningHistory.initShowMore('$id', '" . $url . "');";
-			});
-		if ($ctrl->isAsynch())
-		{
-			return $renderer->renderAsync($button);
-		} else
-		{
-			return $renderer->render($button);
-		}
-	}
-
-	
-	
-
+        return $renderer->render($button);
+    }
 }

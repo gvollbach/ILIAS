@@ -1,75 +1,73 @@
 <?php
 
-require_once "Services/ADT/classes/Bridges/class.ilADTFormBridge.php";
+declare(strict_types=1);
 
 class ilADTMultiEnumFormBridge extends ilADTFormBridge
 {
-	protected $option_infos = []; // [array]
-	protected $auto_sort = true; // [bool]
-	
-	protected function isValidADT(ilADT $a_adt) 
-	{
-		return ($a_adt instanceof ilADTMultiEnum);
-	}
-	
-	public function setOptionInfos(array $a_info = null)
-	{
-		$this->option_infos = $a_info;
-	}
-	
-	public function setAutoSort($a_value)
-	{
-		$this->auto_sort = (bool)$a_value;
-	}
-	
-	public function addToForm()
-	{		
-		global $DIC;
+    protected ?array $option_infos = [];
+    protected bool $auto_sort = true;
 
-		$lng = $DIC['lng'];
-				
-		$def = $this->getADT()->getCopyOfDefinition();
-		
-		$options = $def->getOptions();
-		
-		if((bool)$this->auto_sort)
-		{
-			asort($options); 
-		}
+    protected function isValidADT(ilADT $a_adt): bool
+    {
+        return ($a_adt instanceof ilADTMultiEnum);
+    }
 
-		$cbox = new ilCheckboxGroupInputGUI($this->getTitle(), $this->getElementId());
+    public function setOptionInfos(array $a_info = null): void
+    {
+        $this->option_infos = $a_info;
+    }
 
-		foreach($options as $value => $caption)
-		{
-			$option = new ilCheckboxOption($caption, $value);
-			if(is_array($this->option_infos) && array_key_exists($value, $this->option_infos))
-			{
-				$option->setInfo($this->option_infos[$value]);
-			}
-			$cbox->addOption($option);
-		}		
-		
-		$this->addBasicFieldProperties($cbox, $def);
+    public function setAutoSort(bool $a_value): void
+    {
+        $this->auto_sort = $a_value;
+    }
 
-		$cbox->setValue($this->getADT()->getSelections());				
-		
-		$this->addToParentElement($cbox);
-	}
-	
-	public function importFromPost()
-	{
-		// ilPropertyFormGUI::checkInput() is pre-requisite
-		$this->getADT()->setSelections($this->getForm()->getInput($this->getElementId()));
-	
-		$field = $this->getForm()->getItemByPostvar($this->getElementId());
-		$field->setValue($this->getADT()->getSelections());
-	}	
-	
-	protected function isActiveForSubItems($a_parent_option = null)
-	{		
-		$current = $this->getADT()->getSelections();
-		return (is_array($current) && in_array($a_parent_option, $current));		
-	}
+    public function addToForm(): void
+    {
+        $def = $this->getADT()->getCopyOfDefinition();
+        $options = $def->getOptions();
+
+        if ($this->auto_sort) {
+            asort($options);
+        }
+
+        $cbox = new ilCheckboxGroupInputGUI($this->getTitle(), $this->getElementId());
+
+        foreach ($options as $value => $caption) {
+            $option = new ilCheckboxOption($caption, (string) $value);
+            if (is_array($this->option_infos) && array_key_exists($value, $this->option_infos)) {
+                $option->setInfo($this->option_infos[$value]);
+            }
+            $cbox->addOption($option);
+        }
+
+        $this->addBasicFieldProperties($cbox, $def);
+
+        $cbox->setValue($this->getADT()->getSelections());
+
+        $this->addToParentElement($cbox);
+    }
+
+    public function importFromPost(): void
+    {
+        // ilPropertyFormGUI::checkInput() is pre-requisite
+
+        /*
+         * BT 32161: post value is null when no checkbox is selected,
+         * check whether the corresponding form input really exists, just
+         * to be sure.
+         */
+        if (is_object($this->getForm()->getItemByPostVar($this->getElementId()))) {
+            $this->getADT()->setSelections($this->getForm()->getInput($this->getElementId()) ?? []);
+        }
+
+        $field = $this->getForm()->getItemByPostVar($this->getElementId());
+        $field->setValue($this->getADT()->getSelections());
+    }
+
+    protected function isActiveForSubItems($a_parent_option = null): bool
+    {
+        $current = $this->getADT()->getSelections();
+        return (is_array($current) && in_array($a_parent_option, $current));
+    }
 }
-
-?>

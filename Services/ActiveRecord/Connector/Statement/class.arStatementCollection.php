@@ -1,99 +1,82 @@
 <?php
-require_once('class.arStatement.php');
 
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 /**
  * Class arStatementCollection
- *
  * @author  Fabian Schmid <fs@studer-raimann.ch>
  * @version 2.0.7
  */
-abstract class arStatementCollection {
+abstract class arStatementCollection
+{
+    /**
+     * @var arStatementCollection[]
+     */
+    protected static array $cache = [];
+    /**
+     * @var arStatement[]
+     */
+    protected array $statements = [];
+    protected ?\ActiveRecord $ar = null;
 
-	/**
-	 * @var arStatementCollection[]
-	 */
-	protected static $cache = array();
-	/**
-	 * @var arStatement[]
-	 */
-	protected $statements = array();
-	/**
-	 * @var ActiveRecord
-	 */
-	protected $ar;
+    public function add(arStatement $statement): void
+    {
+        $this->statements[] = $statement;
+    }
 
+    public function hasStatements(): bool
+    {
+        return $this->statements !== [];
+    }
 
-	/**
-	 * @param arStatement $statement
-	 */
-	public function add(arStatement $statement) {
-		$this->statements[] = $statement;
-	}
+    public static function getInstance(ActiveRecord $ar): arStatementCollection
+    {
+        /**
+         * @var $classname arStatementCollection
+         */
+        $classname = static::class;
+        $arWhereCollection = new $classname();
+        $arWhereCollection->setAr($ar);
 
+        return $arWhereCollection;
+    }
 
-	/**
-	 * @return bool
-	 */
-	public function hasStatements() {
-		return count($this->statements) > 0;
-	}
+    abstract public function asSQLStatement(): string;
 
+    public function setAr(ActiveRecord $ar): void
+    {
+        $this->ar = $ar;
+    }
 
-	/**
-	 * @param ActiveRecord $ar
-	 *
-	 * @return arStatementCollection
-	 */
-	public static function getInstance(ActiveRecord $ar) {
-		/**
-		 * @var $classname arJoinCollection
-		 */
+    public function getAr(): ?\ActiveRecord
+    {
+        return $this->ar;
+    }
 
-		$classname = get_called_class();
-		$arWhereCollection = new $classname();
-		$arWhereCollection->setAr($ar);
+    /**
+     * @param \arStatement[] $statements
+     */
+    public function setStatements(array $statements): void
+    {
+        $this->statements = $statements;
+    }
 
-		return $arWhereCollection;
-	}
-
-
-	/**
-	 * @return string
-	 */
-	abstract public function asSQLStatement();
-
-
-
-	/**
-	 * @param \ActiveRecord $ar
-	 */
-	public function setAr($ar) {
-		$this->ar = $ar;
-	}
-
-
-	/**
-	 * @return \ActiveRecord
-	 */
-	public function getAr() {
-		return $this->ar;
-	}
-
-
-	/**
-	 * @param \arStatement[] $statements
-	 */
-	public function setStatements($statements) {
-		$this->statements = $statements;
-	}
-
-
-	/**
-	 * @return \arStatement[]
-	 */
-	public function getStatements() {
-		return $this->statements;
-	}
+    /**
+     * @return \arStatement[]
+     */
+    public function getStatements(): array
+    {
+        return $this->statements;
+    }
 }
-
-?>

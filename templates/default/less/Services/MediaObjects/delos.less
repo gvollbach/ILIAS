@@ -7,18 +7,19 @@
 .ilPlayerPreviewOverlay {
 	position: relative;
 	width: 320px;
-	height: 240px;
+	height: auto;
 	cursor: pointer;
 }
 
 .ilPlayerPreviewDescription {
 	padding: 7px;
-	font-size: 85%;
+	font-size: @il-font-size-small;
 	position: absolute;
 	width: 100%;
 	color: #f0f0f0;
-	margin-top: -240px;
-	background: url("@{background-images-path}black60.png");
+	/* margin-top: -240px; */
+	top: 0;
+	background: url("@{il-background-images-path}black60.png");
 }
 
 .ilPlayerPreviewOverlay img {
@@ -32,15 +33,15 @@
 }
 
 .ilPlayerPreviewDescriptionDownload a {
-	color: #a0a0a0;
+	color: white;
 }
 
 .mejs-overlay-button {
-	background-image: url("@{background-images-path}bigplay.svg");
+	background-image: url("@{il-background-images-path}bigplay.svg");
 }
 
 .ilPlayerPreviewPlayButton {
-	background: url("@{background-images-path}bigplay.svg") no-repeat scroll 0 0 transparent;
+	background: url("@{il-background-images-path}bigplay.svg") no-repeat scroll 0 0 transparent;
 	height: 100px;
 	left: 50%;
 	margin: -50px 0 0 -50px;
@@ -48,6 +49,17 @@
 	top: 50%;
 	width: 100px;
 	cursor: pointer;
+}
+
+.mejs__overlay-button,
+.mejs__container,
+.ilPlayerPreviewPlayButton,
+.mejs__time-total {
+	.il-focus();
+}
+.mejs__button button,
+.ilPageVideo button {
+	.il-focus-border-only();
 }
 
 .ilPlayerPreviewOverlay:hover .ilPlayerPreviewPlayButton {

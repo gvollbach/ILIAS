@@ -1,119 +1,84 @@
 <?php
 
-/* Copyright (c) 1998-2011 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
- * Lighbox handling 
- *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- * @ingroup ServicesUIComponentLightbox
+ * Lightbox handling
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilLightboxGUI
 {
-	/**
-	 * @var ilGlobalTemplate
-	 */
-	protected $tpl;
+    protected ilGlobalTemplateInterface $tpl;
+    protected string $id = "";
+    protected string $width;
 
-	protected $id = "";
-	
-	/**
-	 * Constructor
-	 *
-	 * @param
-	 * @return
-	 */
-	function __construct($a_id)
-	{
-		global $DIC;
+    public function __construct(string $a_id)
+    {
+        global $DIC;
 
-		$this->tpl = $DIC["tpl"];
-		$this->setId($a_id);
-	}
-	
-	/**
-	 * Set Id
-	 *
-	 * @param string $a_val id	
-	 */
-	function setId($a_val)
-	{
-		$this->id = $a_val;
-	}
-	
-	/**
-	 * Get Id
-	 *
-	 * @return string id
-	 */
-	function getId()
-	{
-		return $this->id;
-	}
-	
-	/**
-	 * Set width
-	 *
-	 * @param string $a_val width	
-	 */
-	function setWidth($a_val)
-	{
-		$this->width = $a_val;
-	}
-	
-	/**
-	 * Get width
-	 *
-	 * @return string width
-	 */
-	function getWidth()
-	{
-		return $this->width;
-	}
-	
-	/**
-	 * Get local path of jQuery file
-	 */
-	static function getLocalLightboxJsPath()
-	{
-		return "./Services/UIComponent/Lightbox/js/Lightbox.js";
- 	}
+        $this->tpl = $DIC->ui()->mainTemplate();
+        $this->setId($a_id);
+    }
 
- 	/**
-	 * Init lightbox
-	 */
-	public function addLightbox(\ilGlobalTemplate $a_tpl = null)
-	{
-		$tpl = $this->tpl;
-		
-		if ($a_tpl == null)
-		{
-			$a_tpl = $tpl;
-		}
+    public function setId(string $a_val): void
+    {
+        $this->id = $a_val;
+    }
 
-		$a_tpl->addJavaScript(self::getLocalLightboxJsPath());
-		$a_tpl->addLightbox($this->getHTML(), $this->getId());
-	}
-	
-	/**
-	 * Get HTML
-	 *
-	 * @param
-	 * @return
-	 */
-	function getHTML()
-	{
-		$tpl = new ilTemplate("tpl.lightbox.html", true, true, "Services/UIComponent/Lightbox");
-		$tpl->setVariable("LIGHTBOX_CONTENT", "");
-		$tpl->setVariable("ID", $this->getId());
-		if ($this->getWidth() != "")
-		{
-			$tpl->setVariable("WIDTH", "width: ".$this->getWidth().";");
-		}
-		return $tpl->get();
-	}
-	
+    public function getId(): string
+    {
+        return $this->id;
+    }
+
+    public function setWidth(string $a_val): void
+    {
+        $this->width = $a_val;
+    }
+
+    public function getWidth(): string
+    {
+        return $this->width;
+    }
+
+    public static function getLocalLightboxJsPath(): string
+    {
+        return "./Services/UIComponent/Lightbox/js/Lightbox.js";
+    }
+
+    public function addLightbox(\ilGlobalTemplateInterface $a_tpl = null): void
+    {
+        $tpl = $this->tpl;
+
+        if ($a_tpl === null) {
+            $a_tpl = $tpl;
+        }
+
+        $a_tpl->addJavaScript(self::getLocalLightboxJsPath());
+        $a_tpl->addLightbox($this->getHTML(), $this->getId());
+    }
+
+    public function getHTML(): string
+    {
+        $tpl = new ilTemplate("tpl.lightbox.html", true, true, "Services/UIComponent/Lightbox");
+        $tpl->setVariable("LIGHTBOX_CONTENT", "");
+        $tpl->setVariable("ID", $this->getId());
+        if ($this->getWidth() !== "") {
+            $tpl->setVariable("WIDTH", "width: " . $this->getWidth() . ";");
+        }
+        return $tpl->get();
+    }
 }
-
-?>

@@ -1,243 +1,184 @@
 <?php
 
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
- * Translation information on lm object 
+ * Translation information on lm object
  *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- * @ingroup ModulesLearningModule
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilLMObjTranslation
 {
-	/**
-	 * @var ilDB
-	 */
-	protected $db;
+    protected int $id = 0;
+    protected ilDBInterface $db;
+    protected string $lang = "";
+    protected string $title = "";
+    protected string $short_title = "";
+    protected string $create_date = "";
+    protected string $last_update = "";
 
-	protected $lang;
-	protected $title;
-	protected $short_title;
-	protected $create_date;
-	protected $last_update;
+    public function __construct(
+        int $a_id = 0,
+        string $a_lang = ""
+    ) {
+        global $DIC;
 
-	/**
-	 * Constructor
-	 *
-	 * @param int $a_id object id (page, chapter)
-	 * @param string $a_lang language code
-	 */
-	function __construct($a_id = 0, $a_lang = "")
-	{
-		global $DIC;
+        $this->db = $DIC->database();
+        if ($a_id > 0 && $a_lang != "") {
+            $this->setId($a_id);
+            $this->setLang($a_lang);
+            $this->read();
+        }
+    }
 
-		$this->db = $DIC->database();
-		if ($a_id > 0 && $a_lang != "")
-		{
-			$this->setId($a_id);
-			$this->setLang($a_lang);
-			$this->read();
-		}
-	}
-	
-	/**
-	 * Set Id
-	 *
-	 * @param int $a_val id	
-	 */
-	function setId($a_val)
-	{
-		$this->id = $a_val;
-	}
-	
-	/**
-	 * Get Id
-	 *
-	 * @return int id
-	 */
-	function getId()
-	{
-		return $this->id;
-	}
-	
-	/**
-	 * Set lang
-	 *
-	 * @param string $a_val language	
-	 */
-	function setLang($a_val)
-	{
-		$this->lang = $a_val;
-	}
-	
-	/**
-	 * Get lang
-	 *
-	 * @return string language
-	 */
-	function getLang()
-	{
-		return $this->lang;
-	}
+    public function setId(int $a_val): void
+    {
+        $this->id = $a_val;
+    }
 
-	/**
-	 * Set title
-	 *
-	 * @param string $a_val title
-	 */
-	function setTitle($a_val)
-	{
-		$this->title = $a_val;
-	}
+    public function getId(): int
+    {
+        return $this->id;
+    }
 
-	/**
-	 * Get title
-	 *
-	 * @return string title
-	 */
-	function getTitle()
-	{
-		return $this->title;
-	}
+    public function setLang(string $a_val): void
+    {
+        $this->lang = $a_val;
+    }
 
-	/**
-	 * Set short title
-	 *
-	 * @param string $a_val short title
-	 */
-	function setShortTitle($a_val)
-	{
-		$this->short_title = $a_val;
-	}
+    public function getLang(): string
+    {
+        return $this->lang;
+    }
 
-	/**
-	 * Get short title
-	 *
-	 * @return string short title
-	 */
-	function getShortTitle()
-	{
-		return $this->short_title;
-	}
+    public function setTitle(string $a_val): void
+    {
+        $this->title = $a_val;
+    }
 
-	/**
-	 * Get create date
-	 *
-	 * @return string create date
-	 */
-	function getCreateDate()
-	{
-		return $this->create_date;
-	}
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
 
-	/**
-	 * Get update date
-	 *
-	 * @return string update date
-	 */
-	function getLastUpdate()
-	{
-		return $this->last_update;
-	}
-	
-	/**
-	 * Read
-	 */
-	function read()
-	{
-		$ilDB = $this->db;
-		
-		$set = $ilDB->query("SELECT * FROM lm_data_transl ".
-			" WHERE id = ".$ilDB->quote($this->getId(), "integer").
-			" AND lang = ".$ilDB->quote($this->getLang(), "text")
-			);
-		$rec  = $ilDB->fetchAssoc($set);
-		$this->setTitle($rec["title"]);
-		$this->setShortTitle($rec["short_title"]);
-		$this->create_date = $rec["create_date"];
-		$this->last_update = $rec["last_update"];
-	}
-	
-	/**
-	 * Save (inserts if not existing, otherwise updates)
-	 */
-	function save()
-	{
-		$ilDB = $this->db;
-		
-		if (!self::exists($this->getId(), $this->getLang()))
-		{
-			$ilDB->manipulate("INSERT INTO lm_data_transl ".
-				"(id, lang, title, short_title, create_date, last_update) VALUES (".
-				$ilDB->quote($this->getId(), "integer").",".
-				$ilDB->quote($this->getLang(), "text").",".
-				$ilDB->quote($this->getTitle(), "text").",".
-				$ilDB->quote($this->getShortTitle(), "text").",".
-				$ilDB->now().",".
-				$ilDB->now().
-				")");
-		}
-		else
-		{
-			$ilDB->manipulate("UPDATE lm_data_transl SET ".
-				" title = ".$ilDB->quote($this->getTitle(), "text").",".
-				" short_title = ".$ilDB->quote($this->getShortTitle(), "text").",".
-				" last_update = ".$ilDB->now().
-				" WHERE id = ".$ilDB->quote($this->getId(), "integer").
-				" AND lang = ".$ilDB->quote($this->getLang(), "text")
-				);
-		}
-	}
+    public function setShortTitle(string $a_val): void
+    {
+        $this->short_title = $a_val;
+    }
 
-	/**
-	 * Check for existence
-	 *
-	 * @param int $a_id object id (page, chapter)
-	 * @param string $a_lang language code
-	 * @return bool true/false
-	 */
-	static function exists($a_id, $a_lang)
-	{
-		global $DIC;
+    public function getShortTitle(): string
+    {
+        return $this->short_title;
+    }
 
-		$ilDB = $DIC->database();
-		
-		$set = $ilDB->query("SELECT * FROM lm_data_transl ".
-			" WHERE id = ".$ilDB->quote($a_id, "integer").
-			" AND lang = ".$ilDB->quote($a_lang, "text")
-			);
-		if($rec  = $ilDB->fetchAssoc($set))
-		{
-			return true;
-		}
-		return false;
-	}
+    public function getCreateDate(): string
+    {
+        return $this->create_date;
+    }
 
-	/**
-	 * Copy all translations of an object
-	 *
-	 * @param int $a_source_id source id
-	 * @param int $a_target_id target
-	 */
-	static function copy($a_source_id, $a_target_id)
-	{
-		global $DIC;
+    public function getLastUpdate(): string
+    {
+        return $this->last_update;
+    }
 
-		$ilDB = $DIC->database();
+    public function read(): void
+    {
+        $ilDB = $this->db;
 
-		$set = $ilDB->query("SELECT * FROM lm_data_transl ".
-			" WHERE id = ".$ilDB->quote($a_source_id, "integer")
-			);
-		while ($rec = $ilDB->fetchAssoc($set))
-		{
-			$lmobjtrans = new ilLMObjTranslation($a_target_id, $rec["lang"]);
-			$lmobjtrans->setTitle($rec["title"]);
-			$lmobjtrans->setShortTitle($rec["short_title"]);
-			$lmobjtrans->save();
-		}
-	}
+        $set = $ilDB->query(
+            "SELECT * FROM lm_data_transl " .
+            " WHERE id = " . $ilDB->quote($this->getId(), "integer") .
+            " AND lang = " . $ilDB->quote($this->getLang(), "text")
+        );
+        $rec = $ilDB->fetchAssoc($set);
+        $this->setTitle($rec["title"] ?? "");
+        $this->setShortTitle($rec["short_title"] ?? "");
+        $this->create_date = ($rec["create_date"] ?? 0);
+        $this->last_update = ($rec["last_update"] ?? 0);
+    }
 
+    public function save(): void
+    {
+        $ilDB = $this->db;
+
+        if (!self::exists($this->getId(), $this->getLang())) {
+            $ilDB->manipulate("INSERT INTO lm_data_transl " .
+                "(id, lang, title, short_title, create_date, last_update) VALUES (" .
+                $ilDB->quote($this->getId(), "integer") . "," .
+                $ilDB->quote($this->getLang(), "text") . "," .
+                $ilDB->quote($this->getTitle(), "text") . "," .
+                $ilDB->quote($this->getShortTitle(), "text") . "," .
+                $ilDB->now() . "," .
+                $ilDB->now() .
+                ")");
+        } else {
+            $ilDB->manipulate(
+                "UPDATE lm_data_transl SET " .
+                " title = " . $ilDB->quote($this->getTitle(), "text") . "," .
+                " short_title = " . $ilDB->quote($this->getShortTitle(), "text") . "," .
+                " last_update = " . $ilDB->now() .
+                " WHERE id = " . $ilDB->quote($this->getId(), "integer") .
+                " AND lang = " . $ilDB->quote($this->getLang(), "text")
+            );
+        }
+    }
+
+    /**
+     * Check for existence
+     */
+    public static function exists(
+        int $a_id,
+        string $a_lang
+    ): bool {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+
+        $set = $ilDB->query(
+            "SELECT * FROM lm_data_transl " .
+            " WHERE id = " . $ilDB->quote($a_id, "integer") .
+            " AND lang = " . $ilDB->quote($a_lang, "text")
+        );
+        if ($rec = $ilDB->fetchAssoc($set)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Copy all translations of an object
+     */
+    public static function copy(
+        string $a_source_id,
+        string $a_target_id
+    ): void {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+
+        $set = $ilDB->query(
+            "SELECT * FROM lm_data_transl " .
+            " WHERE id = " . $ilDB->quote($a_source_id, "integer")
+        );
+        while ($rec = $ilDB->fetchAssoc($set)) {
+            $lmobjtrans = new ilLMObjTranslation($a_target_id, $rec["lang"]);
+            $lmobjtrans->setTitle((string) $rec["title"]);
+            $lmobjtrans->setShortTitle((string) $rec["short_title"]);
+            $lmobjtrans->save();
+        }
+    }
 }
-
-?>

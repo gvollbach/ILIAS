@@ -1,37 +1,51 @@
-<?php namespace ILIAS\GlobalScreen\Scope\MainMenu\Factory\TopItem;
+<?php
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+namespace ILIAS\GlobalScreen\Scope\MainMenu\Factory\TopItem;
 
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\AbstractParentItem;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\hasSymbol;
+use ILIAS\GlobalScreen\Scope\MainMenu\Factory\hasSymbolTrait;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\hasTitle;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\isTopItem;
-use ILIAS\UI\Component\Symbol\Symbol;
-use ILIAS\UI\Component\Symbol\Glyph;
-use ILIAS\UI\Component\Symbol\Icon;
+use ILIAS\GlobalScreen\Scope\SymbolDecoratorTrait;
+use ILIAS\GlobalScreen\Scope\MainMenu\Factory\supportsAsynchronousLoading;
 
 /**
  * Class TopParentItem
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
-class TopParentItem extends AbstractParentItem implements isTopItem, hasTitle, hasSymbol
+class TopParentItem extends AbstractParentItem implements isTopItem, hasTitle, hasSymbol, supportsAsynchronousLoading
 {
+    use SymbolDecoratorTrait;
+    use hasSymbolTrait;
 
-    /**
-     * @var string
-     */
-    protected $title;
-    /**
-     * @var Symbol
-     */
-    protected $symbol;
+    protected string $title = '';
 
+    protected bool $supports_async_loading = false;
 
     /**
      * @param string $title
-     *
      * @return TopParentItem
      */
-    public function withTitle(string $title) : hasTitle
+    public function withTitle(string $title): hasTitle
     {
         $clone = clone($this);
         $clone->title = $title;
@@ -39,48 +53,24 @@ class TopParentItem extends AbstractParentItem implements isTopItem, hasTitle, h
         return $clone;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function getTitle() : string
+    public function getTitle(): string
     {
         return $this->title;
     }
 
-
-    /**
-     * @inheritDoc
-     */
-    public function withSymbol(Symbol $symbol) : hasSymbol
+    public function withSupportsAsynchronousLoading(bool $supported): supportsAsynchronousLoading
     {
-        // bugfix mantis 25526: make aria labels mandatory
-        if(($symbol instanceof Icon\Icon || $symbol instanceof Glyph\Glyph)
-            && ($symbol->getAriaLabel() === "")) {
-            throw new \LogicException("the symbol's aria label MUST be set to ensure accessibility");
-        }
-
         $clone = clone($this);
-        $clone->symbol = $symbol;
+        $clone->supports_async_loading = $supported;
 
         return $clone;
     }
 
-
-    /**
-     * @inheritDoc
-     */
-    public function getSymbol() : Symbol
+    public function supportsAsynchronousLoading(): bool
     {
-        return $this->symbol;
-    }
-
-
-    /**
-     * @inheritDoc
-     */
-    public function hasSymbol() : bool
-    {
-        return $this->symbol instanceof Symbol;
+        return $this->supports_async_loading;
     }
 }

@@ -23,12 +23,13 @@
 package de.ilias.services.lucene.search.highlight;
 
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.jdom.Element;
 
 import de.ilias.services.lucene.search.ResultExport;
 import java.util.Comparator;
 import java.util.TreeMap;
+import org.apache.logging.log4j.Logger;
 
 /**
  * 
@@ -38,7 +39,7 @@ import java.util.TreeMap;
  */
 public class HighlightObject implements ResultExport, Comparator {
 
-	protected static Logger logger = Logger.getLogger(HighlightObject.class);
+	protected static Logger logger = LogManager.getLogger(HighlightObject.class);
 	
 	private TreeMap<Integer, HighlightItem> items = new TreeMap<Integer, HighlightItem>();
 	private TreeMap<Integer, HighlightItem> sortedItems = new TreeMap<Integer, HighlightItem>();
@@ -60,7 +61,7 @@ public class HighlightObject implements ResultExport, Comparator {
 	}
 
 	public HighlightItem addItem(int subId) {
-		
+
 		if(items.containsKey(subId)) {
 			return items.get(subId);
 		}
@@ -117,11 +118,20 @@ public class HighlightObject implements ResultExport, Comparator {
 		
 		int index1 = (Integer) o1;
 		int index2 = (Integer) o2;
-		
+
 		if(items.get(index1).getAbsoluteScore() < items.get(index2).getAbsoluteScore()) {
 			return 1;
 		}
 		if(items.get(index1).getAbsoluteScore() > items.get(index2).getAbsoluteScore()) {
+			return -1;
+		}
+		// returning zero, does not add a new element to TreeMap since its assumed to be equal
+		//return 0;
+		// ... sort by subitem
+		if(items.get(index1).getSubId() < items.get(index2).getSubId())  {
+			return 1;
+		}
+		if(items.get(index1).getSubId() > items.get(index2).getSubId())  {
 			return -1;
 		}
 		return 0;

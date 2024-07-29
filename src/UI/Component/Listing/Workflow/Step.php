@@ -1,43 +1,56 @@
 <?php
 
-/* Copyright (c) 2018 Nils Haagen <nils.haagen@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 namespace ILIAS\UI\Component\Listing\Workflow;
 
 use ILIAS\UI\Component\Component;
+use ILIAS\UI\Component\Signal;
 
 /**
  * This describes a Workflow Step
  */
 interface Step extends Component
 {
-    const AVAILABLE		= 1;
-    const NOT_AVAILABLE	= 2;
-    const NOT_ANYMORE	= 3;
-    const ACTIVE		= 4;
+    public const AVAILABLE = 1;
+    public const NOT_AVAILABLE = 2;
+    public const NOT_ANYMORE = 3;
+    public const ACTIVE = 4;
 
-    const NOT_STARTED	= 1;
-    const IN_PROGRESS	= 2;
-    const SUCCESSFULLY	= 3;
-    const UNSUCCESSFULLY= 4;
+    public const NOT_STARTED = 1;
+    public const IN_PROGRESS = 2;
+    public const SUCCESSFULLY = 3;
+    public const UNSUCCESSFULLY = 4;
 
     /**
      * Get the label of this step.
-     *
-     * @return 	string
      */
-    public function getLabel();
+    public function getLabel(): string;
 
     /**
      * Get the description of this step.
-     *
-     * @return 	string
      */
-    public function getDescription();
+    public function getDescription(): string;
 
 
     /**
-     * Get the availabilty status of this step.
+     * Get the availability status of this step.
      *
      * @return 	mixed
      */
@@ -47,9 +60,8 @@ interface Step extends Component
      * Get a step like this with completion status according to parameter.
      *
      * @param 	mixed 	$status
-     * @return 	Step
      */
-    public function withAvailability($status);
+    public function withAvailability($status): Step;
 
     /**
      * Get the status of this step.
@@ -62,14 +74,13 @@ interface Step extends Component
      * Get a step like this with completion status according to parameter.
      *
      * @param 	mixed 	$status
-     * @return 	Step
      */
-    public function withStatus($status);
+    public function withStatus($status): Step;
 
     /**
      * Get the action of this Step.
      *
-     * @return	null | Signal | string
+     * @return	null|Signal|string
      */
     public function getAction();
 }

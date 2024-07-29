@@ -1,520 +1,417 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2001 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
-
-require_once("./Services/COPage/classes/class.ilPCListItem.php");
-require_once("./Services/COPage/classes/class.ilPageContentGUI.php");
 
 /**
-* Class ilPCFileItemGUI
-*
-* Handles user commands on items of file lists
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* @version $I$
-*
-* @ingroup ServicesCOPage
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Class ilPCFileItemGUI
+ * Handles user commands on items of file lists
+ * @author Alexander Killing <killing@leifos.de>
+ */
 class ilPCFileItemGUI extends ilPageContentGUI
 {
-	/**
-	 * @var ilTabsGUI
-	 */
-	protected $tabs;
-
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
-
-	/**
-	 * @var ilTree
-	 */
-	protected $tree;
-
-	/**
-	 * @var ilSetting
-	 */
-	protected $settings;
+    protected ilObjFile $file_object;
+    protected ilTabsGUI $tabs;
+    protected ilObjUser $user;
+    protected ilTree $tree;
+    protected ilSetting $settings;
 
 
-	/**
-	* Constructor
-	* @access	public
-	*/
-	function __construct(&$a_pg_obj, &$a_content_obj, $a_hier_id, $a_pc_id = "")
-	{
-		global $DIC;
+    public function __construct(
+        ilPageObject $a_pg_obj,
+        ?ilPageContent $a_content_obj,
+        string $a_hier_id,
+        string $a_pc_id = ""
+    ) {
+        global $DIC;
 
-		$this->lng = $DIC->language();
-		$this->tabs = $DIC->tabs();
-		$this->ctrl = $DIC->ctrl();
-		$this->user = $DIC->user();
-		$this->tpl = $DIC["tpl"];
-		$this->tree = $DIC->repositoryTree();
-		$this->settings = $DIC->settings();
-		parent::__construct($a_pg_obj, $a_content_obj, $a_hier_id, $a_pc_id);
-	}
+        $this->lng = $DIC->language();
+        $this->tabs = $DIC->tabs();
+        $this->ctrl = $DIC->ctrl();
+        $this->user = $DIC->user();
+        $this->tpl = $DIC["tpl"];
+        $this->tree = $DIC->repositoryTree();
+        $this->settings = $DIC->settings();
+        parent::__construct($a_pg_obj, $a_content_obj, $a_hier_id, $a_pc_id);
+    }
 
-	/**
-	* execute command
-	*/
-	function executeCommand()
-	{
-		// get next class that processes or forwards current command
-		$next_class = $this->ctrl->getNextClass($this);
+    public function executeCommand(): void
+    {
+        // get next class that processes or forwards current command
+        $next_class = $this->ctrl->getNextClass($this);
 
-		// get current command
-		$cmd = $this->ctrl->getCmd();
-		switch($next_class)
-		{
-			default:
-				$ret = $this->$cmd();
-				break;
-		}
+        // get current command
+        $cmd = $this->ctrl->getCmd();
+        switch ($next_class) {
+            default:
+                $this->$cmd();
+                break;
+        }
+    }
 
-		return $ret;
-	}
+    /**
+     * insert new file item
+     */
+    public function newFileItem(): bool
+    {
+        $lng = $this->lng;
 
-	/**
-	* insert new file item
-	*/
-	function newFileItem()
-	{
-		$lng = $this->lng;
-		
-		if ($_FILES["file"]["name"] == "")
-		{
-			$_GET["subCmd"] = "-";
-			ilUtil::sendFailure($lng->txt("upload_error_file_not_found"));
-			return false;
-		}
+        if ($_FILES["file"]["name"] == "") {
+            throw new ilCOPageFileHandlingException($lng->txt("upload_error_file_not_found"));
+        }
 
-		$form = $this->initAddFileForm();
-		$form->checkInput();
+        $form = $this->initAddFileForm();
+        $form->checkInput();
 
-		include_once("./Modules/File/classes/class.ilObjFile.php");
-		$fileObj = new ilObjFile();
-		$fileObj->setType("file");
-		$fileObj->setTitle($_FILES["file"]["name"]);
-		$fileObj->setDescription("");
-		$fileObj->setFileName($_FILES["file"]["name"]);
-		$fileObj->setFileType($_FILES["file"]["type"]);
-		$fileObj->setFileSize($_FILES["file"]["size"]);
-		$fileObj->setMode("filelist");
-		$fileObj->create();
-		$fileObj->raiseUploadError(false);
-		// upload file to filesystem
-		$fileObj->createDirectory();
-		global $DIC;
-		$upload = $DIC->upload();
-		if ($upload->hasBeenProcessed() !== true) {
-			$upload->process();
-		}
-		$fileObj->getUploadFile($_FILES["file"]["tmp_name"],
-			$_FILES["file"]["name"]);
+        $fileObj = new ilObjFile();
+        $fileObj->setType("file");
+        $fileObj->setTitle($_FILES["file"]["name"]);
+        $fileObj->setDescription("");
+        $fileObj->setFileName($_FILES["file"]["name"]);
+        $fileObj->setMode("filelist");
+        $fileObj->create();
+        // upload file to filesystem
+        global $DIC;
+        $upload = $DIC->upload();
+        if ($upload->hasBeenProcessed() !== true) {
+            $upload->process();
+        }
+        $fileObj->getUploadFile(
+            $_FILES["file"]["tmp_name"],
+            $_FILES["file"]["name"]
+        );
 
-		$this->file_object = $fileObj;
-		return true;
-	}
+        $this->file_object = $fileObj;
+        return true;
+    }
 
 
-	/**
-	 * insert new list item after current one
-	 */
-	function newItemAfter()
-	{
-		$ilTabs = $this->tabs;
-		
-		if ($_GET["subCmd"] == "insertNew")
-		{
-			$_SESSION["cont_file_insert"] = "insertNew";
-		}
-		if ($_GET["subCmd"] == "insertFromRepository")
-		{
-			$_SESSION["cont_file_insert"] = "insertFromRepository";
-		}
-		if ($_GET["subCmd"] == "insertFromWorkspace")
-		{
-			$_SESSION["cont_file_insert"] = "insertFromWorkspace";
-		}
-		if (($_GET["subCmd"] == "") && $_SESSION["cont_file_insert"] != "")
-		{
-			$_GET["subCmd"] = $_SESSION["cont_file_insert"];
-		}
+    /**
+     * insert new list item after current one
+     */
+    public function newItemAfter(): void
+    {
+        $ilTabs = $this->tabs;
 
-		switch ($_GET["subCmd"])
-		{
-			case "insertFromWorkspace":
-				$this->insertFromWorkspace("newItemAfter");
-				break;
-			
-			case "insertFromRepository":
-				$this->insertFromRepository("newItemAfter");
-				break;
-				
-			case "selectFile":
-				$this->insertNewItemAfter($_GET["file_ref_id"]);
-				break;
-				
-			default:
-				$this->setTabs("newItemAfter");
-				$ilTabs->setSubTabActive("cont_new_file");
-		
-				$this->displayValidationError();
-				$form = $this->initAddFileForm(false);
-				$this->tpl->setContent($form->getHTML());
-break;
+        $sub_command = $this->sub_command;
 
-				// new file list form
-				$this->tpl->addBlockFile("ADM_CONTENT", "adm_content", "tpl.file_item_edit.html", "Services/COPage");
-				$this->tpl->setVariable("TXT_ACTION", $this->lng->txt("cont_insert_file_item"));
-				$this->tpl->setVariable("FORMACTION", $this->ctrl->getFormAction($this));
-		
-				$this->displayValidationError();
-		
-				// file
-				$this->tpl->setVariable("TXT_FILE", $this->lng->txt("file"));
-		
-				$this->tpl->parseCurrentBlock();
-		
-				// operations
-				$this->tpl->setCurrentBlock("commands");
-				$this->tpl->setVariable("BTN_NAME", "insertNewItemAfter");
-				$this->tpl->setVariable("BTN_TEXT", $this->lng->txt("save"));
-				$this->tpl->parseCurrentBlock();
-				break;
-		}
-	}
+        if (in_array($sub_command, ["insertNew", "insertFromRepository", "insertFromWorkspace"])) {
+            $this->edit_repo->setSubCmd($sub_command);
+        }
 
-	/**
-	 * Init add file form
-	 */
-	public function initAddFileForm($a_before = true)
-	{
-		$lng = $this->lng;
-		$ilCtrl = $this->ctrl;
-		$ilUser = $this->user;
-	
-		include_once("Services/Form/classes/class.ilPropertyFormGUI.php");
-		$form = new ilPropertyFormGUI();
-		
-		// file
-		$fi = new ilFileInputGUI($lng->txt("file"), "file");
-		$fi->setRequired(true);
-		$form->addItem($fi);
-		
-		if ($a_before)
-		{
-			$form->addCommandButton("insertNewItemBefore", $lng->txt("save"));
-		}
-		else
-		{
-			$form->addCommandButton("insertNewItemAfter", $lng->txt("save"));
-		}
-		$form->addCommandButton("cancelAddFile", $lng->txt("cancel"));
-		
-		$form->setTitle($lng->txt("cont_insert_file_item"));
+        if (($sub_command == "") && $this->edit_repo->getSubCmd() != "") {
+            $sub_command = $this->edit_repo->getSubCmd();
+        }
 
-		$form->setFormAction($ilCtrl->getFormAction($this));
-	 
-		return $form;
-	}
+        switch ($sub_command) {
+            case "insertFromWorkspace":
+                $this->insertFromWorkspace("newItemAfter");
+                break;
 
-	
-	/**
-	* Insert file from repository
-	*/
-	function insertFromRepository($a_cmd)
-	{
-		$ilTabs = $this->tabs;
-		$ilCtrl = $this->ctrl;
-		$tpl = $this->tpl;
+            case "insertFromRepository":
+                $this->insertFromRepository("newItemAfter");
+                break;
 
-		$this->setTabs($a_cmd);
-		$ilTabs->setSubTabActive("cont_file_from_repository");
-		$ilCtrl->setParameter($this, "subCmd", "insertFromRepository");
+            case "selectFile":
+                $this->insertNewItemAfter(
+                    $this->request->getInt("file_ref_id")
+                );
+                break;
 
-		include_once("./Services/COPage/classes/class.ilPCFileItemFileSelectorGUI.php");
-		$exp = new ilPCFileItemFileSelectorGUI($this, $a_cmd,
-			$this, $a_cmd, "file_ref_id");
-		if (!$exp->handleCommand())
-		{
-			$tpl->setContent($exp->getHTML());
-		}
-	}
-	
-	/**
-	* Insert file from personal workspace
-	*/
-	function insertFromWorkspace($a_cmd = "insert")
-	{
-		$ilTabs = $this->tabs;
-		$tree = $this->tree;
-		$ilCtrl = $this->ctrl;
-		$tpl = $this->tpl;
-		$ilUser = $this->user;
+            default:
+                $this->setTabs("newItemAfter");
+                $ilTabs->setSubTabActive("cont_new_file");
 
-		$this->setTabs($a_cmd);
-		$ilTabs->setSubTabActive("cont_file_from_workspace");
-		
-		include_once("./Services/PersonalWorkspace/classes/class.ilWorkspaceExplorerGUI.php");
-		$exp = new ilWorkspaceExplorerGUI($this->user->getId(), $this, $a_cmd, $this, $a_cmd, "fl_wsp_id");
-		$ilCtrl->setParameter($this, "subCmd", "selectFile");
-		$exp->setCustomLinkTarget($ilCtrl->getLinkTarget($this, $a_cmd));
-		$ilCtrl->setParameter($this, "subCmd", "insertFromWorkspace");
-		$exp->setTypeWhiteList(array("wsrt", "wfld", "file"));
-		$exp->setSelectableTypes(array("file"));
-		if ($exp->handleCommand())
-		{
-			return;
-		}
-		$tpl->setContent($exp->getHTML());
-	}
+                $this->displayValidationError();
+                $form = $this->initAddFileForm(false);
+                $this->tpl->setContent($form->getHTML());
+                break;
+        }
+    }
 
-	/**
-	* insert new file item after another item
-	*/
-	function insertNewItemAfter($a_file_ref_id = 0)
-	{
-		$ilUser = $this->user;
-		
-		$res = true;
-		if(isset($_GET["fl_wsp_id"]))
-		{
-			// we need the object id for the instance
-			include_once "Services/PersonalWorkspace/classes/class.ilWorkspaceTree.php";
-			$tree = new ilWorkspaceTree($ilUser->getId());			
-			$node = $tree->getNodeData($_GET["fl_wsp_id"]);		
-			
-			include_once("./Modules/File/classes/class.ilObjFile.php");
-			$this->file_object = new ilObjFile($node["obj_id"], false);
-		}
-		else if ($a_file_ref_id == 0)
-		{
-			$res = $this->newFileItem();
-		}
-		else
-		{
-			include_once("./Modules/File/classes/class.ilObjFile.php");
-			$this->file_object = new ilObjFile($a_file_ref_id);
-		}
-		if ($res)
-		{
-			$this->content_obj->newItemAfter($this->file_object->getId(),
-				$this->file_object->getTitle(), $this->file_object->getFileType());
-			$this->updated = $this->pg_obj->update();
-			if ($this->updated === true)
-			{
-				$this->ctrl->returnToParent($this, "jump".$this->hier_id);
-			}
-		}
-		
-		$_GET["subCmd"] = "-";
-		$this->newItemAfter();
-	}
+    /**
+     * Init add file form
+     */
+    public function initAddFileForm(bool $a_before = true): ilPropertyFormGUI
+    {
+        $lng = $this->lng;
+        $ilCtrl = $this->ctrl;
 
-	/**
-	* insert new list item before current one
-	*/
-	function newItemBefore()
-	{
-		$ilTabs = $this->tabs;
-		
-		if ($_GET["subCmd"] == "insertNew")
-		{
-			$_SESSION["cont_file_insert"] = "insertNew";
-		}
-		if ($_GET["subCmd"] == "insertFromRepository")
-		{
-			$_SESSION["cont_file_insert"] = "insertFromRepository";
-		}
-		if ($_GET["subCmd"] == "insertFromWorkspace")
-		{
-			$_SESSION["cont_file_insert"] = "insertFromWorkspace";
-		}
-		if (($_GET["subCmd"] == "") && $_SESSION["cont_file_insert"] != "")
-		{
-			$_GET["subCmd"] = $_SESSION["cont_file_insert"];
-		}
+        $form = new ilPropertyFormGUI();
 
-		switch ($_GET["subCmd"])
-		{
-			case "insertFromWorkspace":
-				$this->insertFromWorkspace("newItemBefore");
-				break;
-			
-			case "insertFromRepository":
-				$this->insertFromRepository("newItemBefore");
-				break;
-				
-			case "selectFile":
-				$this->insertNewItemBefore($_GET["file_ref_id"]);
-				break;
-				
-			default:
-				$this->setTabs("newItemBefore");
-				$ilTabs->setSubTabActive("cont_new_file");
-		
-				$this->displayValidationError();
-				$form = $this->initAddFileForm(true);
-				$this->tpl->setContent($form->getHTML());
-break;
-				
-				// new file list form
-				$this->tpl->addBlockFile("ADM_CONTENT", "adm_content", "tpl.file_item_edit.html", "Services/COPage");
-				$this->tpl->setVariable("TXT_ACTION", $this->lng->txt("cont_insert_file_item"));
-				$this->tpl->setVariable("FORMACTION", $this->ctrl->getFormAction($this));
-		
-				$this->displayValidationError();
-		
-				// file
-				$this->tpl->setVariable("TXT_FILE", $this->lng->txt("file"));
-		
-				$this->tpl->parseCurrentBlock();
-		
-				// operations
-				$this->tpl->setCurrentBlock("commands");
-				$this->tpl->setVariable("BTN_NAME", "insertNewItemBefore");
-				$this->tpl->setVariable("BTN_TEXT", $this->lng->txt("save"));
-				$this->tpl->parseCurrentBlock();
-				break;
-		}
+        // file
+        $fi = new ilFileInputGUI($lng->txt("file"), "file");
+        $fi->setRequired(true);
+        $form->addItem($fi);
 
-	}
+        if ($a_before) {
+            $form->addCommandButton("insertNewItemBefore", $lng->txt("save"));
+        } else {
+            $form->addCommandButton("insertNewItemAfter", $lng->txt("save"));
+        }
+        $form->addCommandButton("cancelAddFile", $lng->txt("cancel"));
 
-	/**
-	* insert new list item before current one
-	*/
-	function insertNewItemBefore($a_file_ref_id = 0)
-	{
-		$ilUser = $this->user;
-		
-		$res = true;
-		if(isset($_GET["fl_wsp_id"]))
-		{
-			// we need the object id for the instance
-			include_once "Services/PersonalWorkspace/classes/class.ilWorkspaceTree.php";
-			$tree = new ilWorkspaceTree($ilUser->getId());			
-			$node = $tree->getNodeData($_GET["fl_wsp_id"]);		
-			
-			include_once("./Modules/File/classes/class.ilObjFile.php");
-			$this->file_object = new ilObjFile($node["obj_id"], false);
-		}
-		else if ($a_file_ref_id == 0)
-		{
-			$res = $this->newFileItem();
-		}
-		else
-		{
-			include_once("./Modules/File/classes/class.ilObjFile.php");
-			$this->file_object = new ilObjFile($a_file_ref_id);
-		}
-		if ($res)
-		{
-			$this->content_obj->newItemBefore($this->file_object->getId(),
-				$this->file_object->getTitle(), $this->file_object->getFileType());
-			$this->updated = $this->pg_obj->update();
-			if ($this->updated === true)
-			{
-				$this->ctrl->returnToParent($this, "jump".$this->hier_id);
-			}
-		}
+        $form->setTitle($lng->txt("cont_insert_file_item"));
 
-		$_GET["subCmd"] = "-";
-		$this->newItemBefore();
-	}
+        $form->setFormAction($ilCtrl->getFormAction($this));
 
-	/**
-	* delete a list item
-	*/
-	function deleteItem()
-	{
-		$this->content_obj->deleteItem();
-		$_SESSION["il_pg_error"] = $this->pg_obj->update();
-		$this->ctrl->returnToParent($this, "jump".$this->hier_id);
-	}
+        return $form;
+    }
 
-	/**
-	* output tabs
-	*/
-	function setTabs($a_cmd = "")
-	{
-		$ilTabs = $this->tabs;
-		$ilCtrl = $this->ctrl;
-		$ilSetting = $this->settings;
 
-		$ilTabs->addTarget("cont_back",
-			$this->ctrl->getParentReturn($this), "",
-			"");
-			
-		if ($a_cmd != "")
-		{
-			$ilCtrl->setParameter($this, "subCmd", "insertNew");
-			$ilTabs->addSubTabTarget("cont_new_file",
-				$ilCtrl->getLinkTarget($this, $a_cmd), $a_cmd);
-	
-			$ilCtrl->setParameter($this, "subCmd", "insertFromRepository");
-			$ilTabs->addSubTabTarget("cont_file_from_repository",
-				$ilCtrl->getLinkTarget($this, $a_cmd), $a_cmd);
-			$ilCtrl->setParameter($this, "subCmd", "");
-			
-			if(!$ilSetting->get("disable_personal_workspace") &&
-				!$ilSetting->get("disable_wsp_files"))
-			{
-				$ilCtrl->setParameter($this, "subCmd", "insertFromWorkspace");
-				$ilTabs->addSubTabTarget("cont_file_from_workspace",
-					$ilCtrl->getLinkTarget($this, $a_cmd), $a_cmd);
-				$ilCtrl->setParameter($this, "subCmd", "");
-			}
-		}
-	}
+    /**
+     * Insert file from repository
+     */
+    public function insertFromRepository(string $a_cmd): void
+    {
+        $ilTabs = $this->tabs;
+        $ilCtrl = $this->ctrl;
+        $tpl = $this->tpl;
 
-	/**
-	* move list item down
-	*/
-	function moveItemDown()
-	{
-		$this->content_obj->moveItemDown();
-		$_SESSION["il_pg_error"] = $this->pg_obj->update();
-		$this->ctrl->returnToParent($this, "jump".$this->hier_id);
-	}
+        $this->setTabs($a_cmd);
+        $ilTabs->setSubTabActive("cont_file_from_repository");
+        $ilCtrl->setParameter($this, "subCmd", "insertFromRepository");
 
-	/**
-	* move list item up
-	*/
-	function moveItemUp()
-	{
-		$this->content_obj->moveItemUp();
-		$_SESSION["il_pg_error"] = $this->pg_obj->update();
-		$this->ctrl->returnToParent($this, "jump".$this->hier_id);
-	}
+        $exp = new ilPCFileItemFileSelectorGUI(
+            $this,
+            $a_cmd,
+            $this,
+            $a_cmd,
+            "file_ref_id"
+        );
+        if (!$exp->handleCommand()) {
+            $tpl->setContent($exp->getHTML());
+        }
+    }
 
-	/**
-	 * Cancel adding a file
-	 */
-	function cancelAddFile()
-	{
-		$this->ctrl->returnToParent($this, "jump".$this->hier_id);
-	}
+    /**
+     * Insert file from personal workspace
+     */
+    public function insertFromWorkspace(string $a_cmd = "insert"): void
+    {
+        $ilTabs = $this->tabs;
+        $ilCtrl = $this->ctrl;
+        $tpl = $this->tpl;
+
+        $this->setTabs($a_cmd);
+        $ilTabs->setSubTabActive("cont_file_from_workspace");
+
+        $exp = new ilWorkspaceExplorerGUI($this->user->getId(), $this, $a_cmd, $this, $a_cmd, "fl_wsp_id");
+        $ilCtrl->setParameter($this, "subCmd", "selectFile");
+        $exp->setCustomLinkTarget($ilCtrl->getLinkTarget($this, $a_cmd));
+        $ilCtrl->setParameter($this, "subCmd", "insertFromWorkspace");
+        $exp->setTypeWhiteList(array("wsrt", "wfld", "file"));
+        $exp->setSelectableTypes(array("file"));
+        if ($exp->handleCommand()) {
+            return;
+        }
+        $tpl->setContent($exp->getHTML());
+    }
+
+    /**
+     * insert new file item after another item
+     */
+    public function insertNewItemAfter(int $a_file_ref_id = 0): void
+    {
+        $ilUser = $this->user;
+
+        $fl_wsp_id = $this->request->getInt("fl_wsp_id");
+
+        $res = true;
+        if ($fl_wsp_id > 0) {
+            // we need the object id for the instance
+            $tree = new ilWorkspaceTree($ilUser->getId());
+            $node = $tree->getNodeData($fl_wsp_id);
+
+            $this->file_object = new ilObjFile($node["obj_id"], false);
+        } elseif ($a_file_ref_id == 0) {
+            $res = $this->newFileItem();
+        } else {
+            $this->file_object = new ilObjFile($a_file_ref_id);
+        }
+        if ($res) {
+            $this->content_obj->newItemAfter(
+                $this->file_object->getId(),
+                $this->file_object->getFileName(),
+                $this->file_object->getFileType()
+            );
+            $this->updated = $this->pg_obj->update();
+            if ($this->updated === true) {
+                $this->ctrl->returnToParent($this, "jump" . $this->hier_id);
+            }
+        }
+
+        $this->newItemAfter();
+    }
+
+    /**
+     * insert new list item before current one
+     */
+    public function newItemBefore(): void
+    {
+        $ilTabs = $this->tabs;
+
+        $sub_command = $this->sub_command;
+
+        if (in_array($sub_command, ["insertNew", "insertFromRepository", "insertFromWorkspace"])) {
+            $this->edit_repo->setSubCmd($sub_command);
+        }
+
+        if (($sub_command == "") && $this->edit_repo->getSubCmd() != "") {
+            $sub_command = $this->edit_repo->getSubCmd();
+        }
+
+        switch ($sub_command) {
+            case "insertFromWorkspace":
+                $this->insertFromWorkspace("newItemBefore");
+                break;
+
+            case "insertFromRepository":
+                $this->insertFromRepository("newItemBefore");
+                break;
+
+            case "selectFile":
+                $this->insertNewItemBefore(
+                    $this->request->getInt("file_ref_id")
+                );
+                break;
+
+            default:
+                $this->setTabs("newItemBefore");
+                $ilTabs->setSubTabActive("cont_new_file");
+
+                $this->displayValidationError();
+                $form = $this->initAddFileForm(true);
+                $this->tpl->setContent($form->getHTML());
+        }
+    }
+
+    /**
+     * insert new list item before current one
+     */
+    public function insertNewItemBefore(int $a_file_ref_id = 0): void
+    {
+        $ilUser = $this->user;
+
+        $res = true;
+
+        $fl_wsp_id = $this->request->getInt("fl_wsp_id");
+        if ($fl_wsp_id > 0) {
+            // we need the object id for the instance
+            $tree = new ilWorkspaceTree($ilUser->getId());
+            $node = $tree->getNodeData($fl_wsp_id);
+
+            $this->file_object = new ilObjFile($node["obj_id"], false);
+        } elseif ($a_file_ref_id == 0) {
+            $res = $this->newFileItem();
+        } else {
+            $this->file_object = new ilObjFile($a_file_ref_id);
+        }
+        if ($res) {
+            $this->content_obj->newItemBefore(
+                $this->file_object->getId(),
+                $this->file_object->getTitle(),
+                $this->file_object->getFileType()
+            );
+            $this->updated = $this->pg_obj->update();
+            if ($this->updated === true) {
+                $this->ctrl->returnToParent($this, "jump" . $this->hier_id);
+            }
+        }
+
+        $this->newItemBefore();
+    }
+
+    /**
+     * delete a list item
+     */
+    public function deleteItem(): void
+    {
+        $this->content_obj->deleteItem();
+        $this->updateAndReturn();
+    }
+
+    /**
+     * output tabs
+     */
+    public function setTabs(string $a_cmd = ""): void
+    {
+        $ilTabs = $this->tabs;
+        $ilCtrl = $this->ctrl;
+        $ilSetting = $this->settings;
+
+        $ilTabs->addTarget(
+            "cont_back",
+            $this->ctrl->getParentReturn($this),
+            "",
+            ""
+        );
+
+        if ($a_cmd != "") {
+            $ilCtrl->setParameter($this, "subCmd", "insertNew");
+            $ilTabs->addSubTabTarget(
+                "cont_new_file",
+                $ilCtrl->getLinkTarget($this, $a_cmd),
+                $a_cmd
+            );
+
+            $ilCtrl->setParameter($this, "subCmd", "insertFromRepository");
+            $ilTabs->addSubTabTarget(
+                "cont_file_from_repository",
+                $ilCtrl->getLinkTarget($this, $a_cmd),
+                $a_cmd
+            );
+            $ilCtrl->setParameter($this, "subCmd", "");
+
+            if (!$ilSetting->get("disable_personal_workspace") &&
+                !$ilSetting->get("disable_wsp_files")) {
+                $ilCtrl->setParameter($this, "subCmd", "insertFromWorkspace");
+                $ilTabs->addSubTabTarget(
+                    "cont_file_from_workspace",
+                    $ilCtrl->getLinkTarget($this, $a_cmd),
+                    $a_cmd
+                );
+                $ilCtrl->setParameter($this, "subCmd", "");
+            }
+        }
+    }
+
+    /**
+     * move list item down
+     */
+    public function moveItemDown(): void
+    {
+        $this->content_obj->moveItemDown();
+        $this->updateAndReturn();
+    }
+
+    /**
+     * move list item up
+     */
+    public function moveItemUp(): void
+    {
+        $this->content_obj->moveItemUp();
+        $this->updateAndReturn();
+    }
+
+    /**
+     * Cancel adding a file
+     */
+    public function cancelAddFile(): void
+    {
+        $this->ctrl->returnToParent($this, "jump" . $this->hier_id);
+    }
 }
-?>

@@ -1,43 +1,63 @@
 <?php
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once "./Services/Badge/interfaces/interface.ilBadgeType.php";
+declare(strict_types=0);
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Class ilCourseMeritBadge
- * 
- * @author Jörg Lützenkirchen <luetzenkirchen@leifos.com>
- * @version $Id:$
- *
+ * @author  Jörg Lützenkirchen <luetzenkirchen@leifos.com>
  * @package ModulesCourse
  */
 class ilCourseMeritBadge implements ilBadgeType
 {
-	public function getId()
-	{
-		return "merit";
-	}
-	
-	public function getCaption()
-	{
-		global $DIC;
+    protected ilLanguage $lng;
 
-		$lng = $DIC['lng'];
-		return $lng->txt("badge_crs_merit");
-	}
-	
-	public function isSingleton()
-	{
-		return true;
-	}
-	
-	public function getValidObjectTypes()
-	{
-		return array("crs", "grp");
-	}
-	
-	public function getConfigGUIInstance()
-	{
-		// no config
-	}
+    public function __construct()
+    {
+        global $DIC;
+
+        $this->lng = $DIC->language();
+    }
+
+    public function getId(): string
+    {
+        return "merit";
+    }
+
+    public function getCaption(): string
+    {
+        return $this->lng->txt("badge_crs_merit");
+    }
+
+    public function isSingleton(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getValidObjectTypes(): array
+    {
+        return ["crs", "grp"];
+    }
+
+    public function getConfigGUIInstance(): ?ilBadgeTypeGUI
+    {
+        return null;
+    }
 }

@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /**
  * Class XAccelTest
  *
@@ -7,13 +9,25 @@
 
 namespace ILIAS\FileDelivery\FileDeliveryTypes;
 
-require_once('./libs/composer/vendor/autoload.php');
-
-use ILIAS\HTTP\GlobalHttpState;
+use ILIAS\HTTP\Services;
 use ILIAS\HTTP\Response\ResponseHeader;
 use Mockery;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
+
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ *      https://www.ilias.de
+ *      https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 
 /**
  * Class XSendfile
@@ -25,96 +39,119 @@ use Psr\Http\Message\ResponseInterface;
  * @backupGlobals          disabled
  * @backupStaticAttributes disabled
  */
-class XAccelTest extends TestCase {
+class XAccelTest extends TestCase
+{
+    /**
+     * @var Services|\PHPUnit\Framework\MockObject\MockObject
+     */
+    public Services $httpServiceMock;
 
-	use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
+    /**
+     * @inheritDoc
+     */
+    protected function setUp(): void
+    {
+        $this->httpServiceMock = $this->getMockBuilder(Services::class)
+                                      ->disableOriginalConstructor()
+                                      ->getMock();
+    }
 
-	/**
-	 * @var \Mockery\MockInterface | GlobalHttpState
-	 */
-	private $httpServiceMock;
+    /**
+     * @Test
+     */
+    public function testPrepareWhichShouldSucceed(): void
+    {
+        $expectedContentValue = '';
+
+        $response = $this->getMockBuilder(ResponseInterface::class)
+                         ->disableOriginalConstructor()
+                         ->getMock();
+
+        $response->expects($this->once())
+                 ->method('withHeader')
+                 ->with(ResponseHeader::CONTENT_TYPE, $expectedContentValue)
+                 ->willReturnSelf();
+
+        $this->httpServiceMock->expects($this->once())
+                              ->method('response')
+                              ->willReturn($response);
+
+        $this->httpServiceMock->expects($this->once())
+                              ->method('saveResponse')
+                              ->with($response);
+
+        $this->httpServiceMock->expects($this->never())
+                              ->method('sendResponse');
+
+        $xAccel = new XAccel($this->httpServiceMock);
+        $result = $xAccel->prepare("this path is never used in this method");
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * @Test
+     */
+    public function testDeliverWithNormalPathWhichShouldSucceed(): void
+    {
+        $expectedHeader = 'X-Accel-Redirect';
+        $path = './normal/path';
+
+        $response = $this->getMockBuilder(ResponseInterface::class)
+                         ->disableOriginalConstructor()
+                         ->getMock();
+
+        $response->expects($this->once())
+                 ->method('withHeader')
+                 ->with($expectedHeader, $path)
+                 ->willReturnSelf();
+
+        $this->httpServiceMock->expects($this->once())
+                              ->method('response')
+                              ->willReturn($response);
+
+        $this->httpServiceMock->expects($this->once())
+                              ->method('saveResponse')
+                              ->with($response);
+
+        $this->httpServiceMock->expects($this->once())
+                              ->method('sendResponse');
 
 
-	protected function setUp(): void
-	{
-		parent::setUp();
+        $xAccel = new XAccel($this->httpServiceMock);
+        $xAccel->deliver($path, false);
+    }
 
-		$this->httpServiceMock = Mockery::mock(GlobalHttpState::class);
-		$this->httpServiceMock->shouldIgnoreMissing();
+    /**
+     * @Test
+     */
+    public function testDeliverWithDataPathWhichShouldSucceed(): void
+    {
+        $expectedHeader = 'X-Accel-Redirect';
+        $path = './data/path/to/what/ever';
+        $expectedPath = '/secured-data/path/to/what/ever';
 
-		//set remote address to localhost
-		// $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+        $response = $this->getMockBuilder(ResponseInterface::class)
+                         ->disableOriginalConstructor()
+                         ->getMock();
 
-		require_once './Services/FileDelivery/classes/FileDeliveryTypes/XAccel.php';
-	}
+        $response->expects($this->once())
+                 ->method('withHeader')
+                 ->with($expectedHeader, $expectedPath)
+                 ->willReturnSelf();
 
+        $this->httpServiceMock->expects($this->once())
+                              ->method('response')
+                              ->willReturn($response);
 
-	/**
-	 * @Test
-	 */
-	public function testPrepareWhichShouldSucceed()
-	{
-		$expectedContentValue = '';
+        $this->httpServiceMock->expects($this->once())
+                              ->method('saveResponse')
+                              ->with($response);
 
-		$response = Mockery::mock(ResponseInterface::class);
-		$response->shouldIgnoreMissing()->shouldReceive("withHeader")->times(1)
-		         ->withArgs([ ResponseHeader::CONTENT_TYPE, $expectedContentValue ])
-		         ->andReturnSelf();
+        $this->httpServiceMock->expects($this->once())
+                              ->method('sendResponse');
 
-		$this->httpServiceMock->shouldReceive("response")->times(1)->withNoArgs()
-		                      ->andReturn($response)->getMock()->shouldReceive("saveResponse")
-		                      ->times(1)->withArgs([ $response ]);
-
-		$xAccel = new XAccel($this->httpServiceMock);
-		$result = $xAccel->prepare("this path is never used in this method");
-
-		$this->assertTrue($result);
-	}
-
-
-	/**
-	 * @Test
-	 */
-	public function testDeliverWithNormalPathWhichShouldSucceed()
-	{
-
-		$expectedHeader = 'X-Accel-Redirect';
-		$path = './normal/path';
-
-		$response = Mockery::mock(ResponseInterface::class);
-		$response->shouldIgnoreMissing()->shouldReceive("withHeader")->times(1)
-		         ->withArgs([ $expectedHeader, $path ])->andReturnSelf();
-
-		$this->httpServiceMock->shouldReceive("response")->times(1)->withNoArgs()
-		                      ->andReturn($response)->getMock()->shouldReceive("saveResponse")
-		                      ->times(1)->withArgs([ $response ])->getMock()
-		                      ->shouldReceive("sendResponse")->times(1)->withNoArgs();
-
-		$xAccel = new XAccel($this->httpServiceMock);
-		$xAccel->deliver($path, false);
-	}
-
-
-	/**
-	 * @Test
-	 */
-	public function testDeliverWithDataPathWhichShouldSucceed()
-	{
-
-		$expectedHeader = 'X-Accel-Redirect';
-		$path = './data/path/to/what/ever';
-		$expectedPath = '/secured-data/path/to/what/ever';
-
-		$response = Mockery::mock(ResponseInterface::class);
-		$response->shouldIgnoreMissing()->shouldReceive("withHeader")->times(1)
-		         ->withArgs([ $expectedHeader, $expectedPath ])->andReturnSelf();
-
-		$this->httpServiceMock->shouldReceive("response")->times(1)->withNoArgs()
-		                      ->andReturn($response)->getMock()->shouldReceive("saveResponse")
-		                      ->times(1)->withArgs([ $response ])->getMock()
-		                      ->shouldReceive("sendResponse")->times(1)->withNoArgs();
-
-		$xAccel = new XAccel($this->httpServiceMock);
-		$xAccel->deliver($path, false);
-	}
+        $xAccel = new XAccel($this->httpServiceMock);
+        $xAccel->deliver($path, false);
+    }
 }

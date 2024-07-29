@@ -13,13 +13,11 @@ CSS-classes you need to use. You will be able to talk to other people (like user
 or designers) using the same concepts and problem space as they do. This is also
 not a templating framework.
 
-## Compose GUIs from Simple Parts
+## Semantics of Components
 
-In the ILIAS UI-Framework, GUIs are described by composing large chunks from
-smaller components. The available components and their possible compositions are
-described in the Kitchen Sink. The single components only have little  configuration,
-complex GUIs emerge from simple parts. You also won't need to modify existing
-components, just use them as provided.
+UI Components serve a specific purpose. They are not simply named html structures that are composed to larger structures, 
+but semantically different identities. It is possible that two different component look the same and act the same by 
+accident, but still remain different identities. However it is also possible that the same component, looks different in serpereate contexts.
 
 ## Correctness by Construction and Testability
 
@@ -180,7 +178,7 @@ If you would like to implement a new component to the framework you should perfo
  Take care to keep it as minimal as possible. At a description for each function.
  For the demo component, this interface could look as follows (located at (src/UI/Component/Demo/Demo.php):
     ``` php
-    <?php
+    <?php declare(strict_types=1)
     namespace ILIAS\UI\Component\Demo;
 
     /**
@@ -210,14 +208,14 @@ If you would like to implement a new component to the framework you should perfo
  JF. So best create such an example located and also link it in your comment, e.g. at
  src/UI/examples/Demo/mockup.php:
     ``` php
-    <?php
+    <?php declare(strict_types=1)
     function mockup() {
         return "<h1>Hello Demo!</h1>";
     }
     ```
    If needed, you can also add JS-logic (e.g. src/UI/examples/Demo/mockup.php):
     ``` php
-    <?php
+    <?php declare(strict_types=1)
     function script() {
         return "<script>console.log('Hello Demo');</script>Open your JS console!";
     }
@@ -239,7 +237,7 @@ If you would like to implement a new component to the framework you should perfo
   for all interface methods and the rendering.
   For the demo component this looks as follows (located at tests/UI/Component/Demo/DemoTest.php):
    ``` php
-    <?php
+    <?php declare(strict_types=1)
 
     require_once(__DIR__."/../../../../libs/composer/vendor/autoload.php");
     require_once(__DIR__."/../../Base.php");
@@ -284,7 +282,7 @@ If you would like to implement a new component to the framework you should perfo
 8. Currently you will only get the NotImplementedException you throwed previously. That needs to be changed.
   First, add an implementation for the new interface (add it at src/UI/Implementation/Component/Demo/Demo.php):
     ``` php
-    <?php
+    <?php declare(strict_types=1)
     namespace ILIAS\UI\Implementation\Component\Demo;
 
     use ILIAS\UI\Component\Demo as D;
@@ -323,7 +321,7 @@ If you would like to implement a new component to the framework you should perfo
 
 10. Then, implement the renderer at src/UI/Implementation/Component/Demo/Demo.php:
     ``` php
-    <?php
+    <?php declare(strict_types=1)
 
     /* Copyright (c) 2016 Timon Amstutz <timon.amstutz@ilub.unibe.ch> Extended GPL, see docs/LICENSE */
 
@@ -357,10 +355,13 @@ If you would like to implement a new component to the framework you should perfo
     <h1 class="il-demo">{CONTENT}</h1>
      ```
 12. Execute the UI tests again. At this point, everything should pass. Thanks, you just made ILIAS more powerful!
-13. Optional: It is possible good to add an examples demonstrating the usage of your new component.
-  The example for the demo looks as follows (located at src/UI/examples/Demo/render.php):
+13. Remember to add examples demonstrating the usage of your new component.
+    Those examples should showcase the key features of the new component.
+    Note that they will be used as basis for the test cases in testrail (see
+    next point). The example for the demo looks as follows (located at
+    src/UI/examples/Demo/render.php):
     ``` php
-      <?php
+      <?php declare(strict_types=1)
       function render() {
           //Init Factory and Renderer
           global $DIC;
@@ -373,7 +374,12 @@ If you would like to implement a new component to the framework you should perfo
           return $renderer->render($demo);
       }
     ```
-14. Optional: You might need to add some less, to make your new component look nice. However, only do that
+14. Remember to adapt/add the Test Cases in 
+    [Testrail section UI Components](https://testrail.ilias.de/index.php?/suites/view/390) 
+    so that a tester with no technical expertise can confirm that all examples
+    work as intended. They must be available and linked to the PR before the PR will be merged.
+  
+15. Optional: You might need to add some less, to make your new component look nice. However, only do that
  if this is really required. Use bootstrap classes as much as possible. If you really need to add
  additional less, use existing less variables whenever appropriate. If you add a new variable, add the il- prefix
  to mark the as special ILIAS less variable and provide the proper description. For the demo this could look as
@@ -383,16 +389,16 @@ If you would like to implement a new component to the framework you should perfo
      color: @il-demo-color;
     }
     ```
-15. Include the new less file to delos (located at templates/default/less/delos.less):
+16. Include the new less file to delos (located at templates/default/less/delos.less):
     ``` less
     @import "@{uibase}Demo/demo.less";
     ```
-16. Formulate at least one test-case for your new component on testrail.ilias.de](https://testrail.ilias.de).
+17. Formulate at least one test-case for your new component on testrail.ilias.de](https://testrail.ilias.de).
     Best, try to formulate a testcase for each relevant client-side interaction. E.g. if 
     your component contains a button, that triggers a modal on-click, write a test-case for this
     interaction. Post the the link to this test-case in a comment/the description of your PR.
     
-17. Optional add the new variables to the variables.less file (located at templates/default/less/variables.less):
+18. Optional add the new variables to the variables.less file (located at templates/default/less/variables.less):
     ``` less
     //== Demo Component
     //
@@ -400,9 +406,9 @@ If you would like to implement a new component to the framework you should perfo
     //** Color of the text shown in the demo
     @il-demo-color: @brand-danger;
     ```
-18. Optional: Recompile the less to see the effect by typing lessc templates/default/delos.less > templates/default/delos.css
+19. Optional: Recompile the less to see the effect by typing lessc templates/default/delos.less > templates/default/delos.css
 
-19. Optional: If your component introduces a new factory, do not forget to wire it up in the according
+20. Optional: If your component introduces a new factory, do not forget to wire it up in the according
     location of the initialisation. Have a look into `ilInitialisation::initUIFramework` in
     `Services/Init/class/class.ilInitialisation.php`.
 
@@ -445,6 +451,8 @@ Again, consider the example if a user opens a modal by clicking on a button:
 
 This code snippet shows how to open a modal by clicking on a button:
 ```php
+global $DIC;
+$factory = $DIC->ui()->factory();
 $modal = $factory->modal()->roundtrip('Title', $factory->legacy('Hello World'));
 $button = $factory->button()->standard('Open Modal', '#')
   ->withOnClick($modal->getShowSignal());
@@ -458,6 +466,8 @@ which a signal is being triggered.
 Each triggerer component stores the signals it triggers. By cloning a component, these signals are cloned as well.
 This means that a cloned component may trigger the same signals as the original. Consider the following example:
  ```php
+global $DIC;
+$factory = $DIC->ui()->factory();
 $modal = $factory->modal()->roundtrip('Title', $factory->legacy('Hello World'));
 $button1 = $factory->button()->standard('Open Modal', '#')
   ->withOnClick($modal->getShowSignal());

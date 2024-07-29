@@ -8,5 +8,15 @@
 	display: inline;
 }
 .modal-content{
-	color: @text-color;
+	color: @il-text-color;
+
+	//Override the grid system for forms in modals, see #33172
+	.form-horizontal {
+		.col-sm-4, .col-md-3, .col-lg-2 {
+			width: 33.33%;
+		}
+		.col-sm-8, .col-md-9, .col-lg-10 {
+			width: 66.67%
+		}
+	}
 }

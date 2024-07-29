@@ -1,20 +1,18 @@
 <?php
 
-include_once "Services/Exceptions/classes/class.ilException.php";
+declare(strict_types=1);
 
 class ilADTDBException extends ilException
 {
-	protected $a_col;
-	
-	public function getColumn()
-	{
-		return $this->col;
-	}
-	
-	public function setColumn($a_col)
-	{
-		$this->col = $a_col;
-	}		
-}
+    protected string $col = '';
 
-?>
+    public function getColumn(): string
+    {
+        return $this->col;
+    }
+
+    public function setColumn(string $a_col): void
+    {
+        $this->col = $a_col;
+    }
+}

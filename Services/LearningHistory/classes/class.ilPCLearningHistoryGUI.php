@@ -1,309 +1,232 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2001 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
 
-require_once("./Services/COPage/classes/class.ilPCSkills.php");
-require_once("./Services/COPage/classes/class.ilPageContentGUI.php");
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * GUI class for learning history page content
- *
- * Handles user commands on skills data
- *
- * @author killin@leifos.com
- *
+ * @author Alexander Killing <killing@leifos.de>
  * @ilCtrl_isCalledBy ilPCLearningHistoryGUI: ilPageEditorGUI
- * @ingroup ServicesLearningHistory
  */
 class ilPCLearningHistoryGUI extends ilPageContentGUI
 {
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
+    protected ilObjUser $user;
+    protected \ILIAS\DI\UIServices $ui;
+    protected ilLearningHistoryService $service;
 
-	/**
-	 * @var \ILIAS\DI\UIServices
-	 */
-	protected $ui;
+    public function __construct(
+        ilPageObject $a_pg_obj,
+        ?ilPCLearningHistory $a_content_obj = null,
+        string $a_hier_id = "",
+        string $a_pc_id = ""
+    ) {
+        global $DIC;
 
-	/**
-	 * @var ilLearningHistoryService
-	 */
-	protected $service;
+        $this->tpl = $DIC["tpl"];
+        $this->ctrl = $DIC->ctrl();
+        $this->user = $DIC->user();
+        $this->lng = $DIC->language();
+        $this->lng->loadLanguageModule("lhist");
+        parent::__construct($a_pg_obj, $a_content_obj, $a_hier_id, $a_pc_id);
+        $this->service = $DIC->learningHistory();
+        $this->ui = $DIC->ui();
+    }
 
-	/**
-	 * Constructor
-	 */
-	function __construct(ilPageObject $a_pg_obj, ilPCLearningHistory $a_content_obj = null, $a_hier_id = "", $a_pc_id = "")
-	{
-		global $DIC;
+    public function executeCommand(): void
+    {
+        $next_class = $this->ctrl->getNextClass($this);
+        $cmd = $this->ctrl->getCmd();
 
-		$this->tpl = $DIC["tpl"];
-		$this->ctrl = $DIC->ctrl();
-		$this->user = $DIC->user();
-		$this->lng = $DIC->language();
-		$this->lng->loadLanguageModule("lhist");
-		parent::__construct($a_pg_obj, $a_content_obj, $a_hier_id, $a_pc_id);
-		$this->service = $DIC->learningHistory();
-		$this->ui = $DIC->ui();
-	}
+        switch ($next_class) {
+            default:
+                $this->$cmd();
+                break;
+        }
+    }
 
-	/**
-	 * execute command
-	 */
-	function executeCommand()
-	{
-		// get next class that processes or forwards current command
-		$next_class = $this->ctrl->getNextClass($this);
+    /**
+     * Insert learning history form
+     */
+    public function insert(ilPropertyFormGUI $a_form = null): void
+    {
+        $tpl = $this->tpl;
 
-		// get current command
-		$cmd = $this->ctrl->getCmd();
+        $this->displayValidationError();
 
-		switch($next_class)
-		{
-			default:
-				$ret = $this->$cmd();
-				break;
-		}
+        if (!$a_form) {
+            $a_form = $this->initForm(true);
+        }
+        $tpl->setContent($a_form->getHTML());
+    }
 
-		return $ret;
-	}
+    public function edit(ilPropertyFormGUI $a_form = null): void
+    {
+        $tpl = $this->tpl;
 
-	/**
-	 * Insert learning history form
-	 *
-	 * @param ilPropertyFormGUI $a_form
-	 */
-	function insert(ilPropertyFormGUI $a_form = null)
-	{
-		$tpl = $this->tpl;
+        $this->displayValidationError();
 
-		$this->displayValidationError();
+        if (!$a_form) {
+            $a_form = $this->initForm();
+        }
+        $tpl->setContent($a_form->getHTML());
+    }
 
-		if(!$a_form)
-		{
-			$a_form = $this->initForm(true);
-		}
-		$tpl->setContent($a_form->getHTML());
+    /**
+     * Init learning history edit form
+     */
+    protected function initForm(bool $a_insert = false): ilPropertyFormGUI
+    {
+        $ilCtrl = $this->ctrl;
+        $lng = $this->lng;
 
-	}
+        $form = new ilPropertyFormGUI();
+        $form->setFormAction($ilCtrl->getFormAction($this));
+        if ($a_insert) {
+            $form->setTitle($this->lng->txt("cont_create_lhist"));
+        } else {
+            $form->setTitle($this->lng->txt("cont_update_lhist"));
+        }
 
-	/**
-	 * Edit skills form
-	 *
-	 * @param ilPropertyFormGUI $a_form
-	 */
-	function edit(ilPropertyFormGUI $a_form = null)
-	{
-		$tpl = $this->tpl;
+        // duration
+        $du = new ilDateDurationInputGUI($lng->txt("lhist_period"), "period");
+        if (!$a_insert) {
+            if ($this->content_obj->getFrom() != "") {
+                $du->setStart(new ilDate($this->content_obj->getFrom(), IL_CAL_DATE));
+            }
+            if ($this->content_obj->getTo() != "") {
+                $du->setEnd(new ilDate($this->content_obj->getTo(), IL_CAL_DATE));
+            }
+        }
+        $du->setAllowOpenIntervals(true);
+        $form->addItem($du);
 
-		$this->displayValidationError();
-
-		if(!$a_form)
-		{
-			$a_form = $this->initForm();
-		}
-		$tpl->setContent($a_form->getHTML());
-	}
-
-	/**
-	 * Init learning history edit form
-	 *
-	 * @param bool $a_insert
-	 * @return ilPropertyFormGUI
-	 */
-	protected function initForm($a_insert = false)
-	{
-		$ilCtrl = $this->ctrl;
-		$ilUser = $this->user;
-		$lng = $this->lng;
-
-		include_once("./Services/Form/classes/class.ilPropertyFormGUI.php");
-		$form = new ilPropertyFormGUI();
-		$form->setFormAction($ilCtrl->getFormAction($this));
-		if ($a_insert)
-		{
-			$form->setTitle($this->lng->txt("cont_create_lhist"));
-		}
-		else
-		{
-			$form->setTitle($this->lng->txt("cont_update_lhist"));
-		}
-
-		// duration
-		$du = new ilDateDurationInputGUI($lng->txt("lhist_period"), "period");
-		if (!$a_insert) {
-			if ($this->content_obj->getFrom() != "") {
-				$du->setStart(new ilDate($this->content_obj->getFrom(), IL_CAL_DATE));
-			}
-			if ($this->content_obj->getTo() != "") {
-				$du->setEnd(new ilDate($this->content_obj->getTo(), IL_CAL_DATE));
-			}
-		}
-		$du->setAllowOpenIntervals(true);
-		$form->addItem($du);
-
-		//
-		$radg = new ilRadioGroupInputGUI($lng->txt("lhist_type_of_achievement"), "mode");
-		//$radg->setValue();
-		$op1 = new ilRadioOption($lng->txt("lhist_all"), 0);
-		$radg->addOption($op1);
-		$op2 = new ilRadioOption($lng->txt("lhist_selected"), 1);
-		$radg->addOption($op2);
-		$form->addItem($radg);
+        //
+        $radg = new ilRadioGroupInputGUI($lng->txt("lhist_type_of_achievement"), "mode");
+        $radg->setValue("0");
+        $op1 = new ilRadioOption($lng->txt("lhist_all"), "0");
+        $radg->addOption($op1);
+        $op2 = new ilRadioOption($lng->txt("lhist_selected"), "1");
+        $radg->addOption($op2);
+        $form->addItem($radg);
 
 
-		// select type
-		$options = [];
-		foreach ($this->service->provider()->getAllProviders(true) as $p)
-		{
-			$options[get_class($p)] = $p->getName();
-		}
-		$si = new ilMultiSelectInputGUI($lng->txt(""), "class");
-		$si->setHeight(130);
-		if (!$a_insert) {
-			$si->setValue($this->content_obj->getClasses());
-			if (count($this->content_obj->getClasses()) > 0) {
-				$radg->setValue(1);
-			}
-		}
-		$si->setOptions($options);
-		$op2->addSubItem($si);
+        // select type
+        $options = [];
+        foreach ($this->service->provider()->getAllProviders(true) as $p) {
+            $options[get_class($p)] = $p->getName();
+        }
+        $si = new ilMultiSelectInputGUI($lng->txt(""), "class");
+        $si->setHeight(130);
+        if (!$a_insert) {
+            $si->setValue($this->content_obj->getClasses());
+            if (count($this->content_obj->getClasses()) > 0) {
+                $radg->setValue(1);
+            }
+        }
+        $si->setOptions($options);
+        $op2->addSubItem($si);
 
+        if ($a_insert) {
+            $form->addCommandButton("create_lhist", $this->lng->txt("insert"));
+            $form->addCommandButton("cancelCreate", $this->lng->txt("cancel"));
+        } else {
+            $form->addCommandButton("update", $this->lng->txt("save"));
+            $form->addCommandButton("cancelUpdate", $this->lng->txt("cancel"));
+        }
 
+        return $form;
+    }
 
-		if ($a_insert)
-		{
-			$form->addCommandButton("create_lhist", $this->lng->txt("insert"));
-			$form->addCommandButton("cancelCreate", $this->lng->txt("cancel"));
-		}
-		else
-		{
-			$form->addCommandButton("update", $this->lng->txt("save"));
-			$form->addCommandButton("cancelUpdate", $this->lng->txt("cancel"));
-		}
+    /**
+     * Create new learning history component
+     */
+    public function create(): void
+    {
+        $valid = false;
 
-		return $form;
-	}
+        $form = $this->initForm(true);
+        if ($form->checkInput()) {
+            //$data = $form->getInput("skill_id");
+            $valid = true;
+        }
 
+        if ($valid) {
+            $this->content_obj = new ilPCLearningHistory($this->getPage());
+            $this->content_obj->create($this->pg_obj, $this->hier_id, $this->pc_id);
+            $this->setAttributesFromInput($form);
+            $this->updated = $this->pg_obj->update();
+            if ($this->updated === true) {
+                $this->ctrl->returnToParent($this, "jump" . $this->hier_id);
+            }
+        }
 
-	/**
-	 * Create new learning history component
-	 */
-	function create()
-	{
-		$valid = false;
-		
-		$form = $this->initForm(true);
-		if($form->checkInput())
-		{
-			//$data = $form->getInput("skill_id");
-			$valid = true;
-		}
+        $form->setValuesByPost();
+        $this->insert($form);
+    }
 
-		if($valid)
-		{
-			$this->content_obj = new ilPCLearningHistory($this->getPage());
-			$this->content_obj->create($this->pg_obj, $this->hier_id, $this->pc_id);
-			$this->setAttributesFromInput($form);
-			$this->updated = $this->pg_obj->update();
-			if ($this->updated === true)
-			{
-				$this->ctrl->returnToParent($this, "jump".$this->hier_id);
-			}
-		}
+    /**
+     * Update learning history component
+     */
+    public function update(): void
+    {
+        $form = $this->initForm();
+        if ($form->checkInput()) {
+            $this->setAttributesFromInput($form);
+            $this->updated = $this->pg_obj->update();
+            if ($this->updated === true) {
+                $this->tpl->setOnScreenMessage('info', $this->lng->txt("msg_obj_modified"), true);
+                $this->ctrl->returnToParent($this, "jump" . $this->hier_id);
+            }
+        }
 
-		$form->setValuesByPost();
-		return $this->insert($form);	
-	}
+        $this->pg_obj->addHierIDs();
+        $form->setValuesByPost();
+        $this->edit($form);
+    }
 
-	/**
-	 * Update learning history component
-	 */
-	function update()
-	{
-		$form = $this->initForm();
-		if($form->checkInput())
-		{
-			$this->setAttributesFromInput($form);
-			$this->updated = $this->pg_obj->update();
-			if ($this->updated === true)
-			{
-				ilUtil::sendInfo($this->lng->txt("msg_obj_modified"), true);
-				$this->ctrl->returnToParent($this, "jump".$this->hier_id);
-			}
-		}
+    protected function setAttributesFromInput(ilPropertyFormGUI $form): void
+    {
+        /** @var ilDateDurationInputGUI $item */
+        $item = $form->getItemByPostVar("period");
+        $from = (is_null($item->getStart()))
+            ? ""
+            : $item->getStart()->get(IL_CAL_DATE);
+        $to = (is_null($item->getEnd()))
+            ? ""
+            : $item->getEnd()->get(IL_CAL_DATE);
 
-		$this->pg_obj->addHierIDs();
-		$form->setValuesByPost();
-		return $this->edit($form);	
-	}
+        $this->content_obj->setFrom($from);
+        $this->content_obj->setTo($to);
+        $classes = ($form->getInput("mode") == "1" && is_array($form->getInput("class")))
+            ? $form->getInput("class")
+            : array();
+        $this->content_obj->setClasses($classes);
+    }
 
-	/**
-	 *
-	 *
-	 * @param
-	 * @return
-	 */
-	protected function setAttributesFromInput($form)
-	{
-		/** @var ilDurationInputGUI $item */
-		$item = $form->getItemByPostVar("period");
-		$from = (is_null($item->getStart()))
-			? ""
-			: $item->getStart()->get(IL_CAL_DATE);
-		$to = (is_null($item->getEnd()))
-			? ""
-			: $item->getEnd()->get(IL_CAL_DATE);
+    public static function getPlaceholderPresentation(): string
+    {
+        global $DIC;
 
-		$this->content_obj->setFrom($from);
-		$this->content_obj->setTo($to);
-		$classes = ($form->getInput("mode") == "1" && is_array($form->getInput("class")))
-			? $form->getInput("class")
-			: array();
-		$this->content_obj->setClasses($classes);
-	}
+        $lng = $DIC->language();
+        $lng->loadLanguageModule("lhist");
 
-	/**
-	 * Get placeholder presentation
-	 *
-	 * @param
-	 * @return
-	 */
-	static public function getPlaceholderPresentation()
-	{
-		global $DIC;
+        // @todo we need a ks element for this
+        $content = '<div style="margin:5px" class="ilBox"><h3>' . $lng->txt("lhist_lhist") . '</h3><div class="il_Description_no_margin">' .
+            $lng->txt("lhist_cont_placeholder_text") . '</div></div>';
 
-		$lng = $DIC->language();
-		$lng->loadLanguageModule("lhist");
-
-		// @todo we need a ks element for this
-		$content = '<div style="margin:5px" class="ilBox"><h3>'.$lng->txt("lhist_lhist").'</h3><div class="il_Description_no_margin">'.
-			$lng->txt("lhist_cont_placeholder_text").'</div></div>';
-
-		return $content;
-	}
-
+        return $content;
+    }
 }
-
-?>

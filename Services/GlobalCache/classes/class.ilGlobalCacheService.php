@@ -1,310 +1,177 @@
 <?php
 
 /**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
  * Class ilGlobalCacheService
- *
  * Base class for all concrete cache implementations.
- *
  * @author  Fabian Schmid <fs@studer-raimann.ch>
  * @version 1.0.1
  */
-abstract class ilGlobalCacheService {
+abstract class ilGlobalCacheService implements ilGlobalCacheServiceInterface
+{
+    protected int $current_time = 0;
+    protected array $valid_keys = array();
+    protected static array $active = array();
+    protected static array $installable = array();
+    protected string $service_id = '';
+    protected string $component = '';
+    protected int $service_type = ilGlobalCache::TYPE_STATIC;
+    protected string $valid_key_hash = '';
 
-	/**
-	 * @var int
-	 */
-	protected $current_time = 0;
-	/**
-	 * @var array
-	 */
-	protected $valid_keys = array();
-	/**
-	 * @var bool
-	 */
-	protected static $active = array();
-	/**
-	 * @var bool
-	 */
-	protected static $installable = array();
-	/**
-	 * @var string
-	 */
-	protected $service_id = '';
-	/**
-	 * @var string
-	 */
-	protected $component = '';
-	/**
-	 * @var int
-	 */
-	protected $service_type = ilGlobalCache::TYPE_STATIC;
-	/**
-	 * @var string
-	 */
-	protected $valid_key_hash = '';
+    /**
+     * ilGlobalCacheService constructor.
+     */
+    public function __construct(string $service_id, string $component)
+    {
+        $this->setComponent($component);
+        $this->setServiceId($service_id);
+        self::$active[static::class] = $this->getActive();
+        self::$installable[static::class] = ($this->getInstallable() && $this->checkMemory());
+    }
 
+    abstract protected function getActive(): bool;
 
-	/**
-	 * @param $service_id
-	 * @param $component
-	 */
-	public function __construct($service_id, $component) {
-		$this->setComponent($component);
-		$this->setServiceId($service_id);
-		self::$active[get_called_class()] = $this->getActive();
-		self::$installable[get_called_class()] = ($this->getInstallable() AND $this->checkMemory());
-	}
+    abstract protected function getInstallable(): bool;
 
+    /**
+     * @param mixed $serialized_value
+     * @return mixed
+     */
+    abstract public function unserialize($serialized_value);
 
-	/**
-	 * @return bool
-	 */
-	abstract protected function getActive();
+    /**
+     * @return mixed
+     */
+    abstract public function get(string $key);
 
+    /**
+     * @param mixed $serialized_value
+     */
+    abstract public function set(string $key, $serialized_value, int $ttl = null): bool;
 
-	/**
-	 * @return bool
-	 */
-	abstract protected function getInstallable();
+    /**
+     * @param mixed $value
+     * @return mixed
+     */
+    abstract public function serialize($value);
 
+    public function getServiceId(): string
+    {
+        return $this->service_id;
+    }
 
-	/**
-	 * @param $serialized_value
-	 *
-	 * @return mixed
-	 */
-	abstract public function unserialize($serialized_value);
+    public function setServiceId(string $service_id): void
+    {
+        $this->service_id = $service_id;
+    }
 
+    public function getComponent(): string
+    {
+        return $this->component;
+    }
 
-	/**
-	 * @param      $key
-	 *
-	 * @return mixed
-	 */
-	abstract public function get($key);
+    public function setComponent(string $component): void
+    {
+        $this->component = $component;
+    }
 
+    public function isActive(): bool
+    {
+        return self::$active[static::class];
+    }
 
-	/**
-	 * @param      $key
-	 * @param      $serialized_value
-	 * @param null $ttl
-	 *
-	 * @return bool
-	 */
-	abstract public function set($key, $serialized_value, $ttl = null);
+    public function isInstallable(): bool
+    {
+        return self::$installable[static::class];
+    }
 
+    public function returnKey(string $key): string
+    {
+        return $this->getServiceId() . '_' . $this->getComponent() . '_' . $key;
+    }
 
-	/**
-	 * @param $value
-	 *
-	 * @return mixed
-	 */
-	abstract public function serialize($value);
+    public function getInfo(): array
+    {
+        return array();
+    }
 
+    public function getInstallationFailureReason(): string
+    {
+        if (!$this->getInstallable()) {
+            return 'Not installed';
+        }
+        if (!$this->checkMemory()) {
+            return 'Not enough Cache-Memory, set to at least ' . $this->getMinMemory() . 'M';
+        }
 
-	/**
-	 * @return string
-	 */
-	public function getServiceId() {
-		return $this->service_id;
-	}
+        return 'Unknown reason';
+    }
 
+    protected function getMemoryLimit(): string
+    {
+        return '9999M';
+    }
 
-	/**
-	 * @param string $service_id
-	 */
-	public function setServiceId($service_id) {
-		$this->service_id = $service_id;
-	}
+    protected function getMinMemory(): int
+    {
+        return 0;
+    }
 
+    protected function checkMemory(): bool
+    {
+        $matches = [];
+        $memory_limit = $this->getMemoryLimit();
+        if (preg_match('#(\d*)([M|K])#uim', $memory_limit, $matches)) {
+            if ($matches[2] === 'M') {
+                $memory_limit = $matches[1] * 1024 * 1024;
+            } elseif ($matches[2] === 'K') {
+                $memory_limit = $matches[1] * 1024;
+            }
+        } else {
+            $memory_limit *= 1024 * 1024; // nnnM -> nnn MB
+        }
 
-	/**
-	 * @return string
-	 */
-	public function getComponent() {
-		return $this->component;
-	}
+        return ($memory_limit >= $this->getMinMemory() * 1024 * 1024);
+    }
 
+    abstract public function exists(string $key): bool;
 
-	/**
-	 * @param string $component
-	 */
-	public function setComponent($component) {
-		$this->component = $component;
-	}
+    abstract public function delete(string $key): bool;
 
+    abstract public function flush(bool $complete = false): bool;
 
-	/**
-	 * @return bool
-	 */
-	public function isActive() {
-		return self::$active[get_called_class()];
-	}
+    public function setServiceType(int $service_type): void
+    {
+        $this->service_type = $service_type;
+    }
 
+    public function getServiceType(): int
+    {
+        return $this->service_type;
+    }
 
-	/**
-	 * @return bool
-	 */
-	public function isInstallable() {
-		return self::$installable[get_called_class()];
-	}
+    public function setValid(string $key): void
+    {
+        $this->valid_keys[$key] = true;
+    }
 
-
-	/**
-	 * @param $key
-	 *
-	 * @return string
-	 */
-	public function returnKey($key) {
-		return $str = $this->getServiceId() . '_' . $this->getComponent() . '_' . $key;
-	}
-
-
-	/**
-	 * @return array
-	 */
-	public function getInfo() {
-		return array();
-	}
-
-
-	/**
-	 * @return string
-	 */
-	public function getInstallationFailureReason() {
-		if (!$this->getInstallable()) {
-			return 'Not installed';
-		}
-		if (!$this->checkMemory()) {
-			return 'Not enough Cache-Memory, set to at least ' . $this->getMinMemory() . 'M';
-		}
-
-		return 'Unknown reason';
-	}
-
-
-	/**
-	 * @return int
-	 */
-	protected function getMemoryLimit() {
-		return 9999;
-	}
-
-
-	/**
-	 * @return int
-	 */
-	protected function getMinMemory() {
-		return 0;
-	}
-
-
-	/**
-	 * @return bool
-	 */
-	protected function checkMemory() {
-		$matches = array();
-		$memory_limit = $this->getMemoryLimit();
-		if (preg_match('/([0-9]*)([M|K])/uism', $memory_limit, $matches)) {
-			switch ($matches[2]) {
-				case 'M':
-					$memory_limit = $matches[1] * 1024 * 1024; // nnnM -> nnn MB
-					break;
-				case 'K':
-					$memory_limit = $matches[1] * 1024; // nnnK -> nnn KB
-					break;
-			}
-		} else {
-			$memory_limit = $memory_limit * 1024 * 1024; // nnnM -> nnn MB
-		}
-
-		return ($memory_limit >= $this->getMinMemory() * 1024 * 1024);
-	}
-
-
-	/**
-	 * @param $key
-	 *
-	 * @return bool
-	 */
-	abstract public function exists($key);
-
-
-	/**
-	 * @param      $key
-	 *
-	 * @return bool
-	 */
-	abstract public function delete($key);
-
-
-	/**
-	 * @return mixed
-	 */
-	abstract public function flush();
-
-
-	/**
-	 * @param int $service_type
-	 */
-	public function setServiceType($service_type) {
-		$this->service_type = $service_type;
-	}
-
-
-	/**
-	 * @return int
-	 */
-	public function getServiceType() {
-		return $this->service_type;
-	}
-
-
-	/**
-	 * Declare a key as valid. If the key is already known no action is taken.
-	 *
-	 * This method exists only for legacy reasons and has only a real function
-	 * in combination with XCache.
-	 *
-	 * @param string $key The key which should be declared as valid.
-	 *
-	 * @return void
-	 */
-	public function setValid($key) {
-		$this->valid_keys[$key] = true;
-	}
-
-	/**
-	 * Set the key as invalid.
-	 * This method will invalidate all keys if no argument is given or null.
-	 *
-	 * This method exists only for legacy reasons and has only a real function
-	 * in combination with XCache.
-	 *
-	 * @param string $key   The key which should be invalidated or null to invalidate all.
-	 *
-	 * @return void
-	 */
-	public function setInvalid($key = null) {
-		if ($key !== NULL) {
-			unset($this->valid_keys[$key]);
-		} else {
-			unset($this->valid_keys);
-		}
-	}
-
-
-	/**
-	 * Checks whether the cache key is valid or not.
-	 *
-	 * This method exists only for legacy reasons and has only a real function
-	 * in combination with XCache.
-	 *
-	 * @param string $key   The key which should be checked.
-	 *
-	 * @return bool True if the key is valid otherwise false.
-	 */
-	public function isValid($key) {
-		return isset($this->valid_keys[$key]);
-	}
+    public function isValid(string $key): bool
+    {
+        return isset($this->valid_keys[$key]);
+    }
 }

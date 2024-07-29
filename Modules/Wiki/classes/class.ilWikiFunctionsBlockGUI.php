@@ -1,378 +1,372 @@
 <?php
-/* Copyright (c) 1998-2011 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-include_once("Services/Block/classes/class.ilBlockGUI.php");
 
 /**
-* BlockGUI class for wiki functions block
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* @version $Id$
-*
-* @ingroup ModulesWiki
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * BlockGUI class for wiki functions block
+ *
+ * @author Alex Killing <alex.killing@gmx.de>
+ */
 class ilWikiFunctionsBlockGUI extends ilBlockGUI
 {
-	static $block_type = "wikiside";
-	static $st_data;
-	
-	/**
-	* Constructor
-	*/
-	function __construct()
-	{
-		global $DIC;
+    public static $block_type = "wikiside";
+    public static $st_data;
+    protected int $ref_id;
+    protected ilWikiPage $pageob;
+    protected ilObjWiki $wiki;
 
-		$this->ctrl = $DIC->ctrl();
-		$this->lng = $DIC->language();
-		$this->user = $DIC->user();
-		$this->access = $DIC->access();
-		$lng = $DIC->language();
-		
-		parent::__construct();
-		
-		$lng->loadLanguageModule("wiki");
-		$this->setEnableNumInfo(false);
-		
-		$this->setTitle($lng->txt("wiki_functions"));
-		$this->allow_moving = false;
+    public function __construct()
+    {
+        global $DIC;
 
-		$this->ref_id = (int) $_GET["ref_id"];
+        $request = $DIC
+            ->wiki()
+            ->internal()
+            ->gui()
+            ->editing()
+            ->request();
 
-		$this->setPresentation(self::PRES_SEC_LEG);
-	}
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        $this->user = $DIC->user();
+        $this->access = $DIC->access();
+        $lng = $DIC->language();
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getBlockType(): string 
-	{
-		return self::$block_type;
-	}
+        parent::__construct();
 
-	/**
-	 * @inheritdoc
-	 */
-	protected function isRepositoryObject(): bool 
-	{
-		return false;
-	}
-	
-	/**
-	* Get Screen Mode for current command.
-	*/
-	static function getScreenMode()
-	{
-		return IL_SCREEN_SIDE;
-	}
+        $lng->loadLanguageModule("wiki");
+        $this->setEnableNumInfo(false);
 
-	/**
-	* execute command
-	*/
-	function executeCommand()
-	{
-		$ilCtrl = $this->ctrl;
+        $this->setTitle($lng->txt("wiki_functions"));
+        $this->allow_moving = false;
 
-		$next_class = $ilCtrl->getNextClass();
-		$cmd = $ilCtrl->getCmd("getHTML");
+        $this->ref_id = $request->getRefId();
 
-		switch ($next_class)
-		{
-			default:
-				return $this->$cmd();
-		}
-	}
+        $this->wiki = new ilObjWiki($this->ref_id);
 
-	/**
-	* Set Page Object
-	*
-	* @param	int	$a_pageob	Page Object
-	*/
-	function setPageObject($a_pageob)
-	{
-		$this->pageob = $a_pageob;
-	}
+        $this->setPresentation(self::PRES_SEC_LEG);
+    }
 
-	/**
-	* Get Page Object
-	*
-	* @return	int	Page Object
-	*/
-	function getPageObject()
-	{
-		return $this->pageob;
-	}
+    public function getBlockType(): string
+    {
+        return self::$block_type;
+    }
 
-	/**
-	* Get bloch HTML code.
-	*/
-	function getHTML()
-	{
-		$ilCtrl = $this->ctrl;
-		$lng = $this->lng;
-		$ilUser = $this->user;
-		
-		return parent::getHTML();
-	}
+    protected function isRepositoryObject(): bool
+    {
+        return false;
+    }
 
-	/**
-	* Fill data section
-	*/
-	function fillDataSection()
-	{
-		$this->setDataSection($this->getLegacyContent());
-	}
+    /**
+    * execute command
+    */
+    public function executeCommand()
+    {
+        $ilCtrl = $this->ctrl;
 
-	//
-	// New rendering
-	//
+        $next_class = $ilCtrl->getNextClass();
+        $cmd = $ilCtrl->getCmd("getHTML");
 
-	protected $new_rendering = true;
+        switch ($next_class) {
+            default:
+                return $this->$cmd();
+        }
+    }
+
+    public function setPageObject(ilWikiPage $a_pageob): void
+    {
+        $this->pageob = $a_pageob;
+    }
+
+    public function getPageObject(): ilWikiPage
+    {
+        return $this->pageob;
+    }
+
+    public function fillDataSection(): void
+    {
+        $this->setDataSection($this->getLegacyContent());
+    }
+
+    //
+    // New rendering
+    //
+
+    protected bool $new_rendering = true;
 
 
-	/**
-	 * @inheritdoc
-	 */
-	protected function getLegacyContent(): string
-	{
-		$ilCtrl = $this->ctrl;
-		$lng = $this->lng;
-		$ilAccess = $this->access;
-		
-		$tpl = new ilTemplate("tpl.wiki_side_block_content.html", true, true, "Modules/Wiki");
-		
-		$wp = $this->getPageObject();
+    protected function getLegacyContent(): string
+    {
+        $ilCtrl = $this->ctrl;
+        $lng = $this->lng;
+        $ilAccess = $this->access;
 
-		// info
-		$actions[] = array(
-			"txt" => $lng->txt("info_short"),
-			"href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "infoScreen")
-			);
+        $tpl = new ilTemplate("tpl.wiki_side_block_content.html", true, true, "Modules/Wiki");
 
-		// recent changes
-		$actions[] = array(
-			"txt" => $lng->txt("wiki_recent_changes"),
-			"href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "recentChanges")
-			);
+        $wp = $this->getPageObject();
 
-		foreach ($actions as $a)
-		{
-			$tpl->setCurrentBlock("action");
-			$tpl->setVariable("HREF", $a["href"]);
-			$tpl->setVariable("TXT", $a["txt"]);
-			$tpl->parseCurrentBlock();
+        // info
+        $actions[] = array(
+            "txt" => $lng->txt("info_short"),
+            "href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "infoScreen")
+            );
 
-			$tpl->touchBlock("item");
-		}
+        // recent changes
+        $actions[] = array(
+            "txt" => $lng->txt("wiki_recent_changes"),
+            "href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "recentChanges")
+            );
+
+        foreach ($actions as $a) {
+            $tpl->setCurrentBlock("action");
+            $tpl->setVariable("HREF", $a["href"]);
+            $tpl->setVariable("TXT", $a["txt"]);
+            $tpl->parseCurrentBlock();
+
+            $tpl->touchBlock("item");
+        }
 
 
-		$actions = array();
-		
-		// all pages
-		$actions[] = array(
-			"txt" => $lng->txt("wiki_all_pages"),
-			"href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "allPages")
-			);
+        $actions = array();
 
-		// new pages
-		$actions[] = array(
-			"txt" => $lng->txt("wiki_new_pages"),
-			"href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "newPages")
-			);
+        // all pages
+        $actions[] = array(
+            "txt" => $lng->txt("wiki_all_pages"),
+            "href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "allPages")
+            );
 
-		// popular pages
-		$actions[] = array(
-			"txt" => $lng->txt("wiki_popular_pages"),
-			"href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "popularPages")
-			);
+        // new pages
+        $actions[] = array(
+            "txt" => $lng->txt("wiki_new_pages"),
+            "href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "newPages")
+            );
 
-		// orphaned pages
-		$actions[] = array(
-			"txt" => $lng->txt("wiki_orphaned_pages"),
-			"href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "orphanedPages")
-			);
+        // popular pages
+        $actions[] = array(
+            "txt" => $lng->txt("wiki_popular_pages"),
+            "href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "popularPages")
+            );
 
-
-		// page lists
-		include_once("./Services/UIComponent/AdvancedSelectionList/classes/class.ilAdvancedSelectionListGUI.php");
-		$list = new ilAdvancedSelectionListGUI();
-		$list->setListTitle($lng->txt("wiki_page_lists"));
-		$list->setStyle(ilAdvancedSelectionListGUI::STYLE_LINK);
-		$list->setId("wiki_pglists");
-
-		foreach ($actions as $a)
-		{
-			$list->addItem($a["txt"], "",
-				$a["href"]);
-		}
-		$tpl->setCurrentBlock("plain");
-		$tpl->setVariable("PLAIN", $list->getHTML());
-		$tpl->parseCurrentBlock();
-		$tpl->touchBlock("item");
-
-		
-		// page actions
-		$list = new ilAdvancedSelectionListGUI();
-		$list->setStyle(ilAdvancedSelectionListGUI::STYLE_LINK);
-		$list->setListTitle($lng->txt("wiki_page_actions"));
-		$list->setId("wiki_pgactions");
-
-		if ($ilAccess->checkAccess("write", "", $this->ref_id))
-		{
-			// rating
-			if (ilObjWiki::_lookupRating($this->getPageObject()->getWikiId()))
-			{
-				if (!$this->getPageObject()->getRating())
-				{
-					$list->addItem($lng->txt("wiki_activate_page_rating"), "",
-						$ilCtrl->getLinkTargetByClass("ilwikipagegui", "activateWikiPageRating"));
-				} else
-				{
-					$list->addItem($lng->txt("wiki_deactivate_page_rating"), "",
-						$ilCtrl->getLinkTargetByClass("ilwikipagegui", "deactivateWikiPageRating"));
-				}
-			}
-		}
-
-		if ($ilAccess->checkAccess("write", "", $this->ref_id) ||
-			$ilAccess->checkAccess("edit_page_meta", "", $this->ref_id))
-		{
-			// unhide advmd?
-			include_once 'Services/AdvancedMetaData/classes/class.ilAdvancedMDRecord.php';
-			if((bool)sizeof(ilAdvancedMDRecord::_getSelectedRecordsByObject("wiki", $this->ref_id, "wpg")) &&
-				ilWikiPage::lookupAdvancedMetadataHidden($this->getPageObject()->getId()))
-			{	
-				$list->addItem($lng->txt("wiki_unhide_meta_adv_records"), "",
-						$ilCtrl->getLinkTargetByClass("ilwikipagegui", "unhideAdvancedMetaData"));
-			}
-		}
-
-		if (($ilAccess->checkAccess("edit_content", "", $this->ref_id) && !$this->getPageObject()->getBlocked())
-			|| $ilAccess->checkAccess("write", "", $this->ref_id))
-		{
-			// rename
-			$list->addItem($lng->txt("wiki_rename_page"), "",
-				$ilCtrl->getLinkTargetByClass("ilwikipagegui", "renameWikiPage"));
-		}
-
-		include_once("./Modules/Wiki/classes/class.ilWikiPerm.php");
-		if (ilWikiPerm::check("activate_wiki_protection", $this->ref_id))
-		{
-			// block/unblock
-			if ($this->getPageObject()->getBlocked())
-			{
-				$list->addItem($lng->txt("wiki_unblock_page"), "",
-					$ilCtrl->getLinkTargetByClass("ilwikipagegui", "unblockWikiPage"));
-			}
-			else
-			{
-				$list->addItem($lng->txt("wiki_block_page"), "",
-					$ilCtrl->getLinkTargetByClass("ilwikipagegui", "blockWikiPage"));
-			}
-		}
-
-		include_once("./Modules/Wiki/classes/class.ilWikiPerm.php");
-		if (ilWikiPerm::check("delete_wiki_pages", $this->ref_id))
-		{
-			// delete page
-			$st_page = ilObjWiki::_lookupStartPage($this->getPageObject()->getParentId());
-			if ($st_page != $this->getPageObject()->getTitle())
-			{
-				$list->addItem($lng->txt("wiki_delete_page"), "",
-					$ilCtrl->getLinkTargetByClass("ilwikipagegui", "deleteWikiPageConfirmationScreen"));
-			}
-		}
-		
-		if ($ilAccess->checkAccess("write", "", $this->ref_id))
-		{
-
-			include_once "Modules/Wiki/classes/class.ilWikiPageTemplate.php";
-			$wpt = new ilWikiPageTemplate($this->getPageObject()->getParentId());
-			if(!$wpt->isPageTemplate($this->getPageObject()->getId()))
-			{
-				$list->addItem($lng->txt("wiki_add_template"), "",
-					$ilCtrl->getLinkTargetByClass("ilwikipagetemplategui", "addPageTemplateFromPageAction"));
-			}		
-			else
-			{
-				$list->addItem($lng->txt("wiki_remove_template_status"), "",
-					$ilCtrl->getLinkTargetByClass("ilwikipagetemplategui", "removePageTemplateFromPageAction"));
-			}
-		}
-
-		if ($ilAccess->checkAccess("write", "", $this->ref_id) ||
-			$ilAccess->checkAccess("read", "", $this->ref_id))
-		{
-			$tpl->setCurrentBlock("plain");
-			$tpl->setVariable("PLAIN", $list->getHTML());
-			$tpl->parseCurrentBlock();
-			$tpl->touchBlock("item");
-		}
-
-			// permissions
-//		if ($ilAccess->checkAccess('edit_permission', "", $this->ref_id))
-//		{
-//			$actions[] = array(
-//				"txt" => $lng->txt("perm_settings"),
-//				"href" => $ilCtrl->getLinkTargetByClass(array("ilobjwikigui", "ilpermissiongui"), "perm")
-//				);
-//		}
-
-		$actions = array();
-		
-		// settings
-		if ($ilAccess->checkAccess('write', "", $this->ref_id))
-		{
-			$actions[] = array(
-				"txt" => $lng->txt("wiki_contributors"),
-				"href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "listContributors")
-				);
-		}
-
-		// manage
-		if (ilWikiPerm::check("wiki_html_export", $this->ref_id))
-		{
-			$actions[] = array(
-				"txt" => $lng->txt("wiki_html_export"),
-				"id" => "il_wiki_user_export",
-				"href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "initUserHTMLExport")
-			);
-		}
-
-		// manage
-		if ($ilAccess->checkAccess('write', "", $this->ref_id))
-		{
-			$actions[] = array(
-				"txt" => $lng->txt("settings"),
-				"href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "editSettings")
-				);
-		}
-		else if ($ilAccess->checkAccess('statistics_read', "", $this->ref_id))
-		{
-			$actions[] = array(
-				"txt" => $lng->txt("statistics"),
-				"href" => $ilCtrl->getLinkTargetByClass(array("ilobjwikigui", "ilwikistatgui"), "initial")
-				);
-		}
-
-		foreach ($actions as $a)
-		{
-			$tpl->setCurrentBlock("action");
-			$tpl->setVariable("HREF", $a["href"]);
-			$tpl->setVariable("TXT", $a["txt"]);
-			if ($a["id"] != "")
-			{
-				$tpl->setVariable("ACT_ID", "id='".$a["id"]."'");
-			}
-			$tpl->parseCurrentBlock();
-
-			$tpl->touchBlock("item");
-		}
-
-		return $tpl->get();
-	}
+        // orphaned pages
+        $actions[] = array(
+            "txt" => $lng->txt("wiki_orphaned_pages"),
+            "href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "orphanedPages")
+            );
 
 
+        // page lists
+        $list = new ilAdvancedSelectionListGUI();
+        $list->setListTitle($lng->txt("wiki_page_lists"));
+        $list->setStyle(ilAdvancedSelectionListGUI::STYLE_LINK);
+        $list->setId("wiki_pglists");
+
+        foreach ($actions as $a) {
+            $list->addItem(
+                $a["txt"],
+                "",
+                $a["href"]
+            );
+        }
+        $tpl->setCurrentBlock("plain");
+        $tpl->setVariable("PLAIN", $list->getHTML());
+        $tpl->parseCurrentBlock();
+        $tpl->touchBlock("item");
+
+
+        // page actions
+        $list = new ilAdvancedSelectionListGUI();
+        $list->setStyle(ilAdvancedSelectionListGUI::STYLE_LINK);
+        $list->setListTitle($lng->txt("wiki_page_actions"));
+        $list->setId("wiki_pgactions");
+
+        if ($ilAccess->checkAccess("write", "", $this->ref_id)) {
+            // rating
+            if (ilObjWiki::_lookupRating($this->getPageObject()->getWikiId())) {
+                if (!$this->getPageObject()->getRating()) {
+                    $list->addItem(
+                        $lng->txt("wiki_activate_page_rating"),
+                        "",
+                        $ilCtrl->getLinkTargetByClass("ilwikipagegui", "activateWikiPageRating")
+                    );
+                } else {
+                    $list->addItem(
+                        $lng->txt("wiki_deactivate_page_rating"),
+                        "",
+                        $ilCtrl->getLinkTargetByClass("ilwikipagegui", "deactivateWikiPageRating")
+                    );
+                }
+            }
+        }
+
+        if ($ilAccess->checkAccess("write", "", $this->ref_id) ||
+            $ilAccess->checkAccess("edit_page_meta", "", $this->ref_id)) {
+            // unhide advmd?
+            if (count(ilAdvancedMDRecord::_getSelectedRecordsByObject("wiki", $this->ref_id, "wpg")) &&
+                ilWikiPage::lookupAdvancedMetadataHidden($this->getPageObject()->getId())) {
+                $list->addItem(
+                    $lng->txt("wiki_unhide_meta_adv_records"),
+                    "",
+                    $ilCtrl->getLinkTargetByClass("ilwikipagegui", "unhideAdvancedMetaData")
+                );
+            }
+        }
+
+        if (($ilAccess->checkAccess("edit_content", "", $this->ref_id) && !$this->getPageObject()->getBlocked())
+            || $ilAccess->checkAccess("write", "", $this->ref_id)) {
+            // rename
+            $list->addItem(
+                $lng->txt("wiki_rename_page"),
+                "",
+                $ilCtrl->getLinkTargetByClass("ilwikipagegui", "renameWikiPage")
+            );
+        }
+
+        if (ilWikiPerm::check("activate_wiki_protection", $this->ref_id)) {
+            // block/unblock
+            if ($this->getPageObject()->getBlocked()) {
+                $list->addItem(
+                    $lng->txt("wiki_unblock_page"),
+                    "",
+                    $ilCtrl->getLinkTargetByClass("ilwikipagegui", "unblockWikiPage")
+                );
+            } else {
+                $list->addItem(
+                    $lng->txt("wiki_block_page"),
+                    "",
+                    $ilCtrl->getLinkTargetByClass("ilwikipagegui", "blockWikiPage")
+                );
+            }
+        }
+
+        if (ilWikiPerm::check("delete_wiki_pages", $this->ref_id)) {
+            // delete page
+            $st_page = ilObjWiki::_lookupStartPage($this->getPageObject()->getParentId());
+            if ($st_page !== $this->getPageObject()->getTitle()) {
+                $list->addItem(
+                    $lng->txt("wiki_delete_page"),
+                    "",
+                    $ilCtrl->getLinkTargetByClass("ilwikipagegui", "deleteWikiPageConfirmationScreen")
+                );
+            }
+        }
+
+        if ($ilAccess->checkAccess("write", "", $this->ref_id)) {
+            $wpt = new ilWikiPageTemplate($this->getPageObject()->getParentId());
+            if (!$wpt->isPageTemplate($this->getPageObject()->getId())) {
+                $list->addItem(
+                    $lng->txt("wiki_add_template"),
+                    "",
+                    $ilCtrl->getLinkTargetByClass("ilwikipagetemplategui", "addPageTemplateFromPageAction")
+                );
+            } else {
+                $list->addItem(
+                    $lng->txt("wiki_remove_template_status"),
+                    "",
+                    $ilCtrl->getLinkTargetByClass("ilwikipagetemplategui", "removePageTemplateFromPageAction")
+                );
+            }
+        }
+
+        if ($ilAccess->checkAccess("write", "", $this->ref_id) ||
+            $ilAccess->checkAccess("read", "", $this->ref_id)) {
+            $tpl->setCurrentBlock("plain");
+            $tpl->setVariable("PLAIN", $list->getHTML());
+            $tpl->parseCurrentBlock();
+            $tpl->touchBlock("item");
+        }
+
+        // permissions
+        //		if ($ilAccess->checkAccess('edit_permission', "", $this->ref_id))
+        //		{
+        //			$actions[] = array(
+        //				"txt" => $lng->txt("perm_settings"),
+        //				"href" => $ilCtrl->getLinkTargetByClass(array("ilobjwikigui", "ilpermissiongui"), "perm")
+        //				);
+        //		}
+
+        $actions = array();
+
+        // settings
+        if ($ilAccess->checkAccess('write', "", $this->ref_id)) {
+            $actions[] = array(
+                "txt" => $lng->txt("wiki_contributors"),
+                "href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "listContributors")
+                );
+        }
+
+        // manage
+        if (ilWikiPerm::check("wiki_html_export", $this->ref_id)) {
+            if (!$this->wiki->isCommentsExportPossible()) {
+                $actions[] = array(
+                    "txt" => $lng->txt("wiki_html_export"),
+                    "id" => "il_wiki_user_export",
+                    "href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "initUserHTMLExport")
+                );
+            } else {
+                $this->lng->loadLanguageModule("note");
+                $comments_helper = new \ILIAS\Notes\Export\ExportHelperGUI();
+                $comments_modal = $comments_helper->getCommentIncludeModalDialog(
+                    $this->lng->txt("wiki_html_export"),
+                    $this->lng->txt("note_html_export_include_comments"),
+                    "il.Wiki.Pres.performHTMLExport();",
+                    "il.Wiki.Pres.performHTMLExportWithComments();",
+                    true
+                );
+                $actions[] = array(
+                    "txt" => $lng->txt("wiki_html_export"),
+                    "modal" => $comments_modal
+                );
+            }
+        }
+
+        // manage
+        if ($ilAccess->checkAccess('write', "", $this->ref_id)) {
+            $actions[] = array(
+                "txt" => $lng->txt("settings"),
+                "href" => $ilCtrl->getLinkTargetByClass("ilobjwikigui", "editSettings")
+                );
+        } elseif ($ilAccess->checkAccess('statistics_read', "", $this->ref_id)) {
+            $actions[] = array(
+                "txt" => $lng->txt("statistics"),
+                "href" => $ilCtrl->getLinkTargetByClass(array("ilobjwikigui", "ilwikistatgui"), "initial")
+                );
+        }
+
+        $modal_html = "";
+        foreach ($actions as $a) {
+            $tpl->setCurrentBlock("action");
+            if (($a["modal"] ?? "") != "") {
+                $signal = $a["modal"]->getShowSignal();
+                $onclick = "$(document).trigger('" . $signal . "', {'id': '" . $signal . "','triggerer':$(this), 'options': JSON.parse('[]')}); return false;";
+                $tpl->setVariable("ONCLICK", ' onclick="' . $onclick . '" ');
+                $tpl->setVariable("HREF", "#");
+                $modal_html .= $this->ui->renderer()->render($a["modal"]);
+            } else {
+                $tpl->setVariable("HREF", $a["href"]);
+            }
+            $tpl->setVariable("TXT", $a["txt"]);
+            if (($a["id"] ?? "") != "") {
+                $tpl->setVariable("ACT_ID", "id='" . $a["id"] . "'");
+            }
+            $tpl->parseCurrentBlock();
+
+            $tpl->touchBlock("item");
+        }
+
+        return $tpl->get() . $modal_html;
+    }
 }
-
-?>

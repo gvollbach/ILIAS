@@ -1,179 +1,148 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2001 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
 
+declare(strict_types=0);
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
-* class ilTimingAccepted
-*
-* @author Stefan Meyer <meyer@leifos.com> 
-* @version $Id$
-* 
-*/
-
-
+ * class ilTimingAccepted
+ * @author Stefan Meyer <meyer@leifos.com>
+ */
 class ilTimingAccepted
 {
-	var $ilErr;
-	var $ilDB;
-	var $lng;
+    protected ilDBInterface $db;
 
-	/**
-	 * Constructor
-	 * @param int $crs_id
-	 * @param int $a_usr_id
-	 */
-	public function __construct($crs_id,$a_usr_id)
-	{
-		global $DIC;
+    private int $obj_id = 0;
+    private int $user_id = 0;
+    private bool $visible = false;
+    private string $remark = '';
+    private bool $accepted = false;
 
-		$ilErr = $DIC['ilErr'];
-		$ilDB = $DIC['ilDB'];
-		$lng = $DIC['lng'];
-		$tree = $DIC['tree'];
+    public function __construct(int $crs_id, int $a_usr_id)
+    {
+        global $DIC;
 
-		$this->ilErr =& $ilErr;
-		$this->db  =& $ilDB;
-		$this->lng =& $lng;
+        $this->db = $DIC->database();
+        $this->obj_id = $crs_id;
+        $this->user_id = $a_usr_id;
+        $this->__read();
+    }
 
-		$this->crs_id = $crs_id;
-		$this->user_id = $a_usr_id;
+    public function getUserId(): int
+    {
+        return $this->user_id;
+    }
 
-		$this->__read();
-	}
-	
-	function getUserId()
-	{
-		return $this->user_id;
-	}
-	function getCourseId()
-	{
-		return $this->crs_id;
-	}
-	function accept($a_status)
-	{
-		$this->accepted = $a_status;
-	}
-	function isAccepted()
-	{
-		return $this->accepted ? true : false;
-	}
-	function setRemark($a_remark)
-	{
-		$this->remark = $a_remark;
-	}
-	function getRemark()
-	{
-		return $this->remark;
-	}
-	function setVisible($a_visible)
-	{
-		$this->visible = $a_visible;
-	}
-	function isVisible()
-	{
-		return $this->visible ? true : false;
-	}
+    public function getCourseId(): int
+    {
+        return $this->obj_id;
+    }
 
-	function update()
-	{
-		ilTimingAccepted::_delete($this->getCourseId(),$this->getUserId());
-		$this->create();
-		return true;
-	}
+    public function accept(bool $a_status): void
+    {
+        $this->accepted = $a_status;
+    }
 
-	function create()
-	{
-		global $DIC;
+    public function isAccepted(): bool
+    {
+        return $this->accepted;
+    }
 
-		$ilDB = $DIC['ilDB'];
-		
-		$query = "INSERT INTO crs_timings_usr_accept (crs_id,usr_id,visible,accept,remark) ".
-			"VALUES( ".
-			$ilDB->quote($this->getCourseId() ,'integer').", ".
-			$ilDB->quote($this->getUserId() ,'integer').", ".
-			$ilDB->quote($this->isVisible() ,'integer').", ".
-			$ilDB->quote($this->isAccepted() ,'integer').", ".
-			$ilDB->quote($this->getRemark() ,'text')." ".
-			")";
-		$res = $ilDB->manipulate($query);
-	}
+    public function setRemark(string $a_remark): void
+    {
+        $this->remark = $a_remark;
+    }
 
-	function delete()
-	{
-		return ilTimingAccepted::_delete($this->getCourseId(),$this->getUserId());
-	}
+    public function getRemark(): string
+    {
+        return $this->remark;
+    }
 
-	function _delete($a_crs_id,$a_usr_id)
-	{
-		global $DIC;
+    public function setVisible(bool $a_visible): void
+    {
+        $this->visible = $a_visible;
+    }
 
-		$ilDB = $DIC['ilDB'];
+    public function isVisible(): bool
+    {
+        return $this->visible;
+    }
 
-		$query = "DELETE FROM crs_timings_usr_accept ".
-			"WHERE crs_id = ".$ilDB->quote($a_crs_id ,'integer')." ".
-			"AND usr_id = ".$ilDB->quote($a_usr_id ,'integer')." ";
-		$res = $ilDB->manipulate($query);
-	}
+    public function update(): void
+    {
+        ilTimingAccepted::_delete($this->getCourseId(), $this->getUserId());
+        $this->create();
+    }
 
-	function _deleteByCourse($a_crs_id)
-	{
-		global $DIC;
+    public function create(): void
+    {
+        $query = "INSERT INTO crs_timings_usr_accept (crs_id,usr_id,visible,accept,remark) " .
+            "VALUES( " .
+            $this->db->quote($this->getCourseId(), 'integer') . ", " .
+            $this->db->quote($this->getUserId(), 'integer') . ", " .
+            $this->db->quote($this->isVisible(), 'integer') . ", " .
+            $this->db->quote($this->isAccepted(), 'integer') . ", " .
+            $this->db->quote($this->getRemark(), 'text') . " " .
+            ")";
+        $res = $this->db->manipulate($query);
+    }
 
-		$ilDB = $DIC['ilDB'];
+    public function delete(): void
+    {
+        ilTimingAccepted::_delete($this->getCourseId(), $this->getUserId());
+    }
 
-		$query = "DELETE FROM crs_timings_usr_accept ".
-			"WHERE crs_id = ".$ilDB->quote($a_crs_id ,'integer')." ";
-		$res = $ilDB->manipulate($query);
-	}
+    public function _delete(int $a_crs_id, int $a_usr_id): void
+    {
+        $query = "DELETE FROM crs_timings_usr_accept " .
+            "WHERE crs_id = " . $this->db->quote($a_crs_id, 'integer') . " " .
+            "AND usr_id = " . $this->db->quote($a_usr_id, 'integer') . " ";
+        $res = $this->db->manipulate($query);
+    }
 
-	public static function _deleteByUser($a_usr_id)
-	{
-		global $DIC;
+    public function _deleteByCourse(int $a_crs_id): void
+    {
+        $query = "DELETE FROM crs_timings_usr_accept " .
+            "WHERE crs_id = " . $this->db->quote($a_crs_id, 'integer') . " ";
+        $res = $this->db->manipulate($query);
+    }
 
-		$ilDB = $DIC['ilDB'];
+    public static function _deleteByUser(int $a_usr_id): void
+    {
+        global $DIC;
 
-		$query = "DELETE FROM crs_timings_usr_accept ".
-			"WHERE usr_id = ".$ilDB->quote($a_usr_id ,'integer')."";
-		$res = $ilDB->manipulate($query);
-	}
+        $ilDB = $DIC->database();
+        $query = "DELETE FROM crs_timings_usr_accept " .
+            "WHERE usr_id = " . $ilDB->quote($a_usr_id, 'integer') . "";
+        $res = $ilDB->manipulate($query);
+    }
 
-	function __read()
-	{
-		global $DIC;
-
-		$ilDB = $DIC['ilDB'];
-		
-		$query = "SELECT * FROM crs_timings_usr_accept ".
-			"WHERE crs_id = ".$ilDB->quote($this->getCourseId() ,'integer')." ".
-			"AND usr_id = ".$ilDB->quote($this->getUserId() ,'integer')."";
-		$res = $this->db->query($query);
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			$this->setVisible($row->visible);
-			$this->setRemark($row->remark);
-			$this->accept($row->accept);
-		}
-		return true;
-	}		
+    public function __read(): void
+    {
+        if ($this->obj_id <= 0 || $this->user_id <= 0) {
+            return;
+        }
+        $query = "SELECT * FROM crs_timings_usr_accept " .
+            "WHERE crs_id = " . $this->db->quote($this->getCourseId(), 'integer') . " " .
+            "AND usr_id = " . $this->db->quote($this->getUserId(), 'integer');
+        $res = $this->db->query($query);
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $this->setVisible((bool) $row->visible);
+            $this->setRemark((string) $row->remark);
+            $this->accept((bool) $row->accept);
+        }
+    }
 }
-?>

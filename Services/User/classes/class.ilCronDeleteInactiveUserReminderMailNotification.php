@@ -1,70 +1,70 @@
 <?php
-/* Copyright (c) 1998-2014 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once './Services/Mail/classes/class.ilMimeMailNotification.php';
-include_once './Services/Mail/classes/class.ilMimeMail.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Class ilCronDeleteInactiveUserReminderMailNotification
  * @author Guido Vollbach <gvollbach@databay.de>
- * @version $Id$
- * @package Services/User
  */
 class ilCronDeleteInactiveUserReminderMailNotification extends ilMimeMailNotification
 {
-	/**
-	 * Constructor
-	 */
-	public function __construct()
-	{
-		parent::__construct();
-	}
+    public function __construct()
+    {
+        parent::__construct();
+    }
 
-	/**
-	 * @param string $a_code
-	 */
-	protected function initLanguageByIso2Code($a_code = '')
-	{
-		parent::initLanguageByIso2Code($a_code);
-		$this->getLanguage()->loadLanguageModule('user');
-	}
 
-	public function send()
-	{
-		global $DIC;
+    protected function initLanguage(int $a_usr_id): void
+    {
+        parent::initLanguage($a_usr_id);
+        $this->getLanguage()->loadLanguageModule('user');
+    }
 
-		$lng = $DIC['lng'];
+    public function send(): void
+    {
+        global $DIC;
 
-		$additional_information = $this->getAdditionalInformation();
+        $lng = $DIC['lng'];
 
-		$old_val = ilDatePresentation::useRelativeDates();
-		ilDatePresentation::setUseRelativeDates(false);
+        $additional_information = $this->getAdditionalInformation();
 
-		foreach($this->getRecipients() as $rcp)
-		{
-			try
-			{
-				$this->handleCurrentRecipient($rcp);
-			}
-			catch(ilMailException $e)
-			{
-				continue;
-			}
+        $old_val = ilDatePresentation::useRelativeDates();
+        ilDatePresentation::setUseRelativeDates(false);
 
-			$this->initMimeMail();
-			$this->initLanguageByIso2Code();
+        foreach ($this->getRecipients() as $rcp) {
+            try {
+                $this->handleCurrentRecipient($rcp);
+            } catch (ilMailException $e) {
+                continue;
+            }
 
-			ilDatePresentation::setLanguage($this->getLanguage());
-			$date_for_deletion = ilDatePresentation::formatDate(new ilDate($additional_information["date"], IL_CAL_UNIX));
+            $this->initMimeMail();
 
-			$this->setSubject($this->getLanguage()->txt('del_mail_subject'));
-			$body = sprintf($this->getLanguage()->txt("del_mail_body"), $rcp->fullname,"\n\n",$additional_information["www"], $date_for_deletion);
-			$this->appendBody($body);
-			$this->appendBody(ilMail::_getInstallationSignature());
-			$this->sendMimeMail($this->getCurrentRecipient());
-		}
+            ilDatePresentation::setLanguage($this->getLanguage());
+            $date_for_deletion = ilDatePresentation::formatDate(new ilDate($additional_information["date"], IL_CAL_UNIX));
 
-		ilDatePresentation::setUseRelativeDates($old_val);
-		ilDatePresentation::setLanguage($lng);
-	}
-} 
+            $this->setSubject($this->getLanguage()->txt('del_mail_subject'));
+            $body = sprintf($this->getLanguage()->txt("del_mail_body"), $rcp->fullname, "\n\n", $additional_information["www"], $date_for_deletion);
+            $this->appendBody($body);
+            $this->appendBody(ilMail::_getInstallationSignature());
+            $this->sendMimeMail($this->getCurrentRecipient());
+        }
+
+        ilDatePresentation::setUseRelativeDates($old_val);
+        ilDatePresentation::setLanguage($lng);
+    }
+}

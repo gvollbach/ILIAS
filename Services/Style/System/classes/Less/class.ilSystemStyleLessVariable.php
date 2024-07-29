@@ -1,180 +1,145 @@
 <?php
-require_once("./Services/Style/System/classes/Less/class.ilSystemStyleLessItem.php");
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /***
  * Capsules data of a less variable in the variables to less file. A less variable has the following structure:
- *
  * //** Comment to describe the variable
  * @variable:   value;
- *
- *
- * @author            Timon Amstutz <timon.amstutz@ilub.unibe.ch>
- * @version           $Id$
- *
  */
 class ilSystemStyleLessVariable extends ilSystemStyleLessItem
 {
+    /**
+     * Name of the variable
+     */
+    protected string $name = '';
 
-	/**
-	 * Name of the variable
-	 *
-	 * @var string
-	 */
-	protected $name = "";
+    /**
+     * Value of the variable as set in the less file
+     */
+    protected string $value = '';
 
-	/**
-	 * Value of the variable as set in the less file
-	 *
-	 * @var string
-	 */
-	protected $value = "";
+    /**
+     * Comment to the variable as in the less file
+     */
+    protected string $comment = '';
 
-	/**
-	 * Comment to the variable as in the less file
-	 *
-	 * @var string
-	 */
-	protected $comment = "";
+    /**
+     * Less Category which encloses this variable
+     */
+    protected string $category_name = '';
 
-	/**
-	 * Less Category which encloses this variable
-	 * @var string
-	 */
-	protected $category_name = "";
+    /**
+     * Set references to other variables that are used by this exact variable
+     */
+    protected array $references = [];
 
-	/**
-	 * Set references to other variables that are used by this exact variable
-	 *
-	 * @var array
-	 */
-	protected $references = array();
-
-	/**
-	 * ilSystemStyleLessVariable constructor.
-	 * @param $name
-	 * @param $value
-	 * @param $comment
-	 * @param $category_name
-	 * @param $references
-	 */
-	public function __construct($name, $value, $comment,$category_name, $references)
-	{
-		$this->setName($name);
+    public function __construct(
+        string $name,
+        string $value,
+        string $comment,
+        string $category_name,
+        array $references = []
+    ) {
+        $this->setName($name);
         $this->setValue($value);
         $this->setCategoryName($category_name);
         $this->setComment($comment);
-		$this->setReferences($references);
-	}
+        $this->setReferences($references);
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getName()
-	{
-		return $this->name;
-	}
+    public function getName(): string
+    {
+        return $this->name;
+    }
 
-	/**
-	 * @param string $name
-	 */
-	public function setName($name)
-	{
-		$this->name = $name;
-	}
+    public function setName(string $name): void
+    {
+        $this->name = $name;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getValue()
-	{
-		return $this->value;
-	}
+    public function getValue(): string
+    {
+        return $this->value;
+    }
 
-	/**
-	 * @param string $value
-	 */
-	public function setValue($value)
-	{
-        if($this->getName() == "icon-font-path"){
-            if($value[0] != "\""){
-                $value = "\"".$value;;
+    public function setValue(string $value): void
+    {
+        if ($this->getName() == 'il-icon-font-path') {
+            if ($value[0] != "\"") {
+                $value = "\"" . $value;
             }
-            if(substr($value,-1,1) != "\""){
+            if (substr($value, -1, 1) != "\"") {
                 $value .= "\"";
             }
 
-            if($value == "\"../../libs/bower/bower_components/bootstrap/fonts/\""){
-                $value = "\"../../../../libs/bower/bower_components/bootstrap/fonts/\"";
+            if ($value == "\"../../node_modules/bootstrap/fonts/\"") {
+                $value = "\"../../../../node_modules/bootstrap/fonts/\"";
             }
         }
 
-        $value =  str_replace(PHP_EOL, '', $value);
-        $this->value  = str_replace("\n", '', $value);
+        $value = str_replace(PHP_EOL, '', $value);
+        $this->value = str_replace("\n", '', $value);
     }
 
-	/**
-	 * @return string
-	 */
-	public function getComment()
-	{
-		return $this->comment;
-	}
+    public function getComment(): string
+    {
+        return $this->comment;
+    }
 
-	/**
-	 * @param string $comment
-	 */
-	public function setComment($comment)
-	{
+    public function setComment(string $comment): void
+    {
         $comment = str_replace(PHP_EOL, '', $comment);
-        $this->comment  = str_replace("\n", '', $comment);
-	}
+        $this->comment = str_replace("\n", '', $comment);
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getCategoryName()
-	{
-		return $this->category_name;
-	}
+    public function getCategoryName(): string
+    {
+        return $this->category_name;
+    }
 
-	/**
-	 * @param string $category_name
-	 */
-	public function setCategoryName($category_name)
-	{
-		$this->category_name = $category_name;
-	}
+    public function setCategoryName(string $category_name): void
+    {
+        $this->category_name = $category_name;
+    }
 
-	/**
-	 * @return array
-	 */
-	public function getReferences()
-	{
-		return $this->references;
-	}
+    public function getReferences(): array
+    {
+        return $this->references;
+    }
 
-	/**
-	 * @param array $references
-	 */
-	public function setReferences($references)
-	{
-		$this->references = $references;
-	}
+    public function setReferences(array $references): void
+    {
+        $this->references = $references;
+    }
 
-
-	/**
-	 * This function will be needed to write the variable back to the less file and restore it's initial structure
-	 * in less.
-	 *
-	 * @return string
-	 */
-	public function __toString()
-	{
-		$content = "";
-		if($this->getComment()){
-			$content .= "//** ".$this->getComment()."\n";
-		}
-		$content .= "@".$this->getName().":\t\t". $this->getValue().";\n";
-		return $content;
-	}
+    /**
+     * This function will be needed to write the variable back to the less file and restore it's initial structure
+     * in less.
+     */
+    public function __toString(): string
+    {
+        $content = '';
+        if ($this->getComment()) {
+            $content .= '//** ' . $this->getComment() . "\n";
+        }
+        $content .= '@' . $this->getName() . ":\t\t" . $this->getValue() . ";\n";
+        return $content;
+    }
 }

@@ -1,253 +1,224 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 /**
- * Class ilObjLearningSequenceLearnerGUI
- */
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\HTTP\Wrapper\RequestWrapper;
+
 class ilObjLearningSequenceLearnerGUI
 {
-	const CMD_STANDARD = 'learnerView';
-	const CMD_EXTRO = 'learnerViewFinished';
-	const CMD_UNSUBSCRIBE = 'unsubscribe';
-	const CMD_VIEW = 'view';
-	const CMD_START = 'start';
-	const PARAM_LSO_NEXT_ITEM = 'lsoni';
-	const LSO_CMD_NEXT = 'lson';
-	const LSO_CMD_PREV = 'lsop';
+    public const CMD_STANDARD = 'learnerView';
+    public const CMD_EXTRO = 'learnerViewFinished';
+    public const CMD_UNSUBSCRIBE = 'unsubscribe';
+    public const CMD_VIEW = 'view';
+    public const CMD_START = 'start';
+    public const PARAM_LSO_NEXT_ITEM = 'lsoni';
+    public const LSO_CMD_NEXT = 'lson';
+    public const LSO_CMD_PREV = 'lsop';
 
-	public function __construct(
-		int $ls_ref_id,
-		bool $has_items,
-		$first_access,
-		int $usr_id,
-		ilAccess $access,
-		ilCtrl $ctrl,
-		ilLanguage $lng,
-		ilGlobalTemplateInterface $tpl,
-		ilToolbarGUI $toolbar,
-		ILIAS\UI\Factory $ui_factory,
-		ILIAS\UI\Renderer $ui_renderer,
-		ilLearningSequenceRoles $roles,
-		ilLearningSequenceSettings $settings,
-		ilLSCurriculumBuilder $curriculum_builder,
-		ilLSPlayer $player
-	) {
-		$this->ls_object = $ls_object;
-		$this->ls_ref_id = $ls_ref_id;
-		$this->has_items = $has_items;
-		$this->first_access = $first_access;
-		$this->usr_id = $usr_id;
-		$this->access = $access;
-		$this->ctrl = $ctrl;
-		$this->lng = $lng;
-		$this->tpl = $tpl;
-		$this->toolbar = $toolbar;
-		$this->ui_factory = $ui_factory;
-		$this->renderer = $ui_renderer;
-		$this->roles = $roles;
-		$this->settings = $settings;
-		$this->curriculum_builder = $curriculum_builder;
-		$this->player = $player;
-	}
-
-	public function executeCommand()
-	{
-		$cmd = $this->ctrl->getCmd();
-		switch ($cmd) {
-			case self::CMD_STANDARD:
-			case self::CMD_EXTRO:
-				$this->view($cmd);
-				break;
-			case self::CMD_START:
-				$this->addMember($this->usr_id);
-				$this->ctrl->redirect($this, self::CMD_VIEW);
-				break;
-			case self::CMD_UNSUBSCRIBE:
-				if ($this->userMayUnparticipate()) {
-					$this->roles->leave($this->usr_id);
-				}
-				$this->ctrl->redirect($this, self::CMD_STANDARD);
-				break;
-			case self::CMD_VIEW:
-				$this->play();
-				break;
-
-			case LSControlBuilder::CMD_CHECK_CURRENT_ITEM_LP:
-				$this->getCurrentItemLearningProgress();
-
-			default:
-				throw new ilException(
-					"ilObjLearningSequenceLearnerGUI: ".
-					"Command not supported: $cmd"
-				);
-		}
-	}
-
-	protected function view(string $cmd)
-	{
-		$content = $this->getWrappedHTML($this->getMainContent($cmd));
-		$curriculum = $this->getWrappedHTML($this->getCurriculum());
-
-		$this->initToolbar($cmd);
-		$this->tpl->setContent($content);
-		$this->tpl->setRightContent($curriculum);
-	}
-
-	protected function addMember(int $usr_id)
-	{
-		$admins = $this->roles->getLearningSequenceAdminIds();
-		if(! in_array($usr_id, $admins)) {
-			$this->roles->join($usr_id);
-		}
-	}
+    protected ilAccess $access;
+    protected ilCtrl $ctrl;
+    protected ilLanguage $lng;
+    protected ilGlobalTemplateInterface $tpl;
+    protected ilToolbarGUI $toolbar;
+    protected ILIAS\UI\Factory $ui_factory;
+    protected ILIAS\UI\Renderer $renderer;
+    protected ilLearningSequenceRoles $roles;
+    protected ilLearningSequenceSettings $settings;
+    protected ilLSCurriculumBuilder $curriculum_builder;
+    protected ilLSLaunchlinksBuilder $launchlinks_builder;
+    protected ilLSPlayer $player;
+    protected string $intro;
+    protected string $extro;
+    protected RequestWrapper $get;
 
 
-	protected function userMayUnparticipate(): bool
-	{
-		return $this->access->checkAccess('unparticipate', '', $this->ls_ref_id);
-	}
 
-	protected function userMayJoin(): bool
-	{
-		return $this->access->checkAccess('participate', '', $this->ls_ref_id);
-	}
+    public function __construct(
+        int $usr_id,
+        ilAccess $access,
+        ilCtrl $ctrl,
+        ilLanguage $lng,
+        ilGlobalTemplateInterface $tpl,
+        ilToolbarGUI $toolbar,
+        ILIAS\UI\Factory $ui_factory,
+        ILIAS\UI\Renderer $ui_renderer,
+        ilLearningSequenceRoles $roles,
+        ilLearningSequenceSettings $settings,
+        ilLSCurriculumBuilder $curriculum_builder,
+        ilLSLaunchlinksBuilder $launchlinks_builder,
+        ilLSPlayer $player,
+        string $intro,
+        string $extro,
+        RequestWrapper $get
+    ) {
+        $this->usr_id = $usr_id;
+        $this->access = $access;
+        $this->ctrl = $ctrl;
+        $this->lng = $lng;
+        $this->tpl = $tpl;
+        $this->toolbar = $toolbar;
+        $this->ui_factory = $ui_factory;
+        $this->renderer = $ui_renderer;
+        $this->roles = $roles;
+        $this->settings = $settings;
+        $this->curriculum_builder = $curriculum_builder;
+        $this->launchlinks_builder = $launchlinks_builder;
+        $this->player = $player;
+        $this->intro = $intro;
+        $this->extro = $extro;
+        $this->get = $get;
+    }
 
-	protected function initToolbar(string $cmd)
-	{
-		$is_member = $this->roles->isMember($this->usr_id);
-		$completed = $this->roles->isCompletedByUser($this->usr_id);
-		$has_items = $this->has_items;
+    public function executeCommand(): void
+    {
+        $cmd = $this->ctrl->getCmd();
+        switch ($cmd) {
+            case self::CMD_STANDARD:
+            case self::CMD_EXTRO:
+                $this->view($cmd);
+                break;
+            case self::CMD_START:
+                $this->addMember($this->usr_id);
+                $this->ctrl->redirect($this, self::CMD_VIEW);
+                break;
+            case self::CMD_UNSUBSCRIBE:
+                if ($this->launchlinks_builder->currentUserMayUnparticipate()) {
+                    $this->roles->leave($this->usr_id);
+                }
+                $this->ctrl->redirect($this, self::CMD_STANDARD);
+                break;
+            case self::CMD_VIEW:
+                $this->play();
+                break;
 
-		if (! $is_member) {
-			if ($has_items) {
-				$may_subscribe = $this->userMayJoin();
-				if($may_subscribe) {
-					$this->toolbar->addButton(
-						$this->lng->txt("lso_player_start"),
-						$this->ctrl->getLinkTarget($this, self::CMD_START)
-					);
-				}
-			}
+            default:
+                throw new ilException(
+                    "ilObjLearningSequenceLearnerGUI: " .
+                    "Command not supported: $cmd"
+                );
+        }
+    }
 
-		} else {
-			if (! $completed) {
-				if ($has_items) {
-					$label = "lso_player_resume";
-					if($this->first_access === -1) {
-						$label = "lso_player_start";
-					}
+    protected function view(string $cmd): void
+    {
+        $content = $this->getWrappedHTML(
+            $this->getMainContent($cmd)
+        );
 
-					$this->toolbar->addButton(
-						$this->lng->txt($label),
-						$this->ctrl->getLinkTarget($this, self::CMD_VIEW)
-					);
-				}
-			} else {
-				if ($has_items) {
-					$this->toolbar->addButton(
-						$this->lng->txt("lso_player_review"),
-						$this->ctrl->getLinkTarget($this, self::CMD_VIEW)
-					);
-				}
-				if ($cmd === self::CMD_STANDARD) {
-					$this->toolbar->addButton(
-						$this->lng->txt("lso_player_extro"),
-						$this->ctrl->getLinkTarget($this, self::CMD_EXTRO)
-					);
-				}
-				if ($cmd === self::CMD_EXTRO) {
-					$this->toolbar->addButton(
-						$this->lng->txt("lso_player_abstract"),
-						$this->ctrl->getLinkTarget($this, self::CMD_STANDARD)
-					);
-				}
-			}
+        $this->tpl->setContent($content);
 
-			$may_unsubscribe = $this->userMayUnparticipate();
-			if ($may_unsubscribe) {
-				$this->toolbar->addButton(
-					$this->lng->txt("unparticipate"),
-					$this->ctrl->getLinkTarget($this, self::CMD_UNSUBSCRIBE)
-				);
-			}
+        $element = '<' . ilPCLauncher::PCELEMENT . '>';
+        if (!str_contains($content, $element)) {
+            $this->initToolbar($cmd);
+        }
 
-		}
-	}
+        $element = '<' . ilPCCurriculum::PCELEMENT . '>';
+        if (!str_contains($content, $element)) {
+            $curriculum = $this->curriculum_builder->getLearnerCurriculum();
+            $this->tpl->setRightContent(
+                $this->getWrappedHTML([$curriculum])
+            );
+        }
+    }
 
-	private function getWrappedHTML(array $components): string
-	{
-		array_unshift (
-			$components,
-			$this->ui_factory->legacy('<div class="ilLSOLearnerView">')
-		);
-		$components[] = $this->ui_factory->legacy('</div>');
+    protected function addMember(int $usr_id): void
+    {
+        $admins = $this->roles->getLearningSequenceAdminIds();
+        if (!in_array($usr_id, $admins)) {
+            $this->roles->join($usr_id);
+        }
+    }
 
-		return $this->renderer->render($components);
-	}
+    protected function initToolbar(string $cmd)
+    {
+        foreach ($this->launchlinks_builder->getLinks() as $entry) {
+            list($label, $link, $primary) = $entry;
+            $sub_button = ilLinkButton::getInstance();
+            $sub_button->setPrimary($primary);
+            $sub_button->setCaption($label, false);
+            $sub_button->setUrl($link);
+            $this->toolbar->addButtonInstance($sub_button);
+        }
+    }
 
-	private function getCurriculum(): array
-	{
-		$curriculum = $this->curriculum_builder->getLearnerCurriculum();
-		return array($curriculum);
-	}
+    private function getWrappedHTML(array $components): string
+    {
+        array_unshift(
+            $components,
+            $this->ui_factory->legacy('<div class="ilLSOLearnerView">')
+        );
+        $components[] = $this->ui_factory->legacy('</div>');
 
-	private function getMainContent(string $cmd): array
-	{
-		if ($cmd === self::CMD_STANDARD) {
-			$txt = $this->settings->getAbstract();
-			$img = $this->settings->getAbstractImage();
-		}
+        return $this->renderer->render($components);
+    }
 
-		if ($cmd === self::CMD_EXTRO) {
-			$txt = $this->settings->getExtro();
-			$img = $this->settings->getExtroImage();
-		}
+    private function getMainContent(string $cmd): array
+    {
+        $img = null;
+        $contents = [];
 
-		$contents = [$this->ui_factory->legacy($txt)];
-		if (! is_null($img)) {
-			$contents[] = $this->ui_factory->image()->responsive($img, '');
-		}
+        if ($cmd === self::CMD_STANDARD) {
+            if ($this->intro === '') {
+                $contents[] = $this->ui_factory->legacy($this->settings->getAbstract());
+                $img = $this->settings->getAbstractImage();
+                if ($img) {
+                    $contents[] = $this->ui_factory->image()->responsive($img, '');
+                }
+            } else {
+                $contents[] = $this->ui_factory->legacy($this->intro);
+            }
+        }
 
-		return $contents;
-	}
+        if ($cmd === self::CMD_EXTRO) {
+            if ($this->extro === '') {
+                $contents[] = $this->ui_factory->legacy($this->settings->getExtro());
+                $img = $this->settings->getExtroImage();
+                if ($img) {
+                    $contents[] = $this->ui_factory->image()->responsive($img, '');
+                }
+            } else {
+                $contents[] = $this->ui_factory->legacy($this->extro);
+            }
+        }
+        return $contents;
+    }
 
-	protected function play()
-	{
-		//enforce tree is visible/active for ToC
-		//(this does not work for first item, since there is no page-change)
-		//how is this done?
+    protected function play(): void
+    {
+        $response = $this->player->play($this->get);
 
-		if(!$_SESSION["lso_old_il_rep_mode"]) {
-			$_SESSION["lso_old_il_rep_mode"] = $_SESSION["il_rep_mode"];
-		}
-		$_SESSION["il_rep_mode"] = 'tree';
+        switch ($response) {
+            case null:
+                //render the page
+                $this->tpl->setContent('THIS SHOULD NOT SHOW');
+                return;
 
-		$html = $this->player->render($_GET, $_POST);
+            case 'EXIT::' . $this->player::LSO_CMD_FINISH:
+                $cmd = self::CMD_EXTRO;
+                break;
 
-		if($html === 'EXIT::' .$this->player::LSO_CMD_SUSPEND) {
-			$cmd = self::CMD_STANDARD;
-		}
-		if($html === 'EXIT::' .$this->player::LSO_CMD_FINISH) {
-			$cmd = self::CMD_EXTRO;
-		}
-		if(is_null($html)) {
-			$cmd = self::CMD_STANDARD;
-		}
-
-		if(is_null($cmd)){
-			print $html;
-			exit();
-		} else {
-			$_SESSION["il_rep_mode"] = $_SESSION["lso_old_il_rep_mode"];
-
-			$href = $this->ctrl->getLinkTarget($this, $cmd, '', false, false);
-			\ilUtil::redirect($href);
-		}
-	}
-
-	protected function getCurrentItemLearningProgress()
-	{
-		print $this->player->getCurrentItemLearningProgress();
-		exit;
-	}
-
+            case 'EXIT::' . $this->player::LSO_CMD_SUSPEND:
+            default:
+                $cmd = self::CMD_STANDARD;
+                break;
+        }
+        $href = $this->ctrl->getLinkTarget($this, $cmd, '', false, false);
+        \ilUtil::redirect($href);
+    }
 }

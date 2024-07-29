@@ -7,50 +7,46 @@ use ILIAS\GlobalScreen\ScreenContext\Stack\ContextCollection;
 /**
  * Workspace GS tool provider
  *
- * @author Alex Killing <killing@leifos.com>
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilWorkspaceGSToolProvider extends AbstractDynamicToolProvider
 {
+    public const SHOW_WS_TREE = 'show_ws_tree';
 
-    const SHOW_WS_TREE = 'show_ws_tree';
-
-
-    /**
-     * @inheritDoc
-     */
-    public function isInterestedInContexts() : ContextCollection
+    public function isInterestedInContexts(): ContextCollection
     {
         return $this->context_collection->main()->desktop();
     }
 
-
-    /**
-     * @inheritDoc
-     */
-    public function getToolsForContextStack(CalledContexts $called_contexts) : array
+    public function getToolsForContextStack(CalledContexts $called_contexts): array
     {
         $tools = [];
         $additional_data = $called_contexts->current()->getAdditionalData();
-        if ($additional_data->is(self::SHOW_WS_TREE, true)) {
 
-            $iff = function ($id) { return $this->identification_provider->identifier($id); };
-            $l = function (string $content) { return $this->dic->ui()->factory()->legacy($content); };
+        $title = $this->dic->language()->txt("objs_fold");
+
+        $icon = $this->dic->ui()->factory()->symbol()->icon()->standard("fold", $title);
+
+        if ($additional_data->is(self::SHOW_WS_TREE, true)) {
+            $iff = function ($id) {
+                return $this->identification_provider->contextAwareIdentifier($id);
+            };
+            $l = function (string $content) {
+                return $this->dic->ui()->factory()->legacy($content);
+            };
             $ref_id = $called_contexts->current()->getReferenceId()->toInt();
             $tools[] = $this->factory->tool($iff("tree"))
-                ->withTitle("Folders")
-                ->withContent($l($this->getTree()));
+                ->withTitle($title)
+                ->withSymbol($icon)
+                ->withContentWrapper(function () use ($l) {
+                    return $l($this->getTree());
+                });
         }
 
         return $tools;
     }
 
-
-    /**
-     * @param int $ref_id
-     *
-     * @return string
-     */
-    private function getTree() : string
+    private function getTree(): string
     {
         global $DIC;
 
@@ -61,6 +57,7 @@ class ilWorkspaceGSToolProvider extends AbstractDynamicToolProvider
         $exp->setLinkToNodeClass(true);
         $exp->setAjax(false);
         $exp->setActivateHighlighting(true);
+
         return $exp->getHTML(true);
     }
 }

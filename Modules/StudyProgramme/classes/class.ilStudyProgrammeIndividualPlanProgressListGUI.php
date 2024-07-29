@@ -1,65 +1,83 @@
 <?php
 
-/* Copyright (c) 2015 Richard Klees <richard.klees@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
 
 /**
- * Class ilStudyProgrammeExpandableProgressListGUI
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
  *
- * @author: Richard Klees <richard.klees@concepts-and-training.de>
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
  *
- */
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
-require_once("Modules/StudyProgramme/classes/class.ilStudyProgrammeExpandableProgressListGUI.php");
+class ilStudyProgrammeIndividualPlanProgressListGUI extends ilStudyProgrammeExpandableProgressListGUI
+{
+    protected function showMyProgress(): bool
+    {
+        // expand tree completely on start
+        return $this->progress->isRelevant();
+    }
 
-class ilStudyProgrammeIndividualPlanProgressListGUI extends ilStudyProgrammeExpandableProgressListGUI {
-	protected function showMyProgress() {
-		// expand tree completely on start
-		return $this->progress->isRelevant();
-	}
-	
-	public function shouldShowSubProgress(ilStudyProgrammeUserProgress $a_progress) {
-		return true;
-	}
-	
-	public function newSubItem(ilStudyProgrammeUserProgress $a_progress) {
-		return new ilStudyProgrammeIndividualPlanProgressListGUI($a_progress);
-	}
-	
-	protected function getTitleForItem(ilObjStudyProgramme $a_programme) {
-		$title = $a_programme->getTitle();
-		if (!$this->progress->isRelevant() || $this->progress->getStudyProgramme()->getStatus() == ilStudyProgramme::STATUS_OUTDATED) {
-			return "<s>".$title."</s>";
-		}
-		return $title;
-	}
-	
-	protected function buildProgressStatus(ilStudyProgrammeUserProgress $a_progress) {
-		$points =  parent::buildProgressStatus($a_progress);
-		if (!$a_progress->canBeCompleted() && !$a_progress->isSuccessful()) {
-			return "<img src='".ilUtil::getImagePath("icon_alert.svg")."' alt='".$this->il_lng->txt("warning")."'>".$points;
-		}
-		else {
-			return $points;
-		}
-	}
-	
-	protected function configureItemGUI(ilStudyProgrammeCourseListGUI $a_item_gui) {
-		$a_item_gui->enableComments(false);
-		$a_item_gui->enableTags(false);
-		$a_item_gui->enableIcon(true);
-		$a_item_gui->enableDelete(false);
-		$a_item_gui->enableCut(false);
-		$a_item_gui->enableCopy(false);
-		$a_item_gui->enableLink(false);
-		$a_item_gui->enableInfoScreen(false);
-		$a_item_gui->enableSubscribe(false);
-		$a_item_gui->enableCheckbox(false);
-		$a_item_gui->enableDescription(true);
-		$a_item_gui->enableProperties(false);
-		$a_item_gui->enablePreconditions(false);
-		$a_item_gui->enableNoticeProperties(false);
-		$a_item_gui->enableCommands(false, true);
-		$a_item_gui->enableProgressInfo(false);
-		$a_item_gui->setIndent($this->getIndent() + 2);
-	}
+    protected function shouldShowSubProgress(ilPRGProgress $progress): bool
+    {
+        return true;
+    }
+
+    protected function newSubItem(ilPRGProgress $progress): ilStudyProgrammeExpandableProgressListGUI
+    {
+        return new ilStudyProgrammeIndividualPlanProgressListGUI($progress);
+    }
+
+    protected function getTitleForItem(ilObjStudyProgramme $programme): string
+    {
+        $title = $programme->getTitle();
+        if (!$this->progress->isRelevant()
+            || $programme->getStatus() === ilStudyProgrammeSettings::STATUS_OUTDATED
+        ) {
+            return "<s>" . $title . "</s>";
+        }
+        return $title;
+    }
+
+    protected function buildProgressStatus(ilPRGProgress $progress): string
+    {
+        $programme = ilObjStudyProgramme::getInstanceByObjId($progress->getNodeId());
+        $can_be_completed = $programme->canBeCompleted($progress);
+
+        $points = parent::buildProgressStatus($progress);
+        if (!$can_be_completed && !$progress->isSuccessful()) {
+            return $this->alert_icon . $points;
+        }
+
+        return $points;
+    }
+
+    protected function configureItemGUI(ilStudyProgrammeCourseListGUI $item_gui): void
+    {
+        $item_gui->enableComments(false);
+        $item_gui->enableTags(false);
+        $item_gui->enableIcon(true);
+        $item_gui->enableDelete(false);
+        $item_gui->enableCut(false);
+        $item_gui->enableCopy(false);
+        $item_gui->enableLink(false);
+        $item_gui->enableInfoScreen(false);
+        $item_gui->enableSubscribe(false);
+        $item_gui->enableCheckbox(false);
+        $item_gui->enableDescription(true);
+        $item_gui->enableProperties(false);
+        $item_gui->enablePreconditions(false);
+        $item_gui->enableNoticeProperties(false);
+        $item_gui->enableCommands(false, true);
+        $item_gui->enableProgressInfo(false);
+        $item_gui->setIndent($this->getIndent() + 2);
+    }
 }

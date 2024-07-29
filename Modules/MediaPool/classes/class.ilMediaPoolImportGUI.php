@@ -1,148 +1,130 @@
 <?php
 
-/* Copyright (c) 1998-2015 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Import related features for media pools (currently used for translation imports)
  *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- * @ingroup ModulesMediaPool
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilMediaPoolImportGUI
 {
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    protected \ILIAS\MediaPool\StandardGUIRequest $request;
+    protected ilObjMediaPool $mep;
+    protected ilCtrl $ctrl;
+    protected ilLanguage $lng;
+    protected ilGlobalTemplateInterface $tpl;
 
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+    public function __construct(ilObjMediaPool $a_mep)
+    {
+        global $DIC;
 
-	/**
-	 * @var ilTemplate
-	 */
-	protected $tpl;
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        $this->tpl = $DIC->ui()->mainTemplate();
+        $this->mep = $a_mep;
+        $this->request = $DIC->mediaPool()
+            ->internal()
+            ->gui()
+            ->standardRequest();
+    }
 
-	protected $lm;
+    public function executeCommand(): void
+    {
+        $ilCtrl = $this->ctrl;
 
-	/**
-	 * Constructor
-	 */
-	function __construct($a_mep)
-	{
-		global $DIC;
+        $cmd = $ilCtrl->getCmd("showTranslationImportForm");
 
-		$this->ctrl = $DIC->ctrl();
-		$this->lng = $DIC->language();
-		$this->tpl = $DIC["tpl"];
-		$this->mep = $a_mep;
-	}
-	
-	/**
-	 * Execute command
-	 */
-	function executeCommand()
-	{
-		$ilCtrl = $this->ctrl;
+        if (in_array($cmd, array("showTranslationImportForm", "importTranslation"))) {
+            $this->$cmd();
+        }
+    }
 
-		$cmd = $ilCtrl->getCmd("showTranslationImportForm");
+    public function showTranslationImportForm(): void
+    {
+        $lng = $this->lng;
+        $tpl = $this->tpl;
 
-		if (in_array($cmd, array("showTranslationImportForm", "importTranslation")))
-		{
-			$this->$cmd();
-		}
-	}
-	
-	/**
-	 * Translation import
-	 *
-	 * @param
-	 * @return
-	 */
-	function showTranslationImportForm()
-	{
-		$lng = $this->lng;
-		$tpl = $this->tpl;
+        $this->tpl->setOnScreenMessage('info', $lng->txt("mep_trans_import_info"));
+        $form = $this->initTranslationImportForm();
+        $tpl->setContent($form->getHTML());
+    }
 
-		ilUtil::sendInfo($lng->txt("mep_trans_import_info"));
-		$form = $this->initTranslationImportForm();
-		$tpl->setContent($form->getHTML());
-	}
+    public function initTranslationImportForm(): ilPropertyFormGUI
+    {
+        $lng = $this->lng;
+        $ilCtrl = $this->ctrl;
 
-	/**
-	 * Init translation input form.
-	 */
-	public function initTranslationImportForm()
-	{
-		$lng = $this->lng;
-		$ilCtrl = $this->ctrl;
+        $lng->loadLanguageModule("meta");
 
-		$lng->loadLanguageModule("meta");
+        $form = new ilPropertyFormGUI();
 
-		include_once("Services/Form/classes/class.ilPropertyFormGUI.php");
-		$form = new ilPropertyFormGUI();
+        // import file
+        $fi = new ilFileInputGUI($lng->txt("file"), "importfile");
+        $fi->setSuffixes(array("zip"));
+        $fi->setRequired(true);
+        $fi->setSize(30);
+        $form->addItem($fi);
 
-		// import file
-		$fi = new ilFileInputGUI($lng->txt("file"), "importfile");
-		$fi->setSuffixes(array("zip"));
-		$fi->setRequired(true);
-		$fi->setSize(30);
-		$form->addItem($fi);
+        $ot = ilObjectTranslation::getInstance($this->mep->getId());
+        $options = [];
+        foreach ($ot->getLanguages() as $l) {
+            if ($l->getLanguageCode() != $ot->getMasterLanguage()) {
+                $options[$l->getLanguageCode()] = $lng->txt("meta_l_" . $l->getLanguageCode());
+            }
+        }
+        $si = new ilSelectInputGUI($lng->txt("mep_import_lang"), "import_lang");
+        $si->setOptions($options);
+        $form->addItem($si);
 
-		include_once("./Services/MetaData/classes/class.ilMDLanguageItem.php");
-		include_once("./Services/Object/classes/class.ilObjectTranslation.php");
-		$ot = ilObjectTranslation::getInstance($this->mep->getId());
-		foreach ($ot->getLanguages() as $l)
-		{
-			if ($l["lang_code"] != $ot->getMasterLanguage())
-			{
-				$options[$l["lang_code"]] = $lng->txt("meta_l_".$l["lang_code"]);
-			}
-		}
-		$si = new ilSelectInputGUI($lng->txt("mep_import_lang"), "import_lang");
-		$si->setOptions($options);
-		$form->addItem($si);
+        $form->addCommandButton("importTranslation", $lng->txt("import"));
+        $form->setTitle($lng->txt("mep_import_trans"));
+        $form->setFormAction($ilCtrl->getFormAction($this));
 
-		$form->addCommandButton("importTranslation", $lng->txt("import"));
-		$form->setTitle($lng->txt("mep_import_trans"));
-		$form->setFormAction($ilCtrl->getFormAction($this));
+        return $form;
+    }
 
-		return $form;
-	}
+    public function importTranslation(): void
+    {
+        $ilCtrl = $this->ctrl;
+        $lng = $this->lng;
 
-	/**
-	 * Import translation
-	 */
-	function importTranslation()
-	{
-		$ilCtrl = $this->ctrl;
-		$lng = $this->lng;
+        $imp = new ilImport();
 
-		include_once("./Services/Export/classes/class.ilImport.php");
-		$imp = new ilImport();
-		$conf = $imp->getConfig("Modules/MediaPool");
+        /** @var ilMediaPoolImportConfig $conf */
+        $conf = $imp->getConfig("Modules/MediaPool");
 
-		$target_lang = ilUtil::stripSlashes($_POST["import_lang"]);
-		include_once("./Services/Object/classes/class.ilObjectTranslation.php");
-		$ot = ilObjectTranslation::getInstance($this->mep->getId());
-		if ($target_lang == $ot->getMasterLanguage())
-		{
-			ilUtil::sendFailure($lng->txt("mep_transl_master_language_not_allowed"), true);
-			$ilCtrl->redirect($this, "showTranslationImportForm");
-		}
+        $target_lang = $this->request->getImportLang();
+        $ot = ilObjectTranslation::getInstance($this->mep->getId());
+        if ($target_lang === $ot->getMasterLanguage()) {
+            $this->tpl->setOnScreenMessage('failure', $lng->txt("mep_transl_master_language_not_allowed"), true);
+            $ilCtrl->redirect($this, "showTranslationImportForm");
+        }
 
-		$conf->setTranslationImportMode($this->mep, $target_lang);
-		$imp->importObject(null, $_FILES["importfile"]["tmp_name"],
-			$_FILES["importfile"]["name"], "mep", "Modules/MediaPool");
-//echo "h"; exit;
-		ilUtil::sendSuccess($lng->txt("msg_obj_modified"), true);
-		$ilCtrl->redirect($this, "showTranslationImportForm");
-	}
-
-	
+        $conf->setTranslationImportMode($this->mep, $target_lang);
+        $imp->importObject(
+            null,
+            $_FILES["importfile"]["tmp_name"],
+            $_FILES["importfile"]["name"],
+            "mep",
+            "Modules/MediaPool"
+        );
+        //echo "h"; exit;
+        $this->tpl->setOnScreenMessage('success', $lng->txt("msg_obj_modified"), true);
+        $ilCtrl->redirect($this, "showTranslationImportForm");
+    }
 }
-
-?>

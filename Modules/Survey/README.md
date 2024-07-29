@@ -1,4 +1,4 @@
-**Component** Documentation
+**Survey**
 
 * [Public Services](#public-services)
 * [Internal Documentation](#internal-documentation)
@@ -63,11 +63,17 @@ This section documents the general concepts and structures of the Survey Module.
 ### Properties
 * **Question Type**:  (`svy_question.questiontype_fi`)
 * **Pool or Survey**: Object ID of parent Pool or Survey (`svy_question.obj_fi`)
-* **Author**: Object ID of author user (`svy_question.owner_fi`)
-* : 1 or 0 depending if the user saved any data (`svy_question.complete`)
+* **Author**: Object ID of author user (`svy_question.owner_fi`), Author name (`svy_question.author`)
+* **Title**
+* **Description**
+* **Obligatory**: Is question obligatory 1, 0 (`svy_question.obligatory`), note: table is used for both, questions in pools and surveys
+* **Complete**: 1 or 0 depending if the user saved any data (`svy_question.complete`)
 * : (`svy_question.original_id`)
-* ...
-  
+* : (`svy_question.tstamp`)
+* : (`svy_question.questiontext`)
+* : (`svy_question.label`)
+
+
 ### Issues
 * If we do not save any answer and press "back to de Survey" or we leave this page without save. In the "svy_question" we have the records "title" and "questiontext" with NULL values and also "complete" and "tstamp" with value 0  (Look for services/cron which delete this rows).
 
@@ -88,14 +94,16 @@ Can we get of the table completely?
 ...
 
 ### Matrix Question
-...
+* **DB Tables**: `svy_matrix`, `svy_matrixrows`
 
 ### Text Question
 ...
 
 
 ## Question Category
-A question category is an answer option of a question. There are predefined answer options, and custom options which are created during question editing.
+
+A question category is an answer option of a question. There are predefined answer options, and custom options which are created during question editing. The categories hold the answer texts, but not the scale values which are stored in the Variables (`svy_variable`).
+
 * **Code**: `Modules/SurveyQuestinoPool/Categories`
 * **DB Tables**: `svy_category`
 
@@ -137,23 +145,25 @@ A question category is an answer option of a question. There are predefined answ
 
 
 ## Variables
+
+Answer options for each question. Hold Scale Values. Texts are in Question Categories. Note: For matrix questions only entries "for one row" are in table `svy_variable`.
+
 * **Code**: 
 * **DB Tables**: `svy_variable`
 
+### Properties
+* **ID** (`svy_variable.variable_id`)
+* **Question Category**: Reference to `svy_category` (`svy_variable.category_fi`)
+* **Question**: Reference to `svy_question` (`svy_variable.question_fi`)
+* **value1**: for metric q: min value
+* **value2**: for metric q: max value
+* **Sequence**: Order of the options in the question presentation (`svy_variable.sequence`)
+* **Timestamp**: (`svy_variable.tstamp`)
+* ??? (`svy_variable.other`)
+* **Scale Value***: Positive or NULL. Here the scale have the real value entered, not scale -1. (`svy_variable.scale`)
 
-
-[WIP]
-* Answer options for each question
-* Hold Scale Values
-* table svy_variable
-  * category_fi: general answer option -> svy_category
-  * question_fi: question -> svy_question
-  * value1: for metric q: min value
-  * value2: for metric q: max value
-  * sequence: order of the options in the question presentation
-  * other:
-  * scale: scale value (positives or NULL. Here the scale have the real value entered, not scale -1 )
-* problem: value1/value2 values seem to be redundant or belong to other tables (e.g. metric)
+### Issues  
+* value1/value2 values seem to be redundant or belong to other tables (e.g. metric)
 
 
 ## Question Editing
@@ -178,6 +188,16 @@ A question category is an answer option of a question. There are predefined answ
 * table svy_svy (general settings of the survey)
   * obj_fi: general object -> object_data
   * ...
+  
+### Business Rules
+* **Codes**: If code usage is activated, every user (logged in or anonymous) must enter a code to participate.
+* **Privacy** (with/without names): The setting only affects the result presentation. No user names, account names or emails will be shown if privacy is activated (without names).
+* **Anonymous Access**: To give an external user (no ILIAS account) access to a suvey, **read permission** to the survey (and all upper container) must be granted to the **Anonymous Role**. The Codes or Privacy settings are not relevant.
+  * If an **anonymous user accesses via code** and suspends the survey. The user will be able to continue without entering the code, as long as the (anonymous) user session is valid. After the session has ended, the user needs to re-enter the code to be able to resume the survey.
+  * If an **anonymous user accesses without code**, the use will **not get** a "Suspend" button. However as long as the (anonymous) user session is valid in the browser, the user may re-enter the survey and click on "Resume". After finishing the survey, a re-entering is not possible within the current (anonymous) user session. However a new anonymous user session will allow to perform the survey again.
+    (Current issue: when the survey is set to "with names", a Suspend button will be shown. After suspending a "Start" instead of a "Resume" button is shown, even if given answers are store in the session. If the survey has been finished, the start button is still displayed, but an error message "You already finished" is shown on click. A new user session will not allow to re-enter the Survey.)
+* 360° surveys do not allow to activate Codes on the top level. However **external raters** can be added to appraisees. These will get access codes assigned. External raters can access the survey **via code**, **no anonymous role permissions** or **public area configuration** are needed.
+* 360° surveys do not allow to set privacy settings. 
 
 ## Survey Questions
 * **Code**:
@@ -239,6 +259,16 @@ If the constraint is met, show the question.
   * constraint_fi: constraint definition -> svy_constraint
 * problem: it seems that svy_constraint and svy_qst_constraint could be merged into one table
 
+### Current "Business" Rules (weak, needs a better concept)
+
+* The "targets" for constraints are always single questions.
+* If a question is added to a single question page (no block), all constraints are removed (createQuestionBlock) from the single question.
+* If a contraint is defined for a block (as a target), the constraint is assigned to all questions of the block (svy_qst_constraint).
+* If a third question is added to a block svy_qst_constraint holds only entries for the first two questions.
+* Constraint checking in ilSurveyExecutionGUI->outSurveyPage seems only to be done for the constraints of the first question of a block.
+* The constraints table shows only the constraints of the first question of a question block.
+
+
 ## Survey Run
 * **Code**:
 * **DB Tables**: `svy_finished`,`svy_times`
@@ -248,28 +278,40 @@ If the constraint is met, show the question.
   * finished_id: autoincrement and pk of this table
   * survey_fi: survey -> svy_svy
   * user_fi: user -> usr_data (and object_data)
-  * anonymous_id:
-  * state: 1 if finished? 0 otherwise?
+  * anonymous_id: this is the survey key, aka code, (NOT the field anonymous_id) from table svy_anonymous
+  * state: 1 finished, 0 otherwise
   * lastpage:
-  * appr_id:
+  * appr_id: If a survey supports appraisees, this is the user ID of the appraisee. For self evaluations this is the user id of the current user.
 * table svy_times (Access times to survey pages during a run. Back and forward navigation lead to multiple entries per run for a page)
   * finished_fi: survey run -> svy_finished
   * first_question: first question id of page/block -> svy_question (does not seem to point to svy_svy_qst)
   * entered_page: timestamp when page has been rendered
   * left_page: timestamp when answers of page have been saved
-  
+
+### Business Rules
+
+* **Suspend Behaviour**: Clicking suspend will leave the survey without saving the inputs of the current page. Resume will present the page left with empty input. JF decision: https://mantis.ilias.de/view.php?id=30766
+* **Final Page**
+  * The final page will contain a button named "Back to Repository", see https://mantis.ilias.de/view.php?id=14292
+  * The button on the final survey page will lead to the container of the survey. Exception are 360° surveys, they will return to the info page, see https://mantis.ilias.de/view.php?id=14971
+
+
 ## Answer
 * **Code**:
 * **DB Tables**: `svy_answer`
 
 [WIP]
-* Given answers by user during test run, mc question answers may lead to multiple entries for one question in a run
+* Given answers by user during test run
+  - mc question answers may lead to multiple entries for one question in a run
+  - matrix questions lead to muliple entries (each row gets a different rowvalue)
 * table svy_answer
   * active_fi: survey run -> svy_finished
   * question_fi: question -> svy_question (does not point to svy_svy_qst)
-  * value: scale value of corresponding "variable" -1?
-  * textanswer: 
-  * rowvalue:
+  * value: scale value of corresponding "variable" - 1 (!)
+    * metric question answers have the entered value stored, no "-1" !
+    * metric questions allow to enter floats like 2.5
+  * textanswer: Text answer
+  * rowvalue: Matrix question row, starting with 0
   
 ## Invitation
 * **Code**: `Modules/Survey/Participants`

@@ -1,8 +1,22 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Modules/Chatroom/classes/class.ilChatroom.php';
-require_once 'Modules/Chatroom/classes/class.ilChatroomUser.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilChatroomBanGUI
@@ -12,145 +26,118 @@ require_once 'Modules/Chatroom/classes/class.ilChatroomUser.php';
  */
 class ilChatroomBanGUI extends ilChatroomGUIHandler
 {
-	/** @var ilCtrl|null */
-	private $controller;
+    private ilCtrlInterface $controller;
+    private ilLanguage $language;
+    private ilObjUser $user;
 
-	/** @var ilLanguage|null */
-	private $language;
+    public function __construct(
+        ilChatroomObjectGUI $gui,
+        ilCtrlInterface $controller = null,
+        ilLanguage $language = null,
+        ilObjUser $user = null
+    ) {
+        if ($controller === null) {
+            global $DIC;
+            $controller = $DIC->ctrl();
+        }
+        $this->controller = $controller;
 
-	/** @var ilObjUser|ilUser|null */
-	private $user;
+        if ($language === null) {
+            global $DIC;
+            $language = $DIC->language();
+        }
+        $this->language = $language;
 
-	/**
-	 * @param ilChatroomObjectGUI $gui
-	 * @param ilCtrl|null $controller
-	 * @param ilLanguage|null $language
-	 * @param ilUser|null $user
-	 */
-	public function __construct(
-		ilChatroomObjectGUI $gui,
-		\ilCtrl $controller = null,
-		\ilLanguage $language = null,
-		\ilUser $user = null
-	) {
-		if ($controller === null) {
-			global $DIC;
-			$controller = $DIC->ctrl();
-		}
-		$this->controller = $controller;
+        if ($user === null) {
+            global $DIC;
+            $user = $DIC->user();
+        }
+        $this->user = $user;
 
-		if ($language === null) {
-			global $DIC;
-			$language = $DIC->language();
-		}
-		$this->language = $language;
+        parent::__construct($gui);
+    }
 
-		if ($user === null) {
-			global $DIC;
-			$user = $DIC->user();
-		}
-		$this->user = $user;
+    public function delete(): void
+    {
+        $userTrafo = $this->refinery->kindlyTo()->listOf(
+            $this->refinery->kindlyTo()->int()
+        );
 
-		parent::__construct($gui);
-	}
+        $users = $this->getRequestValue('banned_user_id', $userTrafo, []);
+        if ($users === []) {
+            $this->mainTpl->setOnScreenMessage('info', $this->ilLng->txt('no_checkbox'), true);
+            $this->ilCtrl->redirect($this->gui, 'ban-show');
+        }
 
-	/**
-	 * Unbans users fetched from $_REQUEST['banned_user_id'].
-	 */
-	public function delete()
-	{
-		$users = $_REQUEST['banned_user_id'];
+        $room = ilChatroom::byObjectId($this->gui->getObject()->getId());
+        $this->exitIfNoRoomExists($room);
 
-		if(!is_array($users))
-		{
-			ilUtil::sendInfo($this->ilLng->txt('no_checkbox'), true);
-			$this->ilCtrl->redirect($this->gui, 'ban-show');
-		}
+        $room->unbanUser($users);
 
-		$room = ilChatroom::byObjectId($this->gui->object->getId());
-		$room->unbanUser($users);
+        $this->ilCtrl->redirect($this->gui, 'ban-show');
+    }
 
-		$this->ilCtrl->redirect($this->gui, 'ban-show');
-	}
+    public function executeDefault(string $requestedMethod): void
+    {
+        $this->show();
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function executeDefault($method)
-	{
-		$this->show();
-	}
+    /**
+     * Displays banned users task.
+     */
+    public function show(): void
+    {
+        $this->redirectIfNoPermission('read');
 
-	/**
-	 * Displays banned users task.
-	 */
-	public function show()
-	{
-		include_once 'Modules/Chatroom/classes/class.ilChatroom.php';
+        $this->gui->switchToVisibleMode();
 
-		$this->redirectIfNoPermission('read');
+        $room = ilChatroom::byObjectId($this->gui->getObject()->getId());
+        $this->exitIfNoRoomExists($room);
 
-		$this->gui->switchToVisibleMode();
+        $table = new ilBannedUsersTableGUI($this->gui, 'ban-show');
+        $table->setFormAction($this->controller->getFormAction($this->gui, 'ban-show'));
 
-		require_once 'Modules/Chatroom/classes/class.ilBannedUsersTableGUI.php';
+        $data = $room->getBannedUsers();
+        $actorId = array_filter(array_map(static function (array $row): int {
+            return (int) $row['actor_id'];
+        }, $data));
 
-		$table = new ilBannedUsersTableGUI($this->gui, 'ban-show');
-		$table->setFormAction($this->controller->getFormAction($this->gui, 'ban-show'));
+        $sortable_names = ilUserUtil::getNamePresentation($actorId);
+        $names = ilUserUtil::getNamePresentation($actorId, false, false, '', false, false, false);
 
-		$room = ilChatroom::byObjectId($this->gui->object->getId());
-		if($room)
-		{
-			$data = $room->getBannedUsers();
+        array_walk($data, function (&$row) use ($names, $sortable_names): void {
+            if ($row['actor_id'] > 0 && isset($names[$row['actor_id']])) {
+                $row['actor_display'] = $names[$row['actor_id']];
+                $row['actor'] = $sortable_names[$row['actor_id']];
+            } else {
+                $row['actor_display'] = $this->language->txt('unknown');
+                $row['actor'] = $this->language->txt('unknown');
+            }
+        });
 
-			$actorIDs = array_filter(array_map(function($row) {
-				return $row['actor_id'];
-			}, $data));
+        $table->setData($data);
 
-			require_once 'Services/User/classes/class.ilUserUtil.php';
-			$sortable_names = ilUserUtil::getNamePresentation($actorIDs);
-			$names          = ilUserUtil::getNamePresentation($actorIDs, false, false, '', false, false, false);
+        $this->mainTpl->setVariable('ADM_CONTENT', $table->getHTML());
+    }
 
-			array_walk($data, function(&$row) use ($names, $sortable_names) {
-				if($row['actor_id'] > 0 && isset($names[$row['actor_id']]))
-				{
-					$row['actor_display'] = $names[$row['actor_id']];
-					$row['actor']         = $sortable_names[$row['actor_id']];
-				}
-				else
-				{
-					$row['actor_display'] = $this->language->txt('unknown');
-					$row['actor']         = $this->language->txt('unknown');
-				}
-			});
+    public function active(): void
+    {
+        $this->redirectIfNoPermission(['read', 'moderate']);
 
-			$table->setData($data);
-		}
+        $room = ilChatroom::byObjectId($this->gui->getObject()->getId());
+        $this->exitIfNoRoomExists($room);
 
-		$this->gui->tpl->setVariable('ADM_CONTENT', $table->getHTML());
-	}
+        $userToBan = $this->getRequestValue('user', $this->refinery->kindlyTo()->int());
+        $subRoomId = $this->getRequestValue('sub', $this->refinery->kindlyTo()->int());
 
-	/**
-	 * Kicks and bans user, fetched from $_REQUEST['user'] and adds history entry.
-	 */
-	public function active()
-	{
-		$this->redirectIfNoPermission(array('read', 'moderate'));
+        $connector = $this->gui->getConnector();
+        $response = $connector->sendBan($room->getRoomId(), $subRoomId, $userToBan);
 
-		$room      = ilChatroom::byObjectId($this->gui->object->getId());
-		$subRoomId = $_REQUEST['sub'];
-		$userToBan = $_REQUEST['user'];
+        if ($this->isSuccessful($response)) {
+            $room->banUser($userToBan, $this->user->getId());
+            $room->disconnectUser($userToBan);
+        }
 
-		$this->exitIfNoRoomExists($room);
-
-		$connector = $this->gui->getConnector();
-		$response  = $connector->sendBan($room->getRoomId(), $subRoomId, $userToBan); // @TODO Respect Scope
-
-		if($this->isSuccessful($response))
-		{
-			$room->banUser($_REQUEST['user'], $this->user->getId());
-			$room->disconnectUser($_REQUEST['user']);
-		}
-
-		$this->sendResponse($response);
-	}
+        $this->sendResponse($response);
+    }
 }

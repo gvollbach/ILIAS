@@ -1,4 +1,5 @@
 <?php
+
 /* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 include_once './Services/ContainerReference/classes/class.ilContainerReferenceXmlWriter.php';
@@ -11,62 +12,56 @@ include_once './Services/ContainerReference/classes/class.ilContainerReferenceXm
  */
 class ilCourseReferenceXmlWriter extends ilContainerReferenceXmlWriter
 {
-
-	/**
-	* constructor
-	* @param	string	xml version
-	* @param	string	output encoding
-	* @param	string	input encoding
-	* @access	public
-	*/
-	public function __construct(ilObjCourseReference $ref = null)
-	{
-		parent::__construct($ref);
-	}
-
-
-	/**
-	 * Start writing xml
-	 */
-	public function export($a_with_header = true)
-	{
-		if($this->getMode() == self::MODE_EXPORT)
-		{
-			if($a_with_header)
-			{
-				$this->buildHeader();
-			}
-			$this->buildReference();
-			$this->buildTarget();
-			$this->buildTitle();
-			$this->buildCourseSettings();
-			$this->buildFooter();
-		}
-	}
-
-	/**
-	 * Add member update setting
-	 */
-	protected function buildCourseSettings()
-	{
-		$this->xmlElement('MemberUpdate', [] , $this->getReference()->isMemberUpdateEnabled() ? 1 : 0);
-	}
+    /**
+    * constructor
+    * @param	string	xml version
+    * @param	string	output encoding
+    * @param	string	input encoding
+    * @access	public
+    */
+    public function __construct(ilObjCourseReference $ref = null)
+    {
+        parent::__construct($ref);
+    }
 
 
-	/**
-	 * Build xml header
-	 * @global <type> $ilSetting
-	 * @return <type>
-	 */
-	protected  function buildHeader()
-	{
-		global $ilSetting;
+    /**
+     * Start writing xml
+     */
+    public function export(bool $a_with_header = true): void
+    {
+        if ($this->getMode() == self::MODE_EXPORT) {
+            if ($a_with_header) {
+                $this->buildHeader();
+            }
+            $this->buildReference();
+            $this->buildTarget();
+            $this->buildTitle();
+            $this->buildCourseSettings();
+            $this->buildFooter();
+        }
+    }
 
-		$this->xmlSetDtdDef("<!DOCTYPE course reference PUBLIC \"-//ILIAS//DTD Group//EN\" \"".ILIAS_HTTP_PATH."/xml/ilias_course_reference_4_3.dtd\">");
-		$this->xmlSetGenCmt("Export of ILIAS course reference ". $this->getReference()->getId()." of installation ".$ilSetting->get('inst_id').".");
-		$this->xmlHeader();
+    /**
+     * Add member update setting
+     */
+    protected function buildCourseSettings()
+    {
+        $this->xmlElement('MemberUpdate', [], $this->getReference()->isMemberUpdateEnabled() ? 1 : 0);
+    }
 
-		return true;
-	}
+
+    /**
+     * Build xml header
+     * @return void
+     *@global <type> $ilSetting
+     */
+    protected function buildHeader(): void
+    {
+        global $ilSetting;
+
+        $this->xmlSetDtdDef("<!DOCTYPE course reference PUBLIC \"-//ILIAS//DTD Group//EN\" \"" . ILIAS_HTTP_PATH . "/xml/ilias_course_reference_4_3.dtd\">");
+        $this->xmlSetGenCmt("Export of ILIAS course reference " . $this->getReference()->getId() . " of installation " . $ilSetting->get('inst_id') . ".");
+        $this->xmlHeader();
+    }
 }
-?>

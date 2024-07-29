@@ -26,14 +26,14 @@ module.exports = function(conversationId, userId, message) {
 		var conversation = namespace.getConversations().getById(conversationId);
 		var participant = namespace.getSubscriber(userId);
 
-		if(conversation.isParticipant(participant))
+		if(conversation !== null && conversation.isParticipant(participant))
 		{
 			var messageObj = {
 				conversationId: conversationId,
 				userId: userId,
 				message: HTMLEscape.escape(message),
 				timestamp: (new Date).getTime(),
-				uuid: UUID.v4() // not stored
+				id: UUID.v4()
 			};
 
 			if (participant.getAcceptsMessages()) {

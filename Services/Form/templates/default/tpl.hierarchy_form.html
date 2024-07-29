@@ -14,7 +14,7 @@
 			<!-- END cmd2 -->
 		</div>
 		<!-- BEGIN multi_cmds2 -->
-		<img border="0" alt="{MCMD_ALT}" src="{MCMD_IMG}" />
+		<img alt="{MCMD_ALT}" src="{MCMD_IMG}" />
 		<!-- BEGIN multi_cmd2 -->
 		<input class="btn btn-default" type="submit" name="cmd[{MULTI_CMD}]" value="{MULTI_CMD_TXT}" />
 		<!-- END multi_cmd2 -->
@@ -32,7 +32,7 @@
 			<!-- END cmd1 -->
 		</div>
 		<!-- BEGIN multi_cmds1 -->
-		<img border="0" alt="{MCMD_ALT}" src="{MCMD_IMG}" />
+		<img alt="{MCMD_ALT}" src="{MCMD_IMG}" />
 		<!-- BEGIN multi_cmd1 -->
 		<input class="btn btn-default" type="submit" name="cmd[{MULTI_CMD}]" value="{MULTI_CMD_TXT}" />
 		<!-- END multi_cmd1 -->
@@ -56,23 +56,7 @@
 <!-- END disambiguation_menu -->
 <script language="JavaScript" type="text/javascript">
 var as_subitem = Object();
-<!-- BEGIN as_subitem_flag -->
-as_subitem['{SI_NODE_ID}' + '_' + '{SI_GRP}'] = "{SI_SI}";
-<!-- END as_subitem_flag -->
-
-<!-- BEGIN dragtarget -->
-	d = new ilDragTarget("droparea_" + "{EL_ID}", "{GROUP}");
-<!-- END dragtarget -->
-<!-- BEGIN dragcontent -->
-	d = new ilDragContent("il_img_" + "{EL_ID}", "{GROUP}");
-<!-- END dragcontent -->
 </script>
-<!-- BEGIN updater -->
-<script language="JavaScript" type="text/javascript">
-parent.{UPDATER_FRAME}.updater('{EXP_ID_UPDATER}', '{HREF_UPDATER}');
-</script>
-<!-- END updater -->
-
 <!-- This one is called from other frames/contents -->
 <!-- BEGIN tr_update -->
 <script language="JavaScript" type="text/javascript">

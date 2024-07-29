@@ -1,10 +1,25 @@
 <?php
 
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
 
-use \ILIAS\DI\UIServices;
-use \ILIAS\UI\Component\Input\Container\Filter;
-use \ILIAS\UI\Component\Input\Field\FilterInput;
+use ILIAS\DI\UIServices;
+use ILIAS\UI\Component\Input\Container\Filter;
+use ILIAS\UI\Component\Input\Field\FilterInput;
 
 /**
  * Filter service. Wraps around KS filter container.
@@ -14,216 +29,205 @@ use \ILIAS\UI\Component\Input\Field\FilterInput;
  */
 class ilUIFilterService
 {
-	// command constants
-	const CMD_TOGGLE_ON = "toggleOn";
-	const CMD_TOGGLE_OFF = "toggleOff";
-	const CMD_EXPAND = "expand";
-	const CMD_COLLAPSE = "collapse";
-	const CMD_APPLY = "apply";
-	const CMD_RESET = "reset";
+    // command constants
+    public const CMD_TOGGLE_ON = "toggleOn";
+    public const CMD_TOGGLE_OFF = "toggleOff";
+    public const CMD_EXPAND = "expand";
+    public const CMD_COLLAPSE = "collapse";
+    public const CMD_APPLY = "apply";
+    public const CMD_RESET = "reset";
+
+    protected ilUIService $service;
+    protected UIServices $ui;
+    protected ilUIFilterServiceSessionGateway $session;
+    protected ilUIFilterRequestAdapter $request;
+
+    public function __construct(ilUIService $service, ilUIServiceDependencies $deps)
+    {
+        $this->service = $service;
+        $this->session = $deps->getSession();
+        $this->request = $deps->getRequest();
+        $this->ui = $deps->ui();
+    }
 
 
-	/**
-	 * @var ilUIService
-	 */
-	protected $service;
+    /**
+     * Get standard filter instance
+     *
+     * @param string $filter_id
+     * @param string $base_action
+     * @param FilterInput[] $inputs
+     * @param bool[] $is_input_initially_rendered
+     * @param bool $is_activated
+     * @param bool $is_expanded
+     * @return Filter\Standard
+     */
+    public function standard(
+        string $filter_id,
+        string $base_action,
+        array $inputs,
+        array $is_input_initially_rendered,
+        bool $is_activated = false,
+        bool $is_expanded = false
+    ): Filter\Standard {
+        $ui = $this->ui->factory();
 
-	/**
-	 * @var UIServices
-	 */
-	protected $ui;
+        // write expand, activation, rendered inputs info to session
+        $this->writeFilterStatusToSession($filter_id, $inputs);
 
-	/**
-	 * @var ilUIFilterServiceSessionGateway
-	 */
-	protected $session;
+        // handle the reset command
+        $this->handleReset($filter_id);
 
-	/**
-	 * @var ilUIFilterRequestAdapter
-	 */
-	protected $request;
+        // determine activation/expand status
+        $is_activated = $this->session->isActivated($filter_id, $is_activated);
+        $is_expanded = $this->session->isExpanded($filter_id, $is_expanded);
 
-	/**
-	 * Constructor
-	 * @param ilUIService $service
-	 * @param ilUIServiceDependencies $deps
-	 */
-	public function __construct(ilUIService $service, ilUIServiceDependencies $deps)
-	{
-		$this->service = $service;
-		$this->session = $deps->getSession();
-		$this->request = $deps->getRequest();
-		$this->ui = $deps->ui();
-	}
+        // put data from session into filter
+        $inputs_with_session_data = [];
+        $is_input_initially_rendered_with_session = [];
 
+        if (count($inputs) != count($is_input_initially_rendered)) {
+            throw new \ArgumentCountError(
+                "Inputs and boolean values for initial rendering must be arrays of same size."
+            );
+        }
 
-	/**
-	 * Get standard filter instance
-	 *
-	 * @param string $filter_id
-	 * @param string $base_action
-	 * @param FilterInput[] $inputs
-	 * @param bool[] $is_input_initially_rendered
-	 * @param bool $is_activated
-	 * @param bool $is_expanded
-	 * @return Filter\Standard
-	 */
-	public function standard($filter_id, $base_action, array $inputs, array $is_input_initially_rendered,
-							 $is_activated = false, $is_expanded = false): Filter\Standard
-	{
-		$ui = $this->ui->factory();
+        foreach ($inputs as $input_id => $i) {
+            // rendering information
+            $rendered =
+                $this->session->isRendered($filter_id, $input_id, current($is_input_initially_rendered));
+            $is_input_initially_rendered_with_session[] = $rendered;
+            next($is_input_initially_rendered);
 
-		// write expand, activation, rendered inputs info to session
-		$this->writeFilterStatusToSession($filter_id, $inputs);
+            // values
+            $val = $this->session->getValue($filter_id, $input_id);
+            if (!is_null($val)) {
+                try {
+                    $i = $i->withValue($val);
+                } catch (InvalidArgumentException $e) {
+                }
+            }
+            $inputs_with_session_data[$input_id] = $i;
+        }
 
-		// handle the reset command
-		$this->handleReset($filter_id);
+        // get the filter
+        $filter = $ui->input()->container()->filter()->standard(
+            $this->request->getAction($base_action, self::CMD_TOGGLE_ON, true),
+            $this->request->getAction($base_action, self::CMD_TOGGLE_OFF, true),
+            $this->request->getAction($base_action, self::CMD_EXPAND),
+            $this->request->getAction($base_action, self::CMD_COLLAPSE),
+            $this->request->getAction($base_action, self::CMD_APPLY, true),
+            $this->request->getAction($base_action, self::CMD_RESET, true),
+            $inputs_with_session_data,
+            $is_input_initially_rendered_with_session,
+            $is_activated,
+            $is_expanded
+        );
 
-		// determine activation/expand status
-		$is_activated = $this->session->isActivated($filter_id, $is_activated);
-		$is_expanded = $this->session->isExpanded($filter_id, $is_expanded);
+        // handle apply and toggle commands
+        $filter = $this->handleApplyAndToggle($filter_id, $filter);
 
-		// put data from session into filter
-		$inputs_with_session_data = [];
-		$is_input_initially_rendered_with_session = [];
-		foreach ($inputs as $input_id => $i)
-		{
-			// rendering information
-			$rendered =
-				$this->session->isRendered($filter_id, $input_id, current($is_input_initially_rendered));
-			$is_input_initially_rendered_with_session[] = $rendered;
-			next($is_input_initially_rendered);
+        return $filter;
+    }
 
-			// values
-			$val = $this->session->getValue($filter_id, $input_id);
-			if ($rendered && !is_null($val))
-			{
-				$i = $i->withValue($val);
-			}
-			$inputs_with_session_data[$input_id] = $i;
-		}
+    public function getData(Filter\Standard $filter): ?array
+    {
+        $filter_data = null;
+        if ($filter->isActivated()) {
+            foreach ($filter->getInputs() as $k => $i) {
+                $filter_data[$k] = $i->getValue();
+            }
+        }
 
-		// get the filter
-		$filter = $ui->input()->container()->filter()->standard(
-			$this->request->getAction($base_action, self::CMD_TOGGLE_ON),
-			$this->request->getAction($base_action, self::CMD_TOGGLE_OFF),
-			$this->request->getAction($base_action, self::CMD_EXPAND),
-			$this->request->getAction($base_action, self::CMD_COLLAPSE),
-			$this->request->getAction($base_action, self::CMD_APPLY),
-			$this->request->getAction($base_action, self::CMD_RESET),
-			$inputs_with_session_data,
-			$is_input_initially_rendered_with_session,
-			$is_activated,
-			$is_expanded);
+        return $filter_data;
+    }
 
-		// handle apply command
-		$filter = $this->handleApply($filter_id, $filter);
+    /**
+     * Write filter status to session (filter activated/expanded, inputs being rendered or not)
+     *
+     * @param string $filter_id
+     * @param FilterInput[] $inputs
+     */
+    protected function writeFilterStatusToSession(string $filter_id, array $inputs): void
+    {
+        if ($this->request->getFilterCmd() == self::CMD_TOGGLE_ON) {
+            $this->handleRendering($filter_id, $inputs);
+            $this->session->writeActivated($filter_id, true);
+        }
 
-		return $filter;
+        if ($this->request->getFilterCmd() == self::CMD_TOGGLE_OFF) {
+            $this->handleRendering($filter_id, $inputs);
+            $this->session->writeActivated($filter_id, false);
+        }
 
-	}
+        if ($this->request->getFilterCmd() == self::CMD_EXPAND) {
+            $this->session->writeExpanded($filter_id, true);
+        }
 
-	/**
-	 * Get data
-	 *
-	 * @param Filter\Standard $filter
-	 * @return array|null
-	 */
-	public function getData(Filter\Standard $filter)
-	{
-		$result = null;
-		if ($filter->isActivated()) {
-			$filter = $this->request->getFilterWithRequest($filter);
-			$result = $filter->getData();
-		}
-		return $result;
-	}
+        if ($this->request->getFilterCmd() == self::CMD_COLLAPSE) {
+            $this->session->writeExpanded($filter_id, false);
+        }
 
-	/**
-	 * Write filter status to session (filter activated/expanded, inputs being rendered or not)
-	 * @param string $filter_id
-	 * @param array $inputs
-	 */
-	protected function writeFilterStatusToSession($filter_id, $inputs)
-	{
-		if ($this->request->getFilterCmd() == self::CMD_TOGGLE_ON) {
-			$this->session->writeActivated($filter_id, true);
-		}
+        if ($this->request->getFilterCmd() == self::CMD_APPLY) {
+            $this->handleRendering($filter_id, $inputs);
+            // always activate the filter when it is applied
+            $this->session->writeActivated($filter_id, true);
+        }
+    }
 
-		if ($this->request->getFilterCmd() == self::CMD_TOGGLE_OFF) {
-			$this->session->writeActivated($filter_id, false);
-		}
+    /**
+     * Handle rendering of inputs to session
+     *
+     * @param string $filter_id
+     * @param FilterInput[] $inputs
+     */
+    protected function handleRendering(string $filter_id, array $inputs): void
+    {
+        foreach ($inputs as $input_id => $i) {
+            if ($this->request->isInputRendered($input_id)) {
+                $this->session->writeRendered($filter_id, $input_id, true);
+            } else {
+                $this->session->writeRendered($filter_id, $input_id, false);
+            }
+        }
+    }
 
-		if ($this->request->getFilterCmd() == self::CMD_EXPAND) {
-			$this->session->writeExpanded($filter_id, true);
-		}
+    protected function handleReset(string $filter_id): void
+    {
+        // clear session, if reset is pressed
+        if ($this->request->getFilterCmd() == self::CMD_RESET) {
+            $this->session->reset($filter_id);
+        }
+    }
 
-		if ($this->request->getFilterCmd() == self::CMD_COLLAPSE) {
-			$this->handleRendering($filter_id, $inputs);
-			$this->session->writeExpanded($filter_id, false);
-		}
+    protected function handleApplyAndToggle(string $filter_id, Filter\Standard $filter): Filter\Standard
+    {
+        if ((in_array(
+            $this->request->getFilterCmd(),
+            [self::CMD_APPLY, self::CMD_TOGGLE_ON, self::CMD_TOGGLE_OFF]
+        ))) {
+            $filter = $this->request->getFilterWithRequest($filter);
 
-		if ($this->request->getFilterCmd() == self::CMD_APPLY) {
-			$this->handleRendering($filter_id, $inputs);
-		}
-	}
+            // always expand the filter, when it is activated with empty input values
+            if ($this->request->getFilterCmd() == self::CMD_TOGGLE_ON) {
+                $result = $filter->getData();
+                $expand = true;
+                foreach ($result as $k => $v) {
+                    if (!empty($v) || $v === 0 || $v === "0") {
+                        $expand = false;
+                    }
+                }
+                if ($expand) {
+                    $this->session->writeExpanded($filter_id, true);
+                    $filter = $filter->withExpanded();
+                }
+            }
 
-	/**
-	 * Handle rendering of inputs to session
-	 * @param string $filter_id
-	 * @param array $inputs
-	 */
-	protected function handleRendering($filter_id, $inputs)
-	{
-		foreach ($inputs as $input_id => $i)
-		{
-			if ($this->request->isInputRendered($input_id))
-			{
-				$this->session->writeRendered($filter_id, $input_id, true);
-			}
-			else
-			{
-				$this->session->writeRendered($filter_id, $input_id, false);
-			}
-		}
-	}
+            foreach ($filter->getInputs() as $input_id => $i) {
+                $this->session->writeValue($filter_id, $input_id, $i->getValue());
+            }
+        }
 
-	/**
-	 * Handle reset command
-	 *
-	 * @param string $filter_id
-	 */
-	protected function handleReset(string $filter_id)
-	{
-		// clear session, if reset is pressed
-		if ($this->request->getFilterCmd() == self::CMD_RESET)
-		{
-			$this->session->reset($filter_id);
-		}
-	}
-
-
-	/**
-	 * Handle apply command
-	 *
-	 * @param string $filter_id
-	 * @param Filter\Standard $filter
-	 * @return Filter\Standard
-	 */
-	protected function handleApply(string $filter_id, Filter\Standard $filter): Filter\Standard
-	{
-		if ((in_array($this->request->getFilterCmd(),
-			[self::CMD_APPLY])))
-		{
-			$filter = $this->request->getFilterWithRequest($filter);
-			foreach ($filter->getInputs() as $input_id => $i)
-			{
-				$this->session->writeValue($filter_id, $input_id, $i->getValue());
-			}
-		}
-		return $filter;
-	}
-
-
-
+        return $filter;
+    }
 }

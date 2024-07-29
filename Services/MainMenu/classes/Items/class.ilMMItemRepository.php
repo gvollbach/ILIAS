@@ -1,43 +1,52 @@
 <?php
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
 use ILIAS\GlobalScreen\Identification\IdentificationInterface;
 use ILIAS\GlobalScreen\Identification\NullIdentification;
 use ILIAS\GlobalScreen\Identification\NullPluginIdentification;
 use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Handler\TypeHandler;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\isItem;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\isParent;
+use ILIAS\GlobalScreen\Scope\MainMenu\Factory\Item\Lost;
+use ILIAS\GlobalScreen\Scope\MainMenu\Factory\TopItem\TopLinkItem;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\TopItem\TopParentItem;
 use ILIAS\MainMenu\Provider\CustomMainBarProvider;
+use ILIAS\GlobalScreen\Services;
+use ILIAS\GlobalScreen\Scope\MainMenu\Collector\MainMenuMainCollector;
 
 /**
  * Class ilMMItemRepository
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
 class ilMMItemRepository
 {
+    private ilDBInterface $db;
 
-    /**
-     * @var ilDBInterface
-     */
-    private $db;
-    /**
-     * @var ilGlobalCache
-     */
-    private $cache;
-    /**
-     * @var \ILIAS\GlobalScreen\Services
-     */
-    private $services;
-    /**
-     * @var \ILIAS\GlobalScreen\Scope\MainMenu\Collector\MainMenuMainCollector
-     */
-    private $main_collector;
+    private ilGlobalCache $cache;
 
+    private Services $services;
+
+    private MainMenuMainCollector $main_collector;
 
     /**
      * ilMMItemRepository constructor.
-     *
      * @throws Throwable
      */
     public function __construct()
@@ -46,76 +55,63 @@ class ilMMItemRepository
         $this->cache = ilGlobalCache::getInstance(ilGlobalCache::COMP_GLOBAL_SCREEN);
         $this->db = $DIC->database();
         $this->main_collector = $DIC->globalScreen()->collector()->mainmenu();
-        $this->main_collector->collect();
+        $this->main_collector->collectOnce();
         $this->services = $DIC->globalScreen();
 
-        foreach ($this->main_collector->getAllItems() as $top_item) {
+        foreach ($this->main_collector->getRawUnfilteredItems() as $top_item) {
             ilMMItemStorage::register($top_item);
-            if ($top_item instanceof isParent) {
-                foreach ($top_item->getChildren() as $child) {
-                    ilMMItemStorage::register($child);
-                }
-            }
         }
     }
 
-
-    /**
-     * @param string $class_name
-     *
-     * @return isItem
-     */
-    public function getEmptyItemForTypeString(string $class_name) : isItem
-    {
-        return $this->services->mainBar()->custom($class_name, new  NullIdentification());
-    }
-
-
-    public function clearCache()
+    public function clearCache(): void
     {
         $this->cache->flush();
     }
 
-
     /**
      * @param IdentificationInterface $identification
-     *
      * @return isItem
-     * @throws Throwable
      */
-    public function getSingleItem(IdentificationInterface $identification) : isItem
+    public function getSingleItem(IdentificationInterface $identification): isItem
     {
-        return $this->main_collector->getSingleItem($identification);
+        return $this->main_collector->getSingleItemFromRaw($identification);
     }
 
+    public function getSingleItemFromFilter(IdentificationInterface $identification): isItem
+    {
+        return $this->main_collector->getSingleItemFromFilter($identification);
+    }
+
+    public function resolveIdentificationFromString(string $identification_string): IdentificationInterface
+    {
+        return $this->services->identification()->fromSerializedIdentification($identification_string);
+    }
 
     /**
      * @return ilMMItemRepository
      */
-    public function repository() : ilMMItemRepository
+    public function repository(): ilMMItemRepository
     {
         return $this;
     }
-
 
     /**
      * @return array
      * @throws arException
      */
-    public function getTopItems() : array
+    public function getTopItems(): array
     {
         return ilMMItemStorage::where(" parent_identification = '' OR parent_identification IS NULL ")->orderBy('position')->getArray();
     }
 
-
     /**
      * @return array
      */
-    public function getSubItemsForTable() : array
+    public function getSubItemsForTable(): array
     {
         $r = $this->db->query(
-            "SELECT sub_items.*, top_items.position AS parent_position 
-FROM il_mm_items AS sub_items 
+            "SELECT sub_items.*, top_items.position AS parent_position
+FROM il_mm_items AS sub_items
 LEFT JOIN il_mm_items AS top_items ON top_items.identification = sub_items.parent_identification
 WHERE sub_items.parent_identification != '' ORDER BY top_items.position, parent_identification, sub_items.position ASC"
         );
@@ -127,17 +123,50 @@ WHERE sub_items.parent_identification != '' ORDER BY top_items.position, parent_
         return $return;
     }
 
+    public function flushLostItems(): void
+    {
+        foreach ($this->getTopItems() as $item) {
+            $item_facade = $this->getItemFacade($this->services->identification()->fromSerializedIdentification($item['identification']));
+            if (Lost::class === $item_facade->getType()) {
+                $item_facade->delete();
+            }
+        }
+
+        foreach ($this->getSubItemsForTable() as $item) {
+            $item_facade = $this->getItemFacade($this->services->identification()->fromSerializedIdentification($item['identification']));
+            if (Lost::class === $item_facade->getType()) {
+                $item_facade->delete();
+            }
+        }
+    }
+
+    public function hasLostItems(): bool
+    {
+        foreach ($this->getTopItems() as $item) {
+            $item_facade = $this->getItemFacade($this->services->identification()->fromSerializedIdentification($item['identification']));
+            if (Lost::class === $item_facade->getType()) {
+                return true;
+            }
+        }
+
+        foreach ($this->getSubItemsForTable() as $item) {
+            $item_facade = $this->getItemFacade($this->services->identification()->fromSerializedIdentification($item['identification']));
+            if (Lost::class === $item_facade->getType()) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /**
      * @param IdentificationInterface|null $identification
-     *
      * @return ilMMItemFacadeInterface
      * @throws Throwable
      */
-    public function getItemFacade(IdentificationInterface $identification = null) : ilMMItemFacadeInterface
+    public function getItemFacade(IdentificationInterface $identification = null): ilMMItemFacadeInterface
     {
         if ($identification === null || $identification instanceof NullIdentification || $identification instanceof NullPluginIdentification) {
-            return new ilMMNullItemFacade($identification ? $identification : new NullIdentification(), $this->main_collector);
+            return new ilMMNullItemFacade($identification ?: new NullIdentification(), $this->main_collector);
         }
         if ($identification->getClassName() === CustomMainBarProvider::class) {
             return new ilMMCustomItemFacade($identification, $this->main_collector);
@@ -146,32 +175,29 @@ WHERE sub_items.parent_identification != '' ORDER BY top_items.position, parent_
         return new ilMMItemFacade($identification, $this->main_collector);
     }
 
-
     /**
      * @param string $identification
-     *
      * @return ilMMItemFacadeInterface
      * @throws Throwable
      */
-    public function getItemFacadeForIdentificationString(string $identification) : ilMMItemFacadeInterface
+    public function getItemFacadeForIdentificationString(string $identification): ilMMItemFacadeInterface
     {
         $id = $this->services->identification()->fromSerializedIdentification($identification);
 
         return $this->getItemFacade($id);
     }
 
-
-    public function getPossibleParentsForFormAndTable() : array
+    public function getPossibleParentsForFormAndTable(): array
     {
         static $parents;
-        if (is_null($parents)) {
+        if ($parents === null) {
             $parents = [];
             foreach ($this->getTopItems() as $top_item_identification => $data) {
                 $identification = $this->services->identification()->fromSerializedIdentification($top_item_identification);
                 $item = $this->getSingleItem($identification);
                 if ($item instanceof TopParentItem) {
                     $parents[$top_item_identification] = $this->getItemFacade($identification)
-                        ->getDefaultTitle();
+                                                              ->getDefaultTitle();
                 }
             }
         }
@@ -179,14 +205,10 @@ WHERE sub_items.parent_identification != '' ORDER BY top_items.position, parent_
         return $parents;
     }
 
-
     /**
-     * @return array
-     * @see getPossibleSubItemTypesWithInformation
-     *
-     * @deprecated
+     * @return \ILIAS\GlobalScreen\Scope\MainMenu\Collector\Information\TypeInformation[]
      */
-    public function getPossibleSubItemTypesForForm() : array
+    public function getPossibleSubItemTypesWithInformation(): array
     {
         $types = [];
         foreach ($this->main_collector->getTypeInformationCollection()->getAll() as $information) {
@@ -194,25 +216,9 @@ WHERE sub_items.parent_identification != '' ORDER BY top_items.position, parent_
                 continue;
             }
             if ($information->isChild()) {
-                $types[$information->getType()] = $information->getTypeNameForPresentation();
-            }
-        }
-
-        return $types;
-    }
-
-
-    /**
-     * @return \ILIAS\GlobalScreen\Scope\MainMenu\Collector\Information\TypeInformation[]
-     */
-    public function getPossibleSubItemTypesWithInformation() : array
-    {
-        $types = [];
-        foreach ($this->main_collector->getTypeInformationCollection()->getAll() as $information) {
-            if ($information->isCreationPrevented()) {
-                continue;
-            }
-            if ($information->isChild()) {
+                if ($information->getType() === TopLinkItem::class) { // since these two types are identical (more or less), we truncate one
+                    continue;
+                }
                 $types[$information->getType()] = $information;
             }
         }
@@ -220,86 +226,61 @@ WHERE sub_items.parent_identification != '' ORDER BY top_items.position, parent_
         return $types;
     }
 
-
-    /**
-     * @return array
-     * @see getPossibleTopItemTypesWithInformation
-     * @deprecated
-     */
-    public function getPossibleTopItemTypesForForm() : array
-    {
-        $types = [];
-        foreach ($this->main_collector->getTypeInformationCollection()->getAll() as $information) {
-            if ($information->isTop()) {
-                $types[$information->getType()] = $information->getTypeNameForPresentation();
-            }
-        }
-
-        return $types;
-    }
-
-
     /**
      * @return \ILIAS\GlobalScreen\Scope\MainMenu\Collector\Information\TypeInformation[]
      */
-    public function getPossibleTopItemTypesWithInformation() : array
+    public function getPossibleTopItemTypesWithInformation(bool $new): array
     {
         $types = [];
         foreach ($this->main_collector->getTypeInformationCollection()->getAll() as $information) {
-            if ($information->isTop()) {
+            if (!$new || $information->isTop()) {
                 $types[$information->getType()] = $information;
             }
         }
 
         return $types;
     }
-
 
     /**
      * @param string $type
-     *
      * @return TypeHandler
      * @deprecated
-     *
      */
-    public function getTypeHandlerForType(string $type) : TypeHandler
+    public function getTypeHandlerForType(string $type): TypeHandler
     {
         $item = $this->services->mainBar()->custom($type, new NullIdentification());
 
-        return $this->main_collector->getHandlerForItem($item);
+        return $this->main_collector->getTypeHandlerForItem($item);
     }
-
 
     /**
      * @param ilMMItemFacadeInterface $item_facade
      */
-    public function updateItem(ilMMItemFacadeInterface $item_facade)
+    public function updateItem(ilMMItemFacadeInterface $item_facade): void
     {
         if ($item_facade->isEditable()) {
             $item_facade->update();
-            $this->cache->flush();
+            $this->clearCache();
         }
     }
 
-
     /**
      * @param ilMMItemFacadeInterface $item_facade
      */
-    public function createItem(ilMMItemFacadeInterface $item_facade)
+    public function createItem(ilMMItemFacadeInterface $item_facade): void
     {
         $item_facade->create();
-        $this->cache->flush();
+        $this->clearCache();
     }
-
 
     /**
      * @param ilMMItemFacadeInterface $item_facade
      */
-    public function deleteItem(ilMMItemFacadeInterface $item_facade)
+    public function deleteItem(ilMMItemFacadeInterface $item_facade): void
     {
         if ($item_facade->isDeletable()) {
             $item_facade->delete();
-            $this->cache->flush();
+            $this->clearCache();
         }
     }
 }

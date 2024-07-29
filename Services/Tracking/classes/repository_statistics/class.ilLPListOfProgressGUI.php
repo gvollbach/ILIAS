@@ -1,279 +1,304 @@
 <?php
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+declare(strict_types=0);
 
 /**
-* Class ilLPListOfProgress
-*
-* @author Stefan Meyer <smeyer.ilias@gmx.de>
-*
-* @version $Id$
-*
-* @ilCtrl_Calls ilLPListOfProgressGUI: ilLPProgressTableGUI
-*
-* @package ilias-tracking
-*
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Class ilLPListOfProgress
+ * @author       Stefan Meyer <smeyer.ilias@gmx.de>
+ * @ilCtrl_Calls ilLPListOfProgressGUI: ilLPProgressTableGUI
+ * @package      ilias-tracking
+ */
 class ilLPListOfProgressGUI extends ilLearningProgressBaseGUI
 {
-	var $tracked_user = null;
-	var $details_id = 0;
-	var $details_type = '';
-	var $details_mode = 0;
+    protected ?ilObjUser $tracked_user = null;
+    protected int $details_id = 0;
+    protected int $details_obj_id = 0;
+    protected string $details_type = '';
+    protected int $details_mode = 0;
 
-	function __construct($a_mode,$a_ref_id,$a_user_id = 0)
-	{
-		parent::__construct($a_mode,$a_ref_id,$a_user_id);
-		$this->__initUser($a_user_id);
-		
-		// Set item id for details
-		$this->__initDetails((int) $_GET['details_id']);
-		$this->ctrl->saveParameter($this,'details_id',$_REQUEST['details_id']);
-	}
-		
+    public function __construct(int $a_mode, int $a_ref_id, int $a_user_id = 0)
+    {
+        parent::__construct($a_mode, $a_ref_id, $a_user_id);
+        $this->__initUser($a_user_id);
 
-	/**
-	 * execute command
-	 */
-	function executeCommand()
-	{
-		global $DIC;
+        // Set item id for details
+        $this->__initDetails($this->initDetailsIdFromQuery());
+        $this->ctrl->saveParameter($this, 'details_id');
+    }
 
-		$ilUser = $DIC['ilUser'];
-		
-		$this->ctrl->setReturn($this, "show");
-		$this->ctrl->saveParameter($this,'user_id',$this->getUserId());
-		switch($this->ctrl->getNextClass())
-		{
-			case 'illpprogresstablegui':
-				include_once './Services/Tracking/classes/repository_statistics/class.ilLPProgressTableGUI.php';
-			    $table_gui = new ilLPProgressTableGUI($this, "", $this->tracked_user);
-				$this->ctrl->setReturn($this,'show');
-				$this->ctrl->forwardCommand($table_gui);
-				break;
+    protected function initDetailsIdFromQuery(): int
+    {
+        if ($this->http->wrapper()->query()->has('details_id')) {
+            return $this->http->wrapper()->query()->retrieve(
+                'details_id',
+                $this->refinery->kindlyTo()->int()
+            );
+        }
+        return 0;
+    }
 
-			default:
-				$cmd = $this->__getDefaultCommand();
-				$this->$cmd();
+    /**
+     * execute command
+     */
+    public function executeCommand(): void
+    {
+        $this->ctrl->setReturn($this, "show");
+        $this->ctrl->setParameter($this, 'user_id', $this->getUserId());
+        switch ($this->ctrl->getNextClass()) {
+            case 'illpprogresstablegui':
+                $table_gui = new ilLPProgressTableGUI(
+                    $this,
+                    "",
+                    $this->tracked_user
+                );
+                $this->ctrl->setReturn($this, 'show');
+                $this->ctrl->forwardCommand($table_gui);
+                break;
 
-		}
-		return true;
-	}
+            default:
+                $cmd = $this->__getDefaultCommand();
+                $this->$cmd();
+        }
+    }
 
-	function show()
-	{
-		global $DIC;
+    public function show(): void
+    {
+        switch ($this->getMode()) {
+            // Show only detail of current repository item if called from repository
+            case self::LP_CONTEXT_REPOSITORY:
+                $this->__initDetails($this->getRefId());
+                $this->details();
+                return;
 
-		$ilObjDataCache = $DIC['ilObjDataCache'];
+            case self::LP_CONTEXT_USER_FOLDER:
+            case self::LP_CONTEXT_ORG_UNIT:
+                // if called from user folder obj_id is id of current user
+                $this->__initUser($this->getUserId());
+                break;
+        }
+        // not called from repository
+        $this->__showProgressList();
+    }
 
-		switch($this->getMode())
-		{
-			// Show only detail of current repository item if called from repository
-			case self::LP_CONTEXT_REPOSITORY:
-				$this->__initDetails($this->getRefId());
-				return $this->details();
+    /**
+     *
+     */
+    protected function saveProgress(): void
+    {
+        $info = new ilInfoScreenGUI($this);
+        $info->setContextRefId($this->ref_id);
+        $info->setContextObjId($this->details_obj_id);
+        $info->setContentObjType((string) $this->obj_type);
+        $info->saveProgress(false);
+        $this->ctrl->redirect($this);
+    }
 
-			case self::LP_CONTEXT_USER_FOLDER:
-			case self::LP_CONTEXT_ORG_UNIT:
-				// if called from user folder obj_id is id of current user
-				$this->__initUser($this->getUserId());
-				break;
-		}
+    public function details(): void
+    {
+        // Show back button to crs if called from crs. Otherwise if called from personal desktop or administration
+        // show back to list
+        $crs_id = 0;
+        if ($this->http->wrapper()->query()->has('crs_id')) {
+            $crs_id = $this->http->wrapper()->query()->retrieve(
+                'crs_id',
+                $this->refinery->kindlyTo()->int()
+            );
+        }
+        if ($crs_id) {
+            $this->ctrl->setParameter($this, 'details_id', $crs_id);
+            $this->toolbar->addButton(
+                $this->lng->txt('trac_view_crs'),
+                $this->ctrl->getLinkTarget($this, 'details')
+            );
+        } elseif ($this->getMode() == self::LP_CONTEXT_PERSONAL_DESKTOP or
+            $this->getMode() == self::LP_CONTEXT_ADMINISTRATION or
+            $this->getMode() == self::LP_CONTEXT_USER_FOLDER) {
+            $this->toolbar->addButton(
+                $this->lng->txt('trac_view_list'),
+                $this->ctrl->getLinkTarget($this, 'show')
+            );
+        }
 
-		// not called from repository
- 		$this->__showProgressList();
-	}
+        $this->tpl->addBlockFile(
+            'ADM_CONTENT',
+            'adm_content',
+            'tpl.lp_progress_container.html',
+            'Services/Tracking'
+        );
 
-	/**
-	 * 
-	 */
-	protected function saveProgress()
-	{
-		$info = new ilInfoScreenGUI($this);
-		$info->setContextRefId((int)$this->ref_id);
-		$info->setContextObjId((int)$this->details_obj_id);
-		$info->setContentObjType((string)$this->obj_type);
-		$info->saveProgress(false);
-		$this->ctrl->redirect($this);
-	}
+        $info = new ilInfoScreenGUI($this);
+        $info->setContextRefId($this->details_id);
+        $info->setContextObjId($this->details_obj_id);
+        $info->setContentObjType((string) $this->obj_type);
+        $info->enableLearningProgress(true);
+        $info->setFormAction($this->ctrl->getFormAction($this));
+        $this->__appendLPDetails(
+            $info,
+            $this->details_obj_id,
+            $this->tracked_user->getId()
+        );
+        $this->__showObjectDetails($info, $this->details_obj_id, false);
 
-	function details()
-	{
-		global $DIC;
+        // Finally set template variable
+        $this->tpl->setVariable("LM_INFO", $info->getHTML());
 
-		$ilToolbar = $DIC['ilToolbar'];
-		$ilCtrl = $DIC['ilCtrl'];
-		$rbacsystem = $DIC['rbacsystem'];
-		$ilAccess = $DIC['ilAccess'];
+        $olp = ilObjectLP::getInstance($this->details_obj_id);
+        $collection = $olp->getCollectionInstance();
+        $obj_ids = array();
+        if ($collection) {
+            foreach ($collection->getItems() as $item_id) {
+                if ($collection instanceof ilLPCollectionOfRepositoryObjects) {
+                    $obj_id = ilObject::_lookupObjectId($item_id);
+                    if ($this->access->checkAccessOfUser(
+                        $this->tracked_user->getId(),
+                        'visible',
+                        '',
+                        $item_id
+                    )) {
+                        $obj_ids[$obj_id] = array($item_id);
+                    }
+                } else {
+                    $obj_ids[] = $item_id;
+                }
+            }
+        }
 
-		/**
-		 * @var $ilAccess ilAccessHandler
-		 */
+        // #15247
+        if (count($obj_ids) > 0) {
+            // seems obsolete
+            $personal_only = !ilLearningProgressAccess::checkPermission(
+                'read_learning_progress',
+                $this->getRefId()
+            );
+            $lp_table = new ilLPProgressTableGUI(
+                $this,
+                "details",
+                $this->tracked_user,
+                $obj_ids,
+                true,
+                $this->details_mode,
+                $personal_only,
+                $this->details_obj_id,
+                $this->details_id
+            );
+            $this->tpl->setVariable("LP_OBJECTS", $lp_table->getHTML());
+        }
 
-		// Show back button to crs if called from crs. Otherwise if called from personal desktop or administration
-		// show back to list
-		if((int)$_GET['crs_id'])
-		{
-			$this->ctrl->setParameter($this,'details_id',(int) $_GET['crs_id']);
-			
-			$ilToolbar->addButton($this->lng->txt('trac_view_crs'),
-				$this->ctrl->getLinkTarget($this,'details'));			
-		}
-		elseif($this->getMode() == self::LP_CONTEXT_PERSONAL_DESKTOP or
-			   $this->getMode() == self::LP_CONTEXT_ADMINISTRATION or
-			   $this->getMode() == self::LP_CONTEXT_USER_FOLDER)
-		{
-			$ilToolbar->addButton($this->lng->txt('trac_view_list'),
-				$this->ctrl->getLinkTarget($this,'show'));				
-		}
+        $this->tpl->setVariable("LEGEND", $this->__getLegendHTML());
+    }
 
-		$this->tpl->addBlockFile('ADM_CONTENT','adm_content','tpl.lp_progress_container.html','Services/Tracking');
+    public function __showProgressList(): void
+    {
+        $this->tpl->addBlockFile(
+            'ADM_CONTENT',
+            'adm_content',
+            'tpl.lp_list_progress.html',
+            'Services/Tracking'
+        );
 
-		include_once("./Services/InfoScreen/classes/class.ilInfoScreenGUI.php");
-		$info = new ilInfoScreenGUI($this);
-		$info->setContextRefId((int)$this->details_id);
-		$info->setContextObjId((int)$this->details_obj_id);
-		$info->setContentObjType((string)$this->obj_type);
-		$info->enableLearningProgress(true);
-		$info->setFormAction($ilCtrl->getFormAction($this));
-		$this->__appendUserInfo($info, $this->tracked_user);		
-		$this->__appendLPDetails($info,$this->details_obj_id,$this->tracked_user->getId());
-		$this->__showObjectDetails($info,$this->details_obj_id, false);
-		
-		// Finally set template variable
-		$this->tpl->setVariable("LM_INFO",$info->getHTML());
-		
-		include_once './Services/Object/classes/class.ilObjectLP.php';
-		$olp = ilObjectLP::getInstance($this->details_obj_id);	
-		$collection = $olp->getCollectionInstance();
-		$obj_ids = array();
-		if($collection)
-		{
-			foreach($collection->getItems() as $item_id)
-			{
-				if($collection instanceof ilLPCollectionOfRepositoryObjects)
-				{
-					$obj_id = ilObject::_lookupObjectId($item_id);
-					if ($ilAccess->checkAccessOfUser($this->tracked_user->getId(), 'visible', '', $item_id)) {
-						$obj_ids[$obj_id] = array( $item_id );
-					}
-				}
-				else
-				{
-					$obj_ids[] = $item_id;
-				}				
-			}
-		}
-		
-		// #15247
-		if(count($obj_ids) > 0)
-		{
-			// seems obsolete
-			include_once './Services/Tracking/classes/class.ilLearningProgressAccess.php';
-			$personal_only = !ilLearningProgressAccess::checkPermission('read_learning_progress', $this->getRefId());
+        // User info
+        $info = new ilInfoScreenGUI($this);
+        $info->setFormAction($this->ctrl->getFormAction($this));
+        $lp_table = new ilLPProgressTableGUI(
+            $this,
+            "",
+            $this->tracked_user,
+            null,
+            false,
+            null,
+            false,
+            null,
+            null,
+            $this->getMode()
+        );
+        $this->tpl->setVariable("LP_OBJECTS", $lp_table->getHTML());
 
-			include_once("./Services/Tracking/classes/repository_statistics/class.ilLPProgressTableGUI.php");
-			$lp_table = new ilLPProgressTableGUI($this, "details", $this->tracked_user, $obj_ids, true, $this->details_mode, $personal_only, $this->details_obj_id, $this->details_id);
-			$this->tpl->setVariable("LP_OBJECTS", $lp_table->getHTML());
-		}
-		
-		$this->tpl->setVariable("LEGEND",$this->__getLegendHTML());
-	}
+        $this->tpl->setVariable("LEGEND", $this->__getLegendHTML());
+    }
 
-	function __showProgressList()
-	{
-		global $DIC;
+    /**
+     * @todo check the access checks.
+     */
+    public function __initUser(int $a_usr_id = 0): bool
+    {
+        if ($this->http->wrapper()->post()->has('user_id')) {
+            $a_usr_id = $this->http->wrapper()->post()->retrieve(
+                'user_id',
+                $this->refinery->kindlyTo()->int()
+            );
+            $this->ctrl->setParameter($this, 'user_id', $a_usr_id);
+        }
+        if ($a_usr_id) {
+            $user = ilObjectFactory::getInstanceByObjId($a_usr_id);
+            if (!$user instanceof ilObjUser) {
+                throw new ilObjectNotFoundException(
+                    'Invalid user id given: ' . $a_usr_id
+                );
+            }
+            $this->tracked_user = $user;
+        } else {
+            $this->tracked_user = $this->user;
+        }
 
-		$ilUser = $DIC['ilUser'];
-		$ilObjDataCache = $DIC['ilObjDataCache'];
-		$ilCtrl = $DIC['ilCtrl'];
+        // #8762: see ilObjUserGUI->getTabs()
+        if ($this->mode == self::LP_CONTEXT_USER_FOLDER &&
+            $this->rbacsystem->checkAccess('read', $this->ref_id)) {
+            return false;
+        }
 
-		$this->tpl->addBlockFile('ADM_CONTENT','adm_content','tpl.lp_list_progress.html','Services/Tracking');
-		
-		// User info
-		include_once("./Services/InfoScreen/classes/class.ilInfoScreenGUI.php");
-		$info = new ilInfoScreenGUI($this);
-		$info->setFormAction($ilCtrl->getFormAction($this));
-		
-		if ($this->__appendUserInfo($info, $this->tracked_user))
-		{
-			$this->tpl->setCurrentBlock("info_user");
-			$this->tpl->setVariable("USER_INFO",$info->getHTML());
-			$this->tpl->parseCurrentBlock();
-		}
+        if ($this->mode == self::LP_CONTEXT_ORG_UNIT &&
+            ilObjOrgUnitAccess::_checkAccessToUserLearningProgress(
+                $this->ref_id,
+                $a_usr_id
+            )) {
+            return false;
+        }
 
-		include_once("./Services/Tracking/classes/repository_statistics/class.ilLPProgressTableGUI.php");
-		$lp_table = new ilLPProgressTableGUI($this, "", $this->tracked_user,null,false,null,false,null,null,$this->getMode());
-		$this->tpl->setVariable("LP_OBJECTS", $lp_table->getHTML());
+        // Check access
+        if (!$this->rbacreview->isAssigned(
+            $this->user->getId(),
+            SYSTEM_ROLE_ID
+        )) {
+            $this->tracked_user = $this->user;
+            return false;
+        }
+        return true;
+    }
 
-		$this->tpl->setVariable("LEGEND", $this->__getLegendHTML());
-	}
+    public function __initDetails(int $a_details_id): void
+    {
+        if (!$a_details_id) {
+            $a_details_id = $this->getRefId();
+        }
+        if ($a_details_id) {
+            $ref_ids = ilObject::_getAllReferences($a_details_id);
 
-	function __initUser($a_usr_id = 0)
-	{
-		global $DIC;
+            $this->details_id = $a_details_id;
+            $this->details_obj_id = $this->ilObjectDataCache->lookupObjId(
+                $this->details_id
+            );
+            $this->details_type = $this->ilObjectDataCache->lookupType(
+                $this->details_obj_id
+            );
 
-		$ilUser = $DIC['ilUser'];
-		$rbacreview = $DIC['rbacreview'];
-		$rbacsystem = $DIC['rbacsystem'];
-
-		if($_POST['user_id'])
-		{
-			$a_usr_id = $_POST['user_id'];
-			$this->ctrl->setParameter($this,'user_id',$_POST['user_id']);
-		}
-
-		if($a_usr_id)
-		{
-			$this->tracked_user = ilObjectFactory::getInstanceByObjId($a_usr_id);
-		}
-		else
-		{
-			$this->tracked_user = $ilUser;
-		}
-		
-		// #8762: see ilObjUserGUI->getTabs()
-		if($this->mode == self::LP_CONTEXT_USER_FOLDER && $rbacsystem->checkAccess('read',$this->ref_id))
-		{
-			return true;
-		}
-
-		if($this->mode == self::LP_CONTEXT_ORG_UNIT && ilObjOrgUnitAccess::_checkAccessToUserLearningProgress($this->ref_id,$a_usr_id))
-		{
-			return true;
-		}
-
-		// Check access
-		if(!$rbacreview->isAssigned($ilUser->getId(),SYSTEM_ROLE_ID))
-		{
-			$this->tracked_user = $ilUser;
-		}
-		
-		return true;
-	}
-
-	function __initDetails($a_details_id)
-	{
-		global $DIC;
-
-		$ilObjDataCache = $DIC['ilObjDataCache'];
-
-		if(!$a_details_id)
-		{
-			$a_details_id = $this->getRefId();
-		}
-		if($a_details_id)
-		{
-			$ref_ids = ilObject::_getAllReferences($a_details_id);
-			
-			$this->details_id = $a_details_id;
-			$this->details_obj_id = $ilObjDataCache->lookupObjId($this->details_id);
-			$this->details_type = $ilObjDataCache->lookupType($this->details_obj_id);
-						
-			include_once 'Services/Object/classes/class.ilObjectLP.php';
-			$olp = ilObjectLP::getInstance($this->details_obj_id);													
-			$this->details_mode = $olp->getCurrentMode();
-		}
-	}
+            $olp = ilObjectLP::getInstance($this->details_obj_id);
+            $this->details_mode = $olp->getCurrentMode();
+        }
+    }
 }
-
-?>

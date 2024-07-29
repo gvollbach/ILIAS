@@ -5,6 +5,19 @@ namespace ILIAS\FileUpload\DTO;
 use ILIAS\FileUpload\Collection\ImmutableStringMap;
 use ILIAS\FileUpload\ScalarTypeCheckAware;
 
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ *      https://www.ilias.de
+ *      https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 /**
  * Class UploadResult
  *
@@ -17,113 +30,102 @@ use ILIAS\FileUpload\ScalarTypeCheckAware;
  *
  * @public
  */
-final class UploadResult {
-
-	use ScalarTypeCheckAware;
-	/**
-	 * @var string $name
-	 */
-	private $name;
-	/**
-	 * @var int $size
-	 */
-	private $size;
-	/**
-	 * @var string $mimeType
-	 */
-	private $mimeType;
-	/**
-	 * @var ImmutableStringMap $metaData
-	 */
-	private $metaData;
-	/**
-	 * @var ProcessingStatus $status
-	 */
-	private $status;
-	/**
-	 * @var string $path
-	 */
-	private $path;
+final class UploadResult
+{
+    use ScalarTypeCheckAware;
+    private string $name;
+    private int $size;
+    private string $mimeType;
+    private ImmutableStringMap $metaData;
+    private ProcessingStatus $status;
+    private string $path;
 
 
-	/**
-	 * UploadResult constructor.
-	 *
-	 * @param string             $name     The name of the uploaded file.
-	 * @param int                $size     The original file size.
-	 * @param string             $mimeType The mime type of the uploaded file.
-	 * @param ImmutableStringMap $metaData Additional meta data. Make sure to wrap the instance
-	 *                                     with an ImmutableMapWrapper if the instance is mutable.
-	 * @param ProcessingStatus   $status   The status code either OK or REJECTED.
-	 * @param string             $path     The path to the newly moved file.
-	 *
-	 * @since 5.3
-	 */
-	public function __construct($name, $size, $mimeType, ImmutableStringMap $metaData, ProcessingStatus $status, $path) {
-		$this->stringTypeCheck($name, "name");
-		$this->stringTypeCheck($mimeType, "mimeType");
-		$this->stringTypeCheck($path, "path");
-		$this->intTypeCheck($size, "size");
+    /**
+     * UploadResult constructor.
+     *
+     * @param string             $name     The name of the uploaded file.
+     * @param int                $size     The original file size.
+     * @param string             $mimeType The mime type of the uploaded file.
+     * @param ImmutableStringMap $metaData Additional meta data. Make sure to wrap the instance
+     *                                     with an ImmutableMapWrapper if the instance is mutable.
+     * @param ProcessingStatus   $status   The status code either OK or REJECTED.
+     * @param string             $path     The path to the newly moved file.
+     *
+     * @since 5.3
+     */
+    public function __construct(string $name, int $size, string $mimeType, ImmutableStringMap $metaData, ProcessingStatus $status, string $path)
+    {
+        $this->stringTypeCheck($name, "name");
+        $this->stringTypeCheck($mimeType, "mimeType");
+        $this->stringTypeCheck($path, "path");
+        $this->intTypeCheck($size, "size");
 
-		$this->name = $name;
-		$this->size = $size;
-		$this->mimeType = $mimeType;
-		$this->metaData = $metaData;
-		$this->status = $status;
-		$this->path = $path;
-	}
-
-
-	/**
-	 * @return string
-	 * @since 5.3
-	 */
-	public function getName() {
-		return $this->name;
-	}
+        $this->name = $name;
+        $this->size = $size;
+        $this->mimeType = $mimeType;
+        $this->metaData = $metaData;
+        $this->status = $status;
+        $this->path = $path;
+    }
 
 
-	/**
-	 * @return int
-	 * @since 5.3
-	 */
-	public function getSize() {
-		return $this->size;
-	}
+    /**
+     * @since 5.3
+     */
+    public function getName(): string
+    {
+        return $this->name;
+    }
 
 
-	/**
-	 * @return string
-	 * @since 5.3
-	 */
-	public function getMimeType() {
-		return $this->mimeType;
-	}
+    /**
+     * @since 5.3
+     */
+    public function getSize(): int
+    {
+        return $this->size;
+    }
 
 
-	/**
-	 * @return ImmutableStringMap
-	 * @since 5.3
-	 */
-	public function getMetaData() {
-		return $this->metaData;
-	}
+    /**
+     * @since 5.3
+     */
+    public function getMimeType(): string
+    {
+        return $this->mimeType;
+    }
 
 
-	/**
-	 * @return ProcessingStatus
-	 * @since 5.3
-	 */
-	public function getStatus() {
-		return $this->status;
-	}
+    /**
+     * @since 5.3
+     */
+    public function getMetaData(): ImmutableStringMap
+    {
+        return $this->metaData;
+    }
 
 
-	/**
-	 * @return string
-	 * @since 5.3
-	 */
-	public function getPath() {
-		return $this->path;
-	}
+    /**
+     * @since 5.3
+     */
+    public function getStatus(): ProcessingStatus
+    {
+        return $this->status;
+    }
+
+
+    public function isOK(): bool
+    {
+        return $this->status->getCode() === ProcessingStatus::OK;
+    }
+
+
+    /**
+     * @since 5.3
+     */
+    public function getPath(): string
+    {
+        return $this->path;
+    }
 }

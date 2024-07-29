@@ -1,183 +1,172 @@
 <?php
 
-/* Copyright (c) 1998-2019 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\DI\Container;
+use ILIAS\DI\UIServices;
 
 /**
  * Derived tasks list
  *
- * @author killing@leifos.de
- * @ingroup ServicesTasks
+ * @author Alexander Killing <killing@leifos.de>
  */
-class ilDerivedTasksGUI
+class ilDerivedTasksGUI implements ilCtrlBaseClassInterface
 {
-	/**
-	 * @var \ILIAS\DI\Container
-	 */
-	protected $dic;
+    protected ?Container $dic;
+    protected ilCtrl $ctrl;
+    protected ilGlobalTemplateInterface $main_tpl;
+    protected ilTaskService $task;
+    protected ilObjUser $user;
+    protected UIServices $ui;
+    protected ilLanguage $lng;
+    protected ilHelpGUI $help;
 
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    /**
+     * Constructor
+     * @param Container|null $dic
+     */
+    public function __construct(Container $di_container = null)
+    {
+        global $DIC;
 
-	/**
-	 * @var ilTemplate
-	 */
-	protected $main_tpl;
+        if (is_null($di_container)) {
+            $di_container = $DIC;
+        }
+        $this->dic = $di_container;
+        $this->ctrl = $DIC->ctrl();
+        $this->main_tpl = $DIC->ui()->mainTemplate();
+        $this->task = $DIC->task();
+        $this->user = $DIC->user();
+        $this->ui = $DIC->ui();
+        $this->lng = $DIC->language();
+        $this->help = $DIC->help();
 
-	/**
-	 * @var ilTaskService
-	 */
-	protected $task;
+        $this->help->setScreenIdComponent('task');
+        $this->lng->loadLanguageModule("task");
+    }
 
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
+    /**
+     * Execute command
+     */
+    public function executeCommand(): void
+    {
+        $ctrl = $this->ctrl;
+        $main_tpl = $this->main_tpl;
+        $main_tpl->loadStandardTemplate();
 
-	/**
-	 * @var \ILIAS\DI\UIServices
-	 */
-	protected $ui;
+        $next_class = $ctrl->getNextClass($this);
+        $cmd = $ctrl->getCmd("show");
 
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+        if ($cmd == "show") {
+            $this->$cmd();
+        }
+        $main_tpl->printToStdout();
+    }
 
-	/**
-	 * Constructor
-	 * @param \ILIAS\DI\Container|null $dic
-	 */
-	public function __construct(\ILIAS\DI\Container $di_container = null)
-	{
-		global $DIC;
+    /**
+     * Show list of tasks
+     */
+    protected function show(): void
+    {
+        $ui = $this->ui;
+        $lng = $this->lng;
+        $main_tpl = $this->main_tpl;
 
-		if (is_null($di_container))
-		{
-			$di_container = $DIC;
-		}
-		$this->dic = $di_container;
-		$this->ctrl = $DIC->ctrl();
-		$this->main_tpl = $DIC->ui()->mainTemplate();
-		$this->task = $DIC->task();
-		$this->user = $DIC->user();
-		$this->ui = $DIC->ui();
-		$this->lng = $DIC->language();
+        $main_tpl->setTitle($lng->txt("task_derived_tasks"));
+        $main_tpl->setTitleIcon(ilUtil::getImagePath("icon_task.svg"));
+        $this->help->setScreenId('derived_tasks');
 
-		$this->lng->loadLanguageModule("task");
-	}
+        $f = $ui->factory();
+        $renderer = $ui->renderer();
 
-	/**
-	 * Execute command
-	 */
-	function executeCommand()
-	{
-		$ctrl = $this->ctrl;
-		$main_tpl = $this->main_tpl;
-		$main_tpl->loadStandardTemplate();
+        $collector = $this->task->derived()->factory()->collector();
 
-		$next_class = $ctrl->getNextClass($this);
-		$cmd = $ctrl->getCmd("show");
+        $entries = $collector->getEntries($this->user->getId());
 
-		switch ($next_class)
-		{
-			default:
-				if (in_array($cmd, array("show")))
-				{
-					$this->$cmd();
-				}
-		}
-		$main_tpl->printToStdout();
-	}
+        $list_items_with_deadline = [];
+        $list_items_without_deadline = [];
 
-	/**
-	 * Show list of tasks
-	 */
-	protected function show()
-	{
-		$ui = $this->ui;
-		$lng = $this->lng;
-		$main_tpl = $this->main_tpl;
+        // item groups from tasks
+        foreach ($entries as $i) {
+            $props = [];
 
-		$main_tpl->setTitle($lng->txt("task_derived_tasks"));
+            $title = $i->getTitle();
+            $link = '';
 
-		$f = $ui->factory();
-		$renderer = $ui->renderer();
+            if ($i->getRefId() > 0) {
+                $obj_id = ilObject::_lookupObjId($i->getRefId());
+                $obj_type = ilObject::_lookupType($obj_id);
+                $props[$lng->txt("obj_" . $obj_type)] = ilObject::_lookupTitle($obj_id);
 
-		$collector = $this->task->derived()->factory()->collector();
+                $link = ilLink::_getStaticLink($i->getRefId());
+            }
 
-		$entries = $collector->getEntries($this->user->getId());
+            if ($i->getWspId() > 0) {
+                $wst = new ilWorkspaceTree($this->user->getId());
+                $obj_id = $wst->lookupObjectId($i->getWspId());
+                $obj_type = ilObject::_lookupType($obj_id);
+                $props[$lng->txt("obj_" . $obj_type)] = ilObject::_lookupTitle($obj_id);
+            }
 
-		$list_items_with_deadline = [];
-		$list_items_without_deadline = [];
-		$item_groups = [];
+            if (strlen($i->getUrl()) > 0) {
+                $link = $i->getUrl();
+            }
 
-		// item groups from tasks
-		foreach ($entries as $i)
-		{
-			$props = [];
+            if (strlen($link) > 0) {
+                $title = $f->button()->shy($title, $link);
+            }
 
-			$title = $i->getTitle();
-			$link = '';
+            if ($i->getStartingTime() > 0) {
+                $start = new ilDateTime($i->getStartingTime(), IL_CAL_UNIX);
+                $props[$lng->txt("task_start")] = ilDatePresentation::formatDate($start);
+            }
+            if ($i->getDeadline() > 0) {
+                $end = new ilDateTime($i->getDeadline(), IL_CAL_UNIX);
+                $props[$lng->txt("task_deadline")] = ilDatePresentation::formatDate($end);
+            }
+            $item = $f->item()->standard($title)->withProperties($props);
+            if ($i->getDeadline() > 0) {
+                $list_items_with_deadline[] = $item;
+            } else {
+                $list_items_without_deadline[] = $item;
+            }
+        }
 
-			if ($i->getRefId() > 0)
-			{
-				$obj_id = ilObject::_lookupObjId($i->getRefId());
-				$obj_type = ilObject::_lookupType($obj_id);
-				$props[$lng->txt("obj_".$obj_type )] = ilObject::_lookupTitle($obj_id);
+        // output list panel or info message
+        if (count($list_items_with_deadline) > 0 || count($list_items_without_deadline) > 0) {
+            $panels = [];
 
-				$link = ilLink::_getStaticLink($i->getRefId());
-			}
+            if (count($list_items_with_deadline) > 0) {
+                $panels[] = $f->panel()->listing()->standard(
+                    $lng->txt("task_tasks_with_deadline"),
+                    [$f->item()->group("", $list_items_with_deadline)]
+                );
+            }
+            if (count($list_items_without_deadline) > 0) {
+                $panels[] = $f->panel()->listing()->standard(
+                    $lng->txt("task_tasks_without_deadline"),
+                    [$f->item()->group("", $list_items_without_deadline)]
+                );
+            }
 
-			if (strlen($i->getUrl()) > 0) {
-				$link = $i->getUrl();
-			}
 
-			if (strlen($link) > 0) {
-				$title = $f->button()->shy($title, $link);
-			}
-
-			if ($i->getStartingTime() > 0)
-			{
-				$start = new ilDateTime($i->getStartingTime(), IL_CAL_UNIX);
-				$props[$lng->txt("task_start")] = ilDatePresentation::formatDate($start);
-			}
-			if ($i->getDeadline() > 0)
-			{
-				$end = new ilDateTime($i->getDeadline(), IL_CAL_UNIX);
-				$props[$lng->txt("task_deadline")] = ilDatePresentation::formatDate($end);
-			}
-			$item = $f->item()->standard($title)->withProperties($props);
-			if ($i->getDeadline() > 0)
-			{
-				$list_items_with_deadline[] = $item;
-			}
-			else
-			{
-				$list_items_without_deadline[] = $item;
-			}
-		}
-		if (count($list_items_with_deadline) > 0)
-		{
-			$item_groups[] = $f->item()->group($lng->txt("task_tasks_with_deadline"), $list_items_with_deadline);
-		}
-		if (count($list_items_without_deadline) > 0)
-		{
-			$item_groups[] = $f->item()->group($lng->txt("task_tasks_without_deadline"), $list_items_without_deadline);
-		}
-
-		// output list panel or info message
-		if (count($item_groups) > 0)
-		{
-			$std_list = $f->panel()->listing()->standard("", $item_groups);
-			$main_tpl->setContent($renderer->render($std_list));
-		}
-		else
-		{
-			ilUtil::sendInfo($lng->txt("task_no_tasks"));
-		}
-	}
-
-	
+            $main_tpl->setContent($renderer->render($panels));
+        } else {
+            $this->main_tpl->setOnScreenMessage('info', $lng->txt("task_no_tasks"));
+        }
+    }
 }

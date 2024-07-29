@@ -1,228 +1,183 @@
 <?php
 
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-/** @defgroup ModulesHTMLLearningModule Modules/HTMLLearningModule
- */
-
-require_once "./Services/Object/classes/class.ilObject.php";
-//require_once "Services/MetaData/classes/class.ilMDLanguageItem.php";
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
-* File Based Learning Module (HTML) object
-*
-* @author Alex Killing <alex.killing@gmx.de>
-*
-* $Id$
-*
-* @ingroup ModulesHTMLLearningModule
-*/
+ * File Based Learning Module (HTML) object
+ * @author Alexander Killing <killing@leifos.de>
+ */
 class ilObjFileBasedLM extends ilObject
 {
-	var $tree;
-	
-	protected $online; // [bool]
+    protected ?string $start_file = null;
+    protected bool $online;
 
-	/**
-	* Constructor
-	* @access	public
-	* @param	integer	reference_id or object_id
-	* @param	boolean	treat the id as reference_id (true) or object_id (false)
-	*/
-	function __construct($a_id = 0,$a_call_by_reference = true)
-	{
-		global $DIC;
+    public function __construct(
+        int $a_id = 0,
+        bool $a_call_by_reference = true
+    ) {
+        global $DIC;
 
-		// default is offline
-		$this->setOfflineStatus(true);
+        // default is offline
+        $this->setOfflineStatus(true);
 
-		$this->db = $DIC->database();
-		// this also calls read() method! (if $a_id is set)
-		$this->type = "htlm";
-		parent::__construct($a_id,$a_call_by_reference);
-		
-	}
+        $this->db = $DIC->database();
+        // this also calls read() method! (if $a_id is set)
+        $this->type = "htlm";
+        parent::__construct($a_id, $a_call_by_reference);
+    }
 
+    public function update(bool $a_skip_meta = false): bool
+    {
+        $ilDB = $this->db;
 
-	/**
-	* update object data
-	*
-	* @access	public
-	* @return	boolean
-	*/
-	function update($a_skip_meta = false)
-	{
-		$ilDB = $this->db;
+        if (!$a_skip_meta) {
+            $this->updateMetaData();
+        }
+        parent::update();
 
-		if (!$a_skip_meta)
-		{
-			$this->updateMetaData();
-		}
-		parent::update();
+        $ilDB->manipulate($q = "UPDATE file_based_lm SET " .
+            " startfile = " . $ilDB->quote($this->getStartFile(), "text") . " " .
+            " WHERE id = " . $ilDB->quote($this->getId(), "integer"));
+        return true;
+    }
 
-		$ilDB->manipulate($q = "UPDATE file_based_lm SET ".
-			" startfile = ".$ilDB->quote($this->getStartFile(), "text")." ".
-			" WHERE id = ".$ilDB->quote($this->getId(), "integer"));
-		return true;
-	}
+    public function read(): void
+    {
+        $ilDB = $this->db;
 
-	/**
-	* read object
-	*/
-	function read()
-	{
-		$ilDB = $this->db;
-		
-		parent::read();
+        parent::read();
 
-		$q = "SELECT * FROM file_based_lm WHERE id = ".$ilDB->quote($this->getId(), "integer");
-		$lm_set = $ilDB->query($q);
-		$lm_rec = $ilDB->fetchAssoc($lm_set);
-		$this->setStartFile((string) $lm_rec["startfile"]);
-	}
+        $q = "SELECT * FROM file_based_lm WHERE id = " . $ilDB->quote($this->getId(), "integer");
+        $lm_set = $ilDB->query($q);
+        $lm_rec = $ilDB->fetchAssoc($lm_set);
+        $this->setStartFile((string) $lm_rec["startfile"]);
+    }
 
+    public function create(bool $a_skip_meta = false): int
+    {
+        $ilDB = $this->db;
 
+        $id = parent::create();
+        $this->createDataDirectory();
 
-	/**
-	* create file based lm
-	*/
-	function create($a_skip_meta = false)
-	{
-		$ilDB = $this->db;
+        $ilDB->manipulate("INSERT INTO file_based_lm (id, startfile) VALUES " .
+            " (" . $ilDB->quote($this->getId(), "integer") . "," .
+            $ilDB->quote($this->getStartFile(), "text") . ")");
+        if (!$a_skip_meta) {
+            $this->createMetaData();
+        }
+        return $id;
+    }
 
-		parent::create();
-		$this->createDataDirectory();
+    public function getDataDirectory(string $mode = "filesystem"): string
+    {
+        $lm_data_dir = ilFileUtils::getWebspaceDir($mode) . "/lm_data";
+        $lm_dir = $lm_data_dir . "/lm_" . $this->getId();
 
-		$ilDB->manipulate("INSERT INTO file_based_lm (id, startfile) VALUES ".
-			" (".$ilDB->quote($this->getID(), "integer").",".
-			$ilDB->quote($this->getStartfile(), "text").")");
-		if (!$a_skip_meta)
-		{
-			$this->createMetaData();
-		}
-	}
+        return $lm_dir;
+    }
 
-	function getDataDirectory($mode = "filesystem")
-	{
-		$lm_data_dir = ilUtil::getWebspaceDir($mode)."/lm_data";
-		$lm_dir = $lm_data_dir."/lm_".$this->getId();
+    public function createDataDirectory(): void
+    {
+        ilFileUtils::makeDir($this->getDataDirectory());
+    }
 
-		return $lm_dir;
-	}
+    public function getStartFile(): ?string
+    {
+        return $this->start_file;
+    }
 
-	function createDataDirectory()
-	{
-		ilUtil::makeDir($this->getDataDirectory());
-	}
-
-	function getStartFile()
-	{		
-		return $this->start_file;		
-	}
-
-	function setStartFile($a_file, $a_omit_file_check = false)
-	{
-		if($a_file &&
-			(file_exists($this->getDataDirectory()."/".$a_file) || $a_omit_file_check))
-		{				
-			$this->start_file = $a_file;
-		}
-	}
-
-	/**
-	* Gets the disk usage of the object in bytes.
-    *
-	* @access	public
-	* @return	integer		the disk usage in bytes
-	*/
-	function getDiskUsage()
-	{
-	    require_once("./Modules/HTMLLearningModule/classes/class.ilObjFileBasedLMAccess.php");
-		return ilObjFileBasedLMAccess::_lookupDiskUsage($this->id);
-	}
+    public function setStartFile(
+        string $a_file,
+        bool $a_omit_file_check = false
+    ): void {
+        if ($a_file &&
+            (file_exists($this->getDataDirectory() . "/" . $a_file) || $a_omit_file_check)) {
+            $this->start_file = $a_file;
+        }
+    }
 
 
+    public function delete(): bool
+    {
+        $ilDB = $this->db;
 
-	/**
-	* delete object and all related data
-	*
-	* this method has been tested on may 9th 2004
-	* data directory, meta data, file based lm data
-	* have been deleted correctly as desired
-	*
-	* @access	public
-	* @return	boolean	true if all object data were removed; false if only a references were removed
-	*/
-	function delete()
-	{
-		$ilDB = $this->db;
+        // always call parent delete function first!!
+        if (!parent::delete()) {
+            return false;
+        }
 
-		// always call parent delete function first!!
-		if (!parent::delete())
-		{
-			return false;
-		}
+        // Delete meta data
+        $this->deleteMetaData();
 
-		// Delete meta data
-		$this->deleteMetaData();
+        // delete file_based_lm record
+        $ilDB->manipulate("DELETE FROM file_based_lm WHERE id = " .
+            $ilDB->quote($this->getId(), "integer"));
 
-		// delete file_based_lm record
-		$ilDB->manipulate("DELETE FROM file_based_lm WHERE id = ".
-			$ilDB->quote($this->getID(), "integer"));
+        // delete data directory
+        ilFileUtils::delDir($this->getDataDirectory());
 
-		// delete data directory
-		ilUtil::delDir($this->getDataDirectory());
+        return true;
+    }
 
-		return true;
-	}
+    /**
+     * Populate by directory. Add a filename to do a special check for
+     * ILIAS HTML export files. If the corresponding directory is found
+     * within the passed directory path (i.e. "htlm_<id>") this
+     * subdirectory is used instead.
+     */
+    public function populateByDirectoy(
+        string $a_dir,
+        string $a_filename = ""
+    ): void {
+        preg_match("/.*htlm_([0-9]*)\.zip/", $a_filename, $match);
+        if (is_dir($a_dir . "/htlm_" . ($match[1] ?? ""))) {
+            $a_dir .= "/htlm_" . ($match[1] ?? "");
+        }
+        ilFileUtils::rCopy($a_dir, $this->getDataDirectory());
+        ilFileUtils::renameExecutables($this->getDataDirectory());
+    }
 
-	/**
-	 * Populate by directory. Add a filename to do a special check for
-	 * ILIAS HTML export files. If the corresponding directory is found
-	 * within the passed directory path (i.e. "htlm_<id>") this
-	 * subdirectory is used instead.
-	 *
-	 * @param
-	 * @return
-	 */
-	function populateByDirectoy($a_dir, $a_filename = "")
-	{
-		preg_match("/.*htlm_([0-9]*)\.zip/", $a_filename, $match);
-		if (is_dir($a_dir."/htlm_".$match[1]))
-		{
-			$a_dir = $a_dir."/htlm_".$match[1];
-		}
-		ilUtil::rCopy($a_dir, $this->getDataDirectory());
-		ilUtil::renameExecutables($this->getDataDirectory());
-	}
-	
-	/**
-	 * Clone HTML learning module
-	 *
-	 * @param int target ref_id
-	 * @param int copy id
-	 */
-	public function cloneObject($a_target_id,$a_copy_id = 0, $a_omit_tree = false)
-	{
-		$new_obj = parent::cloneObject($a_target_id,$a_copy_id, $a_omit_tree);
-	 	$this->cloneMetaData($new_obj);
+    public function cloneObject(int $target_id, int $copy_id = 0, bool $omit_tree = false): ?ilObject
+    {
+        /** @var ilObjFileBasedLM $new_obj */
+        $new_obj = parent::cloneObject($target_id, $copy_id, $omit_tree);
+        $this->cloneMetaData($new_obj);
 
-		//copy online status if object is not the root copy object
-		$cp_options = ilCopyWizardOptions::_getInstance($a_copy_id);
+        //copy online status if object is not the root copy object
+        $cp_options = ilCopyWizardOptions::_getInstance($copy_id);
 
-		if(!$cp_options->isRootNode($this->getRefId()))
-		{
-			$new_obj->setOfflineStatus($this->getOfflineStatus());
-		}
+        if (!$cp_options->isRootNode($this->getRefId())) {
+            $new_obj->setOfflineStatus($this->getOfflineStatus());
+        } else {
+            $new_obj->setOfflineStatus(true);
+        }
 
-		// copy content
-		$new_obj->populateByDirectoy($this->getDataDirectory());
+        // copy content
+        $new_obj->populateByDirectoy($this->getDataDirectory());
 
-		$new_obj->setStartFile($this->getStartFile());
-		$new_obj->update();
+        $new_obj->setStartFile((string) $this->getStartFile());
+        $new_obj->update();
 
-		return $new_obj;
-	}
+        return $new_obj;
+    }
 
+    public function isInfoEnabled(): bool
+    {
+        return ilObjContentObjectAccess::isInfoEnabled($this->getId());
+    }
 }
-?>

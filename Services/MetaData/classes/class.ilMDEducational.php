@@ -1,558 +1,513 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2001 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
 
+declare(strict_types=1);
 
 /**
-* Meta Data class (element educational)
-*
-* @package ilias-core
-* @version $Id$
-*/
-include_once 'class.ilMDBase.php';
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
+/**
+ * Meta Data class (element educational)
+ * @package ilias-core
+ * @version $Id$
+ */
 class ilMDEducational extends ilMDBase
 {
-	// Methods for child objects (TypicalAgeRange, Description, Language)
-	function &getTypicalAgeRangeIds()
-	{
-		include_once 'Services/MetaData/classes/class.ilMDTypicalAgeRange.php';
+    private string $interactivity_type = '';
+    private string $learning_resource_type = '';
+    private string $interactivity_level = '';
+    private string $semantic_density = '';
+    private string $intended_end_user_role = '';
+    private string $context = '';
+    private string $difficulty = '';
+    private string $typical_learning_time = '';
 
-		return ilMDTypicalAgeRange::_getIds($this->getRBACId(),$this->getObjId(),$this->getMetaId(),'meta_educational');
-	}
-	function &getTypicalAgeRange($a_typical_age_range_id)
-	{
-		include_once 'Services/MetaData/classes/class.ilMDTypicalAgeRange.php';
+    /**
+     * @return int[]
+     */
+    public function getTypicalAgeRangeIds(): array
+    {
+        return ilMDTypicalAgeRange::_getIds(
+            $this->getRBACId(),
+            $this->getObjId(),
+            $this->getMetaId(),
+            'meta_educational'
+        );
+    }
 
-		if(!$a_typical_age_range_id)
-		{
-			return false;
-		}
-		$typ = new ilMDTypicalAgeRange();
-		$typ->setMetaId($a_typical_age_range_id);
+    public function getTypicalAgeRange(int $a_typical_age_range_id): ?ilMDTypicalAgeRange
+    {
+        if (!$a_typical_age_range_id) {
+            return null;
+        }
+        $typ = new ilMDTypicalAgeRange();
+        $typ->setMetaId($a_typical_age_range_id);
 
-		return $typ;
-	}
-	function &addTypicalAgeRange()
-	{
-		include_once 'Services/MetaData/classes/class.ilMDTypicalAgeRange.php';
+        return $typ;
+    }
 
-		$typ = new ilMDTypicalAgeRange($this->getRBACId(),$this->getObjId(),$this->getObjType());
-		$typ->setParentId($this->getMetaId());
-		$typ->setParentType('meta_educational');
+    public function addTypicalAgeRange(): ilMDTypicalAgeRange
+    {
+        $typ = new ilMDTypicalAgeRange($this->getRBACId(), $this->getObjId(), $this->getObjType());
+        $typ->setParentId($this->getMetaId());
+        $typ->setParentType('meta_educational');
 
-		return $typ;
-	}
-	function &getDescriptionIds()
-	{
-		include_once 'Services/MetaData/classes/class.ilMDDescription.php';
+        return $typ;
+    }
 
-		return ilMDDescription::_getIds($this->getRBACId(),$this->getObjId(),$this->getMetaId(),'meta_educational');
-	}
-	function &getDescription($a_description_id)
-	{
-		include_once 'Services/MetaData/classes/class.ilMDDescription.php';
+    /**
+     * @return int[]
+     */
+    public function getDescriptionIds(): array
+    {
+        return ilMDDescription::_getIds($this->getRBACId(), $this->getObjId(), $this->getMetaId(), 'meta_educational');
+    }
 
-		if(!$a_description_id)
-		{
-			return false;
-		}
-		$des = new ilMDDescription();
-		$des->setMetaId($a_description_id);
+    public function getDescription(int $a_description_id): ?ilMDDescription
+    {
+        if (!$a_description_id) {
+            return null;
+        }
+        $des = new ilMDDescription();
+        $des->setMetaId($a_description_id);
 
-		return $des;
-	}
-	function &addDescription()
-	{
-		include_once 'Services/MetaData/classes/class.ilMDDescription.php';
+        return $des;
+    }
 
-		$des = new ilMDDescription($this->getRBACId(),$this->getObjId(),$this->getObjType());
-		$des->setParentId($this->getMetaId());
-		$des->setParentType('meta_educational');
+    public function addDescription(): ilMDDescription
+    {
+        $des = new ilMDDescription($this->getRBACId(), $this->getObjId(), $this->getObjType());
+        $des->setParentId($this->getMetaId());
+        $des->setParentType('meta_educational');
 
-		return $des;
-	}
-	function &getLanguageIds()
-	{
-		include_once 'Services/MetaData/classes/class.ilMDLanguage.php';
+        return $des;
+    }
 
-		return ilMDLanguage::_getIds($this->getRBACId(),$this->getObjId(),$this->getMetaId(),'meta_educational');
-	}
-	function &getLanguage($a_language_id)
-	{
-		include_once 'Services/MetaData/classes/class.ilMDLanguage.php';
+    /**
+     * @return int[]
+     */
+    public function getLanguageIds(): array
+    {
+        return ilMDLanguage::_getIds($this->getRBACId(), $this->getObjId(), $this->getMetaId(), 'meta_educational');
+    }
 
-		if(!$a_language_id)
-		{
-			return false;
-		}
-		$lan = new ilMDLanguage();
-		$lan->setMetaId($a_language_id);
+    public function getLanguage(int $a_language_id): ?ilMDLanguage
+    {
+        if (!$a_language_id) {
+            return null;
+        }
+        $lan = new ilMDLanguage();
+        $lan->setMetaId($a_language_id);
 
-		return $lan;
-	}
-	function &addLanguage()
-	{
-		include_once 'Services/MetaData/classes/class.ilMDLanguage.php';
-		
-		$lan = new ilMDLanguage($this->getRBACId(),$this->getObjId(),$this->getObjType());
-		$lan->setParentId($this->getMetaId());
-		$lan->setParentType('meta_educational');
+        return $lan;
+    }
 
-		return $lan;
-	}
+    public function addLanguage(): ilMDLanguage
+    {
+        $lan = new ilMDLanguage($this->getRBACId(), $this->getObjId(), $this->getObjType());
+        $lan->setParentId($this->getMetaId());
+        $lan->setParentType('meta_educational');
 
-	// SET/GET
-	function setInteractivityType($a_iat)
-	{
-		switch($a_iat)
-		{
-			case 'Active':
-			case 'Expositive':
-			case 'Mixed':
-				$this->interactivity_type = $a_iat;
-				return true;
+        return $lan;
+    }
 
-			default:
-				return false;
-		}
-	}
-	function getInteractivityType()
-	{
-		return $this->interactivity_type;
-	}
-	function setLearningResourceType($a_lrt)
-	{
-		switch($a_lrt)
-		{
-			case 'Exercise':
-			case 'Simulation':
-			case 'Questionnaire':
-			case 'Diagram':
-			case 'Figure':
-			case 'Graph':
-			case 'Index':
-			case 'Slide':
-			case 'Table':
-			case 'NarrativeText':
-			case 'Exam':
-			case 'Experiment':
-			case 'ProblemStatement':
-			case 'SelfAssessment':
-			case 'Lecture':
-				$this->learning_resource_type = $a_lrt;
-				return true;
+    // SET/GET
+    public function setInteractivityType(string $a_iat): bool
+    {
+        switch ($a_iat) {
+            case 'Active':
+            case 'Expositive':
+            case 'Mixed':
+                $this->interactivity_type = $a_iat;
+                return true;
 
-			default:
-				return false;
-		}
-	}
-	function getLearningResourceType()
-	{
-		return $this->learning_resource_type;
-	}
-	function setInteractivityLevel($a_iat)
-	{
-		switch($a_iat)
-		{
-			case 'VeryLow':
-			case 'Low':
-			case 'Medium':
-			case 'High':
-			case 'VeryHigh':
-				$this->interactivity_level = $a_iat;
-				return true;
+            default:
+                return false;
+        }
+    }
 
-			default:
-				return false;
-		}
-	}
-	function getInteractivityLevel()
-	{
-		return $this->interactivity_level;
-	}
-	function setSemanticDensity($a_sd)
-	{
-		switch($a_sd)
-		{
-			case 'VeryLow':
-			case 'Low':
-			case 'Medium':
-			case 'High':
-			case 'VeryHigh':
-				$this->semantic_density = $a_sd;
-				return true;
+    public function getInteractivityType(): string
+    {
+        return $this->interactivity_type;
+    }
 
-			default:
-				return false;
-		}
-	}
-	function getSemanticDensity()
-	{
-		return $this->semantic_density;
-	}
-	function setIntendedEndUserRole($a_ieur)
-	{
-		switch($a_ieur)
-		{
-			case 'Teacher':
-			case 'Author':
-			case 'Learner':
-			case 'Manager':
-				$this->intended_end_user_role = $a_ieur;
-				return true;
+    public function setLearningResourceType(string $a_lrt): bool
+    {
+        switch ($a_lrt) {
+            case 'Exercise':
+            case 'Simulation':
+            case 'Questionnaire':
+            case 'Diagram':
+            case 'Figure':
+            case 'Graph':
+            case 'Index':
+            case 'Slide':
+            case 'Table':
+            case 'NarrativeText':
+            case 'Exam':
+            case 'Experiment':
+            case 'ProblemStatement':
+            case 'SelfAssessment':
+            case 'Lecture':
+                $this->learning_resource_type = $a_lrt;
+                return true;
 
-			default:
-				return false;
-		}
-	}
-	function getIntendedEndUserRole()
-	{
-		return $this->intended_end_user_role;
-	}
-	function setContext($a_context)
-	{
-		switch($a_context)
-		{
-			case 'School':
-			case 'HigherEducation':
-			case 'Training':
-			case 'Other':
-				$this->context = $a_context;
-				return true;
+            default:
+                return false;
+        }
+    }
 
-			default:
-				return false;
-		}
-	}
-	function getContext()
-	{
-		return $this->context;
-	}
-	function setDifficulty($a_difficulty)
-	{
-		switch($a_difficulty)
-		{
-			case 'VeryEasy':
-			case 'Easy':
-			case 'Medium':
-			case 'Difficult':
-			case 'VeryDifficult':
-				$this->difficulty = $a_difficulty;
-				return true;
+    public function getLearningResourceType(): string
+    {
+        return $this->learning_resource_type;
+    }
 
-			default:
-				return false;
-		}
-	}
-	function getDifficulty()
-	{
-		return $this->difficulty;
-	}
+    public function setInteractivityLevel(string $a_iat): bool
+    {
+        switch ($a_iat) {
+            case 'VeryLow':
+            case 'Low':
+            case 'Medium':
+            case 'High':
+            case 'VeryHigh':
+                $this->interactivity_level = $a_iat;
+                return true;
 
-	function setPhysicalTypicalLearningTime($months,$days,$hours,$minutes,$seconds)
-	{
-		if(!$months and !$days and !$hours and !$minutes and !$seconds)
-		{
-			$this->setTypicalLearningTime('PT00H00M');
-			return true;
-		}
-		$tlt = 'P';
-		if($months)
-		{
-			$tlt .= ($months.'M');
-		}
-		if($days)
-		{
-			$tlt .= ($days.'D');
-		}
-		if($hours or $minutes or $seconds)
-		{
-			$tlt .= 'T';
-		}
-		if($hours)
-		{
-			$tlt .= ($hours.'H');
-		}
-		if($minutes)
-		{
-			$tlt .= ($minutes.'M');
-		}
-		if($seconds)
-		{
-			$tlt .= ($seconds.'S');
-		}
-		$this->setTypicalLearningTime($tlt);
-		return true;
-	}
+            default:
+                return false;
+        }
+    }
 
+    public function getInteractivityLevel(): string
+    {
+        return $this->interactivity_level;
+    }
 
-	function setTypicalLearningTime($a_tlt)
-	{
-		$this->typical_learning_time = $a_tlt;
-	}
-	function getTypicalLearningTime()
-	{
-		return $this->typical_learning_time;
-	}
+    public function setSemanticDensity(string $a_sd): bool
+    {
+        switch ($a_sd) {
+            case 'VeryLow':
+            case 'Low':
+            case 'Medium':
+            case 'High':
+            case 'VeryHigh':
+                $this->semantic_density = $a_sd;
+                return true;
 
-	function getTypicalLearningTimeSeconds()
-	{
-		include_once './Services/MetaData/classes/class.ilMDUtils.php';
+            default:
+                return false;
+        }
+    }
 
-		$time_arr = ilMDUtils::_LOMDurationToArray($this->getTypicalLearningTime());
+    public function getSemanticDensity(): string
+    {
+        return $this->semantic_density;
+    }
 
-		return 60 * 60 * 24 * 30 * $time_arr[0] + 60 * 60 * 24 * $time_arr[1] + 60 * 60 * $time_arr[2] + 60 * $time_arr[3] + $time_arr[4];
-	} 
-	
-	function save()
-	{
-		global $DIC;
+    public function setIntendedEndUserRole(string $a_ieur): bool
+    {
+        switch ($a_ieur) {
+            case 'Teacher':
+            case 'Author':
+            case 'Learner':
+            case 'Manager':
+                $this->intended_end_user_role = $a_ieur;
+                return true;
 
-		$ilDB = $DIC['ilDB'];
+            default:
+                return false;
+        }
+    }
 
-		$fields = $this->__getFields();
-		$fields['meta_educational_id'] = array('integer',$next_id = $ilDB->nextId('il_meta_educational'));
-		
-		if($this->db->insert('il_meta_educational',$fields))
-		{
-			$this->setMetaId($next_id);
-			return $this->getMetaId();
-		}
-		return false;
-	}
+    public function getIntendedEndUserRole(): string
+    {
+        return $this->intended_end_user_role;
+    }
 
-	function update()
-	{
-		global $DIC;
+    public function setContext(string $a_context): bool
+    {
+        switch ($a_context) {
+            case 'School':
+            case 'HigherEducation':
+            case 'Training':
+            case 'Other':
+                $this->context = $a_context;
+                return true;
 
-		$ilDB = $DIC['ilDB'];
-		
-		if($this->getMetaId())
-		{
-			if($this->db->update('il_meta_educational',
-									$this->__getFields(),
-									array("meta_educational_id" => array('integer',$this->getMetaId()))))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
+            default:
+                return false;
+        }
+    }
 
-	function delete()
-	{
-		global $DIC;
+    public function getContext(): string
+    {
+        return $this->context;
+    }
 
-		$ilDB = $DIC['ilDB'];
-		
-		if($this->getMetaId())
-		{
-			$query = "DELETE FROM il_meta_educational ".
-				"WHERE meta_educational_id = ".$ilDB->quote($this->getMetaId());
-			$res = $ilDB->manipulate($query);
+    public function setDifficulty(string $a_difficulty): bool
+    {
+        switch ($a_difficulty) {
+            case 'VeryEasy':
+            case 'Easy':
+            case 'Medium':
+            case 'Difficult':
+            case 'VeryDifficult':
+                $this->difficulty = $a_difficulty;
+                return true;
 
-			foreach($this->getTypicalAgeRangeIds() as $id)
-			{
-				$typ = $this->getTypicalAgeRange($id);
-				$typ->delete();
-			}
-			foreach($this->getDescriptionIds() as $id)
-			{
-				$des = $this->getDescription($id);
-				$des->delete();
-			}
-			foreach($this->getLanguageIds() as $id)
-			{
-				$lan = $this->getLanguage($id);
-				$lan->delete();
-			}
+            default:
+                return false;
+        }
+    }
 
-			
-			return true;
-		}
-		return false;
-	}
-			
+    public function getDifficulty(): string
+    {
+        return $this->difficulty;
+    }
 
-	function __getFields()
-	{
-		return array('rbac_id'	=> array('integer',$this->getRBACId()),
-					 'obj_id'	=> array('integer',$this->getObjId()),
-					 'obj_type'	=> array('text',$this->getObjType()),
-					 'interactivity_type' => array('text',$this->getInteractivityType()),
-					 'learning_resource_type' => array('text',$this->getLearningResourceType()),
-					 'interactivity_level' => array('text',$this->getInteractivityLevel()),
-					 'semantic_density' => array('text',$this->getSemanticDensity()),
-					 'intended_end_user_role' => array('text',$this->getIntendedEndUserRole()),
-					 'context' => array('text',$this->getContext()),
-					 'difficulty' => array('text',$this->getDifficulty()),
-					 'typical_learning_time' => array('text',$this->getTypicalLearningTime()));
-	}
+    public function setPhysicalTypicalLearningTime(
+        int $months,
+        int $days,
+        int $hours,
+        int $minutes,
+        int $seconds
+    ): bool {
+        if (!$months && !$days && !$hours && !$minutes && !$seconds) {
+            $this->setTypicalLearningTime('PT00H00M');
+            return true;
+        }
+        $tlt = 'P';
+        if ($months) {
+            $tlt .= ($months . 'M');
+        }
+        if ($days) {
+            $tlt .= ($days . 'D');
+        }
+        if ($hours || $minutes || $seconds) {
+            $tlt .= 'T';
+        }
+        if ($hours) {
+            $tlt .= ($hours . 'H');
+        }
+        if ($minutes) {
+            $tlt .= ($minutes . 'M');
+        }
+        if ($seconds) {
+            $tlt .= ($seconds . 'S');
+        }
+        $this->setTypicalLearningTime($tlt);
+        return true;
+    }
 
-	function read()
-	{
-		global $DIC;
+    public function setTypicalLearningTime(string $a_tlt): void
+    {
+        $this->typical_learning_time = $a_tlt;
+    }
 
-		$ilDB = $DIC['ilDB'];
-		
-		if($this->getMetaId())
-		{
+    public function getTypicalLearningTime(): string
+    {
+        return $this->typical_learning_time;
+    }
 
-			$query = "SELECT * FROM il_meta_educational ".
-				"WHERE meta_educational_id = ".$ilDB->quote($this->getMetaId() ,'integer');
+    public function getTypicalLearningTimeSeconds(): int
+    {
+        $time_arr = ilMDUtils::_LOMDurationToArray($this->getTypicalLearningTime());
+        if ($time_arr === []) {
+            return 0;
+        }
+        return 60 * 60 * 24 * 30 * $time_arr[0] + 60 * 60 * 24 * $time_arr[1] + 60 * 60 * $time_arr[2] + 60 * $time_arr[3] + $time_arr[4];
+    }
 
-		
-			$res = $this->db->query($query);
-			while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-			{
-				$this->setRBACId($row->rbac_id);
-				$this->setObjId($row->obj_id);
-				$this->setObjType($row->obj_type);
-				$this->setInteractivityType($row->interactivity_type);
-				$this->setLearningResourceType($row->learning_resource_type);
-				$this->setInteractivityLevel($row->interactivity_level);
-				$this->setSemanticDensity($row->semantic_density);
-				$this->setIntendedEndUserRole($row->intended_end_user_role);
-				$this->setContext($row->context);
-				$this->setDifficulty($row->difficulty);
-				$this->setTypicalLearningTime($row->typical_learning_time);
-			}
-			return true;
-		}
-		return false;
-	}
-				
-	/*
-	 * XML Export of all meta data
-	 * @param object (xml writer) see class.ilMD2XML.php
-	 * 
-	 */
-	function toXML(&$writer)
-	{
-		$writer->xmlStartTag('Educational',
-							 array('InteractivityType' => $this->getInteractivityType()
-								   ? $this->getInteractivityType()
-								   : 'Active',
-								   'LearningResourceType' => $this->getLearningResourceType()
-								   ? $this->getLearningResourceType()
-								   : 'Exercise',
-								   'InteractivityLevel' => $this->getInteractivityLevel()
-								   ? $this->getInteractivityLevel()
-								   : 'Medium',
-								   'SemanticDensity' => $this->getSemanticDensity()
-								   ? $this->getSemanticDensity()
-								   : 'Medium',
-								   'IntendedEndUserRole' => $this->getIntendedEndUserRole()
-								   ? $this->getIntendedEndUserRole()
-								   : 'Learner',
-								   'Context' => $this->getContext()
-								   ? $this->getContext()
-								   : 'Other',
-								   'Difficulty' => $this->getDifficulty()
-								   ? $this->getDifficulty()
-								   : 'Medium'));
-							 
-		// TypicalAgeRange
-		$typ_ages = $this->getTypicalAgeRangeIds();
-		foreach($typ_ages as $id)
-		{
-			$key =& $this->getTypicalAgeRange($id);
-			
-			// extra test due to bug 5316 (may be due to eLaix import)
-			if (is_object($key))
-			{
-				$key->toXML($writer);
-			}
-		}
-		if(!count($typ_ages))
-		{
-			include_once 'Services/MetaData/classes/class.ilMDTypicalAgeRange.php';
-			$typ = new ilMDTypicalAgeRange($this->getRBACId(),$this->getObjId());
-			$typ->toXML($writer);
-		}
+    public function save(): int
+    {
+        $fields = $this->__getFields();
+        $fields['meta_educational_id'] = array('integer', $next_id = $this->db->nextId('il_meta_educational'));
 
-		// TypicalLearningTime
-		$writer->xmlElement('TypicalLearningTime',null,$this->getTypicalLearningTime());
+        if ($this->db->insert('il_meta_educational', $fields)) {
+            $this->setMetaId($next_id);
+            return $this->getMetaId();
+        }
+        return 0;
+    }
 
-		// Description
-		foreach($this->getDescriptionIds() as $id)
-		{
-			$key =& $this->getDescription($id);
-			$key->toXML($writer);
-		}
-		// Language
-		foreach($this->getLanguageIds() as $id)
-		{
-			$lang =& $this->getLanguage($id);
-			$lang->toXML($writer);
-		}
-		$writer->xmlEndTag('Educational');
-	}
-	// STATIC
-	static function _getId($a_rbac_id,$a_obj_id)
-	{
-		global $DIC;
+    public function update(): bool
+    {
+        return $this->getMetaId() && $this->db->update(
+            'il_meta_educational',
+            $this->__getFields(),
+            array("meta_educational_id" => array('integer', $this->getMetaId()))
+        );
+    }
 
-		$ilDB = $DIC['ilDB'];
+    public function delete(): bool
+    {
+        if ($this->getMetaId()) {
+            $query = "DELETE FROM il_meta_educational " .
+                "WHERE meta_educational_id = " . $this->db->quote($this->getMetaId(), ilDBConstants::T_INTEGER);
+            $res = $this->db->manipulate($query);
 
-		$query = "SELECT meta_educational_id FROM il_meta_educational ".
-			"WHERE rbac_id = ".$ilDB->quote($a_rbac_id ,'integer')." ".
-			"AND obj_id = ".$ilDB->quote($a_obj_id ,'integer');
+            foreach ($this->getTypicalAgeRangeIds() as $id) {
+                $typ = $this->getTypicalAgeRange($id);
+                $typ->delete();
+            }
+            foreach ($this->getDescriptionIds() as $id) {
+                $des = $this->getDescription($id);
+                $des->delete();
+            }
+            foreach ($this->getLanguageIds() as $id) {
+                $lan = $this->getLanguage($id);
+                $lan->delete();
+            }
 
-		$res = $ilDB->query($query);
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			return $row->meta_educational_id;
-		}
-		return false;
-	}
+            return true;
+        }
+        return false;
+    }
 
-	static function _getTypicalLearningTimeSeconds($a_rbac_id,$a_obj_id = 0)
-	{
-		global $DIC;
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    public function __getFields(): array
+    {
+        return array(
+            'rbac_id' => array('integer', $this->getRBACId()),
+            'obj_id' => array('integer', $this->getObjId()),
+            'obj_type' => array('text', $this->getObjType()),
+            'interactivity_type' => array('text', $this->getInteractivityType()),
+            'learning_resource_type' => array('text', $this->getLearningResourceType()),
+            'interactivity_level' => array('text', $this->getInteractivityLevel()),
+            'semantic_density' => array('text', $this->getSemanticDensity()),
+            'intended_end_user_role' => array('text', $this->getIntendedEndUserRole()),
+            'context' => array('text', $this->getContext()),
+            'difficulty' => array('text', $this->getDifficulty()),
+            'typical_learning_time' => array('text', $this->getTypicalLearningTime())
+        );
+    }
 
-		$ilDB = $DIC['ilDB'];
+    public function read(): bool
+    {
+        if ($this->getMetaId()) {
+            $query = "SELECT * FROM il_meta_educational " .
+                "WHERE meta_educational_id = " . $this->db->quote($this->getMetaId(), 'integer');
 
-		$a_obj_id = $a_obj_id ? $a_obj_id : $a_rbac_id;
+            $res = $this->db->query($query);
+            while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+                $this->setRBACId((int) $row->rbac_id);
+                $this->setObjId((int) $row->obj_id);
+                $this->setObjType((string) $row->obj_type);
+                $this->setInteractivityType((string) $row->interactivity_type);
+                $this->setLearningResourceType((string) $row->learning_resource_type);
+                $this->setInteractivityLevel((string) $row->interactivity_level);
+                $this->setSemanticDensity((string) $row->semantic_density);
+                $this->setIntendedEndUserRole((string) $row->intended_end_user_role);
+                $this->setContext((string) $row->context);
+                $this->setDifficulty((string) $row->difficulty);
+                $this->setTypicalLearningTime((string) $row->typical_learning_time);
+            }
+            return true;
+        }
+        return false;
+    }
 
-		$query = "SELECT typical_learning_time FROM il_meta_educational ".
-			"WHERE rbac_id = ".$ilDB->quote($a_rbac_id ,'integer')." ".
-			"AND obj_id = ".$ilDB->quote($a_obj_id ,'integer');
-		$res = $ilDB->query($query);
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			include_once './Services/MetaData/classes/class.ilMDUtils.php';
+    public function toXML(ilXmlWriter $writer): void
+    {
+        $writer->xmlStartTag(
+            'Educational',
+            array(
+                'InteractivityType' => $this->getInteractivityType() ?: 'Active',
+                'LearningResourceType' => $this->getLearningResourceType() ?: 'Exercise',
+                'InteractivityLevel' => $this->getInteractivityLevel() ?: 'Medium',
+                'SemanticDensity' => $this->getSemanticDensity() ?: 'Medium',
+                'IntendedEndUserRole' => $this->getIntendedEndUserRole() ?: 'Learner',
+                'Context' => $this->getContext() ?: 'Other',
+                'Difficulty' => $this->getDifficulty() ?: 'Medium'
+            )
+        );
 
-			$time_arr = ilMDUtils::_LOMDurationToArray($row->typical_learning_time);
+        // TypicalAgeRange
+        $typ_ages = $this->getTypicalAgeRangeIds();
+        foreach ($typ_ages as $id) {
+            $key = $this->getTypicalAgeRange($id);
 
-			return 60 * 60 * 24 * 30 * $time_arr[0] + 
-				60 * 60 * 24 * $time_arr[1] + 
-				60 * 60 * $time_arr[2] + 
-				60 * $time_arr[3] + 
-				$time_arr[4];
-		}
-		return 0;
-	}
+            // extra test due to bug 5316 (may be due to eLaix import)
+            if (is_object($key)) {
+                $key->toXML($writer);
+            }
+        }
+        if (!count($typ_ages)) {
+            $typ = new ilMDTypicalAgeRange($this->getRBACId(), $this->getObjId());
+            $typ->toXML($writer);
+        }
 
+        // TypicalLearningTime
+        $writer->xmlElement('TypicalLearningTime', null, $this->getTypicalLearningTime());
+
+        // Description
+        foreach ($this->getDescriptionIds() as $id) {
+            $key = $this->getDescription($id);
+            $key->toXML($writer);
+        }
+        // Language
+        foreach ($this->getLanguageIds() as $id) {
+            $lang = $this->getLanguage($id);
+            $lang->toXML($writer);
+        }
+        $writer->xmlEndTag('Educational');
+    }
+
+    // STATIC
+    public static function _getId(int $a_rbac_id, int $a_obj_id): int
+    {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+
+        $query = "SELECT meta_educational_id FROM il_meta_educational " .
+            "WHERE rbac_id = " . $ilDB->quote($a_rbac_id, 'integer') . " " .
+            "AND obj_id = " . $ilDB->quote($a_obj_id, 'integer');
+
+        $res = $ilDB->query($query);
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            return (int) $row->meta_educational_id;
+        }
+        return 0;
+    }
+
+    public static function _getTypicalLearningTimeSeconds(int $a_rbac_id, int $a_obj_id = 0): int
+    {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+
+        $a_obj_id = $a_obj_id ?: $a_rbac_id;
+
+        $query = "SELECT typical_learning_time FROM il_meta_educational " .
+            "WHERE rbac_id = " . $ilDB->quote($a_rbac_id, 'integer') . " " .
+            "AND obj_id = " . $ilDB->quote($a_obj_id, 'integer');
+        $res = $ilDB->query($query);
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $time_arr = ilMDUtils::_LOMDurationToArray((string) $row->typical_learning_time);
+            if (!count($time_arr)) {
+                return 0;
+            }
+            return 60 * 60 * 24 * 30 * $time_arr[0] +
+                60 * 60 * 24 * $time_arr[1] +
+                60 * 60 * $time_arr[2] +
+                60 * $time_arr[3] +
+                $time_arr[4];
+        }
+        return 0;
+    }
 }
-?>

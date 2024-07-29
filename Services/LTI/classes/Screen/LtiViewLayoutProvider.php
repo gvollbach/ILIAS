@@ -1,92 +1,158 @@
-<?php namespace ILIAS\LTI\Screen;
+<?php
 
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+namespace ILIAS\LTI\Screen;
+
+use ILIAS\GlobalScreen\Scope\Layout\Provider\PagePart\PagePartProvider;
 use ILIAS\GlobalScreen\Scope\Layout\Provider\AbstractModificationProvider;
 use ILIAS\GlobalScreen\Scope\Layout\Provider\ModificationProvider;
-use ILIAS\GlobalScreen\Scope\Layout\Factory\MetaBarModification;
-use ILIAS\GlobalScreen\Scope\Layout\Factory\MainBarModification;
+use ILIAS\GlobalScreen\Scope\Layout\Builder\StandardPageBuilder;
+use ILIAS\GlobalScreen\Scope\Layout\Factory\PageBuilderModification;
 use ILIAS\GlobalScreen\ScreenContext\Stack\CalledContexts;
 use ILIAS\GlobalScreen\ScreenContext\Stack\ContextCollection;
+use ILIAS\UI\Component\Layout\Page\Page;
 use ILIAS\UI\Component\MainControls\MetaBar;
 use ILIAS\UI\Component\MainControls\MainBar;
-use ILIAS\UI\Component\Button\Bulky;
+use ILIAS\GlobalScreen\Scope\Layout\Factory\MainBarModification;
+use ILIAS\GlobalScreen\Scope\Layout\Factory\MetaBarModification;
+use ILIAS\GlobalScreen\Scope\Layout\Factory\TitleModification;
+use ILIAS\Container\Screen\MemberViewLayoutProvider;
 
 /**
  * Class LtiViewLayoutProvider
- *
  * @author Stefan Schneider <schneider@hrz.uni-marburg.de>
  */
 class LtiViewLayoutProvider extends AbstractModificationProvider implements ModificationProvider
 {
+    public const GS_EXIT_LTI = 'lti_exit_mode';
+
+    public function isInterestedInContexts(): ContextCollection
+    {
+        return $this->context_collection->lti();
+    }
+
+    /**
+     * @param CalledContexts $screen_context_stack
+     * @inheritDoc
+     * @return \ILIAS\GlobalScreen\Scope\Layout\Factory\ContentModification|\ILIAS\GlobalScreen\Scope\Layout\Factory\LayoutModification|null
+     */
+    public function getPageBuilderDecorator(CalledContexts $screen_context_stack): ?PageBuilderModification
+    {
+        $this->globalScreen()->layout()->meta()->addCss('./Services/LTI/templates/default/lti.css');
+        $is_exit_mode = $this->isLTIExitMode($screen_context_stack);
+        $external_css = ($is_exit_mode) ? '' : $this->dic["lti"]->getExternalCss();
+        if ($external_css !== '') {
+            $this->globalScreen()->layout()->meta()->addCss($external_css);
+        }
+
+        return $this->factory->page()
+                             ->withModification(
+                                 function (PagePartProvider $parts): Page {
+                                     $p = new StandardPageBuilder();
+                                     $page = $p->build($parts);
+
+                                     $mv_modeinfo = MemberViewLayoutProvider::getMemberViewModeInfo($this->dic);
+                                     if ($mv_modeinfo) {
+                                         $page = $page->withModeInfo($mv_modeinfo);
+                                     }
+
+                                     return $page->withNoFooter();
+                                 }
+                             )
+                             ->withHighPriority();
+    }
+
+    protected function isLTIExitMode(CalledContexts $screen_context_stack): bool
+    {
+        $data_collection = $screen_context_stack->current()->getAdditionalData();
+        $is_exit_mode = $data_collection->is(self::GS_EXIT_LTI, true);
+        return $is_exit_mode;
+    }
 
     /**
      * @inheritDoc
      */
-     
-    public function isInterestedInContexts() : ContextCollection
+    public function getMainBarModification(CalledContexts $screen_context_stack): ?MainBarModification
     {
-        return $this->context_collection->lti();
-    }
-    
-    /**
-     * This is a basic wip implementation for leaving the lti session with an exit button
-     * 
-     * There is an ongoing discussion about a HeaderInfo bar for different ILIAS modes:
-     * 
-     * https://docu.ilias.de/goto_docu_wiki_wpage_5979_1357.html
-     * 
-     * and a PR Feature Discussion:
-     * 
-     * https://github.com/ILIAS-eLearning/ILIAS/pull/2251
-     * 
-     */
-    public function getMetaBarModification(CalledContexts $screen_context_stack) : ?MetaBarModification
-    {
-        $this->dic->logger()->lti()->info("isActive: " . $this->dic["lti"]->isActive());
-        
-        if ($this->dic["lti"]->isActive()) {
-            if (isset($_SESSION['lti_launch_css_url']) && $_SESSION['lti_launch_css_url'] != "") {
-                $this->globalScreen()->layout()->meta()->addCss($_SESSION['lti_launch_css_url']);
-            }
-            return $this->globalScreen()
-                ->layout()
-                ->factory()
-                ->metabar()
-                ->withModification(function (MetaBar $current) : ?MetaBar {
-                $f = $this->dic->ui()->factory();
-                $close = $f->button()->close();
-                $exit_symbol = $f->symbol()->glyph()->remove();
-                $exit = $f->button()->bulky($exit_symbol,"exit",$this->dic["lti"]->getCmdLink('exit'));
-                $metabar = $f->mainControls()->metaBar()->withAdditionalEntry('exit', $exit);
-                return $metabar;
-            })->withHighPriority();
-        }
-        else {
-            return null;
-        }
+        $is_exit_mode = $this->isLTIExitMode($screen_context_stack);
+
+        return $this->globalScreen()->layout()->factory()->mainbar()
+                    ->withModification(
+                        function (?MainBar $mainbar) use ($is_exit_mode): ?MainBar {
+                            $tools = $mainbar->getToolEntries();
+                            $mainbar = $mainbar->withClearedEntries();
+                            if ($is_exit_mode) {
+                                return $mainbar;
+                            }
+                            foreach ($tools as $id => $entry) {
+                                $mainbar = $mainbar->withAdditionalToolEntry($id, $entry);
+                            }
+                            //$mainbar = $mainbar->withAdditionalEntry('lti_home', $lti_home);
+                            return $mainbar;
+                        }
+                    )
+                    ->withHighPriority();
     }
 
-     /**
-     * This is a basic wip implemantion which is hiding the complete navigation MainBar. 
-     * We are planning to create an own LTI MainBar with a minimal TopItem Entry p.e. "LTI Home" with slate like this (needs to be discussed):
-     *  
-     * LtiRoot Object
-     * -- Separator --
-     * LastVisited Items
-     * -- Separator --
-     * Delete VistiedItems (?)
+    /**
+     * @inheritDoc
      */
-     
-    public function getMainBarModification(CalledContexts $screen_context_stack) : ?MainBarModification
+    public function getMetaBarModification(CalledContexts $screen_context_stack): ?MetaBarModification
     {
-        if ($this->dic["lti"]->isActive()) {
-            return $this->globalScreen()
-                ->layout()
-                ->factory()
-                ->mainbar()
-                ->withModification(function (MainBar $current) : ?MainBar { return null; })->withHighPriority();
-        }
-        else {
-            return null;
-        }
+        $is_exit_mode = $this->isLTIExitMode($screen_context_stack);
+
+        return $this->globalScreen()->layout()->factory()->metabar()
+                    ->withModification(
+                        function (?MetaBar $metabar) use ($is_exit_mode, $screen_context_stack): ?Metabar {
+                            $metabar = $metabar->withClearedEntries();
+                            if ($is_exit_mode) {
+                                return $metabar;
+                            }
+                            $f = $this->dic->ui()->factory();
+                            $exit_symbol = $f->symbol()->glyph()->close();
+                            $exit_txt = $this->dic['lti']->lng->txt('lti_exit');
+                            $exit = $f->button()->bulky($exit_symbol, $exit_txt, $this->dic["lti"]->getCmdLink('exit'));
+                            $metabar = $metabar->withAdditionalEntry('exit', $exit);
+                            return $metabar;
+                        }
+                    )
+                    ->withHighPriority();
+    }
+
+    /**
+     * @param CalledContexts $screen_context_stack
+     * @return \ILIAS\GlobalScreen\Scope\Layout\Factory\ContentModification|\ILIAS\GlobalScreen\Scope\Layout\Factory\LayoutModification|null
+     */
+    public function getTitleModification(CalledContexts $screen_context_stack): ?TitleModification
+    {
+        $is_exit_mode = $this->isLTIExitMode($screen_context_stack);
+
+        return $this->globalScreen()->layout()->factory()->title()
+                    ->withModification(
+                        function (?string $content) use ($is_exit_mode): string {
+                            if ($is_exit_mode) {
+                                return $this->dic["lti"]->getTitleForExitPage();
+                            }
+                            return $this->dic["lti"]->getTitle();
+                        }
+                    )
+                    ->withHighPriority();
     }
 }

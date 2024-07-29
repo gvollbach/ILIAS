@@ -1,43 +1,49 @@
-<?php namespace ILIAS\GlobalScreen\Scope\Notification\Collector\Renderer;
+<?php
 
-use ILIAS\GlobalScreen\Collector\Renderer\isSupportedTrait;
+declare(strict_types=1);
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+namespace ILIAS\GlobalScreen\Scope\Notification\Collector\Renderer;
+
+use ILIAS\GlobalScreen\Scope\Notification\Factory\canHaveSymbol;
 use ILIAS\GlobalScreen\Scope\Notification\Factory\isItem;
 use ILIAS\GlobalScreen\Scope\Notification\Factory\StandardNotificationGroup;
-use ILIAS\UI\Component\Component;
+use ILIAS\UI\Component\MainControls\Slate\Notification;
 
 /**
  * Class StandardNotificationGroupRenderer
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
 class StandardNotificationGroupRenderer extends AbstractBaseNotificationRenderer implements NotificationRenderer
 {
-
-    use isSupportedTrait;
-
-
     /**
-     * @param isItem $item
-     *
-     * @return Component
-     * @throws \Exception
+     * @param isItem|canHaveSymbol $item
+     * @return Notification
      */
-    public function getComponentForItem(isItem $item) : Component
+    public function getNotificationComponentForItem(isItem $item): \ILIAS\UI\Component\Component
     {
         if (!$item instanceof StandardNotificationGroup) {
             throw new \LogicException("item is not a StandardNotificationGroup");
         }
-        /**
-         * @var $item StandardNotificationGroup
-         */
 
-        $slate = $this->ui_factory->mainControls()->slate()->combined($item->getTitle(), $this->getStandardSymbol($item));
-
+        $slate = $this->ui_factory->mainControls()->slate()->notification($item->getTitle(), []);
         foreach ($item->getNotifications() as $standard_notification) {
-            $component = $standard_notification->getRenderer()->getComponentForItem($standard_notification);
-            if ($this->isComponentSupportedForCombinedSlate($component)) {
-                $slate = $slate->withAdditionalEntry($component);
-            }
+            $slate = $slate->withAdditionalEntry($standard_notification->getRenderer($this->ui_factory)
+                                                                       ->getNotificationComponentForItem($standard_notification));
         }
 
         return $slate;

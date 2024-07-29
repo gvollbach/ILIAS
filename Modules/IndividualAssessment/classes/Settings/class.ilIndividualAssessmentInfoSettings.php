@@ -1,84 +1,108 @@
 <?php
+
 /**
- * A simple carrier for iass info-settings.
- * Could have used an associative array as well...
- */
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
-class ilIndividualAssessmentInfoSettings {
-	protected $id;
-	protected $contanct;
-	protected $responsibility;
-	protected $phone;
-	protected $mails;
-	protected $consultation_hours;
+declare(strict_types=1);
 
-	public function __construct(
-			ilObjIndividualAssessment $iass
-			, $contanct = null
-			, $responsibility = null
-			, $phone = null
-			, $mails = null
-			, $consultation_hours = null) {
-		$this->id = $iass->getId();
-		$this->contact = $contanct;
-		$this->responsibility = $responsibility;
-		$this->phone = $phone;
-		$this->mails = $mails;
-		$this->consultation_hours = $consultation_hours;
-	}
+use ILIAS\UI\Component\Input\Field;
+use ILIAS\Refinery\Factory as Refinery;
 
-	public function id() {
-		return $this->id;
-	}
+class ilIndividualAssessmentInfoSettings
+{
+    protected int $obj_id;
+    protected ?string $contact;
+    protected ?string $responsibility;
+    protected ?string $phone;
+    protected ?string $mails;
+    protected ?string $consultation_hours;
 
-	public function contact() {
-		return $this->contact;
-	}
+    public function __construct(
+        int $obj_id,
+        ?string $contact = null,
+        ?string $responsibility = null,
+        ?string $phone = null,
+        ?string $mails = null,
+        ?string $consultation_hours = null
+    ) {
+        $this->obj_id = $obj_id;
+        $this->contact = $contact;
+        $this->responsibility = $responsibility;
+        $this->phone = $phone;
+        $this->mails = $mails;
+        $this->consultation_hours = $consultation_hours;
+    }
 
-	public function responsibility() {
-		return $this->responsibility;
-	}
+    public function getObjId(): int
+    {
+        return $this->obj_id;
+    }
 
-	public function phone() {
-		return $this->phone;
-	}
+    public function getContact(): ?string
+    {
+        return $this->contact;
+    }
 
-	public function mails() {
-		return $this->mails;
-	}
+    public function getResponsibility(): ?string
+    {
+        return $this->responsibility;
+    }
 
-	public function consultationHours() {
-		return $this->consultation_hours;
-	}
+    public function getPhone(): ?string
+    {
+        return $this->phone;
+    }
 
+    public function getMails(): ?string
+    {
+        return $this->mails;
+    }
 
-	public function setContact($contact) {
-		assert(is_string($contact) || $contact === null);
-		$this->contact = $contact;
-		return $this;
-	}
+    public function getConsultationHours(): ?string
+    {
+        return $this->consultation_hours;
+    }
 
-	public function setResponsibility($responsibility) {
-		assert(is_string($responsibility) || $responsibility === null);
-		$this->responsibility = $responsibility;
-		return $this;
-	}
-
-	public function setPhone($phone) {
-		assert(is_string($phone) || $phone === null);
-		$this->phone = $phone;
-		return $this;
-	}
-
-	public function setMails($mails) {
-		assert(is_string($mails) || $mails === null);
-		$this->mails = $mails;
-		return $this;
-	}
-
-	public function setConsultationHours($consultation_hours) {
-		assert(is_string($consultation_hours) || $consultation_hours === null);
-		$this->consultation_hours = $consultation_hours;
-		return $this;
-	}
+    public function toFormInput(
+        Field\Factory $input,
+        ilLanguage $lng,
+        Refinery $refinery
+    ): \ILIAS\UI\Component\Input\Container\Form\FormInput {
+        return $input->section(
+            [
+                $input->text($lng->txt("iass_contact"))
+                    ->withValue((string) $this->getContact())
+                    ->withRequired(true),
+                $input->text($lng->txt("iass_responsibility"))
+                    ->withValue((string) $this->getResponsibility()),
+                $input->text($lng->txt("iass_phone"))
+                    ->withValue((string) $this->getPhone()),
+                $input->textarea($lng->txt("iass_mails"), $lng->txt("iass_info_emails_expl"))
+                    ->withValue((string) $this->getMails()),
+                $input->textarea($lng->txt("iass_consultation_hours"))
+                    ->withValue((string) $this->getConsultationHours())
+            ],
+            $lng->txt("settings")
+        )->withAdditionalTransformation(
+            $refinery->custom()->transformation(function ($value) {
+                return new ilIndividualAssessmentInfoSettings(
+                    $this->getObjId(),
+                    ...$value
+                );
+            })
+        );
+    }
 }

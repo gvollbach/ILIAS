@@ -1,89 +1,83 @@
 <?php
 
-/* Copyright (c) 1998-2015 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-include_once("./Services/User/Actions/classes/class.ilUserActionProvider.php");
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Adds link to shared resources
- *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- * @ingroup ServicesUser
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilWorkspaceUserActionProvider extends ilUserActionProvider
 {
-	protected $wsp_activated;
+    protected bool $wsp_activated;
 
-	/**
-	 * Construct
-	 *
-	 * @param
-	 * @return
-	 */
-	function __construct()
-	{
-		global $DIC;
+    public function __construct()
+    {
+        global $DIC;
 
-		$lng = $DIC['lng'];
-		$ilSetting = $DIC['ilSetting'];
+        $lng = $DIC['lng'];
+        $ilSetting = $DIC['ilSetting'];
 
-		$this->wsp_activated = (!$ilSetting->get("disable_personal_workspace"));
-		$lng->loadLanguageModule("wsp");
-		parent::__construct();
-	}
+        $this->wsp_activated = (!$ilSetting->get("disable_personal_workspace"));
+        $lng->loadLanguageModule("wsp");
+        parent::__construct();
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	function getComponentId()
-	{
-		return "pwsp";
-	}
+    public function getComponentId(): string
+    {
+        return "pwsp";
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	function getActionTypes()
-	{
-		return array(
-			"shared_res" => $this->lng->txt("wsp_shared_resources")
-		);
-	}
+    /**
+     * @return array<string,string>
+     */
+    public function getActionTypes(): array
+    {
+        return array(
+            "shared_res" => $this->lng->txt("wsp_shared_resources")
+        );
+    }
 
-	/**
-	 * Collect all actions
-	 *
-	 * @param int $a_target_user target user
-	 * @return ilUserActionCollection collection
-	 */
-	function collectActionsForTargetUser($a_target_user)
-	{
-		global $DIC;
+    public function collectActionsForTargetUser(int $a_target_user): ilUserActionCollection
+    {
+        global $DIC;
 
-		$ilCtrl = $DIC['ilCtrl'];
-		$lng = $DIC['lng'];
+        $ilCtrl = $DIC['ilCtrl'];
+        $lng = $DIC['lng'];
 
-		$coll = ilUserActionCollection::getInstance();
-		include_once("./Services/User/Actions/classes/class.ilUserAction.php");
+        $coll = ilUserActionCollection::getInstance();
 
-		if (!$this->wsp_activated)
-		{
-			return $coll;
-		}
+        if (!$this->wsp_activated) {
+            return $coll;
+        }
 
-		$f = new ilUserAction();
-		$f->setType("shared_res");
-		$f->setText($lng->txt("wsp_shared_resources"));
-		$ilCtrl->setParameterByClass("ilobjworkspacerootfoldergui", "user", ilObjUser::_lookupLogin($a_target_user));
-		$f->setHref($ilCtrl->getLinkTargetByClass(array("ildashboardgui", "ilpersonalworkspacegui", "ilobjworkspacerootfoldergui"),
-			"listSharedResourcesOfOtherUser"));
+        $f = new ilUserAction();
+        $f->setType("shared_res");
+        $f->setText($lng->txt("wsp_shared_resources"));
+        $ilCtrl->setParameterByClass("ilobjworkspacerootfoldergui", "user", ilObjUser::_lookupLogin($a_target_user));
+        $ilCtrl->setParameterByClass("ilobjworkspacerootfoldergui", "shr_id", $a_target_user);
+        $f->setHref($ilCtrl->getLinkTargetByClass(
+            array("ildashboardgui", "ilpersonalworkspacegui", "ilobjworkspacerootfoldergui"),
+            "listSharedResourcesOfOtherUser"
+        ));
 
-		//$f->setData(array("test" => "you", "user" => $a_target_user));
+        //$f->setData(array("test" => "you", "user" => $a_target_user));
 
-		$coll->addAction($f);
+        $coll->addAction($f);
 
-		return $coll;
-	}
+        return $coll;
+    }
 }
-?>

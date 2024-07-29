@@ -23,10 +23,11 @@ il.LearningModule = {
 
 	showContentFrame: function (e, target) {
 		var href = e.target.href;
+		$('body').trigger('il-lm-show-' + target + '-slate');
+		console.log('il-lm-show-' + target + '-slate');
 		if (!href) {
 			href = $(e.target).parents("[href]").attr("href");
 		}
-		console.log(href);
 		if (href != "") {
 			return il.LearningModule.loadContentFrame(href, target);
 		}
@@ -201,11 +202,15 @@ console.log(href);
 
 	refreshToc: function() {
 		if (ilias.questions.determineSuccessStatus() == "passed") {
-			if (il.LearningModule.toc_refresh_url != "" && $("#left_nav")) {
-				il.Util.ajaxReplaceInner(il.LearningModule.toc_refresh_url, "left_nav");
+			if (il.LearningModule.toc_refresh_url != "" && $("#il_expl2_jstree_cont_out_ilLMProgressTree")) {
+				il.Util.ajaxReplace(il.LearningModule.toc_refresh_url, "il_expl2_jstree_cont_out_ilLMProgressTree");
 			}
 		}
-	}
+	},
+
+  openMenuLink: function(url) {
+    window.open(url, '_blank');
+  }
 };
 
 $(function() {
@@ -217,6 +222,7 @@ $(function() {
 	$(document).keydown(function(e) {
 	if (e.target.tagName != "TEXTAREA" &&
 		e.target.tagName != "INPUT") {
+		/* deactivated due to #28962
 		// right
 		if (e.keyCode == 39) {
 			var a = $('.ilc_page_rnavlink_RightNavigationLink').first().attr('href');
@@ -232,7 +238,7 @@ $(function() {
 				top.location.href = a;
 			}
 			return false;
-		}
+		}*/
 		return true;
 	}
 })});

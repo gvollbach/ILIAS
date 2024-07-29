@@ -1,104 +1,106 @@
 <?php
 
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Derived task data object
  *
- * @author killing@leifos.de
- * @ingroup ServicesTasks
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilDerivedTask
 {
-	/**
-	 * @var string
-	 */
-	protected $title;
+    protected string $title;
 
-	/**
-	 * @var int
-	 */
-	protected $ref_id;
+    protected int $ref_id;
 
-	/**
-	 * @var int
-	 */
-	protected $deadline;
+    protected int $deadline;
 
-	/**
-	 * @var int
-	 */
-	protected $starting_time;
+    protected int $starting_time;
 
-	/** @var string */
-	protected $url = '';
+    protected int $wsp_id;
 
-	/**
-	 * Constructor
-	 * @param string $title
-	 * @param int $ref_id
-	 * @param int $deadline
-	 * @param int $starting_time
-	 */
-	public function __construct(string $title, int $ref_id, int $deadline, int $starting_time)
-	{
-		$this->title = $title;
-		$this->ref_id = $ref_id;
-		$this->deadline = $deadline;
-		$this->starting_time = $starting_time;
-	}
+    protected string $url = '';
 
-	/**
-	 * Get ref id
-	 *
-	 * @return int
-	 */
-	public function getRefId()
-	{
-		return $this->ref_id;
-	}
+    /**
+     * Constructor
+     */
+    public function __construct(string $title, int $ref_id, int $deadline, int $starting_time, int $wsp_id)
+    {
+        $this->title = $title;
+        $this->ref_id = $ref_id;
+        $this->deadline = $deadline;
+        $this->starting_time = $starting_time;
+        $this->wsp_id = $wsp_id;
+    }
 
-	/**
-	 * @return int
-	 */
-	public function getDeadline()
-	{
-		return $this->deadline;
-	}
+    /**
+     * Get ref id
+     *
+     * @return int
+     */
+    public function getRefId(): int
+    {
+        return $this->ref_id;
+    }
 
-	/**
-	 * @return int
-	 */
-	public function getStartingTime()
-	{
-		return $this->starting_time;
-	}
+    /**
+     * Get wsp id
+     *
+     * @return int
+     */
+    public function getWspId(): int
+    {
+        return $this->wsp_id;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getTitle()
-	{
-		return $this->title;
-	}
+    /**
+     * @return int
+     */
+    public function getDeadline(): int
+    {
+        return $this->deadline;
+    }
 
-	/**
-	 * @param string $url
-	 * @return ilDerivedTask
-	 */
-	public function withUrl(string $url): self
-	{
-		$clone = clone $this;
-		$clone->url = $url;
+    /**
+     * @return int
+     */
+    public function getStartingTime(): int
+    {
+        return $this->starting_time;
+    }
 
-		return $clone;
-	}
+    /**
+     * @return string
+     */
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getUrl(): string
-	{
-		return $this->url;
-	}
+    public function withUrl(string $url): self
+    {
+        $clone = clone $this;
+        $clone->url = $url;
+
+        return $clone;
+    }
+
+    public function getUrl(): string
+    {
+        return $this->url;
+    }
 }

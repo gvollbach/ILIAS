@@ -1,177 +1,172 @@
 <?php
 
-/* Copyright (c) 1998-2019 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * LM editor explorer GUI class
- *
- * @author	Alex Killing <alex.killing@gmx.de>
- * @version	$Id$
- *
- * @ingroup ModulesLearningModule
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilLMExplorerGUI extends ilTreeExplorerGUI
 {
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
+    protected ilObjContentObject $lm;
+    protected ilObjUser $user;
+    protected array $lp_cache = [];
+    protected int $cnt_lmobj = 0;
+    protected string $obj_id = "";
+    protected string $transl = "";
 
-	protected $lp_cache; // [array]
-	protected $cnt_lmobj; // number of items (chapters and pages) in the explorer
+    /**
+     * @param object|string $a_parent_obj
+     */
+    public function __construct(
+        $a_parent_obj,
+        string $a_parent_cmd,
+        ilObjContentObject $a_lm,
+        string $a_id = ""
+    ) {
+        global $DIC;
 
-	/**
-	 * Constructor
-	 *
-	 * @param object $a_parent_obj parent gui object
-	 * @param string $a_parent_cmd parent cmd
-	 * @param ilObjContentObject $a_lm learning module
-	 */
-	public function __construct($a_parent_obj, $a_parent_cmd, ilObjContentObject $a_lm, $a_id = "")
-	{
-		global $DIC;
+        $this->user = $DIC->user();
+        $this->lm = $a_lm;
 
-		$this->user = $DIC->user();
-		$this->lm = $a_lm;
+        $tree = ilLMTree::getInstance($this->lm->getId());
 
-		$tree = ilLMTree::getInstance($this->lm->getId());
+        $this->cnt_lmobj = ilLMObject::preloadDataByLM($this->lm->getId());
 
-		$this->cnt_lmobj = ilLMObject::preloadDataByLM($this->lm->getId());
+        ilPageObject::preloadActivationDataByParentId($this->lm->getId());
 
-		ilPageObject::preloadActivationDataByParentId($this->lm->getId());
+        if ($a_id == "") {
+            $a_id = "lm_exp";
 
-		if ($a_id == "")
-		{
-			$a_id = "lm_exp";
+            // this does not work, since it is not set yet
+            if ($this->getOfflineMode()) {
+                $a_id = "lm_exp_off";
+            }
+        }
 
-			// this does not work, since it is not set yet
-			if ($this->getOfflineMode())
-			{
-				$a_id = "lm_exp_off";
-			}
-		}
+        parent::__construct($a_id, $a_parent_obj, $a_parent_cmd, $tree);
 
-		parent::__construct($a_id, $a_parent_obj, $a_parent_cmd, $tree);
-		
-		$this->setSkipRootNode(false);
-		$this->setAjax(false);
-		$this->setPreloadChilds(true);
+        $this->setSkipRootNode(false);
+        $this->setAjax(false);
+        $this->setPreloadChilds(true);
 
-		$this->setPathOpen($tree->readRootId());
+        $this->setPathOpen($tree->readRootId());
 
-		if ((int) $_GET["obj_id"] > 0)
-		{
-			$this->setPathOpen((int) $_GET["obj_id"]);
-		}
-	}
+        $params = $DIC->http()->request()->getQueryParams();
+        $this->obj_id = (string) ($params["obj_id"] ?? "");
+        $this->transl = (string) ($params["transl"] ?? "");
 
-	/**
-	 * Before rendering
-	 */
-	function beforeRendering()
-	{
-		if ($this->cnt_lmobj > 200 && !$this->getOfflineMode())
-		{
-			$this->setAjax(true);
-		}
-	}
+        if ($this->obj_id > 0) {
+            $this->setPathOpen($this->obj_id);
+        }
+    }
+
+    public function beforeRendering(): void
+    {
+        if ($this->cnt_lmobj > 200 && !$this->getOfflineMode()) {
+            $class = (is_object($this->parent_obj))
+                ? get_class($this->parent_obj)
+                : $this->parent_obj;
+            $this->ctrl->setParameterByClass($class, "obj_id", $this->obj_id);
+            $this->setAjax(true);
+        }
+    }
 
 
-	/**
-	 * Get node content
-	 *
-	 * @param array $a_node node array
-	 * @return string node content
-	 */
-	function getNodeContent($a_node)
-	{
-		if ($a_node["child"] == $this->getNodeId($this->getRootNode()))
-		{
-			return $this->lm->getTitle();
-		}
+    /**
+     * @param object|array $a_node
+     */
+    public function getNodeContent($a_node): string
+    {
+        if ($a_node["child"] == $this->getNodeId($this->getRootNode())) {
+            return $this->lm->getTitle();
+        }
 
-		$lang = ($_GET["transl"] != "")
-			? $_GET["transl"]
-			: "-";
-		return ilLMObject::_getPresentationTitle($a_node, ilLMObject::PAGE_TITLE,
-			$this->lm->isActiveNumbering(), false, false, $this->lm->getId(), $lang);
-	}
-	
-	/**
-	 * Is node highlighted?
-	 *
-	 * @param mixed $a_node node object/array
-	 * @return boolean node visible true/false
-	 */
-	function isNodeHighlighted($a_node)
-	{
-		if ($a_node["child"] == $_GET["obj_id"] ||
-			($_GET["obj_id"] == "" && $a_node["child"] == $this->getNodeId($this->getRootNode())))
-		{
-			return true;
-		}
-		return false;
-	}
+        $lang = ($this->transl != "")
+            ? $this->transl
+            : "-";
+        return ilLMObject::_getNodePresentationTitle(
+            $a_node,
+            ilLMObject::PAGE_TITLE,
+            $this->lm->isActiveNumbering(),
+            false,
+            false,
+            $this->lm->getId(),
+            $lang
+        );
+    }
 
-	/**
-	 * Check learning progress icon
-	 *
-	 * @param int $a_id lm tree node id
-	 * @return string image path
-	 */
-	protected function checkLPIcon($a_id)
-	{
-		$ilUser = $this->user;
+    /**
+     * @param object|array $a_node
+     */
+    public function isNodeHighlighted($a_node): bool
+    {
+        if ($a_node["child"] == $this->obj_id ||
+            ($this->obj_id == "" && $a_node["child"] == $this->getNodeId($this->getRootNode()))) {
+            return true;
+        }
+        return false;
+    }
 
-		// do it once for all chapters
-		if($this->lp_cache[$this->lm->getId()] === null)
-		{
-			$this->lp_cache[$this->lm->getId()] = false;
+    /**
+     * @param int $a_id lm tree node id
+     * @throws ilInvalidLPStatusException
+     */
+    protected function checkLPIcon(int $a_id): string
+    {
+        $ilUser = $this->user;
 
-			if(ilLearningProgressAccess::checkAccess($this->lm->getRefId()))
-			{
-				$info = null;
+        // do it once for all chapters
+        if (!isset($this->lp_cache[$this->lm->getId()])) {
+            $this->lp_cache[$this->lm->getId()] = false;
 
-				$olp = ilObjectLP::getInstance($this->lm->getId());
-				if($olp->getCurrentMode() == ilLPObjSettings::LP_MODE_COLLECTION_MANUAL ||
-					$olp->getCurrentMode() == ilLPObjSettings::LP_MODE_COLLECTION_TLT)
-				{
-					$class = ilLPStatusFactory::_getClassById($this->lm->getId(), $olp->getCurrentMode());
-					$info = $class::_getStatusInfo($this->lm->getId());
-				}
+            if (ilLearningProgressAccess::checkAccess($this->lm->getRefId())) {
+                $info = null;
 
-				// parse collection items
-				if(is_array($info["items"]))
-				{
-					foreach($info["items"] as $item_id)
-					{
-						$status = ilLPStatus::LP_STATUS_NOT_ATTEMPTED_NUM;
-						if(is_array($info["in_progress"][$item_id]) &&
-							in_array($ilUser->getId(), $info["in_progress"][$item_id]))
-						{
-							$status = ilLPStatus::LP_STATUS_IN_PROGRESS_NUM;
-						}
-						else if(is_array($info["completed"][$item_id]) &&
-							in_array($ilUser->getId(), $info["completed"][$item_id]))
-						{
-							$status = ilLPStatus::LP_STATUS_COMPLETED_NUM;
-						}
-						$this->lp_cache[$this->lm->getId()][$item_id] =$status;
-					}
-				}
-			}
+                $olp = ilObjectLP::getInstance($this->lm->getId());
+                if ($olp->getCurrentMode() == ilLPObjSettings::LP_MODE_COLLECTION_MANUAL ||
+                    $olp->getCurrentMode() == ilLPObjSettings::LP_MODE_COLLECTION_TLT) {
+                    $class = ilLPStatusFactory::_getClassById($this->lm->getId(), $olp->getCurrentMode());
+                    $info = $class::_getStatusInfo($this->lm->getId());
+                }
 
-		}
+                // parse collection items
+                if (isset($info["items"])) {
+                    foreach ($info["items"] as $item_id) {
+                        $status = ilLPStatus::LP_STATUS_NOT_ATTEMPTED_NUM;
+                        if (isset($info["in_progress"][$item_id]) &&
+                            in_array($ilUser->getId(), $info["in_progress"][$item_id])) {
+                            $status = ilLPStatus::LP_STATUS_IN_PROGRESS_NUM;
+                        } elseif (isset($info["completed"][$item_id]) &&
+                            in_array($ilUser->getId(), $info["completed"][$item_id])) {
+                            $status = ilLPStatus::LP_STATUS_COMPLETED_NUM;
+                        }
+                        $this->lp_cache[$this->lm->getId()][$item_id] = $status;
+                    }
+                }
+            }
+        }
 
-		if(is_array($this->lp_cache[$this->lm->getId()]) &&
-			isset($this->lp_cache[$this->lm->getId()][$a_id]))
-		{
-			return ilLearningProgressBaseGUI::_getImagePathForStatus($this->lp_cache[$this->lm->getId()][$a_id]);
-		}
+        if (isset($this->lp_cache[$this->lm->getId()]) &&
+            isset($this->lp_cache[$this->lm->getId()][$a_id])) {
+            $icons = ilLPStatusIcons::getInstance(ilLPStatusIcons::ICON_VARIANT_SHORT);
+            return $icons->getImagePathForStatus($this->lp_cache[$this->lm->getId()][$a_id]);
+        }
 
-		return "";
-	}
-
+        return "";
+    }
 }
-
-?>

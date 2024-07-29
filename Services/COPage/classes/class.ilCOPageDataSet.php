@@ -1,160 +1,131 @@
 <?php
-/* Copyright (c) 1998-2011 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once("./Services/DataSet/classes/class.ilDataSet.php");
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * COPage Data set class
- * 
  * This class implements the following entities:
  * - pgtp: page layout template
- * 
  * Please note that the usual page xml export DOES NOT use the dataset.
  * The page export uses pre-existing methods to create the xml.
  *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- * @ingroup ServicesCOPage
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilCOPageDataSet extends ilDataSet
 {
-	protected $master_lang_only = false;
+    protected ilPageLayout $current_obj;
+    protected bool $master_lang_only = false;
 
-	/**
-	 * Set master language only
-	 *
-	 * @param bool $a_val export only master language
-	 */
-	function setMasterLanguageOnly($a_val)
-	{
-		$this->master_lang_only = $a_val;
-	}
+    public function setMasterLanguageOnly(bool $a_val): void
+    {
+        $this->master_lang_only = $a_val;
+    }
 
-	/**
-	 * Get master language only
-	 *
-	 * @return bool export only master language
-	 */
-	function getMasterLanguageOnly()
-	{
-		return $this->master_lang_only;
-	}
+    public function getMasterLanguageOnly(): bool
+    {
+        return $this->master_lang_only;
+    }
 
-	/**
-	 * Get supported versions
-	 *
-	 * @param
-	 * @return
-	 */
-	public function getSupportedVersions()
-	{
-		return array("4.2.0");
-	}
-	
-	/**
-	 * Get xml namespace
-	 *
-	 * @param
-	 * @return
-	 */
-	function getXmlNamespace($a_entity, $a_schema_version)
-	{
-		return "http://www.ilias.de/xml/Services/COPage/".$a_entity;
-	}
-	
-	/**
-	 * Get field types for entity
-	 *
-	 * @param
-	 * @return
-	 */
-	protected function getTypes($a_entity, $a_version)
-	{
-		// pgtp: page layout template
-		if ($a_entity == "pgtp")
-		{
-			switch ($a_version)
-			{
-				case "4.2.0":
-					return array(
-						"Id" => "integer",
-						"Title" => "text",
-						"Description" => "text",
-						"SpecialPage" => "integer",
-						"StyleId" => "integer");
-			}
-		}
-	}
+    public function getSupportedVersions(): array
+    {
+        return array("4.2.0");
+    }
 
-	/**
-	 * Read data
-	 *
-	 * @param
-	 * @return
-	 */
-	function readData($a_entity, $a_version, $a_ids, $a_field = "")
-	{
-		$db = $this->db;
+    protected function getXmlNamespace(string $a_entity, string $a_schema_version): string
+    {
+        return "https://www.ilias.de/xml/Services/COPage/" . $a_entity;
+    }
 
-		if (!is_array($a_ids))
-		{
-			$a_ids = array($a_ids);
-		}
-				
-		// mep_data
-		if ($a_entity == "pgtp")
-		{
-			switch ($a_version)
-			{
-				case "4.2.0":
-					$this->getDirectDataFromQuery("SELECT layout_id id, title, description, ".
-						" style_id, special_page ".
-						" FROM page_layout ".
-						"WHERE ".
-						$db->in("layout_id", $a_ids, false, "integer"));
-					break;
-			}
-		}	
-	}
-	
-	/**
-	 * Determine the dependent sets of data 
-	 */
-	protected function getDependencies($a_entity, $a_version, $a_rec, $a_ids)
-	{
-		return false;
-	}
-	
-	////
-	//// Needs abstraction (interface?) and version handling
-	////
-	
-	
-	/**
-	 * Import record
-	 *
-	 * @param
-	 * @return
-	 */
-	function importRecord($a_entity, $a_types, $a_rec, $a_mapping, $a_schema_version)
-	{
-		switch ($a_entity)
-		{
-			case "pgtp":
-				include_once("./Services/COPage/Layout/classes/class.ilPageLayout.php");
-				$pt = new ilPageLayout();
-				$pt->setTitle($a_rec["Title"]);
-				$pt->setDescription($a_rec["Description"]);
-				$pt->setSpecialPage($a_rec["SpecialPage"]);
-				$pt->update();
-				
-				$this->current_obj = $pt;
-				$a_mapping->addMapping("Services/COPage", "pgtp", $a_rec["Id"],
-					$pt->getId());
-				$a_mapping->addMapping("Services/COPage", "pg", "stys:".$a_rec["Id"],
-					"stys:".$pt->getId());
-				break;
-		}
-	}
+    protected function getTypes(string $a_entity, string $a_version): array
+    {
+        // pgtp: page layout template
+        if ($a_entity == "pgtp") {
+            switch ($a_version) {
+                case "4.2.0":
+                    return array(
+                        "Id" => "integer",
+                        "Title" => "text",
+                        "Description" => "text",
+                        "SpecialPage" => "integer",
+                        "StyleId" => "integer");
+            }
+        }
+        return [];
+    }
+
+    public function readData(string $a_entity, string $a_version, array $a_ids): void
+    {
+        $db = $this->db;
+
+        if (!is_array($a_ids)) {
+            $a_ids = array($a_ids);
+        }
+
+        // mep_data
+        if ($a_entity == "pgtp") {
+            switch ($a_version) {
+                case "4.2.0":
+                    $this->getDirectDataFromQuery("SELECT layout_id id, title, description, " .
+                        " style_id, special_page " .
+                        " FROM page_layout " .
+                        "WHERE " .
+                        $db->in("layout_id", $a_ids, false, "integer"));
+                    break;
+            }
+        }
+    }
+
+    /**
+     * Determine the dependent sets of data
+     */
+    protected function getDependencies(
+        string $a_entity,
+        string $a_version,
+        ?array $a_rec = null,
+        ?array $a_ids = null
+    ): array {
+        return [];
+    }
+
+    public function importRecord(string $a_entity, array $a_types, array $a_rec, ilImportMapping $a_mapping, string $a_schema_version): void
+    {
+        $a_rec = $this->stripTags($a_rec);
+        switch ($a_entity) {
+            case "pgtp":
+                $pt = new ilPageLayout();
+                $pt->setTitle($a_rec["Title"]);
+                $pt->setDescription($a_rec["Description"]);
+                $pt->setSpecialPage($a_rec["SpecialPage"]);
+                $pt->update();
+
+                $this->current_obj = $pt;
+                $a_mapping->addMapping(
+                    "Services/COPage",
+                    "pgtp",
+                    $a_rec["Id"],
+                    $pt->getId()
+                );
+                $a_mapping->addMapping(
+                    "Services/COPage",
+                    "pg",
+                    "stys:" . $a_rec["Id"],
+                    "stys:" . $pt->getId()
+                );
+                break;
+        }
+    }
 }
-?>

@@ -1,98 +1,94 @@
 <?php
 
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
 
 /**
- * Description of class class 
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
  *
- * @author Stefan Meyer <smeyer.ilias@gmx.de> 
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Description of class class
+ *
+ * @author Stefan Meyer <smeyer.ilias@gmx.de>
  *
  */
 class ilLTICronOutcomeService extends ilCronJob
 {
-	/**
-	 * @inheritDoc
-	 */
-	public function getDefaultScheduleType()
-	{
-		return self::SCHEDULE_TYPE_DAILY;
-	}
+    private ilLanguage $lng;
+    private ilCronJobRepository $cronRepo;
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getDefaultScheduleValue()
-	{
-		return 1;
-	}
+    public function __construct()
+    {
+        global $DIC;
+        $this->lng = $DIC->language();
+        $this->lng->loadLanguageModule("lti");
+        $this->cronRepo = $DIC->cron()->repository();
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getId()
-	{
-		return 'lti_outcome';
-	}
+    public function getDefaultScheduleType(): int
+    {
+        return self::SCHEDULE_TYPE_DAILY;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function hasAutoActivation()
-	{
-		return false;
-	}
+    public function getDefaultScheduleValue(): ?int
+    {
+        return 1;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function hasFlexibleSchedule()
-	{
-		return true;
-	}
+    public function getId(): string
+    {
+        return 'lti_outcome';
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getTitle()
-	{
-		global $DIC;
-		$DIC->language()->loadLanguageModule('lti');
-		return $DIC->language()->txt('lti_cron_title');
-	}
+    public function hasAutoActivation(): bool
+    {
+        return false;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getDescription()
-	{
-		global $DIC;
-		$DIC->language()->loadLanguageModule('lti');
-		return $DIC->language()->txt('lti_cron_title_desc');
-	}
+    public function hasFlexibleSchedule(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function run()
-	{
-		global $DIC;
+    public function getTitle(): string
+    {
+        return $this->lng->txt('lti_cron_title');
+    }
 
-		$status = \ilCronJobResult::STATUS_NO_ACTION;
+    public function getDescription(): string
+    {
+        return $this->lng->txt('lti_cron_title_desc');
+    }
 
-		$info = ilCronManager::getCronJobData($this->getId());
-		$last_ts = $info['job_status_ts'];
-		if(!$last_ts)
-		{
-			$last_ts = time() - 24 * 3600;
-		}
-		$since = new ilDateTime($last_ts,IL_CAL_UNIX);
+    public function run(): ilCronJobResult
+    {
+        $status = \ilCronJobResult::STATUS_NO_ACTION;
+
+        $info = $this->cronRepo->getCronJobData($this->getId());
+        $last_ts = $info['job_status_ts'] ?? false;
+        if (!$last_ts) {
+            $last_ts = time() - 24 * 3600;
+        }
+        $since = new ilDateTime($last_ts, IL_CAL_UNIX);
 
 
-		$result = new \ilCronJobResult();
-		$result->setStatus($status);
-		ilLTIAppEventListener::handleCronUpdate($since);
-		$result->setStatus(ilCronJobResult::STATUS_OK);
+        $result = new \ilCronJobResult();
+        $result->setStatus($status);
+        ilLTIAppEventListener::handleCronUpdate($since);
+        $result->setStatus(ilCronJobResult::STATUS_OK);
 
-		return $result;
-	}
+        return $result;
+    }
 }

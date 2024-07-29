@@ -1,156 +1,114 @@
 <?php
 
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
- *
- *
- * @author @leifos.de
- * @ingroup
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilLearningHistoryTimelineItem implements ilTimelineItemInt
 {
-	/**
-	 * @var ilLearningHistoryEntry
-	 */
-	protected $lh_entry;
+    protected ilLearningHistoryEntry $lh_entry;
+    protected \ILIAS\DI\UIServices $ui;
+    protected int $user_id;
+    protected ilAccessHandler $access;
+    protected ilTree $tree;
 
-	/**
-	 * @var \ILIAS\DI\UIServices
-	 */
-	protected $ui;
+    public function __construct(
+        ilLearningHistoryEntry $lh_entry,
+        \ILIAS\DI\UIServices $ui,
+        int $user_id,
+        ilAccessHandler $access,
+        ilTree $tree
+    ) {
+        $this->access = $access;
+        $this->lh_entry = $lh_entry;
+        $this->ui = $ui;
+        $this->user_id = $user_id;
+        $this->tree = $tree;
+    }
 
-	/**
-	 * @var int
-	 */
-	protected $user_id;
+    public function getDatetime(): ilDateTime
+    {
+        return new ilDateTime($this->lh_entry->getTimestamp(), IL_CAL_UNIX);
+    }
 
-	/**
-	 * @var ilAccessHandler
-	 */
-	protected $access;
+    public function render(): string
+    {
+        $access = $this->access;
+        $parent_ref_id = 0;
 
-	/**
-	 * @var ilTree
-	 */
-	protected $tree;
+        $tpl = new ilTemplate("tpl.timeline_item_inner.html", true, true, "Services/LearningHistory");
 
-	/**
-	 * Constructor
-	 * ilLearningHistoryTimelineItem constructor.
-	 * @param ilLearningHistoryEntry $lh_entry
-	 */
-	public function __construct(
-		ilLearningHistoryEntry $lh_entry,
-		\ILIAS\DI\UIServices $ui,
-		$user_id,
-		ilAccessHandler $access,
-		ilTree $tree
-	)
-	{
-		$this->access = $access;
-		$this->lh_entry = $lh_entry;
-		$this->ui = $ui;
-		$this->user_id = $user_id;
-		$this->tree = $tree;
-	}
+        $f = $this->ui->factory();
+        $r = $this->ui->renderer();
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getDatetime()
-	{
-		return new ilDateTime($this->lh_entry->getTimestamp(), IL_CAL_UNIX);
-	}
+        $ico = $f->symbol()->icon()->custom($this->lh_entry->getIconPath(), '')->withSize(\ILIAS\UI\Component\Symbol\Icon\Icon::MEDIUM);
 
-	/**
-	 * @inheritdoc
-	 */
-	public function render()
-	{
-		$access = $this->access;
+        $obj_id = $this->lh_entry->getObjId();
+        $title = ilObject::_lookupTitle($obj_id);
+        if ($this->lh_entry->getRefId() === 0) {
+            $ref_ids = ilObject::_getAllReferences($obj_id);
+        } else {
+            $ref_ids = [$this->lh_entry->getRefId()];
+        }
+        $readable_ref_id = 0;
+        foreach ($ref_ids as $ref_id) {
+            if ($readable_ref_id === 0 && $access->checkAccessOfUser($this->user_id, "read", "", $ref_id)) {
+                $readable_ref_id = $ref_id;
+            }
+        }
 
-		$tpl = new ilTemplate("tpl.timeline_item_inner.html", true, true, "Services/LearningHistory");
+        if ($readable_ref_id > 0) {
+            if (ilObject::_lookupType(ilObject::_lookupObjId($readable_ref_id)) === "crs") {
+                $parent_ref_id = $readable_ref_id;
+            } else {
+                $parent_ref_id = $this->tree->checkForParentType($readable_ref_id, "crs", true);
+            }
+        }
 
-		$f = $this->ui->factory();
-		$r = $this->ui->renderer();
+        if ($parent_ref_id > 0) {
+            $text = $this->lh_entry->getAchieveInText();
+            $obj_placeholder = "<a href='" . ilLink::_getLink($parent_ref_id) . "'>" .
+                $this->getEmphasizedTitle(ilObject::_lookupTitle(ilObject::_lookupObjId($parent_ref_id))) . "</a>";
+            $text = str_replace("$2$", $obj_placeholder, $text);
+        } else {
+            $text = $this->lh_entry->getAchieveText();
+        }
 
-		$ico = $f->symbol()->icon()->custom($this->lh_entry->getIconPath(), '')->withSize(\ILIAS\UI\Component\Symbol\Icon\Icon::MEDIUM);
+        $obj_placeholder = ($readable_ref_id > 0)
+                ? "<a href='" . ilLink::_getLink($readable_ref_id) . "'>" . $this->getEmphasizedTitle($title) . "</a>"
+                : $this->getEmphasizedTitle($title);
+        $text = str_replace("$1$", $obj_placeholder, $text);
 
-		$obj_id = $this->lh_entry->getObjId();
-		$title = ilObject::_lookupTitle($obj_id);
-		if ($this->lh_entry->getRefId() == 0)
-		{
-			$ref_ids = ilObject::_getAllReferences($obj_id);
-		}
-		else
-		{
-			$ref_ids = [$this->lh_entry->getRefId()];
-		}
-		$readable_ref_id = 0;
-		foreach ($ref_ids as $ref_id)
-		{
-			if ($readable_ref_id == 0 && $access->checkAccessOfUser($this->user_id, "read", "", $ref_id))
-			{
-				$readable_ref_id = $ref_id;
-			}
-		}
+        $tpl->setVariable("TEXT", $text);
+        $tpl->setVariable("ICON", $r->render($ico));
 
-		if ($readable_ref_id > 0)
-		{
-			if (ilObject::_lookupType(ilObject::_lookupObjId($readable_ref_id)) == "crs")
-			{
-				$parent_ref_id = $readable_ref_id;
-			}
-			else
-			{
-				$parent_ref_id = $this->tree->checkForParentType($readable_ref_id, "crs", true);
-			}
-		}
+        return $tpl->get();
+    }
 
-		if ($parent_ref_id > 0)
-		{
-			$text = $this->lh_entry->getAchieveInText();
-			$obj_placeholder = "<a href='" . ilLink::_getLink($parent_ref_id) . "'>" .
-				$this->getEmphasizedTitle(ilObject::_lookupTitle(ilObject::_lookupObjId($parent_ref_id))) . "</a>";
-			$text = str_replace("$2$", $obj_placeholder, $text);
-		}
-		else
-		{
-			$text = $this->lh_entry->getAchieveText();
-		}
+    protected function getEmphasizedTitle(string $title): string
+    {
+        $tpl = new ilTemplate("tpl.emphasized_title.php", true, true, "Services/LearningHistory");
+        $tpl->setVariable("TITLE", $title);
+        return $tpl->get();
+    }
 
-		$obj_placeholder = ($readable_ref_id > 0)
-				? "<a href='" . ilLink::_getLink($readable_ref_id) . "'>" . $this->getEmphasizedTitle($title) . "</a>"
-				: $this->getEmphasizedTitle($title);
-		$text = str_replace("$1$", $obj_placeholder, $text);
-
-		$tpl->setVariable("TEXT", $text);
-		$tpl->setVariable("ICON", $r->render($ico));
-
-		return $tpl->get();
-	}
-
-	/**
-	 * Get emphasized title
-	 *
-	 * @param string
-	 * @return string
-	 */
-	protected function getEmphasizedTitle($title)
-	{
-		$tpl = new ilTemplate("tpl.emphasized_title.php", true, true, "Services/LearningHistory");
-		$tpl->setVariable("TITLE", $title);;
-		return $tpl->get();
-	}
-
-	/**
-	 * Render footer
-	 * @throws ilCtrlException
-	 */
-	function renderFooter()
-	{
-	}
-
-
-	}
+    public function renderFooter(): string
+    {
+        return "";
+    }
+}

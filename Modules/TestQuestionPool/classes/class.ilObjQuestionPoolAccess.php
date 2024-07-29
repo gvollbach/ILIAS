@@ -1,7 +1,21 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once "./Services/Object/classes/class.ilObjectAccess.php";
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 include_once "./Modules/Test/classes/inc.AssessmentConstants.php";
 
 /**
@@ -15,101 +29,82 @@ include_once "./Modules/Test/classes/inc.AssessmentConstants.php";
 */
 class ilObjQuestionPoolAccess extends ilObjectAccess
 {
-	/**
-	 * get commands
-	 * 
-	 * this method returns an array of all possible commands/permission combinations
-	 * 
-	 * example:	
-	 * $commands = array
-	 *	(
-	 *		array("permission" => "read", "cmd" => "view", "lang_var" => "show"),
-	 *		array("permission" => "write", "cmd" => "edit", "lang_var" => "edit"),
-	 *	);
-	 */
-	static function _getCommands()
-	{
-		$commands = array
-		(
-			array("permission" => "write", "cmd" => "questions", "lang_var" => "tst_edit_questions"),
-			array("permission" => "write", "cmd" => "ilObjQuestionPoolSettingsGeneralGUI::showForm", "lang_var" => "settings"),
-			#array("permission" => "write", "cmd" => "questions", "lang_var" => "edit",
-			#	"default" => false),
-			array("permission" => "read", "cmd" => "questions", "lang_var" => "edit",
-				"default" => true)
-		);
-		
-		return $commands;
-	}
+    /**
+     * get commands
+     *
+     * this method returns an array of all possible commands/permission combinations
+     *
+     * example:
+     * $commands = array
+     *	(
+     *		array("permission" => "read", "cmd" => "view", "lang_var" => "show"),
+     *		array("permission" => "write", "cmd" => "edit", "lang_var" => "edit"),
+     *	);
+     */
+    public static function _getCommands(): array
+    {
+        $commands = array(
+            array("permission" => "write", "cmd" => "questions", "lang_var" => "tst_edit_questions"),
+            array("permission" => "write", "cmd" => "ilObjQuestionPoolSettingsGeneralGUI::showForm", "lang_var" => "settings"),
+            #array("permission" => "write", "cmd" => "questions", "lang_var" => "edit",
+            #	"default" => false),
+            array("permission" => "read", "cmd" => "questions", "lang_var" => "edit",
+                "default" => true)
+        );
 
-	/**
-	 * @param string $a_cmd
-	 * @param string $a_permission
-	 * @param int $a_ref_id
-	 * @param int $a_obj_id
-	 * @param string $a_user_id
-	 * @return bool
-	 */
-	function _checkAccess($a_cmd, $a_permission, $a_ref_id, $a_obj_id, $a_user_id = "")
-	{
-		global $DIC;
-		$lng = $DIC['lng'];
-		$ilAccess = $DIC['ilAccess'];
+        return $commands;
+    }
 
-		global $DIC;
-		$ilUser = $DIC['ilUser'];
-		$lng = $DIC['lng'];
-		$rbacsystem = $DIC['rbacsystem'];
-		$ilAccess = $DIC['ilAccess'];
+    public function _checkAccess(string $cmd, string $permission, int $ref_id, int $obj_id, ?int $user_id = null): bool
+    {
+        global $DIC;
+        $ilUser = $DIC['ilUser'];
+        $lng = $DIC['lng'];
+        $rbacsystem = $DIC['rbacsystem'];
+        $ilAccess = $DIC['ilAccess'];
 
-		if ($a_user_id == "")
-		{
-			$a_user_id = $ilUser->getId();
-		}
+        if (is_null($user_id)) {
+            $user_id = $ilUser->getId();
+        }
 
-		if( $rbacsystem->checkAccessOfUser($a_user_id, 'write', $a_ref_id) )
-		{
-			return true;
-		}
+        if ($rbacsystem->checkAccessOfUser($user_id, 'write', $ref_id)) {
+            return true;
+        }
 
-		switch ($a_permission)
-		{
-			case 'visible':
-			case 'read':
-				if( !self::isOnline($a_obj_id) )
-				{
-					$ilAccess->addInfoItem(IL_NO_OBJECT_ACCESS, $lng->txt("tst_warning_pool_offline"));
-					return false;
-				}
-				break;
-		}
+        switch ($permission) {
+            case 'visible':
+            case 'read':
+                if (!self::isOnline($obj_id)) {
+                    $ilAccess->addInfoItem(ilAccessInfo::IL_NO_OBJECT_ACCESS, $lng->txt("tst_warning_pool_offline"));
+                    return false;
+                }
+                break;
+        }
 
-		return true;
-	}
+        return true;
+    }
 
-	/**
-	 * returns the objects's ONline status
-	 *
-	 * @param integer $a_obj_id
-	 * @return boolean $online
-	 */
-	public static function isOnline($a_obj_id)
-	{
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
+    /**
+     * returns the objects's ONline status
+     *
+     * @param integer $a_obj_id
+     * @return boolean $online
+     */
+    public static function isOnline($a_obj_id): bool
+    {
+        global $DIC;
+        $ilDB = $DIC['ilDB'];
 
-		$query = "
+        $query = "
 			SELECT		COUNT(id_questionpool) cnt
 			FROM		qpl_questionpool
 			WHERE		obj_fi = %s
 			AND			isonline = 1
 		";
 
-		$res = $ilDB->queryF( $query, array('integer'), array($a_obj_id) );
-		$row = $ilDB->fetchAssoc($res);
-		
-		return $row['cnt'] > 0;
-	}
-}
+        $res = $ilDB->queryF($query, array('integer'), array($a_obj_id));
+        $row = $ilDB->fetchAssoc($res);
 
-?>
+        return $row['cnt'] > 0;
+    }
+}

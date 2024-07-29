@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /*
         +-----------------------------------------------------------------------------+
         | ILIAS open source                                                           |
@@ -21,200 +23,144 @@
         +-----------------------------------------------------------------------------+
 */
 
-include_once('./Services/Calendar/classes/class.ilCalendarCategories.php');
-
 /**
-*
-* @author Stefan Meyer <smeyer.ilias@gmx.de>
-* @version $Id$
-*
-* @ingroup  ServicesCalendar
-*/
-
+ * @author   Stefan Meyer <smeyer.ilias@gmx.de>
+ * @ingroup  ServicesCalendar
+ */
 class ilCalendarAppointmentColors
 {
-	protected static $colors = array(
-		'crs' => array(
-			"#ADD8E6",
-			"#BFEFFF",
-			"#B2DFEE",
-			"#9AC0CD",
-			"#68838B",
-			"#E0FFFF",
-			"#D1EEEE",
-			"#B4CDCD",
-			"#7A8B8B",
-			"#87CEFA",
-			"#B0E2FF",
-			"#A4D3EE",
-			"#8DB6CD",
-			"#607B8B",
-			"#B0C4DE",
-			"#CAE1FF",
-			"#BCD2EE",
-			"#A2B5CD"),
-		'grp' => array(
-			"#EEDD82",
-			"#FFEC8B",
-			"#EEDC82",
-			"#CDBE70",
-			"#8B814C",
-			"#FAFAD2",
-			"#FFFFE0",
-			"#FFF8DC",
-			"#EEEED1",
-			"#CDCDB4"),
-		'sess' => array(
-			"#C1FFC1",
-			"#B4EEB4",
-			"#98FB98",
-			"#90EE90"),
-		'exc' => array(
-			"#BC6F16",
-			"#BA7832",
-			"#B78B4D",
-			"#B59365")
-	);
+    protected static array $colors = array(
+        'crs' => array(
+            "#ADD8E6",
+            "#BFEFFF",
+            "#B2DFEE",
+            "#9AC0CD",
+            "#475A5F",
+            "#E0FFFF",
+            "#D1EEEE",
+            "#B4CDCD",
+            "#7A8B8B",
+            "#87CEFA",
+            "#B0E2FF",
+            "#A4D3EE",
+            "#8DB6CD",
+            "#607B8B",
+            "#B0C4DE",
+            "#CAE1FF",
+            "#BCD2EE",
+            "#A2B5CD"
+        ),
+        'grp' => array(
+            "#EEDD82",
+            "#FFEC8B",
+            "#EEDC82",
+            "#CDBE70",
+            "#8B814C",
+            "#FAFAD2",
+            "#FFFFE0",
+            "#FFF8DC",
+            "#EEEED1",
+            "#CDCDB4"
+        ),
+        'sess' => array(
+            "#C1FFC1",
+            "#B4EEB4",
+            "#98FB98",
+            "#90EE90"
+        ),
+        'exc' => array(
+            "#BC6F16",
+            "#BA7832",
+            "#B78B4D",
+            "#B59365"
+        ),
+        'tals' => array(
+            "#BC6F16",
+            "#BA7832",
+            "#B78B4D",
+            "#B59365"
+        ),
+        'etal' => array(
+            "#BC6F16",
+            "#BA7832",
+            "#B78B4D",
+            "#B59365"
+        )
+    );
 
-	protected $db;
-	protected $user_id;
-	protected $appointment_colors;
-	
-	/**
-	 * Constructor
-	 *
-	 * @access public
-	 * @param int user_id
-	 * @return
-	 */
-	public function __construct($a_user_id)
-	{
-		global $DIC;
+    protected ilDBInterface $db;
+    protected ilCalendarCategories $categories;
 
-		$this->db = $DIC->database();
-		$this->logger = $DIC->logger()->cal();
-		
-		$this->user_id = $a_user_id;
-		
-		$this->categories = ilCalendarCategories::_getInstance();
-		$this->read();
-	}
-	
-	/**
-	 * get color by appointment
-	 *
-	 * @access public
-	 * @param int calendar appointment id
-	 * @return
-	 */
-	public function getColorByAppointment($a_cal_id)
-	{
-		//$this->logger->debug("calendar_id  = ".$a_cal_id);
+    private array $appointment_colors = [];
+    private array $cat_substitutions_colors = [];
+    private array $cat_substitutions = [];
+    private array $cat_app_ass = [];
 
-		$cat_id = $this->cat_app_ass[$a_cal_id];
-		//$this->logger->debug("first cat_id  ==> ".$cat_id);
-		//$this->logger->debug("color first _cat_id => ".$this->appointment_colors[$cat_id]);
+    public function __construct($a_user_id)
+    {
+        global $DIC;
 
-		$cat_id = $this->cat_substitutions[$cat_id];
-		//$this->logger->debug("second cat_id  ==> ".$cat_id);
-		//$this->logger->debug("second color_cat_id => ".$this->appointment_colors[$cat_id]);
+        $this->db = $DIC->database();
+        $this->categories = ilCalendarCategories::_getInstance();
+        $this->read();
+    }
 
-		#21078
-		if(isset($this->appointment_colors[$cat_id])) {
-			return $this->appointment_colors[$cat_id];
-		} else if(isset($this->cat_substitutions_colors[$cat_id])) {
-			return $this->cat_substitutions_colors[$cat_id];
-		} else {
-			return 'red';
-		}
+    /**
+     * get color by appointment
+     * @access public
+     * @param int calendar appointment id
+     * @return
+     */
+    public function getColorByAppointment($a_cal_id)
+    {
+        $cat_id = $this->cat_app_ass[$a_cal_id];
+        $cat_id = $this->cat_substitutions[$cat_id];
+        #21078
+        if (isset($this->appointment_colors[$cat_id])) {
+            return $this->appointment_colors[$cat_id];
+        } elseif (isset($this->cat_substitutions_colors[$cat_id])) {
+            return $this->cat_substitutions_colors[$cat_id];
+        } else {
+            return 'red';
+        }
+    }
 
-	}
-	
-	/**
-	 * read
-	 *
-	 * @access private
-	 * @param
-	 * @return
-	 */
-	private function read()
-	{
-		global $DIC;
+    private function read()
+    {
+        // Store assignment of subitem categories
+        foreach ($this->categories->getCategoriesInfo() as $c_data) {
+            if (isset($c_data['subitem_ids']) and count($c_data['subitem_ids'])) {
+                foreach ($c_data['subitem_ids'] as $sub_item_id) {
+                    $this->cat_substitutions[$sub_item_id] = $c_data['cat_id'];
+                }
+            }
+            $this->cat_substitutions[$c_data['cat_id']] = $c_data['cat_id'];
+            #21078
+            $this->cat_substitutions_colors[$c_data['cat_id']] = $c_data['color'];
+        }
 
-		$ilDB = $DIC['ilDB'];
+        $query = "SELECT cat.cat_id,cat.color, ass.cal_id  FROM cal_categories cat " .
+            "JOIN cal_cat_assignments ass ON cat.cat_id = ass.cat_id " .
+            "WHERE " . $this->db->in('cat.cat_id', $this->categories->getCategories(true), false, 'integer');
 
-		// Store assignment of subitem categories
-		foreach($this->categories->getCategoriesInfo() as $c_data)
-		{
-			if(isset($c_data['subitem_ids']) and count($c_data['subitem_ids']))
-			{
-				foreach($c_data['subitem_ids'] as $sub_item_id)
-				{
-					$this->cat_substitutions[$sub_item_id] = $c_data['cat_id'];
-				}
-				
-			}
-			$this->cat_substitutions[$c_data['cat_id']] = $c_data['cat_id'];
-			#21078
-			$this->cat_substitutions_colors[$c_data['cat_id']] = $c_data['color'];
-		}
-		
-		$query = "SELECT cat.cat_id,cat.color, ass.cal_id  FROM cal_categories cat ".
-			"JOIN cal_cat_assignments ass ON cat.cat_id = ass.cat_id ".
-			"WHERE ".$ilDB->in('cat.cat_id',$this->categories->getCategories(true),false,'integer');
+        $res = $this->db->query($query);
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $this->appointment_colors[$row->cat_id] = $row->color;
+            $this->cat_app_ass[$row->cal_id] = $row->cat_id;
+        }
+    }
 
-		$res = $this->db->query($query);
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			$this->appointment_colors[$row->cat_id] = $row->color;
-			$this->cat_app_ass[$row->cal_id] = $row->cat_id;
-		}
-	}
-	
-	/**
-	 * get random color entry for type
-	 *
-	 * @access public
-	 * @param
-	 * @return
-	 * @static
-	 */
-	public static function _getRandomColorByType($a_type)
-	{
-		return self::$colors[$a_type][rand(0,count(self::$colors[$a_type]) - 1)];
-	}
-	
-	/**
-	 * 
-	 *
-	 * @access public
-	 * @param
-	 * @return
-	 * @static
-	 */
-	public static function dumpColors()
-	{
-		foreach(self::$colors['grp'] as $color)
-		{
-			echo '<font color="'.$color.'">HALLO</font><br/>';
-		}
-		foreach(self::$colors['crs'] as $color)
-		{
-			echo '<font color="'.$color.'">HALLO</font><br/>';
-		}
-	}
+    public static function _getRandomColorByType(string $a_type): string
+    {
+        $random = new \ilRandom();
+        return self::$colors[$a_type][$random->int(0, count(self::$colors[$a_type]) - 1)];
+    }
 
-	/**
-	 * get selectable colors
-	 *
-	 * @access public
-	 * @param
-	 * @return
-	 * @static
-	 */
-	public static function _getColorsByType($a_type)
-	{
-		return self::$colors[$a_type];
-	}
+    /**
+     * get selectable colors
+     */
+    public static function _getColorsByType(string $a_type): array
+    {
+        return self::$colors[$a_type];
+    }
 }
-?>

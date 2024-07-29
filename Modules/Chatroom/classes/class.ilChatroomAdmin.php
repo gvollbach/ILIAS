@@ -1,5 +1,22 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilChatroomAdmin
@@ -9,210 +26,198 @@
  */
 class ilChatroomAdmin
 {
-	/**
-	 * @var string
-	 */
-	private static $settingsTable = 'chatroom_admconfig';
+    private static string $settingsTable = 'chatroom_admconfig';
 
-	/**
-	 * @var stdClass
-	 */
-	private $settings;
+    private int $config_id;
+    private ?stdClass $settings;
 
-	/**
-	 * @var int
-	 */
-	private $config_id;
+    public function __construct(int $config_id, stdClass $settings = null)
+    {
+        $this->config_id = $config_id;
+        $this->settings = $settings;
+    }
 
-	/**
-	 * Constructor
-	 * Sets $this->config_id and $this->settings using given $config_id
-	 * and $settings
-	 * @param integer  $config_id
-	 * @param stdClass $settings
-	 */
-	public function __construct($config_id, stdClass $settings = null)
-	{
-		$this->config_id = $config_id;
-		$this->settings  = $settings;
-	}
+    /**
+     * Instantiates and returns ilChatroomAdmin object using instance_id and settings
+     * from settingsTable.
+     * @return self
+     */
+    public static function getDefaultConfiguration(): self
+    {
+        global $DIC;
 
-	/**
-	 * Instantiates and returns ilChatroomAdmin object using instance_id and settings
-	 * from settingsTable.
-	 * @return self
-	 */
-	public static function getDefaultConfiguration()
-	{
-		global $DIC;
+        $DIC->database()->setLimit(1);
+        $query = 'SELECT * FROM ' . self::$settingsTable;
 
-		$DIC->database()->setLimit(1);
-		$query = 'SELECT * FROM ' . self::$settingsTable;
+        $rset = $DIC->database()->query($query);
+        if ($row = $DIC->database()->fetchObject($rset)) {
+            return new self((int) $row->instance_id, $row);
+        }
 
-		$rset = $DIC->database()->query($query);
-		if($row = $DIC->database()->fetchObject($rset))
-		{
-			return new self((int)$row->instance_id, $row);
-		}
-	}
+        throw new LogicException('Could not determine any default configuration');
+    }
 
-	/**
-	 * Instantiates ilChatroomServerSettings object, sets data using
-	 * $this->settings->server_settings and returns object.
-	 * @return ilChatroomServerSettings
-	 */
-	public function getServerSettings()
-	{
-		require_once 'Modules/Chatroom/classes/class.ilChatroomServerSettings.php';
-		return ilChatroomServerSettings::loadDefault();
-	}
+    /**
+     * Instantiates ilChatroomServerSettings object, sets data using
+     * $this->settings->server_settings and returns object.
+     * @return ilChatroomServerSettings
+     */
+    public function getServerSettings(): ilChatroomServerSettings
+    {
+        return ilChatroomServerSettings::loadDefault();
+    }
 
-	/**
-	 * Saves given $settings into settingsTable.
-	 * @param stdClass $settings
-	 */
-	public function saveGeneralSettings(stdClass $settings)
-	{
-		global $DIC;
+    /**
+     * Saves given $settings into settingsTable.
+     * @param stdClass $settings
+     */
+    public function saveGeneralSettings(stdClass $settings): void
+    {
+        global $DIC;
 
-		$res = $DIC->database()->queryF("
-				SELECT 	* 
-				FROM 	chatroom_admconfig
-				WHERE	instance_id = %s",
-			array('integer'),
-			array($this->config_id)
-		);
+        $res = $DIC->database()->queryF(
+            "SELECT* FROM chatroom_admconfig WHERE instance_id = %s",
+            ['integer'],
+            [$this->config_id]
+        );
 
-		$row = $DIC->database()->fetchAssoc($res);
+        $row = $DIC->database()->fetchAssoc($res);
 
-		$DIC->database()->manipulateF("
-			DELETE 
-			FROM 	chatroom_admconfig
-			WHERE	instance_id = %s",
-			array('integer'),
-			array($this->config_id)
-		);
+        $DIC->database()->manipulateF(
+            "DELETE FROM chatroom_admconfig WHERE instance_id = %s",
+            ['integer'],
+            [$this->config_id]
+        );
 
-		$row['default_config'] !== null ? $def_conf = $row['default_config'] : $def_conf = "{}";
-		$row['client_settings'] !== null ? $clnt_set = $row['client_settings'] : $clnt_set = "{}";
+        $def_conf = '{}';
+        $clnt_set = '{}';
+        if (is_array($row)) {
+            if ($row['default_config'] !== null) {
+                $def_conf = $row['default_config'];
+            }
 
-		$DIC->database()->manipulateF("
+            if ($row['client_settings'] !== null) {
+                $clnt_set = $row['client_settings'];
+            }
+        }
+
+        $DIC->database()->manipulateF(
+            "
 			INSERT INTO		chatroom_admconfig
 							(instance_id, server_settings, default_config, client_settings)
 			VALUES			(%s, %s, %s, %s)",
-			array('integer', 'text', 'integer', 'text'),
-			array($this->config_id, json_encode($settings), $def_conf, $clnt_set)
-		);
-	}
+            ['integer', 'text', 'integer', 'text'],
+            [$this->config_id, json_encode($settings, JSON_THROW_ON_ERROR), $def_conf, $clnt_set]
+        );
+    }
 
-	/**
-	 * Saves given client $settings into settingsTable.
-	 * @param stdClass $settings
-	 */
-	public function saveClientSettings(stdClass $settings)
-	{
-		global $DIC;
+    /**
+     * Saves given client $settings into settingsTable.
+     * @param stdClass $settings
+     */
+    public function saveClientSettings(stdClass $settings): void
+    {
+        global $DIC;
 
-		$res = $DIC->database()->queryF("
-				SELECT 	* 
-				FROM 	chatroom_admconfig
-				WHERE	instance_id = %s",
-			array('integer'),
-			array($this->config_id)
-		);
+        $res = $DIC->database()->queryF(
+            "SELECT * FROM chatroom_admconfig WHERE instance_id = %s",
+            ['integer'],
+            [$this->config_id]
+        );
 
-		$row = $DIC->database()->fetchAssoc($res);
+        $row = $DIC->database()->fetchAssoc($res);
 
-		$DIC->database()->manipulateF("
-			DELETE 
-			FROM 	chatroom_admconfig
-			WHERE	instance_id = %s",
-			array('integer'),
-			array($this->config_id)
-		);
+        $DIC->database()->manipulateF(
+            "DELETE FROM chatroom_admconfig WHERE instance_id = %s",
+            ['integer'],
+            [$this->config_id]
+        );
 
-		$row['default_config'] !== null ? $def_conf = $row['default_config'] : $def_conf = "{}";
-		$row['server_settings'] !== null ? $srv_set = $row['server_settings'] : $srv_set = "{}";
+        ($row['default_config'] ?? null) !== null ? $def_conf = $row['default_config'] : $def_conf = "{}";
+        ($row['server_settings'] ?? null) !== null ? $srv_set = $row['server_settings'] : $srv_set = "{}";
 
-		$DIC->database()->manipulateF("
+        $DIC->database()->manipulateF(
+            "
 			INSERT INTO		chatroom_admconfig
 							(instance_id, server_settings, default_config, client_settings)
 			VALUES			(%s, %s, %s, %s)",
-			array(
-				'integer',
-				'text',
-				'integer',
-				'text'
-			),
-			array(
-				$this->config_id,
-				$srv_set,
-				$def_conf,
-				json_encode($settings)
-			)
-		);
-	}
+            [
+                'integer',
+                'text',
+                'integer',
+                'text'
+            ],
+            [
+                $this->config_id,
+                $srv_set,
+                $def_conf,
+                json_encode($settings, JSON_THROW_ON_ERROR)
+            ]
+        );
+    }
 
-	/**
-	 * Returns an array containing server settings from settingsTable.
-	 * @return array
-	 */
-	public function loadGeneralSettings()
-	{
-		global $DIC;
+    public function loadGeneralSettings(): array
+    {
+        global $DIC;
 
-		$query = 'SELECT * FROM ' . self::$settingsTable . ' WHERE instance_id = ' . $DIC->database()->quote($this->config_id, 'integer');
+        $query = 'SELECT * FROM ' . self::$settingsTable .
+            ' WHERE instance_id = ' . $DIC->database()->quote($this->config_id, 'integer');
 
-		if(($row = $DIC->database()->fetchAssoc($DIC->database()->query($query))) && $row['server_settings'])
-		{
-			$settings = json_decode($row['server_settings'], true);
+        if (($row = $DIC->database()->fetchAssoc($DIC->database()->query($query))) && $row['server_settings']) {
+            $settings = json_decode($row['server_settings'], true, 512, JSON_THROW_ON_ERROR);
 
-			if(!$settings['protocol'])
-			{
-				$settings['protocol'] = 'http';
-			}
+            if (!isset($settings['protocol'])) {
+                $settings['protocol'] = 'http';
+            }
 
-			return $settings;
-		}
+            if (!isset($settings['log_level'])) {
+                $settings['log_level'] = 'info';
+            }
 
-		return array();
-	}
+            return $settings;
+        }
 
-	/**
-	 * Returns an array containing client settings from settingsTable.
-	 * @return array
-	 */
-	public function loadClientSettings()
-	{
-		global $DIC;
+        return [];
+    }
 
-		$query = 'SELECT * FROM ' . self::$settingsTable . ' WHERE instance_id = ' . $DIC->database()->quote($this->config_id, 'integer');
-		if(($row = $DIC->database()->fetchAssoc($DIC->database()->query($query))) && $row['client_settings'])
-		{
-			$settings = json_decode($row['client_settings'], true);
+    public function loadClientSettings(): array
+    {
+        global $DIC;
 
-			if (!$settings['osd_intervall']) {
-				$settings['osd_intervall'] = 60;
-			}
+        $query = 'SELECT * FROM ' . self::$settingsTable .
+            ' WHERE instance_id = ' . $DIC->database()->quote($this->config_id, 'integer');
+        if (($row = $DIC->database()->fetchAssoc($DIC->database()->query($query))) && $row['client_settings']) {
+            $settings = json_decode($row['client_settings'], true, 512, JSON_THROW_ON_ERROR);
 
-			if (!$settings['client']) {
-				$settings['client'] = CLIENT_ID;
-			}
+            if (!isset($settings['client']) || !is_string($settings['client']) || $settings['client'] === '') {
+                $settings['client'] = CLIENT_ID;
+            }
 
-			$settings['client_name'] = (string)$settings['name'];
-			if (!$settings['client_name']) {
-				$settings['client_name'] = CLIENT_ID;
-			}
+            if (isset($settings['name']) && is_string($settings['name']) && !$settings['name'] === '') {
+                $settings['client_name'] = (string) $settings['name'];
+            } else {
+		$settings['client_name'] = CLIENT_ID;
+            }
 
-			if (is_numeric($settings['conversation_idle_state_in_minutes'])) {
-				$settings['conversation_idle_state_in_minutes'] = max(1, $settings['conversation_idle_state_in_minutes']);
-			} else {
-				$settings['conversation_idle_state_in_minutes'] = 1;
-			}
+            if (isset($settings['conversation_idle_state_in_minutes']) && is_numeric($settings['conversation_idle_state_in_minutes'])) {
+                $settings['conversation_idle_state_in_minutes'] = max(1, $settings['conversation_idle_state_in_minutes']);
+            } else {
+                $settings['conversation_idle_state_in_minutes'] = 1;
+            }
 
-			return $settings;
-		}
+            if (!isset($settings['auth']) || !is_array($settings['auth'])) {
+                $settings['auth'] = [];
+            }
+            if (!isset($settings['auth']['key']) || !is_string($settings['auth']['key'])) {
+                $settings['auth']['key'] = '';
+            }
+            if (!isset($settings['auth']['secret']) || !is_string($settings['auth']['secret'])) {
+                $settings['auth']['secret'] = '';
+            }
 
-		return array();
-	}
+            return $settings;
+        }
+
+        return [];
+    }
 }

@@ -1,155 +1,143 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-include_once './Services/Table/classes/class.ilTable2GUI.php';
 
 /**
- * Description of ilECSServerTableGUI
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
  *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ */
+
+declare(strict_types=1);
+
+/**
  * @author Stefan Meyer <meyer@leifos.com>
- * @ingroup ServicesWebServicesECS
  */
 class ilECSServerTableGUI extends ilTable2GUI
 {
-	/**
-	 * Constructor
-	 * @param object $a_parent_obj
-	 * @param string $a_parent_cmd 
-	 */
-	public function  __construct($a_parent_obj, $a_parent_cmd = "")
-	{
-		$this->setId('ecs_server_list');
-		parent::__construct($a_parent_obj, $a_parent_cmd);
-	}
+    private ilAccessHandler $access;
 
-	/**
-	 * Init Table
-	 */
-	public function initTable()
-	{
-		global $DIC;
+    /**
+     * Constructor
+     * @param object $a_parent_obj
+     * @param string $a_parent_cmd
+     */
+    public function __construct($a_parent_obj, $a_parent_cmd = "")
+    {
+        global $DIC;
 
-		$ilAccess = $DIC['ilAccess'];
-		$this->setTitle($this->lng->txt('ecs_available_ecs'));
-		$this->setRowTemplate('tpl.ecs_server_row.html','Services/WebServices/ECS');
+        parent::__construct($a_parent_obj, $a_parent_cmd);
+        $this->setId('ecs_server_list');
 
-		$this->addColumn($this->lng->txt('ecs_tbl_active'), '','1%');
-		$this->addColumn($this->lng->txt('title'), '','80%');
+        $this->access = $DIC->access();
+    }
 
-		if($ilAccess->checkAccess('write','',$_REQUEST["ref_id"]))
-		{
-			$this->addColumn($this->lng->txt('actions'), '', '19%');
-		}
+    /**
+     * Init Table
+     */
+    public function initTable(): void
+    {
+        $this->setTitle($this->lng->txt('ecs_available_ecs'));
+        $this->setRowTemplate('tpl.ecs_server_row.html', 'Services/WebServices/ECS');
 
-	}
+        $this->addColumn($this->lng->txt('ecs_tbl_active'), '', '1%');
+        $this->addColumn($this->lng->txt('title'), '', '80%');
 
-	/**
-	 * Fill row
-	 * @staticvar int $counter
-	 * @param array $set 
-	 */
-	public function  fillRow($set)
-	{
-		global $DIC;
+        if ($this->access->checkAccess('write', '', (int) $_REQUEST["ref_id"])) {
+            $this->addColumn($this->lng->txt('actions'), '', '19%');
+        }
+    }
 
-		$ilCtrl = $DIC['ilCtrl'];
-		$ilAccess = $DIC['ilAccess'];
+    /**
+     * Fill row
+ * @param array $a_set
+     */
+    protected function fillRow(array $a_set): void
+    {
+        $this->ctrl->setParameter($this->getParentObject(), 'server_id', $a_set['server_id']);
+        $this->ctrl->setParameterByClass('ilecsmappingsettingsgui', 'server_id', $a_set['server_id']);
 
-		$ilCtrl->setParameter($this->getParentObject(),'server_id',$set['server_id']);
-		$ilCtrl->setParameterByClass('ilecsmappingsettingsgui','server_id',$set['server_id']);
+        if ($a_set['active']) {
+            $this->tpl->setVariable('IMAGE_OK', ilUtil::getImagePath('icon_ok.svg'));
+            $this->tpl->setVariable('TXT_OK', $this->lng->txt('ecs_activated'));
+        } else {
+            $this->tpl->setVariable('IMAGE_OK', ilUtil::getImagePath('icon_not_ok.svg'));
+            $this->tpl->setVariable('TXT_OK', $this->lng->txt('ecs_inactivated'));
+        }
 
-		if($set['active'])
-		{
-			$this->tpl->setVariable('IMAGE_OK',  ilUtil::getImagePath('icon_ok.svg'));
-			$this->tpl->setVariable('TXT_OK', $this->lng->txt('ecs_activated'));
-		}
-		else
-		{
-			$this->tpl->setVariable('IMAGE_OK',  ilUtil::getImagePath('icon_not_ok.svg'));
-			$this->tpl->setVariable('TXT_OK', $this->lng->txt('ecs_inactivated'));
-		}
-		
-		$this->tpl->setVariable('VAL_TITLE', ilECSSetting::getInstanceByServerId($set['server_id'])->getTitle());
-		$this->tpl->setVariable('LINK_EDIT', $ilCtrl->getLinkTarget($this->getParentObject(),'edit'));
-		$this->tpl->setVariable('TXT_SRV_ADDR', $this->lng->txt('ecs_server_addr'));
 
-		if(ilECSSetting::getInstanceByServerId($set['server_id'])->getServer())
-		{
-			$this->tpl->setVariable('VAL_DESC', ilECSSetting::getInstanceByServerId($set['server_id'])->getServer());
-		}
-		else
-		{
-			$this->tpl->setVariable('VAL_DESC', $this->lng->txt('ecs_not_configured'));
-		}
+        $this->tpl->setVariable('VAL_TITLE', ilECSSetting::getInstanceByServerId($a_set['server_id'])->getTitle());
+        $this->tpl->setVariable('LINK_EDIT', $this->ctrl->getLinkTarget($this->getParentObject(), 'edit'));
+        $this->tpl->setVariable('TXT_SRV_ADDR', $this->lng->txt('ecs_server_addr'));
 
-		$dt = ilECSSetting::getInstanceByServerId($set['server_id'])->fetchCertificateExpiration();
-		if($dt != NULL)
-		{
-			$this->tpl->setVariable('TXT_CERT_VALID', $this->lng->txt('ecs_cert_valid_until'));
-			
-			$now = new ilDateTime(time(),IL_CAL_UNIX);
-			$now->increment(IL_CAL_MONTH, 2);
-			
-			if(ilDateTime::_before($dt, $now))
-			{
-				$this->tpl->setCurrentBlock('invalid');
-				$this->tpl->setVariable('VAL_ICERT',  ilDatePresentation::formatDate($dt));
-				$this->tpl->parseCurrentBlock();
-			}
-			else
-			{
-				$this->tpl->setCurrentBlock('valid');
-				$this->tpl->setVariable('VAL_VCERT',  ilDatePresentation::formatDate($dt));
-				$this->tpl->parseCurrentBlock();
-			}
-		}
+        if (ilECSSetting::getInstanceByServerId($a_set['server_id'])->getServer()) {
+            $this->tpl->setVariable('VAL_DESC', ilECSSetting::getInstanceByServerId($a_set['server_id'])->getServer());
+        } else {
+            $this->tpl->setVariable('VAL_DESC', $this->lng->txt('ecs_not_configured'));
+        }
 
-		if($ilAccess->checkAccess('write','',$_REQUEST["ref_id"]))
-		{
-			// Actions
-			include_once './Services/UIComponent/AdvancedSelectionList/classes/class.ilAdvancedSelectionListGUI.php';
-			$list = new ilAdvancedSelectionListGUI();
-			$list->setSelectionHeaderClass('small');
-			$list->setItemLinkClass('small');
-			$list->setId('actl_'.$set['server_id']);
-			$list->setListTitle($this->lng->txt('actions'));
+        $dt = ilECSSetting::getInstanceByServerId($a_set['server_id'])->fetchCertificateExpiration();
+        if ($dt !== null) {
+            $this->tpl->setVariable('TXT_CERT_VALID', $this->lng->txt('ecs_cert_valid_until'));
 
-			if(ilECSSetting::getInstanceByServerId($set['server_id'])->isEnabled())
-			{
-				$list->addItem($this->lng->txt('ecs_deactivate'), '', $ilCtrl->getLinkTarget($this->getParentObject(),'deactivate'));
-			}
-			else
-			{
-				$list->addItem($this->lng->txt('ecs_activate'), '', $ilCtrl->getLinkTarget($this->getParentObject(),'activate'));
-			}
+            $now = new ilDateTime(time(), IL_CAL_UNIX);
+            $now->increment(IL_CAL_MONTH, 2);
 
-			$list->addItem($this->lng->txt('edit'), '', $ilCtrl->getLinkTarget($this->getParentObject(),'edit'));
-			$list->addItem($this->lng->txt('copy'), '', $ilCtrl->getLinkTarget($this->getParentObject(),'cp'));
-			$list->addItem($this->lng->txt('delete'), '', $ilCtrl->getLinkTarget($this->getParentObject(),'delete'));
+            if (ilDateTime::_before($dt, $now)) {
+                $this->tpl->setCurrentBlock('invalid');
+                $this->tpl->setVariable('VAL_ICERT', ilDatePresentation::formatDate($dt));
+            } else {
+                $this->tpl->setCurrentBlock('valid');
+                $this->tpl->setVariable('VAL_VCERT', ilDatePresentation::formatDate($dt));
+            }
+            $this->tpl->parseCurrentBlock();
+        }
 
-			$this->tpl->setCurrentBlock("actions");
-			$this->tpl->setVariable('ACTIONS',$list->getHTML());
-			$this->tpl->parseCurrentBlock();
-		}
-		$ilCtrl->clearParameters($this->getParentObject());
-	}
+        if ($this->access->checkAccess('write', '', (int) $_REQUEST["ref_id"])) {
+            // Actions
+            $list = new ilAdvancedSelectionListGUI();
+            $list->setSelectionHeaderClass('small');
+            $list->setItemLinkClass('small');
+            $list->setId('actl_' . $a_set['server_id']);
+            $list->setListTitle($this->lng->txt('actions'));
 
-	/**
-	 * Parse available servers
-	 * @param ilECSServerSettings $servers
-	 */
-	public function parse(ilECSServerSettings $servers)
-	{
-		$rows = array();
-		foreach($servers->getServers() as $server_id => $server)
-		{
-			$tmp['server_id'] = $server->getServerId();
-			$tmp['active'] = $server->isEnabled();
 
-			$rows[] = $tmp;
-		}
-		$this->setData($rows);
-	}
+            if (ilECSSetting::getInstanceByServerId($a_set['server_id'])->isEnabled()) {
+                $list->addItem($this->lng->txt('ecs_deactivate'), '', $this->ctrl->getLinkTarget($this->getParentObject(), 'deactivate'));
+            } else {
+                $list->addItem($this->lng->txt('ecs_activate'), '', $this->ctrl->getLinkTarget($this->getParentObject(), 'activate'));
+            }
 
+            $list->addItem($this->lng->txt('edit'), '', $this->ctrl->getLinkTarget($this->getParentObject(), 'edit'));
+            $list->addItem($this->lng->txt('copy'), '', $this->ctrl->getLinkTarget($this->getParentObject(), 'cp'));
+            $list->addItem($this->lng->txt('delete'), '', $this->ctrl->getLinkTarget($this->getParentObject(), 'delete'));
+
+            $this->tpl->setCurrentBlock("actions");
+            $this->tpl->setVariable('ACTIONS', $list->getHTML());
+            $this->tpl->parseCurrentBlock();
+        }
+        $this->ctrl->clearParameters($this->getParentObject());
+    }
+
+    /**
+     * Parse available servers
+     */
+    public function parse(ilECSServerSettings $servers): void
+    {
+        $rows = [];
+        foreach ($servers->getServers(ilECSServerSettings::ALL_SERVER) as $server) {
+            $tmp['server_id'] = $server->getServerId();
+            $tmp['active'] = $server->isEnabled();
+
+            $rows[] = $tmp;
+        }
+        $this->setData($rows);
+    }
 }
-?>

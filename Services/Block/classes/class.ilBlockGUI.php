@@ -1,1163 +1,1004 @@
 <?php
 
-/* Copyright (c) 1998-2017 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+use ILIAS\Filesystem\Stream\Streams;
+use ILIAS\HTTP\Response\Sender\ResponseSendingException;
 
 /**
-* This class represents a block method of a block.
-*
-* @author Alex Killing <alex.killing@gmx.de> 
-* @version $Id$
-*
-*/
+ * This class represents a block method of a block.
+ *
+ * @author Alexander Killing <killing@leifos.de>
+ */
 abstract class ilBlockGUI
 {
-	const PRES_MAIN_LEG = 0;		// main legacy panel
-	const PRES_SEC_LEG = 1;			// secondary legacy panel
-	const PRES_SEC_LIST = 2;		// secondary list panel
-	const PRES_MAIN_LIST = 3;		// main stndard list panel
-
-	/**
-	 * @var \ILIAS\DI\UIServices
-	 */
-	protected $ui;
-
-	/**
-	 * @return string
-	 */
-	abstract public function getBlockType(): string;
-
-	/**
-	 * Returns whether block has a corresponding repository object
-	 *
-	 * @return bool
-	 */
-	abstract protected function isRepositoryObject(): bool;
-
-	protected $data = array();
-	protected $enablenuminfo = true;
-	protected $footer_links = array();
-	protected $block_id = 0;
-	protected $allow_moving = true;
-	protected $move = array("left" => false, "right" => false, "up" => false, "down" => false);
-	protected $block_commands = array();
-	protected $max_count = false;
-	protected $close_command = false;
-	protected $image = false;
-	protected $property = false;
-	protected $nav_value = "";
-	protected $css_row = "";
-
-
-	/**
-	 * @var bool
-	 */
-	protected $admincommands = false;
-
-	protected $dropdown;
-
-	/**
-	 * @var ilTemplate|null block template
-	 */
-	protected $tpl;
-
-	/**
-	 * @var ilTemplate|null main template
-	 */
-	protected $main_tpl;
-
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
-
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
-
-	/**
-	 * @var ilAccessHandler
-	 */
-	protected $access;
-
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
-
-	/**
-	 * @var
-	 */
-	protected $obj_def;
-
-	/**
-	 * @var int
-	 */
-	protected $presentation;
-
-	/**
-	 * Constructor
-	 *
-	 * @param
-	 */
-	function __construct()
-	{
-		global $DIC;
-
-		// default presentation
-		$this->presentation = self::PRES_SEC_LEG;
-
-		$this->user = $DIC->user();
-		$this->ctrl = $DIC->ctrl();
-		$this->access = $DIC->access();
-		$this->lng = $DIC->language();
-		$this->main_tpl = $DIC["tpl"];
-		$this->obj_def = $DIC["objDefinition"];
-		$this->ui = $DIC->ui();
-
-		include_once("./Services/YUI/classes/class.ilYuiUtil.php");
-		ilYuiUtil::initConnection();
-		$this->main_tpl->addJavaScript("./Services/Block/js/ilblockcallback.js");
-
-		$this->setLimit($this->user->getPref("hits_per_page"));
-	}
-
-
-	/**
-	 * Set Data.
-	 *
-	 * @param    array $a_data Data
-	 */
-	function setData($a_data)
-	{
-		$this->data = $a_data;
-	}
-
-	/**
-	 * Get Data.
-	 *
-	 * @return    array    Data
-	 */
-	function getData()
-	{
-		return $this->data;
-	}
-
-	/**
-	 * Set presentation
-	 *
-	 * @param int $type
-	 */
-	function setPresentation(int $type)
-	{
-		$this->presentation = $type;
-	}
-
-	/**
-	 * Get presentation type
-	 *
-	 * @return int
-	 */
-	function getPresentation(): int
-	{
-		return $this->presentation;
-	}
-
-	/**
-	 * Set Block Id
-	 *
-	 * @param    int $a_block_id Block ID
-	 */
-	function setBlockId($a_block_id = 0)
-	{
-		$this->block_id = $a_block_id;
-	}
-
-	/**
-	 * Get Block Id
-	 *
-	 * @return    int            Block Id
-	 */
-	function getBlockId()
-	{
-		return $this->block_id;
-	}
-
-
-	/**
-	 * Set GuiObject.
-	 * Only used for repository blocks, that are represented as
-	 * real repository objects (have a ref id and permissions)
-	 *
-	 * @param    object $a_gui_object GUI object
-	 */
-	public function setGuiObject(&$a_gui_object)
-	{
-		$this->gui_object = $a_gui_object;
-	}
-
-	/**
-	 * Get GuiObject.
-	 *
-	 * @return    object    GUI object
-	 */
-	public function getGuiObject()
-	{
-		return $this->gui_object;
-	}
-
-
-	/**
-	 * Set Title.
-	 *
-	 * @param    string $a_title Title
-	 */
-	function setTitle($a_title)
-	{
-		$this->title = $a_title;
-	}
-
-	/**
-	 * Get Title.
-	 *
-	 * @return    string    Title
-	 */
-	function getTitle()
-	{
-		return $this->title;
-	}
-
-	/**
-	 * Set Offset.
-	 *
-	 * @param    int $a_offset Offset
-	 */
-	function setOffset($a_offset)
-	{
-		$this->offset = $a_offset;
-	}
-
-	/**
-	 * Get Offset.
-	 *
-	 * @return    int    Offset
-	 */
-	function getOffset()
-	{
-		return $this->offset;
-	}
-
-	function correctOffset()
-	{
-		if (!($this->offset < $this->max_count))
-		{
-			$this->setOffset(0);
-		}
-	}
-
-	/**
-	 * Set Limit.
-	 *
-	 * @param    int $a_limit Limit
-	 */
-	function setLimit($a_limit)
-	{
-		$this->limit = $a_limit;
-	}
-
-	/**
-	 * Get Limit.
-	 *
-	 * @return    int    Limit
-	 */
-	function getLimit()
-	{
-		return $this->limit;
-	}
-
-	/**
-	 * Set EnableEdit.
-	 *
-	 * @param    boolean $a_enableedit EnableEdit
-	 */
-	function setEnableEdit($a_enableedit)
-	{
-		$this->enableedit = $a_enableedit;
-	}
-
-	/**
-	 * Get EnableEdit.
-	 *
-	 * @return    boolean    EnableEdit
-	 */
-	function getEnableEdit()
-	{
-		return $this->enableedit;
-	}
-
-	/**
-	 * Set RepositoryMode.
-	 *
-	 * @param    boolean $a_repositorymode RepositoryMode
-	 */
-	function setRepositoryMode($a_repositorymode)
-	{
-		$this->repositorymode = $a_repositorymode;
-	}
-
-	/**
-	 * Get RepositoryMode.
-	 *
-	 * @return    boolean    RepositoryMode
-	 */
-	function getRepositoryMode()
-	{
-		return $this->repositorymode;
-	}
-
-
-	/**
-	 * Set Subtitle.
-	 *
-	 * @param    string $a_subtitle Subtitle
-	 */
-	function setSubtitle($a_subtitle)
-	{
-		$this->subtitle = $a_subtitle;
-	}
-
-	/**
-	 * Get Subtitle.
-	 *
-	 * @return    string    Subtitle
-	 */
-	function getSubtitle()
-	{
-		return $this->subtitle;
-	}
-
-	/**
-	 * Set Ref Id (only used if isRepositoryObject() is true).
-	 *
-	 * @param    int $a_refid Ref Id
-	 */
-	function setRefId($a_refid)
-	{
-		$this->refid = $a_refid;
-	}
-
-	/**
-	 * Get Ref Id (only used if isRepositoryObject() is true).
-	 *
-	 * @return    int        Ref Id
-	 */
-	function getRefId()
-	{
-		return $this->refid;
-	}
-
-	/**
-	 * Set Administration Commmands.
-	 *
-	 * @param    boolean $a_admincommands Administration Commmands
-	 */
-	function setAdminCommands(bool $a_admincommands)
-	{
-		$this->admincommands = $a_admincommands;
-	}
-
-	/**
-	 * Get Administration Commmands.
-	 *
-	 * @return    boolean    Administration Commmands
-	 */
-	function getAdminCommands(): bool
-	{
-		return $this->admincommands;
-	}
-
-	/**
-	 * Set Enable Item Number Info.
-	 *
-	 * @param    boolean $a_enablenuminfo Enable Item Number Info
-	 */
-	function setEnableNumInfo($a_enablenuminfo)
-	{
-		$this->enablenuminfo = $a_enablenuminfo;
-	}
-
-	/**
-	 * Get Enable Item Number Info.
-	 *
-	 * @return    boolean    Enable Item Number Info
-	 */
-	function getEnableNumInfo()
-	{
-		return $this->enablenuminfo;
-	}
-
-	/**
-	 * This function is supposed to be used for block type specific
-	 * properties, that should be inherited through ilColumnGUI->setBlockProperties
-	 *
-	 * @param    string $a_properties properties array (key => value)
-	 */
-	function setProperties($a_properties)
-	{
-		$this->property = $a_properties;
-	}
-
-	function getProperty($a_property)
-	{
-		return $this->property[$a_property];
-	}
-
-	function setProperty($a_property, $a_value)
-	{
-		$this->property[$a_property] = $a_value;
-	}
-
-	/**
-	 * Set Row Template Name.
-	 *
-	 * @param    string $a_rowtemplatename Row Template Name
-	 */
-	function setRowTemplate($a_rowtemplatename, $a_rowtemplatedir = "")
-	{
-		$this->rowtemplatename = $a_rowtemplatename;
-		$this->rowtemplatedir = $a_rowtemplatedir;
-	}
-
-	final public function getNavParameter()
-	{
-		return $this->getBlockType() . "_" . $this->getBlockId() . "_blnav";
-	}
-
-	final public function getConfigParameter()
-	{
-		return $this->getBlockType() . "_" . $this->getBlockId() . "_blconf";
-	}
-
-	final public function getMoveParameter()
-	{
-		return $this->getBlockType() . "_" . $this->getBlockId() . "_blmove";
-	}
-
-	/**
-	 * Get Row Template Name.
-	 *
-	 * @return    string    Row Template Name
-	 */
-	function getRowTemplateName()
-	{
-		return $this->rowtemplatename;
-	}
-
-	/**
-	 * Get Row Template Directory.
-	 *
-	 * @return    string    Row Template Directory
-	 */
-	function getRowTemplateDir()
-	{
-		return $this->rowtemplatedir;
-	}
-
-	/**
-	 * Add Block Command.
-	 *
-	 * @param string $a_href
-	 * @param string $a_text
-	 * @param string $a_onclick
-	 */
-	function addBlockCommand(string $a_href, string $a_text, string $a_onclick = ""): void
-	{
-		$this->block_commands[] = [
-			"href" => $a_href,
-			"text" => $a_text,
-			"onclick" => $a_onclick
-		];
-	}
-
-	/**
-	 * Get Block commands.
-	 *
-	 * @return array
-	 */
-	function getBlockCommands(): array
-	{
-		return $this->block_commands;
-	}
-
-
-
-	/**
-	 * Get Screen Mode for current command.
-	 */
-	static function getScreenMode()
-	{
-		return IL_SCREEN_SIDE;
-	}
-
-	/**
-	 * Init commands
-	 */
-	protected function initCommands()
-	{
-	}
-
-
-	/**
-	 * Get HTML.
-	 */
-	function getHTML()
-	{
-		$this->initCommands();
-
-		if ($this->new_rendering)
-		{
-			return $this->getHTMLNew();
-		}
-
-		$ilCtrl = $this->ctrl;
-		$lng = $this->lng;
-		$ilAccess = $this->access;
-		$ilUser = $this->user;
-		$objDefinition = $this->obj_def;
-
-		if ($this->isRepositoryObject())
-		{
-			if (!$ilAccess->checkAccess("read", "", $this->getRefId()))
-			{
-				return "";
-			}
-		}
-
-		$this->tpl = new ilTemplate("tpl.block.html", true, true, "Services/Block");
-
-//		$this->handleConfigStatus();
-
-		$this->fillDataSection();
-
-		if ($this->getRepositoryMode() && $this->isRepositoryObject())
-		{
-			// #10993
-			// @todo: fix this in new presentation somehow
-			if ($this->getAdminCommands())
-			{
-				$this->tpl->setCurrentBlock("block_check");
-				$this->tpl->setVariable("BL_REF_ID", $this->getRefId());
-				$this->tpl->parseCurrentBlock();
-			}
-
-			if ($ilAccess->checkAccess("delete", "", $this->getRefId()))
-			{
-				$this->addBlockCommand(
-					"ilias.php?baseClass=ilRepositoryGUI&ref_id=" . $_GET["ref_id"] . "&cmd=delete" .
-					"&item_ref_id=" . $this->getRefId(),
-					$lng->txt("delete"));
-
-				// see ilObjectListGUI::insertCutCommand();
-				$this->addBlockCommand(
-					"ilias.php?baseClass=ilRepositoryGUI&ref_id=" . $_GET["ref_id"] . "&cmd=cut" .
-					"&item_ref_id=" . $this->getRefId(),
-					$lng->txt("move"));
-			}
-
-			// #14595 - see ilObjectListGUI::insertCopyCommand()
-			if ($ilAccess->checkAccess("copy", "", $this->getRefId()))
-			{
-				$parent_type = ilObject::_lookupType($_GET["ref_id"], true);
-				$parent_gui = "ilObj" . $objDefinition->getClassName($parent_type) . "GUI";
-
-				$ilCtrl->setParameterByClass("ilobjectcopygui", "source_id", $this->getRefId());
-				$copy_cmd = $ilCtrl->getLinkTargetByClass(
-					array("ilrepositorygui", $parent_gui, "ilobjectcopygui"),
-					"initTargetSelection");
-
-				// see ilObjectListGUI::insertCopyCommand();
-				$this->addBlockCommand(
-					$copy_cmd,
-					$lng->txt("copy"));
-			}
-		}
-
-		$this->dropdown = array();
-
-		// commands
-		if (count($this->getBlockCommands()) > 0)
-		{
-			foreach ($this->getBlockCommands() as $command)
-			{
-				if ($command["onclick"])
-				{
-					$command["onclick"] = "ilBlockJSHandler('" . "block_".$this->getBlockType()."_".$this->block_id .
-						"','" . $command["onclick"] . "')";
-				}
-				$this->dropdown[] = $command;
-			}
-		}
-
-		// fill previous next
-		$this->fillPreviousNext();
-
-		// fill footer
-		$this->fillFooter();
-
-
-		// for screen readers we first output the title and the commands
-		// (e.g. close icon afterwards), otherwise we first output the
-		// header commands, since we want to have the close icon top right
-		// and not floated after the title
-		if (is_object($ilUser) && $ilUser->getPref("screen_reader_optimization"))
-		{
-			$this->fillHeaderTitleBlock();
-			$this->fillHeaderCommands();
-		} else
-		{
-			$this->fillHeaderCommands();
-			$this->fillHeaderTitleBlock();
-		}
-
-		if ($this->getPresentation() === self::PRES_MAIN_LEG)
-		{
-			$this->tpl->touchBlock("hclassb");
-		} else
-		{
-			$this->tpl->touchBlock("hclass");
-		}
-
-		if ($ilCtrl->isAsynch())
-		{
-			// return without div wrapper
-			echo $this->tpl->get();
-			//echo $this->tpl->getAsynch();
-		} else
-		{
-			// return incl. wrapping div with id
-			return '<div id="' . "block_" . $this->getBlockType() . "_" . $this->block_id . '">' .
-				$this->tpl->get() . '</div>';
-		}
-	}
-
-	/**
-	 * Fill header commands block
-	 */
-	function fillHeaderCommands()
-	{
-		// adv selection gui
-		include_once "Services/UIComponent/AdvancedSelectionList/classes/class.ilAdvancedSelectionListGUI.php";
-		$dropdown = new ilAdvancedSelectionListGUI();
-		$dropdown->setUseImages(true);
-		$dropdown->setStyle(ilAdvancedSelectionListGUI::STYLE_LINK_BUTTON);
-		$dropdown->setHeaderIcon(ilAdvancedSelectionListGUI::ICON_CONFIG);
-		$dropdown->setId("block_dd_" . $this->getBlockType() . "_" . $this->block_id);
-		foreach ($this->dropdown as $item)
-		{
-			if ($item["href"] || $item["onclick"])
-			{
-				if ($item["checked"])
-				{
-					$item["image"] = ilUtil::getImagePath("icon_checked.svg");
-				}
-				$dropdown->addItem($item["text"], "", $item["href"], $item["image"],
-					$item["text"], "", "", false, $item["onclick"]);
-			}
-		}
-		$dropdown = $dropdown->getHTML();
-		$this->tpl->setCurrentBlock("header_dropdown");
-		$this->tpl->setVariable("ADV_DROPDOWN", $dropdown);
-		$this->tpl->parseCurrentBlock();
-
-		$this->tpl->setCurrentBlock("hitem");
-		$this->tpl->parseCurrentBlock();
-	}
-
-
-	/**
-	 * Fill header title block (title and
-	 */
-	function fillHeaderTitleBlock()
-	{
-		$lng = $this->lng;
-
-
-		// header title
-		$this->tpl->setCurrentBlock("header_title");
-		$this->tpl->setVariable("BTID",
-			"block_" . $this->getBlockType() . "_" . $this->block_id);
-		$this->tpl->setVariable("BLOCK_TITLE",
-			$this->getTitle());
-		$this->tpl->setVariable("TXT_BLOCK",
-			$lng->txt("block"));
-		$this->tpl->parseCurrentBlock();
-
-		$this->tpl->setCurrentBlock("hitem");
-		$this->tpl->parseCurrentBlock();
-	}
-
-
-	/**
-	 * Call this from overwritten fillDataSection(), if standard row based data is not used.
-	 */
-	function setDataSection($a_content)
-	{
-		$this->tpl->setCurrentBlock("data_section");
-		$this->tpl->setVariable("DATA", $a_content);
-		$this->tpl->parseCurrentBlock();
-		$this->tpl->setVariable("BLOCK_ROW", "");
-	}
-
-	/**
-	 * Standard implementation for row based data.
-	 * Overwrite this and call setContent for other data.
-	 */
-	function fillDataSection()
-	{
-		$this->nav_value = (isset($_POST[$this->getNavParameter()]) && $_POST[$this->getNavParameter()] != "")
-			? $_POST[$this->getNavParameter()]
-			: (isset($_GET[$this->getNavParameter()]) ? $_GET[$this->getNavParameter()] : $this->nav_value);
-		$this->nav_value = ($this->nav_value == "" && isset($_SESSION[$this->getNavParameter()]))
-			? $_SESSION[$this->getNavParameter()]
-			: $this->nav_value;
-
-		$_SESSION[$this->getNavParameter()] = $this->nav_value;
-
-		$nav = explode(":", $this->nav_value);
-		if (isset($nav[2]))
-		{
-			$this->setOffset($nav[2]);
-		} else
-		{
-			$this->setOffset(0);
-		}
-
-		// data
-		$this->tpl->addBlockFile("BLOCK_ROW", "block_row", $this->getRowTemplateName(),
-			$this->getRowTemplateDir());
-
-		$data = $this->getData();
-		$this->max_count = count($data);
-		$this->correctOffset();
-		$data = array_slice($data, $this->getOffset(), $this->getLimit());
-
-		$this->preloadData($data);
-
-		foreach ($data as $record)
-		{
-			$this->tpl->setCurrentBlock("block_row");
-			$this->fillRowColor();
-			$this->fillRow($record);
-			$this->tpl->setCurrentBlock("block_row");
-			$this->tpl->parseCurrentBlock();
-		}
-	}
-
-	function fillRow($a_set)
-	{
-		foreach ($a_set as $key => $value)
-		{
-			$this->tpl->setVariable("VAL_" . strtoupper($key), $value);
-		}
-	}
-
-	function fillFooter()
-	{
-	}
-
-	final protected function fillRowColor($a_placeholder = "CSS_ROW")
-	{
-		$this->css_row = ($this->css_row != "ilBlockRow1")
-			? "ilBlockRow1"
-			: "ilBlockRow2";
-		$this->tpl->setVariable($a_placeholder, $this->css_row);
-	}
-
-	/**
-	 * Fill previous/next row
-	 */
-	function fillPreviousNext()
-	{
-		$lng = $this->lng;
-
-		// table pn numinfo
-		$numinfo = "";
-		if ($this->getEnableNumInfo() && $this->max_count > 0)
-		{
-			$start = $this->getOffset() + 1;                // compute num info
-			$end = $this->getOffset() + $this->getLimit();
-
-			if ($end > $this->max_count or $this->getLimit() == 0)
-			{
-				$end = $this->max_count;
-			}
-
-			$numinfo = "(" . $start . "-" . $end . " " . strtolower($lng->txt("of")) . " " . $this->max_count . ")";
-		}
-
-		$this->setPreviousNextLinks();
-		$this->tpl->setVariable("NUMINFO", $numinfo);
-
-	}
-
-	/**
-	 * Get previous/next linkbar.
-	 *
-	 * @author Sascha Hofmann <shofmann@databay.de>
-	 *
-	 * @return    array    linkbar or false on error
-	 */
-	function setPreviousNextLinks()
-	{
-		// @todo: fix this
-		return false;
-
-
-		$ilCtrl = $this->ctrl;
-		$lng = $this->lng;
-
-		// if more entries then entries per page -> show link bar
-		if ($this->max_count > $this->getLimit() && ($this->getLimit() != 0))
-		{
-			// previous link
-			if ($this->getOffset() >= 1)
-			{
-				$prevoffset = $this->getOffset() - $this->getLimit();
-
-				$ilCtrl->setParameterByClass("ilcolumngui",
-					$this->getNavParameter(), "::" . $prevoffset);
-
-				// ajax link
-				$ilCtrl->setParameterByClass("ilcolumngui",
-					"block_id", "block_" . $this->getBlockType() . "_" . $this->block_id);
-				$block_id = "block_" . $this->getBlockType() . "_" . $this->block_id;
-				$onclick = $ilCtrl->getLinkTargetByClass("ilcolumngui",
-					"updateBlock", "", true);
-				$ilCtrl->setParameterByClass("ilcolumngui",
-					"block_id", "");
-
-				// normal link
-				$href = $ilCtrl->getLinkTargetByClass("ilcolumngui", "");
-				$text = $lng->txt("previous");
-
-//				$this->addFooterLink($text, $href, $onclick, $block_id, true);
-			}
-
-			// calculate number of pages
-			$pages = intval($this->max_count / $this->getLimit());
-
-			// add a page if a rest remains
-			if (($this->max_count % $this->getLimit()))
-				$pages++;
-
-			// show next link (if not last page)
-			if (!(($this->getOffset() / $this->getLimit()) == ($pages - 1)) && ($pages != 1))
-			{
-				$newoffset = $this->getOffset() + $this->getLimit();
-
-				$ilCtrl->setParameterByClass("ilcolumngui",
-					$this->getNavParameter(), "::" . $newoffset);
-
-				// ajax link
-				$ilCtrl->setParameterByClass("ilcolumngui",
-					"block_id", "block_" . $this->getBlockType() . "_" . $this->block_id);
-				//$this->tpl->setCurrentBlock("pnonclick");
-				$block_id = "block_" . $this->getBlockType() . "_" . $this->block_id;
-				$onclick = $ilCtrl->getLinkTargetByClass("ilcolumngui",
-					"updateBlock", "", true);
-//echo "-".$onclick."-";
-				//$this->tpl->parseCurrentBlock();
-				$ilCtrl->setParameterByClass("ilcolumngui",
-					"block_id", "");
-
-				// normal link
-				$href = $ilCtrl->getLinkTargetByClass("ilcolumngui", "");
-				$text = $lng->txt("next");
-
-//				$this->addFooterLink($text, $href, $onclick, $block_id, true);
-			}
-			$ilCtrl->setParameterByClass("ilcolumngui",
-				$this->getNavParameter(), "");
-			return true;
-		} else
-		{
-			return false;
-		}
-	}
-
-	/**
-	 * Can be overwritten in subclasses. Only the visible part of the complete data was passed so a preload of the visible data is possible.
-	 * @param array $data
-	 */
-	protected function preloadData(array $data)
-	{
-	}
-
-	/**
-	 * Use this for final get before sending asynchronous output (ajax)
-	 * per echo to output.
-	 */
-	public function getAsynch()
-	{
-		header("Content-type: text/html; charset=UTF-8");
-		return $this->tpl->get();
-	}
-
-	//
-	// New rendering
-	//
-
-	// temporary flag
-	protected $new_rendering = false;
-
-
-	/**
-	 * Get legacy content
-	 *
-	 * @return string
-	 */
-	protected function getLegacyContent(): string
-	{
-		return "";
-	}
-
-	/**
-	 * Get view controls
-	 *
-	 * @return array
-	 */
-	protected function getViewControls(): array
-	{
-		if ($this->getPresentation() == self::PRES_SEC_LIST)
-		{
-			$pg_view_control = $this->getPaginationViewControl();
-			if (!is_null($pg_view_control))
-			{
-				return [$pg_view_control];
-			}
-		}
-		return [];
-	}
-
-	/**
-	 * Get list item for data array
-	 *
-	 * @param array $data
-	 * @return null|\ILIAS\UI\Component\Item\Item
-	 */
-	protected function getListItemForData(array $data): \ILIAS\UI\Component\Item\Item
-	{
-		return null;
-	}
-
-
-	/**
-	 * Handle navigation
-	 */
-	protected function handleNavigation()
-	{
-		$reg_page = $_REQUEST[$this->getNavParameter()."page"];
-		if ($reg_page !== "")
-		{
-			$this->nav_value = "::".($reg_page * $this->getLimit());
-		}
-
-		if ($this->nav_value == "" && isset($_SESSION[$this->getNavParameter()]))
-		{
-			$this->nav_value = $_SESSION[$this->getNavParameter()];
-		}
-
-		$_SESSION[$this->getNavParameter()] = $this->nav_value;
-
-		$nav = explode(":", $this->nav_value);
-		if (isset($nav[2]))
-		{
-			$this->setOffset($nav[2]);
-		} else
-		{
-			$this->setOffset(0);
-		}
-	}
-
-	/**
-	 * Load data for current page
-	 *
-	 * @return array
-	 */
-	protected function loadData()
-	{
-		$data = $this->getData();
-		$this->max_count = count($data);
-		$this->correctOffset();
-		$data = array_slice($data, $this->getOffset(), $this->getLimit());
-		$this->preloadData($data);
-		return $data;
-	}
-
-
-	/**
-	 * Get items
-	 *
-	 * @return \ILIAS\UI\Component\Item\Group[]
-	 */
-	protected function getListItemGroups(): array
-	{
-		global $DIC;
-		$factory = $DIC->ui()->factory();
-
-		$data = $this->loadData();
-
-		$items = [];
-
-		foreach ($data as $record)
-		{
-			$item = $this->getListItemForData($record);
-			if ($item !== null)
-			{
-				$items[] = $item;
-			}
-		}
-
-		$item_group = $factory->item()->group("", $items);
-
-		return [$item_group];
-	}
-
-	/**
-	 * Fill previous/next row
-	 */
-	function getPaginationViewControl()
-	{
-		global $DIC;
-		$factory = $DIC->ui()->factory();
-
-		$ilCtrl = $this->ctrl;
-
-
-		//		$ilCtrl->setParameterByClass("ilcolumngui",
-		//			$this->getNavParameter(), "::" . $prevoffset);
-
-		// ajax link
-		$ilCtrl->setParameterByClass("ilcolumngui",
-			"block_id", "block_" . $this->getBlockType() . "_" . $this->block_id);
-		$block_id = "block_" . $this->getBlockType() . "_" . $this->block_id;
-		$onclick = $ilCtrl->getLinkTargetByClass("ilcolumngui",
-			"updateBlock", "", true);
-		$ilCtrl->setParameterByClass("ilcolumngui",
-			"block_id", "");
-
-		// normal link
-		$href = $ilCtrl->getLinkTargetByClass("ilcolumngui", "", "", false, false);
-
-		//$ilCtrl->setParameterByClass("ilcolumngui",
-		//	$this->getNavParameter(), "");
-
-		if ($this->max_count <= $this->getLimit())
-		{
-			return null;
-		}
-
-		return $factory->viewControl()->pagination()
-			->withTargetURL($href, $this->getNavParameter()."page")
-			->withTotalEntries($this->max_count)
-			->withPageSize($this->getLimit())
-			->withCurrentPage((int) $this->getOffset() / $this->getLimit());
-	}
-
-
-	/**
-	 * Get HTML.
-	 */
-	function getHTMLNew()
-	{
-		global $DIC;
-		$factory = $DIC->ui()->factory();
-		$renderer = $DIC->ui()->renderer();
-
-		$ctrl = $this->ctrl;
-
-
-		switch ($this->getPresentation())
-		{
-			case self::PRES_SEC_LEG:
-				$panel = $factory->panel()->secondary()->legacy(
-					$this->getTitle(),
-					$factory->legacy($this->getLegacyContent())
-				);
-				break;
-
-			case self::PRES_MAIN_LEG:
-				$panel = $factory->panel()->standard(
-					$this->getTitle(),
-					$factory->legacy($this->getLegacyContent())
-				);
-				break;
-
-			case self::PRES_SEC_LIST:
-				$this->handleNavigation();
-				$panel = $factory->panel()->secondary()->listing(
-					$this->getTitle(),
-					$this->getListItemGroups()
-				);
-				break;
-
-			case self::PRES_MAIN_LIST:
-				$this->handleNavigation();
-				$panel = $factory->panel()->listing()->standard(
-					$this->getTitle(),
-					$this->getListItemGroups()
-				);
-				break;
-		}
-
-		// actions
-		$actions = [];
-
-		foreach ($this->getBlockCommands() as $command)
-		{
-			$href = ($command["onclick"] != "")
-				? ""
-				: $command["href"];
-			$button = $factory->button()->shy($command["text"], $href);
-			if ($command["onclick"])
-			{
-				$button = $button->withOnLoadCode(function($id) use ($command) {
-					return
-						"$(\"#$id\").click(function() { ilBlockJSHandler('" . "block_".$this->getBlockType()."_".$this->block_id .
-						"','" . $command["onclick"] . "');});";
-				});
-			}
-			$actions[] = $button;
-		}
-		if (count($actions) > 0)
-		{
-			$actions = $factory->dropdown()->standard($actions);
-			$panel = $panel->withActions($actions);
-		}
-
-		// view controls
-		if (count($this->getViewControls()) > 0)
-		{
-			$panel = $panel->withViewControls($this->getViewControls());
-		}
-
-		if ($ctrl->isAsynch())
-		{
-			$html = $renderer->renderAsync($panel);
-			echo $html; exit;
-		}
-		else
-		{
-			$html = $renderer->render($panel);
-
-			// return incl. wrapping div with id
-			$html = '<div id="' . "block_" . $this->getBlockType() . "_" . $this->block_id . '">' .
-				$html . '</div>';
-		}
-
-		//$this->new_rendering = false;
-		//$html.= $this->getHTML();
-
-		return $html;
-	}
+    public const PRES_MAIN_LEG = 0;		// main legacy panel
+    public const PRES_SEC_LEG = 1;			// secondary legacy panel
+    public const PRES_SEC_LIST = 2;		// secondary list panel
+    public const PRES_MAIN_LIST = 3;		// main standard list panel
+    public const PRES_MAIN_TILE = 4;		// main standard list panel
+    private int $offset;
+    private int $limit;
+    private bool $enableedit;
+    private string $subtitle;
+    private int $refid;
+    private string $rowtemplatename;
+    private string $rowtemplatedir;
+    protected object $gui_object;
+    protected \ILIAS\Block\StandardGUIRequest $request;
+    protected \ILIAS\Block\BlockManager $block_manager;
+    private \ILIAS\HTTP\GlobalHttpState $http;
+
+    protected bool $repositorymode = false;
+    protected \ILIAS\DI\UIServices $ui;
+    protected array $data = array();
+    protected bool $enablenuminfo = true;
+    protected array $footer_links = array();
+    protected string $block_id = "0";
+    protected bool $allow_moving = true;
+    protected array $move = array("left" => false, "right" => false, "up" => false, "down" => false);
+    protected array $block_commands = array();
+    protected int $max_count = 0;
+    protected bool $close_command = false;
+    protected bool $image = false;
+    protected array $property = [];
+    protected string $nav_value = "";
+    protected string $css_row = "";
+    protected string $title = "";
+    protected bool $admincommands = false;
+    protected array $dropdown;
+    protected ?ilTemplate $tpl;
+    protected ?ilGlobalTemplateInterface $main_tpl;
+    protected ilObjUser $user;
+    protected ilCtrl $ctrl;
+    protected ilAccessHandler $access;
+    protected ilLanguage $lng;
+    protected ilObjectDefinition $obj_def;
+    protected int $presentation;
+    protected ?int $requested_ref_id;
+
+    public function __construct()
+    {
+        global $DIC;
+
+
+        $this->http = $DIC->http();
+        $block_service = new ILIAS\Block\Service($DIC);
+        $this->block_manager = $block_service->internal()
+            ->domain()
+            ->block();
+        $this->request = $block_service->internal()
+            ->gui()
+            ->standardRequest();
+
+
+        // default presentation
+        $this->presentation = self::PRES_SEC_LEG;
+
+        $this->user = $DIC->user();
+        $this->ctrl = $DIC->ctrl();
+        $this->access = $DIC->access();
+        $this->lng = $DIC->language();
+        $this->main_tpl = $DIC["tpl"];
+        $this->obj_def = $DIC["objDefinition"];
+        $this->ui = $DIC->ui();
+
+        ilYuiUtil::initConnection();
+        $this->main_tpl->addJavaScript("./Services/Block/js/ilblockcallback.js");
+
+        $this->setLimit((int) $this->user->getPref("hits_per_page"));
+
+        $this->requested_ref_id = $this->request->getRefId();
+    }
+
+    abstract public function getBlockType(): string;
+
+    /**
+     * Returns whether block has a corresponding repository object
+     */
+    abstract protected function isRepositoryObject(): bool;
+
+    protected function specialCharsAsEntities(string $string): string
+    {
+        // Should be replaced by a proper refinery transformation once https://github.com/ILIAS-eLearning/ILIAS/pull/6314 is merged
+        return  htmlspecialchars(
+            $string,
+            ENT_QUOTES | ENT_SUBSTITUTE,
+            'utf-8'
+        );
+    }
+
+    public function setData(array $a_data): void
+    {
+        $this->data = $a_data;
+    }
+
+    public function getData(): array
+    {
+        return $this->data;
+    }
+
+    public function setPresentation(int $type): void
+    {
+        $this->presentation = $type;
+    }
+
+    public function getPresentation(): int
+    {
+        return $this->presentation;
+    }
+
+    public function setBlockId(string $a_block_id = "0"): void
+    {
+        $this->block_id = $a_block_id;
+    }
+
+    public function getBlockId(): string
+    {
+        return $this->block_id;
+    }
+
+    /**
+     * Set GuiObject.
+     * Only used for repository blocks, that are represented as
+     * real repository objects (have a ref id and permissions)
+     */
+    public function setGuiObject(object $a_gui_object): void
+    {
+        $this->gui_object = $a_gui_object;
+    }
+
+    public function getGuiObject(): object
+    {
+        return $this->gui_object;
+    }
+
+    public function setTitle(string $a_title): void
+    {
+        $this->title = $a_title;
+    }
+
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
+
+    public function setOffset(int $a_offset): void
+    {
+        $this->offset = $a_offset;
+    }
+
+    public function getOffset(): int
+    {
+        return $this->offset;
+    }
+
+    public function correctOffset(): void
+    {
+        if (!($this->offset < $this->max_count)) {
+            $this->setOffset(0);
+        }
+    }
+
+    public function setLimit(int $a_limit): void
+    {
+        $this->limit = $a_limit;
+    }
+
+    public function getLimit(): int
+    {
+        return $this->limit;
+    }
+
+    public function setEnableEdit(bool $a_enableedit): void
+    {
+        $this->enableedit = $a_enableedit;
+    }
+
+    public function getEnableEdit(): bool
+    {
+        return $this->enableedit;
+    }
+
+    public function setRepositoryMode(bool $a_repositorymode): void
+    {
+        $this->repositorymode = $a_repositorymode;
+    }
+
+    public function getRepositoryMode(): bool
+    {
+        return $this->repositorymode;
+    }
+
+    public function setSubtitle(string $a_subtitle): void
+    {
+        $this->subtitle = $a_subtitle;
+    }
+
+    public function getSubtitle(): string
+    {
+        return $this->subtitle;
+    }
+
+    /**
+     * Set Ref Id (only used if isRepositoryObject() is true).
+     */
+    public function setRefId(int $a_refid): void
+    {
+        $this->refid = $a_refid;
+    }
+
+    public function getRefId(): int
+    {
+        return $this->refid;
+    }
+
+    public function setAdminCommands(bool $a_admincommands): void
+    {
+        $this->admincommands = $a_admincommands;
+    }
+
+    public function getAdminCommands(): bool
+    {
+        return $this->admincommands;
+    }
+
+    public function setEnableNumInfo(bool $a_enablenuminfo): void
+    {
+        $this->enablenuminfo = $a_enablenuminfo;
+    }
+
+    public function getEnableNumInfo(): bool
+    {
+        return $this->enablenuminfo;
+    }
+
+    /**
+     * This function is supposed to be used for block type specific
+     * properties, that should be inherited through ilColumnGUI->setBlockProperties
+     */
+    public function setProperties(array $a_properties): void
+    {
+        $this->property = $a_properties;
+    }
+
+    public function getProperty(string $a_property): ?string
+    {
+        return $this->property[$a_property] ?? null;
+    }
+
+    public function setProperty(string $a_property, string $a_value): void
+    {
+        $this->property[$a_property] = $a_value;
+    }
+
+    /**
+     * Set Row Template Name.
+     */
+    public function setRowTemplate(
+        string $a_rowtemplatename,
+        string $a_rowtemplatedir = ""
+    ): void {
+        $this->rowtemplatename = $a_rowtemplatename;
+        $this->rowtemplatedir = $a_rowtemplatedir;
+    }
+
+    final public function getNavParameter(): string
+    {
+        return $this->getBlockType() . "_" . $this->getBlockId() . "_blnav";
+    }
+
+    final public function getConfigParameter(): string
+    {
+        return $this->getBlockType() . "_" . $this->getBlockId() . "_blconf";
+    }
+
+    final public function getMoveParameter(): string
+    {
+        return $this->getBlockType() . "_" . $this->getBlockId() . "_blmove";
+    }
+
+    public function getRowTemplateName(): string
+    {
+        return $this->rowtemplatename;
+    }
+
+    public function getRowTemplateDir(): string
+    {
+        return $this->rowtemplatedir;
+    }
+
+    public function addBlockCommand(string $a_href, string $a_text, string $a_onclick = ""): void
+    {
+        $this->block_commands[] = [
+            "href" => $a_href,
+            "text" => $a_text,
+            "onclick" => $a_onclick
+        ];
+    }
+
+    public function getBlockCommands(): array
+    {
+        return $this->block_commands;
+    }
+
+    public static function getScreenMode(): string
+    {
+        return IL_SCREEN_SIDE;
+    }
+
+    protected function initCommands(): void
+    {
+    }
+
+    public function getHTML(): string
+    {
+        $this->initCommands();
+
+        if ($this->new_rendering) {
+            return $this->getHTMLNew();
+        }
+
+        $ilCtrl = $this->ctrl;
+        $lng = $this->lng;
+        $ilAccess = $this->access;
+        $ilUser = $this->user;
+        $objDefinition = $this->obj_def;
+
+        if ($this->isRepositoryObject()) {
+            if (!$ilAccess->checkAccess("read", "", $this->getRefId())) {
+                return "";
+            }
+        }
+
+        $this->tpl = new ilTemplate("tpl.block.html", true, true, "Services/Block");
+
+        //		$this->handleConfigStatus();
+
+        $this->fillDataSection();
+        if ($this->getRepositoryMode() && $this->isRepositoryObject()) {
+            // #10993
+            // @todo: fix this in new presentation somehow
+            if ($this->getAdminCommands()) {
+                $this->tpl->setCurrentBlock("block_check");
+                $this->tpl->setVariable("BL_REF_ID", $this->getRefId());
+                $this->tpl->parseCurrentBlock();
+            }
+
+            if ($ilAccess->checkAccess("delete", "", $this->getRefId())) {
+                $this->addBlockCommand(
+                    "ilias.php?baseClass=ilRepositoryGUI&ref_id=" . $this->requested_ref_id . "&cmd=delete" .
+                    "&item_ref_id=" . $this->getRefId(),
+                    $lng->txt("delete")
+                );
+
+                // see ilObjectListGUI::insertCutCommand();
+                $this->addBlockCommand(
+                    "ilias.php?baseClass=ilRepositoryGUI&ref_id=" . $this->requested_ref_id . "&cmd=cut" .
+                    "&item_ref_id=" . $this->getRefId(),
+                    $lng->txt("move")
+                );
+            }
+
+            // #14595 - see ilObjectListGUI::insertCopyCommand()
+            if ($ilAccess->checkAccess("copy", "", $this->getRefId())) {
+                $parent_type = ilObject::_lookupType($this->requested_ref_id, true);
+                $parent_gui = "ilObj" . $objDefinition->getClassName($parent_type) . "GUI";
+
+                $ilCtrl->setParameterByClass("ilobjectcopygui", "source_id", $this->getRefId());
+                $copy_cmd = $ilCtrl->getLinkTargetByClass(
+                    array("ilrepositorygui", $parent_gui, "ilobjectcopygui"),
+                    "initTargetSelection"
+                );
+
+                // see ilObjectListGUI::insertCopyCommand();
+                $this->addBlockCommand(
+                    $copy_cmd,
+                    $lng->txt("copy")
+                );
+            }
+        }
+
+        $this->dropdown = array();
+
+        // commands
+        if (count($this->getBlockCommands()) > 0) {
+            foreach ($this->getBlockCommands() as $command) {
+                if ($command["onclick"]) {
+                    $command["onclick"] = "ilBlockJSHandler('" . "block_" . $this->getBlockType() . "_" . $this->block_id .
+                        "','" . $command["onclick"] . "')";
+                }
+                $this->dropdown[] = $command;
+            }
+        }
+
+        // fill previous next
+        $this->fillPreviousNext();
+
+        // fill footer
+        $this->fillFooter();
+
+
+        $this->fillHeaderCommands();
+        $this->fillHeaderTitleBlock();
+
+        if ($this->getPresentation() === self::PRES_MAIN_LEG) {
+            $this->tpl->touchBlock("hclassb");
+        } else {
+            $this->tpl->touchBlock("hclass");
+        }
+
+        if ($ilCtrl->isAsynch()) {
+            // return without div wrapper
+            echo $this->tpl->get();
+        //echo $this->tpl->getAsynch();
+        } else {
+            // return incl. wrapping div with id
+            return '<div id="' . "block_" . $this->getBlockType() . "_" . $this->block_id . '">' .
+                $this->tpl->get() . '</div>';
+        }
+        return "";
+    }
+
+    public function fillHeaderCommands(): void
+    {
+        // adv selection gui
+        $dropdown = new ilAdvancedSelectionListGUI();
+        $dropdown->setUseImages(true);
+        $dropdown->setStyle(ilAdvancedSelectionListGUI::STYLE_LINK_BUTTON);
+        $dropdown->setHeaderIcon(ilAdvancedSelectionListGUI::ICON_CONFIG);
+        $dropdown->setId("block_dd_" . $this->getBlockType() . "_" . $this->block_id);
+        foreach ($this->dropdown as $item) {
+            if ($item["href"] || $item["onclick"]) {
+                if (isset($item["checked"]) && $item["checked"]) {
+                    $item["image"] = ilUtil::getImagePath("icon_checked.svg");
+                }
+                $dropdown->addItem(
+                    $item["text"],
+                    "",
+                    $item["href"],
+                    $item["image"] ?? "",
+                    $item["text"],
+                    "",
+                    "",
+                    false,
+                    $item["onclick"]
+                );
+            }
+        }
+        $dropdown = $dropdown->getHTML();
+        $this->tpl->setCurrentBlock("header_dropdown");
+        $this->tpl->setVariable("ADV_DROPDOWN", $dropdown);
+        $this->tpl->parseCurrentBlock();
+
+        $this->tpl->setCurrentBlock("hitem");
+        $this->tpl->parseCurrentBlock();
+    }
+
+    public function fillHeaderTitleBlock(): void
+    {
+        $lng = $this->lng;
+
+
+        // header title
+        $this->tpl->setCurrentBlock("header_title");
+        $this->tpl->setVariable(
+            "BTID",
+            "block_" . $this->getBlockType() . "_" . $this->block_id
+        );
+        $this->tpl->setVariable(
+            "BLOCK_TITLE",
+            $this->getTitle()
+        );
+        $this->tpl->setVariable(
+            "TXT_BLOCK",
+            $lng->txt("block")
+        );
+        $this->tpl->parseCurrentBlock();
+
+        $this->tpl->setCurrentBlock("hitem");
+        $this->tpl->parseCurrentBlock();
+    }
+
+    /**
+     * Call this from overwritten fillDataSection(), if standard row based data is not used.
+     */
+    public function setDataSection(string $a_content): void
+    {
+        $this->tpl->setCurrentBlock("data_section");
+        $this->tpl->setVariable("DATA", $a_content);
+        $this->tpl->parseCurrentBlock();
+        $this->tpl->setVariable("BLOCK_ROW", "");
+    }
+
+    /**
+     * Standard implementation for row based data.
+     * Overwrite this and call setContent for other data.
+     */
+    public function fillDataSection(): void
+    {
+        $req_nav_par = $this->request->getNavPar($this->getNavParameter());
+        if ($req_nav_par != "") {
+            $this->nav_value = $req_nav_par;
+        }
+        $this->nav_value = ($this->nav_value != "")
+            ? $this->nav_value
+            : $this->block_manager->getNavPar($this->getNavParameter());
+
+        $this->block_manager->setNavPar(
+            $this->getNavParameter(),
+            $this->nav_value
+        );
+
+        $nav = explode(":", $this->nav_value);
+        if (isset($nav[2])) {
+            $this->setOffset((int) $nav[2]);
+        } else {
+            $this->setOffset(0);
+        }
+
+        // data
+        $this->tpl->addBlockFile(
+            "BLOCK_ROW",
+            "block_row",
+            $this->getRowTemplateName(),
+            $this->getRowTemplateDir()
+        );
+
+        $data = $this->getData();
+        $this->max_count = count($data);
+        $this->correctOffset();
+        $data = array_slice($data, $this->getOffset(), $this->getLimit());
+
+        $this->preloadData($data);
+
+        foreach ($data as $record) {
+            $this->tpl->setCurrentBlock("block_row");
+            $this->fillRowColor();
+            $this->fillRow($record);
+            $this->tpl->setCurrentBlock("block_row");
+            $this->tpl->parseCurrentBlock();
+        }
+    }
+
+    public function fillRow(array $a_set): void
+    {
+        foreach ($a_set as $key => $value) {
+            $this->tpl->setVariable("VAL_" . strtoupper($key), $value);
+        }
+    }
+
+    public function fillFooter(): void
+    {
+    }
+
+    final protected function fillRowColor(string $a_placeholder = "CSS_ROW"): void
+    {
+        $this->css_row = ($this->css_row != "ilBlockRow1")
+            ? "ilBlockRow1"
+            : "ilBlockRow2";
+        $this->tpl->setVariable($a_placeholder, $this->css_row);
+    }
+
+    public function fillPreviousNext(): void
+    {
+        $lng = $this->lng;
+
+        // table pn numinfo
+        $numinfo = "";
+        if ($this->getEnableNumInfo() && $this->max_count > 0) {
+            $start = $this->getOffset() + 1;                // compute num info
+            $end = $this->getOffset() + $this->getLimit();
+
+            if ($end > $this->max_count or $this->getLimit() == 0) {
+                $end = $this->max_count;
+            }
+
+            $numinfo = "(" . $start . "-" . $end . " " . strtolower($lng->txt("of")) . " " . $this->max_count . ")";
+        }
+
+        $this->setPreviousNextLinks();
+        $this->tpl->setVariable("NUMINFO", $numinfo);
+    }
+
+    public function setPreviousNextLinks(): void
+    {
+    }
+
+    /**
+     * Can be overwritten in subclasses. Only the visible part of the complete data was passed so a preload of the visible data is possible.
+     * @param array $data
+     */
+    protected function preloadData(array $data): void
+    {
+    }
+
+    /**
+     * Use this for final get before sending asynchronous output (ajax)
+     * per echo to output.
+     */
+    public function getAsynch(): string
+    {
+        header("Content-type: text/html; charset=UTF-8");
+        return $this->tpl->get();
+    }
+
+    //
+    // New rendering
+    //
+
+    // temporary flag
+    protected bool $new_rendering = false;
+
+
+    /**
+     * Get legacy content
+     *
+     * @return string
+     */
+    protected function getLegacyContent(): string
+    {
+        return "";
+    }
+
+    /**
+     * Get view controls
+     *
+     * @return array
+     */
+    protected function getViewControls(): array
+    {
+        if ($this->getPresentation() == self::PRES_SEC_LIST) {
+            $pg_view_control = $this->getPaginationViewControl();
+            if (!is_null($pg_view_control)) {
+                return [$pg_view_control];
+            }
+        }
+        return [];
+    }
+
+    /**
+     * Get list item for data array
+     *
+     * @param array $data
+     * @return null|\ILIAS\UI\Component\Item\Item
+     */
+    protected function getListItemForData(array $data): ?\ILIAS\UI\Component\Item\Item
+    {
+        return null;
+    }
+
+
+    /**
+     * Handle navigation
+     */
+    protected function handleNavigation(): void
+    {
+        $reg_page = $this->request->getNavPage($this->getNavParameter());
+        if ($reg_page !== "") {
+            $this->nav_value = "::" . ($reg_page * $this->getLimit());
+        }
+
+        if ($this->nav_value == "") {
+            $this->nav_value = $this->block_manager->getNavPar($this->getNavParameter());
+        }
+
+        $this->block_manager->setNavPar(
+            $this->getNavParameter(),
+            $this->nav_value
+        );
+
+        $nav = explode(":", $this->nav_value);
+        if (isset($nav[2])) {
+            $this->setOffset((int) $nav[2]);
+        } else {
+            $this->setOffset(0);
+        }
+    }
+
+    /**
+     * Load data for current page
+     * @return array
+     */
+    protected function loadData(): array
+    {
+        $data = $this->getData();
+        $this->max_count = count($data);
+        $this->correctOffset();
+        $data = array_slice($data, $this->getOffset(), $this->getLimit());
+        $this->preloadData($data);
+        return $data;
+    }
+
+
+    /**
+     * Get items
+     *
+     * @return \ILIAS\UI\Component\Item\Group[]
+     */
+    protected function getListItemGroups(): array
+    {
+        global $DIC;
+        $factory = $DIC->ui()->factory();
+
+        $data = $this->loadData();
+
+        $items = [];
+
+        foreach ($data as $record) {
+            $item = $this->getListItemForData($record);
+            if ($item !== null) {
+                $items[] = $item;
+            }
+        }
+
+        $item_group = $factory->item()->group("", $items);
+
+        return [$item_group];
+    }
+
+    /**
+     * Fill previous/next row
+     */
+    public function getPaginationViewControl(): ?\ILIAS\UI\Component\ViewControl\Pagination
+    {
+        global $DIC;
+        $factory = $DIC->ui()->factory();
+
+        $ilCtrl = $this->ctrl;
+
+
+        //		$ilCtrl->setParameterByClass("ilcolumngui",
+        //			$this->getNavParameter(), "::" . $prevoffset);
+
+        // ajax link
+        $ilCtrl->setParameterByClass(
+            "ilcolumngui",
+            "block_id",
+            "block_" . $this->getBlockType() . "_" . $this->block_id
+        );
+        $block_id = "block_" . $this->getBlockType() . "_" . $this->block_id;
+        $onclick = $ilCtrl->getLinkTargetByClass(
+            "ilcolumngui",
+            "updateBlock",
+            "",
+            true
+        );
+        $ilCtrl->setParameterByClass(
+            "ilcolumngui",
+            "block_id",
+            ""
+        );
+
+        // normal link
+        $href = $ilCtrl->getLinkTargetByClass("ilcolumngui", "", "", false, false);
+
+        //$ilCtrl->setParameterByClass("ilcolumngui",
+        //	$this->getNavParameter(), "");
+
+        if ($this->max_count <= $this->getLimit()) {
+            return null;
+        }
+
+        return $factory->viewControl()->pagination()
+            ->withTargetURL($href, $this->getNavParameter() . "page")
+            ->withTotalEntries($this->max_count)
+            ->withPageSize($this->getLimit())
+            ->withMaxPaginationButtons(5)
+            ->withCurrentPage($this->getOffset() / $this->getLimit());
+    }
+
+    /**
+     * Add repo commands
+     */
+    protected function addRepoCommands(): void
+    {
+        $access = $this->access;
+        $lng = $this->lng;
+        $ctrl = $this->ctrl;
+        $obj_def = $this->obj_def;
+
+        if ($this->getRepositoryMode() && $this->isRepositoryObject()) {
+            // #10993
+            // @todo: fix this in new presentation somehow
+            /*
+            if ($this->getAdminCommands()) {
+                $this->tpl->setCurrentBlock("block_check");
+                $this->tpl->setVariable("BL_REF_ID", $this->getRefId());
+                $this->tpl->parseCurrentBlock();
+            }*/
+
+            if ($access->checkAccess("delete", "", $this->getRefId())) {
+                $this->addBlockCommand(
+                    "ilias.php?baseClass=ilRepositoryGUI&ref_id=" . $this->requested_ref_id . "&cmd=delete" .
+                    "&item_ref_id=" . $this->getRefId(),
+                    $lng->txt("delete")
+                );
+
+                $this->addBlockCommand(
+                    "ilias.php?baseClass=ilRepositoryGUI&ref_id=" . $this->requested_ref_id . "&cmd=link" .
+                    "&item_ref_id=" . $this->getRefId(),
+                    $lng->txt("link")
+                );
+
+                // see ilObjectListGUI::insertCutCommand();
+                $this->addBlockCommand(
+                    "ilias.php?baseClass=ilRepositoryGUI&ref_id=" . $this->requested_ref_id . "&cmd=cut" .
+                    "&item_ref_id=" . $this->getRefId(),
+                    $lng->txt("move")
+                );
+            }
+
+            // #14595 - see ilObjectListGUI::insertCopyCommand()
+            if ($access->checkAccess("copy", "", $this->getRefId())) {
+                $parent_type = ilObject::_lookupType($this->requested_ref_id, true);
+                $parent_gui = "ilObj" . $obj_def->getClassName($parent_type) . "GUI";
+
+                $ctrl->setParameterByClass("ilobjectcopygui", "source_id", $this->getRefId());
+                $copy_cmd = $ctrl->getLinkTargetByClass(
+                    array("ilrepositorygui", $parent_gui, "ilobjectcopygui"),
+                    "initTargetSelection"
+                );
+
+                // see ilObjectListGUI::insertCopyCommand();
+                $this->addBlockCommand(
+                    $copy_cmd,
+                    $lng->txt("copy")
+                );
+            }
+        }
+    }
+
+    public function getHTMLNew(): string
+    {
+        global $DIC;
+        $factory = $DIC->ui()->factory();
+        $renderer = $DIC->ui()->renderer();
+        $access = $this->access;
+        $panel = null;
+
+        $ctrl = $this->ctrl;
+
+        if ($this->isRepositoryObject()) {
+            if (!$access->checkAccess("read", "", $this->getRefId())) {
+                return "";
+            }
+        }
+
+        $this->addRepoCommands();
+
+        switch ($this->getPresentation()) {
+            case self::PRES_SEC_LEG:
+                $panel = $factory->panel()->secondary()->legacy(
+                    $this->specialCharsAsEntities($this->getTitle()),
+                    $factory->legacy($this->getLegacyContent())
+                );
+                break;
+
+            case self::PRES_MAIN_LEG:
+                $panel = $factory->panel()->standard(
+                    $this->specialCharsAsEntities($this->getTitle()),
+                    $factory->legacy($this->getLegacyContent())
+                );
+                break;
+
+            case self::PRES_SEC_LIST:
+                $this->handleNavigation();
+                $panel = $factory->panel()->secondary()->listing(
+                    $this->specialCharsAsEntities($this->getTitle()),
+                    $this->getListItemGroups()
+                );
+                break;
+
+            case self::PRES_MAIN_TILE:
+            case self::PRES_MAIN_LIST:
+                $this->handleNavigation();
+                $panel = $factory->panel()->listing()->standard(
+                    $this->specialCharsAsEntities($this->getTitle()),
+                    $this->getListItemGroups()
+                );
+                break;
+
+        }
+
+        // actions
+        $actions = [];
+
+        foreach ($this->getBlockCommands() as $command) {
+            $href = ($command["onclick"] != "")
+                ? ""
+                : $command["href"];
+            $button = $factory->button()->shy($command["text"], $href);
+            if ($command["onclick"]) {
+                $button = $button->withOnLoadCode(function ($id) use ($command) {
+                    return
+                        "$(\"#$id\").click(function() { ilBlockJSHandler('" . "block_" . $this->getBlockType() . "_" . $this->block_id .
+                        "','" . $command["onclick"] . "');});";
+                });
+            }
+            $actions[] = $button;
+        }
+
+        // check for empty list panel
+        if (in_array($this->getPresentation(), [self::PRES_SEC_LIST, self::PRES_MAIN_LIST]) &&
+            (count($panel->getItemGroups()) == 0 || (count($panel->getItemGroups()) == 1 && count($panel->getItemGroups()[0]->getItems()) == 0))) {
+            if ($this->getPresentation() == self::PRES_SEC_LIST) {
+                $panel = $factory->panel()->secondary()->legacy(
+                    $this->specialCharsAsEntities($this->getTitle()),
+                    $factory->legacy($this->getNoItemFoundContent())
+                );
+            } else {
+                $panel = $factory->panel()->standard(
+                    $this->specialCharsAsEntities($this->getTitle()),
+                    $factory->legacy($this->getNoItemFoundContent())
+                );
+            }
+        }
+
+
+        if (count($actions) > 0) {
+            $actions = $factory->dropdown()->standard($actions)
+                ->withAriaLabel(sprintf(
+                    $this->lng->txt('actions_for'),
+                    htmlspecialchars($this->getTitle())
+                ));
+            $panel = $panel->withActions($actions);
+        }
+
+        // view controls
+        if (count($this->getViewControls()) > 0) {
+            $panel = $panel->withViewControls($this->getViewControls());
+        }
+
+        if ($ctrl->isAsynch()) {
+            $html = $renderer->renderAsync($panel);
+        } else {
+            $html = $renderer->render($panel);
+        }
+
+
+        if ($ctrl->isAsynch()) {
+            $this->send($html);
+        } else {
+            // return incl. wrapping div with id
+            $html = '<div id="' . "block_" . $this->getBlockType() . "_" . $this->block_id . '">' .
+                $html . '</div>';
+        }
+
+        return $html;
+    }
+
+    /**
+     * Send
+     * @throws ResponseSendingException
+     */
+    protected function send(string $output): void
+    {
+        $this->http->saveResponse($this->http->response()->withBody(
+            Streams::ofString($output)
+        ));
+        $this->http->sendResponse();
+        $this->http->close();
+    }
+
+    public function getNoItemFoundContent(): string
+    {
+        return $this->lng->txt("no_items");
+    }
 }

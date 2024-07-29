@@ -1,154 +1,136 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once './Services/Table/classes/class.ilTable2GUI.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ */
+
+declare(strict_types=1);
 
 /**
  * Table GUI for ecs trees
- * 
+ *
  * @author Stefan Meyer <smeyer.ilias@gmx.de>
- * $Id$
  */
 class ilECSNodeMappingTreeTableGUI extends ilTable2GUI
 {
+    private int $server_id;
+    private int $mid;
 
-	private $server_id = 0;
-	private $mid = 0;
+    /**
+     * Table gui constructor
+     */
+    public function __construct(int $a_server_id, int $a_mid, ?object $a_parent_obj, string $a_parent_cmd)
+    {
+        $this->server_id = $a_server_id;
+        $this->mid = $a_mid;
 
-	/**
-	 * Table gui constructor
-	 * @global <type> $lng
-	 * @global <type> $ilCtrl
-	 * @param <type> $a_parent_obj
-	 * @param <type> $a_parent_cmd 
-	 */
-	public function __construct($a_server_id,$a_mid,$a_parent_obj, $a_parent_cmd)
-	{
-	 	global $DIC;
+        // TODO: set id
+        $this->setId('ecs_node_mapping_table');
 
-	 	$lng = $DIC['lng'];
-	 	$ilCtrl = $DIC['ilCtrl'];
+        parent::__construct($a_parent_obj, $a_parent_cmd);
 
-	 	$this->lng = $lng;
-	 	$this->ctrl = $ilCtrl;
+        $this->setTitle($this->lng->txt('ecs_cms_directory_trees_tbl'));
+        $this->addColumn($this->lng->txt('title'), '', "80%");
+        $this->addColumn($this->lng->txt('actions'), '', "20%");
+        $this->setRowTemplate("tpl.ecs_node_mapping_tree_table_row.html", "Services/WebServices/ECS");
 
-		$this->server_id = $a_server_id;
-		$this->mid = $a_mid;
+        $this->setEnableHeader(true);
+    }
 
-		// TODO: set id
-		$this->setId('ecs_node_mapping_table');
+    /**
+     * Get setting
+     */
+    public function getServer(): \ilECSSetting
+    {
+        return ilECSSetting::getInstanceByServerId($this->server_id);
+    }
 
-	 	parent::__construct($a_parent_obj,$a_parent_cmd);
+    /**
+     * Get mid
+     */
+    public function getMid(): int
+    {
+        return $this->mid;
+    }
 
-		$this->setTitle($this->lng->txt('ecs_cms_directory_trees_tbl'));
-	 	$this->addColumn($this->lng->txt('title'),'',"80%");
-	 	$this->addColumn($this->lng->txt('actions'),'',"20%");
-		$this->setRowTemplate("tpl.ecs_node_mapping_tree_table_row.html","Services/WebServices/ECS");
+    /**
+     * Fill row
+     * @param array $a_set
+     */
+    protected function fillRow(array $a_set): void
+    {
+        // show title if available
+        if ($a_set['term']) {
+            $this->tpl->setVariable('VAL_TITLE', $a_set['term']);
+        } else {
+            $this->tpl->setVariable('VAL_TITLE', $a_set['title']);
+        }
+        $this->tpl->setVariable('TXT_STATUS', $this->lng->txt('status'));
+        $this->tpl->setVariable('VAL_STATUS', ilECSMappingUtils::mappingStatusToString($a_set['status']));
 
-		$this->setEnableHeader(true);
-	}
+        // Actions
+        $list = new ilAdvancedSelectionListGUI();
+        $list->setSelectionHeaderClass('small');
+        $list->setItemLinkClass('small');
+        $list->setId('actl_' . $a_set['id']);
+        $list->setListTitle($this->lng->txt('actions'));
 
-	/**
-	 * Get setting
-	 * @return ilECSSetting
-	 */
-	public function getServer()
-	{
-		return ilECSSetting::getInstanceByServerId($this->server_id);
-	}
+        $this->ctrl->setParameter($this->getParentObject(), 'tid', $a_set['id']);
+        $this->tpl->setVariable('EDIT_TITLE', $this->ctrl->getLinkTarget($this->getParentObject(), 'dInitEditTree'));
 
-	/**
-	 * Get mid
-	 * @return int
-	 */
-	public function getMid()
-	{
-		return $this->mid;
-	}
+        $list->addItem($this->lng->txt('edit'), '', $this->ctrl->getLinkTarget($this->getParentObject(), 'dInitEditTree'));
 
-	/**
-	 * Fill row
-	 * @param array $a_set
-	 */
-	public function  fillRow($a_set)
-	{
-		global $DIC;
+        if ($a_set['status'] !== ilECSMappingUtils::MAPPED_UNMAPPED &&
+                ilECSNodeMappingSettings::getInstanceByServerMid($this->getServer()->getServerId(), $this->getMid())->isDirectoryMappingEnabled()) {
+            $list->addItem(
+                $this->lng->txt('ecs_cms_tree_synchronize'),
+                '',
+                $this->ctrl->getLinkTarget($this->getParentObject(), 'dSynchronizeTree')
+            );
+        }
 
-		$ilCtrl = $DIC['ilCtrl'];
+        $list->addItem($this->lng->txt('delete'), '', $this->ctrl->getLinkTarget($this->getParentObject(), 'dConfirmDeleteTree'));
+        $this->tpl->setVariable('ACTIONS', $list->getHTML());
 
+        $this->ctrl->clearParameters($this->getParentObject());
+    }
 
-		// show title if available
-		if($a_set['term'])
-		{
-			$this->tpl->setVariable('VAL_TITLE', $a_set['term']);
-		}
-		else
-		{
-			$this->tpl->setVariable('VAL_TITLE', $a_set['title']);
-		}
-		$this->tpl->setVariable('TXT_STATUS',$this->lng->txt('status'));
-		$this->tpl->setVariable('VAL_STATUS', ilECSMappingUtils::mappingStatusToString($a_set['status']));
+    /**
+     * Parse campusconnect
+     */
+    public function parse(): void
+    {
+        $data = array();
+        $counter = 0;
+        foreach (ilECSCmsData::lookupTreeIds($this->getServer()->getServerId(), $this->getMid()) as $tree_id) {
+            $root = new ilECSCmsTree($tree_id);
+            $node = new ilECSCmsData($root->getRootId());
 
-		// Actions
-		include_once './Services/UIComponent/AdvancedSelectionList/classes/class.ilAdvancedSelectionListGUI.php';
-		$list = new ilAdvancedSelectionListGUI();
-		$list->setSelectionHeaderClass('small');
-		$list->setItemLinkClass('small');
-		$list->setId('actl_'.$a_set['id']);
-		$list->setListTitle($this->lng->txt('actions'));
-		
-		$ilCtrl->setParameter($this->getParentObject(),'tid',$a_set['id']);
-		$this->tpl->setVariable('EDIT_TITLE',$this->ctrl->getLinkTarget($this->getParentObject(),'dInitEditTree'));
-		
-		$list->addItem($this->lng->txt('edit'), '', $ilCtrl->getLinkTarget($this->getParentObject(),'dInitEditTree'));
-		
-		include_once './Services/WebServices/ECS/classes/Mapping/class.ilECSNodeMappingSettings.php';
-		if($a_set['status'] != ilECSMappingUtils::MAPPED_UNMAPPED &&
-				ilECSNodeMappingSettings::getInstanceByServerMid($this->getServer()->getServerId(), $this->getMid())->isDirectoryMappingEnabled())
-		{
-			$list->addItem(
-					$this->lng->txt('ecs_cms_tree_synchronize'),
-					'',
-					$ilCtrl->getLinkTarget($this->getParentObject(),'dSynchronizeTree')
-			);
-		}
-		
-		$list->addItem($this->lng->txt('delete'), '', $ilCtrl->getLinkTarget($this->getParentObject(),'dConfirmDeleteTree'));
-		$this->tpl->setVariable('ACTIONS',$list->getHTML());
-
-		$ilCtrl->clearParameters($this->getParentObject());
-	}
-
-	/**
-	 * Parse campusconnect
-	 */
-	public function parse()
-	{
-		include_once './Services/WebServices/ECS/classes/Mapping/class.ilECSMappingUtils.php';
-		include_once './Services/WebServices/ECS/classes/Tree/class.ilECSCmsData.php';
-		include_once './Services/WebServices/ECS/classes/Tree/class.ilECSCmsTree.php';
-
-		$data = array();
-		$counter = 0;
-		foreach(ilECSCmsData::lookupTreeIds($this->getServer()->getServerId(),$this->getMid()) as $tree_id)
-		{
-			$root = new ilECSCmsTree($tree_id);
-			$node = new ilECSCmsData($root->getRootId());
-
-			$data[$counter]['id'] = $tree_id;
-			$data[$counter]['status'] = ilECSMappingUtils::lookupMappingStatus(
-				$this->getServer()->getServerId(),
-				$this->getMid(),
-				$tree_id);
-			$data[$counter]['title'] = $node->getTitle();
-			$data[$counter]['term'] = ilECSCmsData::lookupTopTerm(
-				$this->getServer()->getServerId(),
-				$this->getMid(),
-				$tree_id
-			);
-			$counter++;
-		}
-		$this->setData($data);
-	}
+            $data[$counter]['id'] = $tree_id;
+            $data[$counter]['status'] = ilECSMappingUtils::lookupMappingStatus(
+                $this->getServer()->getServerId(),
+                $this->getMid(),
+                $tree_id
+            );
+            $data[$counter]['title'] = $node->getTitle();
+            $data[$counter]['term'] = ilECSCmsData::lookupTopTerm(
+                $this->getServer()->getServerId(),
+                $this->getMid(),
+                $tree_id
+            );
+            $counter++;
+        }
+        $this->setData($data);
+    }
 }
-?>

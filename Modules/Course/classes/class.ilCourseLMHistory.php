@@ -1,153 +1,117 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2001 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
 
+declare(strict_types=0);
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
-* class ilCourseLMHistory
-*
-* @author Stefan Meyer <meyer@leifos.com> 
-* @version $Id$
-* 
-* @extends Object
-*/
-
+ * class ilCourseLMHistory
+ * @author  Stefan Meyer <meyer@leifos.com>
+ * @version $Id$
+ * @extends Object
+ */
 class ilCourseLMHistory
 {
-	var $db;
+    private int $course_id = 0;
+    private int $user_id = 0;
 
-	var $course_id;
-	var $user_id;
+    protected ilDBInterface $db;
 
-	/**
-	 * Constructor
-	 * @param int $crs_id
-	 * @param int $user_id
-	 */
-	public function __construct($crs_id,$user_id)
-	{
-		global $DIC;
+    public function __construct(int $crs_id, int $user_id)
+    {
+        global $DIC;
 
-		$ilDB = $DIC['ilDB'];
+        $this->db = $DIC->database();
+        $this->course_id = $crs_id;
+        $this->user_id = $user_id;
+    }
 
-		$this->db =& $ilDB;
+    public function getUserId(): int
+    {
+        return $this->user_id;
+    }
 
-		$this->course_id = $crs_id;
-		$this->user_id = $user_id;
-	}
+    public function getCourseRefId(): int
+    {
+        return $this->course_id;
+    }
 
-	function getUserId()
-	{
-		return $this->user_id;
-	}
-	function getCourseRefId()
-	{
-		return $this->course_id;
-	}
+    public static function _updateLastAccess(int $a_user_id, int $a_lm_ref_id, int $a_page_id): bool
+    {
+        global $DIC;
 
-	static function _updateLastAccess($a_user_id,$a_lm_ref_id,$a_page_id)
-	{
-		global $DIC;
+        $tree = $DIC['tree'];
+        $ilDB = $DIC['ilDB'];
 
-		$tree = $DIC['tree'];
-		$ilDB = $DIC['ilDB'];
+        if (!$crs_ref_id = $tree->checkForParentType($a_lm_ref_id, 'crs')) {
+            return true;
+        }
 
-		if(!$crs_ref_id = $tree->checkForParentType($a_lm_ref_id,'crs'))
-		{
-			return true;
-		}
+        $ilDB->replace(
+            "crs_lm_history",
+            [
+                "crs_ref_id" => ["integer", $crs_ref_id],
+                "lm_ref_id" => ["integer", $a_lm_ref_id],
+                "usr_id" => ["integer", $a_user_id]
+            ],
+            [
+                "lm_page_id" => ["integer", $a_page_id],
+                "last_access" => ["integer", time()]
+            ]
+        );
 
-		// Delete old entries
-		$query = "DELETE FROM crs_lm_history ".
-			"WHERE lm_ref_id = ".$ilDB->quote($a_lm_ref_id,'integer')." ".
-			"AND usr_id = ".$ilDB->quote($a_user_id,'integer')."";
-		$res = $ilDB->manipulate($query);
+        return true;
+    }
 
-		// Add new entry
-		$fields = array("usr_id" => array("integer", $a_user_id),
-			"crs_ref_id" => array("integer", $crs_ref_id),
-			"lm_ref_id" => array("integer", $a_lm_ref_id),
-			"lm_page_id" => array("integer", $a_page_id),
-			"last_access" => array("integer", time()));
-		$ilDB->insert("crs_lm_history", $fields);
-		return true;
-	}
+    public function getLastLM(): int
+    {
+        $query = "SELECT * FROM crs_lm_history " .
+            "WHERE usr_id = " . $this->db->quote($this->getUserId(), 'integer') . " " .
+            "AND crs_ref_id = " . $this->db->quote($this->getCourseRefId(), 'integer') . " " .
+            "ORDER BY last_access ";
 
-	function getLastLM()
-	{
-		global $DIC;
+        $res = $this->db->query($query);
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            return (int) $row->lm_ref_id;
+        }
+        return 0;
+    }
 
-		$ilDB = $DIC['ilDB'];
-		
-		$query = "SELECT * FROM crs_lm_history ".
-			"WHERE usr_id = ".$ilDB->quote($this->getUserId(),'integer')." ".
-			"AND crs_ref_id = ".$ilDB->quote($this->getCourseRefId(),'integer')." ".
-			"ORDER BY last_access ";
+    public function getLMHistory(): array
+    {
+        $query = "SELECT * FROM crs_lm_history " .
+            "WHERE usr_id = " . $this->db->quote($this->getUserId(), 'integer') . " " .
+            "AND crs_ref_id = " . $this->db->quote($this->getCourseRefId(), 'integer') . "";
 
-		$res = $this->db->query($query);
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			return $row->lm_ref_id;
-		}
-		return false;
-	}
+        $res = $this->db->query($query);
+        $lm = [];
+        while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+            $lm[$row->lm_ref_id]['lm_ref_id'] = (int) $row->lm_ref_id;
+            $lm[$row->lm_ref_id]['lm_page_id'] = (int) $row->lm_page_id;
+            $lm[$row->lm_ref_id]['last_access'] = (int) $row->last_access;
+        }
+        return $lm;
+    }
 
-	function getLMHistory()
-	{
-		global $DIC;
+    public static function _deleteUser(int $a_usr_id): void
+    {
+        global $DIC;
 
-		$ilDB = $DIC['ilDB'];
-		
-		$query = "SELECT * FROM crs_lm_history ".
-			"WHERE usr_id = ".$ilDB->quote($this->getUserId(),'integer')." ".
-			"AND crs_ref_id = ".$ilDB->quote($this->getCourseRefId(),'integer')."";
-
-		$res = $this->db->query($query);
-		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-		{
-			$lm[$row->lm_ref_id]['lm_ref_id'] = $row->lm_ref_id;
-			$lm[$row->lm_ref_id]['lm_page_id'] = $row->lm_page_id;
-			$lm[$row->lm_ref_id]['last_access'] = $row->last_access;
-		}
-		return $lm ? $lm : array();
-	}
-
-	/**
-	 * Delete user
-	 * @global type $ilDB
-	 * @param type $a_usr_id
-	 * @return boolean
-	 */
-	public static function _deleteUser($a_usr_id)
-	{
-		global $DIC;
-
-		$ilDB = $DIC['ilDB'];
-
-		$query = "DELETE FROM crs_lm_history WHERE usr_id = ".$ilDB->quote($a_usr_id,'integer')." ";
-		$res = $ilDB->manipulate($query);
-
-		return true;
-	}
-			
+        $ilDB = $DIC->database();
+        $query = "DELETE FROM crs_lm_history WHERE usr_id = " . $ilDB->quote($a_usr_id, 'integer') . " ";
+        $res = $ilDB->manipulate($query);
+    }
 }
-?>

@@ -1,4 +1,21 @@
 <?php
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 declare(strict_types=1);
 
 namespace ILIAS\UI\Implementation\Component\Input\Field;
@@ -8,6 +25,11 @@ use ILIAS\Data\Result\Ok;
 use ILIAS\UI\Component as C;
 use ILIAS\UI\Component\Signal;
 use ILIAS\UI\Implementation\Component\Input\InputData;
+use stdClass;
+use ILIAS\Refinery\Constraint;
+use InvalidArgumentException;
+use Closure;
+use LogicException;
 use ILIAS\UI\Implementation\Component\JavaScriptBindable;
 use ILIAS\UI\Implementation\Component\Triggerer;
 
@@ -16,118 +38,106 @@ use ILIAS\UI\Implementation\Component\Triggerer;
  *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
-class Tag extends Input implements C\Input\Field\Tag
+class Tag extends FormInput implements C\Input\Field\Tag
 {
-    const EVENT_ITEM_ADDED = 'itemAdded';
-    const EVENT_BEFORE_ITEM_REMOVE = 'beforeItemRemove';
-    const EVENT_BEFORE_ITEM_ADD = 'beforeItemAdd';
-    const EVENT_ITEM_REMOVED = 'itemRemoved';
-    const INFINITE = 0;
     use JavaScriptBindable;
     use Triggerer;
-    /**
-     * @var int
-     */
-    protected $max_tags = self::INFINITE;
-    /**
-     * @var int
-     */
-    protected $tag_max_length = self::INFINITE;
-    /**
-     * @var bool
-     */
-    protected $extendable = true;
-    /**
-     * @var int
-     */
-    protected $suggestion_starts_with = 1;
-    /**
-     * @var array
-     */
-    protected $tags = [];
-    /**
-     * @var array
-     */
-    protected $value = [];
 
+    public const EVENT_ITEM_ADDED = 'itemAdded';
+    public const EVENT_BEFORE_ITEM_REMOVE = 'beforeItemRemove';
+    public const EVENT_BEFORE_ITEM_ADD = 'beforeItemAdd';
+    public const EVENT_ITEM_REMOVED = 'itemRemoved';
+    public const INFINITE = 0;
 
-    /**
-     * TagInput constructor.
-     *
-     * @param \ILIAS\Data\Factory           $data_factory
-     * @param \ILIAS\Refinery\Factory $refinery
-     * @param string                        $label
-     * @param string                        $byline
-     * @param array                         $tags
-     */
+    protected int $max_tags = self::INFINITE;
+    protected int $tag_max_length = self::INFINITE;
+    protected bool $extendable = true;
+    protected int $suggestion_starts_with = 1;
+    protected array $tags = [];
+
     public function __construct(
         DataFactory $data_factory,
         \ILIAS\Refinery\Factory $refinery,
-        $label,
-        $byline,
+        string $label,
+        ?string $byline,
         array $tags
     ) {
         parent::__construct($data_factory, $refinery, $label, $byline);
         $this->tags = $tags;
+
+        $this->addAdditionalTransformations();
     }
 
-
-    /**
-     * @return \stdClass
-     */
-    public function getConfiguration() : \stdClass
+    protected function addAdditionalTransformations(): void
     {
-        $configuration = new \stdClass();
+        $this->setAdditionalTransformation($this->refinery->string()->splitString(','));
+        $this->setAdditionalTransformation($this->refinery->custom()->transformation(function (array $v) {
+            if (count($v) == 1 && $v[0] === '') {
+                return [];
+            }
+            return array_map("urldecode", $v);
+        }));
+    }
+
+    public function getConfiguration(): stdClass
+    {
+        $options = array_map(
+            fn ($tag) => [
+                'value' => urlencode(trim($tag)),
+                'display' => $tag,
+                'searchBy' => $tag
+            ],
+            $this->getTags()
+        );
+
+        $configuration = new stdClass();
         $configuration->id = null;
-        $configuration->options = $this->getTags();
+        $configuration->options = $options;
         $configuration->selectedOptions = $this->getValue();
-        $configuration->extendable = $this->areUserCreatedTagsAllowed();
+        $configuration->maxItems = 20;
+        $configuration->dropdownMaxItems = 200;
+        $configuration->dropdownCloseOnSelect = false;
+        $configuration->readonly = $this->isDisabled();
+        $configuration->userInput = $this->areUserCreatedTagsAllowed();
+        $configuration->dropdownSuggestionsStartAfter = $this->getSuggestionsStartAfter();
         $configuration->suggestionStarts = $this->getSuggestionsStartAfter();
         $configuration->maxChars = 2000;
         $configuration->suggestionLimit = 50;
         $configuration->debug = false;
         $configuration->allowDuplicates = false;
         $configuration->highlight = true;
-        $configuration->tagClass = "label label-primary il-input-tag-tag";
-        $configuration->focusClass = 'il-input-tag-focus';
+        $configuration->tagClass = "input-tag";
+        $configuration->tagTextProp = "displayValue";
 
         return $configuration;
     }
 
-
     /**
      * @inheritDoc
      */
-    protected function getConstraintForRequirement()
+    protected function getConstraintForRequirement(): ?Constraint
     {
-        $constraint = $this->refinery->custom()->constraint(
-            function ($value) {
-                $valueIsAStringArray = $this->refinery
-                    ->to()
-                    ->listOf($this->refinery->to()->string())
-                    ->applyTo(new Ok($value))
-                    ->isOK();
+        if ($this->requirement_constraint !== null) {
+            return $this->requirement_constraint;
+        }
 
-                return ($valueIsAStringArray);
-            },
-            "Empty array"
-        );
-
-        return $constraint;
+        return $this->refinery->logical()->sequential([
+            $this->refinery->logical()->not($this->refinery->null()),
+            $this->refinery->string()->hasMinLength(1)
+        ])->withProblemBuilder(function ($txt) {
+            return $txt('ui_tag_required');
+        });
     }
 
-
     /**
      * @inheritDoc
      */
-    protected function isClientSideValueOk($value)
+    protected function isClientSideValueOk($value): bool
     {
         if ($this->getMaxTags() > 0) {
             $max_tags = $this->getMaxTags();
             $max_tags_ok = $this->refinery->custom()->constraint(
-                function ($value) use ($max_tags) {
-                    return (is_array($value) && count($value) <= $max_tags);
-                },
+                fn ($value) => is_array($value) && count($value) <= $max_tags,
                 'Too many Tags'
             );
             if (!$max_tags_ok->accepts($value)) {
@@ -170,7 +180,7 @@ class Tag extends Input implements C\Input\Field\Tag
     /**
      * @inheritDoc
      */
-    public function getTags() : array
+    public function getTags(): array
     {
         return $this->tags;
     }
@@ -179,44 +189,28 @@ class Tag extends Input implements C\Input\Field\Tag
     /**
      * @inheritDoc
      */
-    public function withUserCreatedTagsAllowed(bool $extendable) : C\Input\Field\Tag
+    public function withUserCreatedTagsAllowed(bool $extendable): C\Input\Field\Tag
     {
         $clone = clone $this;
         $clone->extendable = $extendable;
-        /**
-         * @var $with_constraint C\Input\Field\Tag
-         */
-        $with_constraint = $clone->withAdditionalTransformation(
-            $this->refinery->custom()->constraint(
-                function ($value) use ($clone) {
-                    return (0 == count(array_diff($value, $clone->getTags())));
-                },
-                function ($txt, $value) use ($clone) {
-                    return "user created tags are not allowed: " . implode(", ", array_diff($value, $clone->getTags()));
-                }
-            )
-        );
-
-        return $with_constraint;
+        return $clone;
     }
-
 
     /**
      * @inheritDoc
      */
-    public function areUserCreatedTagsAllowed() : bool
+    public function areUserCreatedTagsAllowed(): bool
     {
         return $this->extendable;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function withSuggestionsStartAfter(int $characters) : C\Input\Field\Tag
+    public function withSuggestionsStartAfter(int $characters): C\Input\Field\Tag
     {
         if ($characters < 1) {
-            throw new \InvalidArgumentException("The amount of characters must be at least 1, {$characters} given.");
+            throw new InvalidArgumentException("The amount of characters must be at least 1, $characters given.");
         }
         $clone = clone $this;
         $clone->suggestion_starts_with = $characters;
@@ -224,20 +218,18 @@ class Tag extends Input implements C\Input\Field\Tag
         return $clone;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function getSuggestionsStartAfter() : int
+    public function getSuggestionsStartAfter(): int
     {
         return $this->suggestion_starts_with;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function withTagMaxLength(int $max_length) : C\Input\Field\Tag
+    public function withTagMaxLength(int $max_length): C\Input\Field\Tag
     {
         $clone = clone $this;
         $clone->tag_max_length = $max_length;
@@ -245,20 +237,18 @@ class Tag extends Input implements C\Input\Field\Tag
         return $clone;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function getTagMaxLength() : int
+    public function getTagMaxLength(): int
     {
         return $this->tag_max_length;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function withMaxTags(int $max_tags) : C\Input\Field\Tag
+    public function withMaxTags(int $max_tags): C\Input\Field\Tag
     {
         $clone = clone $this;
         $clone->max_tags = $max_tags;
@@ -266,42 +256,47 @@ class Tag extends Input implements C\Input\Field\Tag
         return $clone;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function getMaxTags() : int
+    public function getMaxTags(): int
     {
         return $this->max_tags;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function withInput(InputData $input)
+    public function withInput(InputData $input): C\Input\Field\Input
     {
-        return parent::withInput($input);
+        // ATTENTION: This is a slightly modified copy of parent::withInput, which
+        // fixes #27909 but makes the Tag Input unusable in Filter Containers.
+        if ($this->getName() === null) {
+            throw new LogicException("Can only collect if input has a name.");
+        }
+
+        $clone = clone $this;
+        //TODO: Discuss, is this correct here. If there is no input contained in this post
+        //We assign null. Note that unset checkboxes are not contained in POST.
+        if (!$this->isDisabled()) {
+            $value = $input->getOr($this->getName(), null);
+            $clone->content = $this->applyOperationsTo($value);
+        }
+
+        if ($clone->content->isError()) {
+            return $clone->withError("" . $clone->content->error());
+        }
+
+        return $clone->withValue($clone->content->value());
     }
 
-
-
     // Events
-
-
-    /**
-     * @inheritDoc
-     */
-    public function withAdditionalOnTagAdded(Signal $signal) : C\Input\Field\Tag
+    public function withAdditionalOnTagAdded(Signal $signal): C\Input\Field\Tag
     {
         return $this->appendTriggeredSignal($signal, self::EVENT_ITEM_ADDED);
     }
 
-
-    /**
-     * @inheritDoc
-     */
-    public function withAdditionalOnTagRemoved(Signal $signal) : C\Input\Field\Tag
+    public function withAdditionalOnTagRemoved(Signal $signal): C\Input\Field\Tag
     {
         return $this->appendTriggeredSignal($signal, self::EVENT_ITEM_REMOVED);
     }
@@ -309,17 +304,14 @@ class Tag extends Input implements C\Input\Field\Tag
     /**
      * @inheritdoc
      */
-    public function getUpdateOnLoadCode() : \Closure
+    public function getUpdateOnLoadCode(): Closure
     {
-        return function ($id) {
-            $code = "$('#$id').on('itemAdded', function(event) {
+        return fn ($id) => "$('#$id').on('add', function(event) {
 				il.UI.input.onFieldUpdate(event, '$id', $('#$id').val());
 			});
-			$('#$id').on('itemRemoved', function(event) {
+			$('#$id').on('remove', function(event) {
 				il.UI.input.onFieldUpdate(event, '$id', $('#$id').val());
 			});
 			il.UI.input.onFieldUpdate(event, '$id', $('#$id').val());";
-            return $code;
-        };
     }
 }

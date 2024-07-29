@@ -1,115 +1,135 @@
 <?php
-/* Copyright (c) 1998-2017 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
 
 /**
  * Class ilSamlMappedUserAttributeValueParserTest
+ * @author Michael Jansen <mjansen@databay.de>
  */
 class ilSamlMappedUserAttributeValueParserTest extends TestCase
 {
-	/**
-	 * @param $externalAttributeReference
-	 * @return \ilExternalAuthUserAttributeMappingRule
-	 */
-	protected function getMappingRuleMock($externalAttributeReference)
-	{
-		$rule = $this->getMockBuilder(ilExternalAuthUserAttributeMappingRule::class)->disableOriginalConstructor()->getMock();
-		$rule->expects($this->any())->method('getExternalAttribute')->will($this->returnValue($externalAttributeReference));
-		$rule->expects($this->any())->method('getAttribute')->will($this->returnValue($externalAttributeReference));
+    protected function getMappingRuleMock(string $externalAttributeReference): ilExternalAuthUserAttributeMappingRule
+    {
+        $rule = $this->getMockBuilder(ilExternalAuthUserAttributeMappingRule::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $rule
+            ->method('getExternalAttribute')
+            ->willReturn($externalAttributeReference);
+        $rule
+            ->method('getAttribute')
+            ->willReturn($externalAttributeReference);
 
-		return $rule;
-	}
+        return $rule;
+    }
 
-	public function testValueGivenAsStringCanBeRetrievedForExternalAttribute()
-	{
-		$expectedValue = 'ILIAS';
+    public function testValueGivenAsStringCanBeRetrievedForExternalAttribute(): void
+    {
+        $expectedValue = 'ILIAS';
 
-		$attributeKey   = 'firstname';
-		$attributeValue = $expectedValue;
+        $attributeKey = 'firstname';
+        $attributeValue = $expectedValue;
 
-		$userData = [$attributeKey => $attributeValue];
+        $userData = [$attributeKey => $attributeValue];
 
-		$parser = new ilSamlMappedUserAttributeValueParser($this->getMappingRuleMock($attributeKey), $userData);
-		$this->assertEquals($expectedValue, $parser->parse());
-	}
+        $parser = new ilSamlMappedUserAttributeValueParser($this->getMappingRuleMock($attributeKey), $userData);
+        $this->assertSame($expectedValue, $parser->parse());
+    }
 
-	public function testValueGivenAsArrayCanBeRetrievedForExternalAttribute()
-	{
-		$expectedValue = 'ILIAS';
+    public function testValueGivenAsArrayCanBeRetrievedForExternalAttribute(): void
+    {
+        $expectedValue = 'ILIAS';
 
-		$attributeKey   = 'firstname';
-		$attributeValue = [$expectedValue];
+        $attributeKey = 'firstname';
+        $attributeValue = [$expectedValue];
 
-		$userData = [$attributeKey => $attributeValue];
+        $userData = [$attributeKey => $attributeValue];
 
-		$parser = new ilSamlMappedUserAttributeValueParser($this->getMappingRuleMock($attributeKey), $userData);
-		$this->assertEquals($expectedValue, $parser->parse());
-	}
+        $parser = new ilSamlMappedUserAttributeValueParser($this->getMappingRuleMock($attributeKey), $userData);
+        $this->assertSame($expectedValue, $parser->parse());
+    }
 
-	public function testValueGivenAsArrayCanBeRetrievedForExternalAttributeWithSpecificIndex()
-	{
-		$expectedValue      = 'ILIAS';
-		$expectedValueIndex = 5;
+    public function testValueGivenAsArrayCanBeRetrievedForExternalAttributeWithSpecificIndex(): void
+    {
+        $expectedValue = 'ILIAS';
+        $expectedValueIndex = 5;
 
-		$attributeKey   = 'firstname';
-		$attributeValue = [$expectedValueIndex => $expectedValue];
+        $attributeKey = 'firstname';
+        $attributeValue = [$expectedValueIndex => $expectedValue];
 
-		$userData = [$attributeKey => $attributeValue];
+        $userData = [$attributeKey => $attributeValue];
 
-		$parser = new ilSamlMappedUserAttributeValueParser(
-			$this->getMappingRuleMock($attributeKey . '|' . $expectedValueIndex),
-			$userData
-		);
-		$this->assertEquals($expectedValue, $parser->parse());
-	}
+        $parser = new ilSamlMappedUserAttributeValueParser(
+            $this->getMappingRuleMock($attributeKey . '|' . $expectedValueIndex),
+            $userData
+        );
+        $this->assertSame($expectedValue, $parser->parse());
+    }
 
-	public function testExceptionIsRaisedIfAnExpectedAttributeIsMissing()
-	{
-		$this->expectException(ilSamlException::class);
+    public function testExceptionIsRaisedIfAnExpectedAttributeIsMissing(): void
+    {
+        $this->expectException(ilSamlException::class);
 
-		$attributeKey   = 'firstname';
-		$userData       = [];
+        $attributeKey = 'firstname';
+        $userData = [];
 
-		$parser = new ilSamlMappedUserAttributeValueParser($this->getMappingRuleMock($attributeKey), $userData);
-		$parser->parse();
-	}
+        $parser = new ilSamlMappedUserAttributeValueParser($this->getMappingRuleMock($attributeKey), $userData);
+        $parser->parse();
+    }
 
-	public function testExceptionIsRaisedIfAnExpectedValueCouldNotBeFoundForAnExpectedValueIndex()
-	{
-		$this->expectException(ilSamlException::class);
+    public function testExceptionIsRaisedIfAnExpectedValueCouldNotBeFoundForAnExpectedValueIndex(): void
+    {
+        $this->expectException(ilSamlException::class);
 
-		$expectedValue      = 'ILIAS';
-		$expectedValueIndex = 5;
+        $expectedValue = 'ILIAS';
+        $expectedValueIndex = 5;
 
-		$attributeKey   = 'firstname';
-		$attributeValue = [($expectedValueIndex + 1) => $expectedValue];
+        $attributeKey = 'firstname';
+        $attributeValue = [($expectedValueIndex + 1) => $expectedValue];
 
-		$userData       = [$attributeKey => $attributeValue];
+        $userData = [$attributeKey => $attributeValue];
 
-		$parser = new ilSamlMappedUserAttributeValueParser(
-			$this->getMappingRuleMock($attributeKey . '|' . $expectedValueIndex),
-			$userData
-		);
-		$parser->parse();
-	}
-	
-	public function testExceptionIsRaisedForNonScalarValues()
-	{
-		$this->expectException(ilSamlException::class);
+        $parser = new ilSamlMappedUserAttributeValueParser(
+            $this->getMappingRuleMock($attributeKey . '|' . $expectedValueIndex),
+            $userData
+        );
+        $parser->parse();
+    }
 
-		$expectedValue      = array('ILIAS');
-		$expectedValueIndex = 5;
+    public function testExceptionIsRaisedForNonScalarValues(): void
+    {
+        $this->expectException(ilSamlException::class);
 
-		$attributeKey   = 'firstname';
-		$attributeValue = [$expectedValueIndex => $expectedValue];
+        $expectedValue = ['ILIAS'];
+        $expectedValueIndex = 5;
 
-		$userData = [$attributeKey => $attributeValue];
+        $attributeKey = 'firstname';
+        $attributeValue = [$expectedValueIndex => $expectedValue];
 
-		$parser = new ilSamlMappedUserAttributeValueParser(
-			$this->getMappingRuleMock($attributeKey . '|' . $expectedValueIndex),
-			$userData
-		);
-		$parser->parse();
-	}
+        $userData = [$attributeKey => $attributeValue];
+
+        $parser = new ilSamlMappedUserAttributeValueParser(
+            $this->getMappingRuleMock($attributeKey . '|' . $expectedValueIndex),
+            $userData
+        );
+        $parser->parse();
+    }
 }

@@ -1,7 +1,19 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-require_once 'Services/FileSystem/classes/class.ilFileSystemStorage.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * @author		Björn Heyser <bheyser@databay.de>
@@ -9,87 +21,77 @@ require_once 'Services/FileSystem/classes/class.ilFileSystemStorage.php';
  *
  * @package     Modules/Test
  */
-class ilAssQuestionProcessLockFileStorage extends ilFileSystemStorage
+class ilAssQuestionProcessLockFileStorage extends ilFileSystemAbstractionStorage
 {
-	private $subPath;
-	
-	public function __construct($questionId, $userId)
-	{
-		parent::__construct(ilFileSystemStorage::STORAGE_DATA, true, $questionId);
-		
-		$this->initSubPath($userId);
-	}
+    private $subPath;
 
-	/**
-	 * Get path prefix. Prefix that will be prepended to the path
-	 * No trailing slash. E.g ilFiles for files
-	 *
-	 * @access protected
-	 *
-	 * @return string path prefix e.g files
-	 */
-	protected function getPathPrefix()
-	{
-		return 'ilAssQuestionProcessLocks';
-	}
+    public function __construct(int $questionId, $userId)
+    {
+        parent::__construct(ilFileSystemAbstractionStorage::STORAGE_DATA, true, $questionId);
 
-	/**
-	 * Get directory name. E.g for files => file
-	 * Only relative path, no trailing slash
-	 * '_<obj_id>' will be appended automatically
-	 *
-	 * @access protected
-	 *
-	 * @return string directory name
-	 */
-	protected function getPathPostfix()
-	{
-		return 'question';
-	}
-	
-	public function getPath()
-	{
-		return parent::getPath() . '/' . $this->subPath;
-	}
+        $this->initSubPath($userId);
+    }
 
-	public function create()
-	{
-		set_error_handler(function ($severity, $message, $file, $line)
-		{
-			throw new ErrorException($message, $severity, 0, $file, $line);
-		});
+    /**
+     * Get path prefix. Prefix that will be prepended to the path
+     * No trailing slash. E.g ilFiles for files
+     *
+     * @access protected
+     *
+     * @return string path prefix e.g files
+     */
+    protected function getPathPrefix(): string
+    {
+        return 'ilAssQuestionProcessLocks';
+    }
 
-		try
-		{
-			ilUtil::makeDirParents($this->getPath());
-			restore_error_handler();
+    /**
+     * Get directory name. E.g for files => file
+     * Only relative path, no trailing slash
+     * '_<obj_id>' will be appended automatically
+     *
+     * @access protected
+     *
+     * @return string directory name
+     */
+    protected function getPathPostfix(): string
+    {
+        return 'question';
+    }
 
-		}
-		catch(Exception $e)
-		{
-			restore_error_handler();
-		}
+    public function getPath(): string
+    {
+        return parent::getPath() . '/' . $this->subPath;
+    }
 
-		if(!file_exists($this->getPath()))
-		{
-			throw new ErrorException(sprintf('Could not find directory: %s', $this->getPath()));
-		}
+    public function create(): void
+    {
+        set_error_handler(function ($severity, $message, $file, $line): void {
+            throw new ErrorException($message, $severity, 0, $file, $line);
+        });
 
-		return true;
-	}
-	
-	private function initSubPath($userId)
-	{
-		$userId = (string)$userId;
-		
-		$path = array();
+        try {
+            parent::create($this->getPath());
+            restore_error_handler();
+        } catch (Exception $e) {
+            restore_error_handler();
+        }
 
-		for($i = 0, $max = strlen($userId); $i < $max; $i++)
-		{
-			$path[] = substr($userId, $i, 1);
-		}
+        if (!$this->getFileSystemService()->has($this->path)) {
+            throw new ErrorException(sprintf('Could not find directory: %s', $this->getPath()));
+        }
+    }
 
-		$this->subPath = implode('/', $path);
+    private function initSubPath($userId): void
+    {
+        $userId = (string) $userId;
 
-	}
-} 
+        $path = array();
+
+        for ($i = 0, $max = strlen($userId); $i < $max; $i++) {
+            $path[] = substr($userId, $i, 1);
+        }
+
+        $this->subPath = implode('/', $path);
+    }
+}

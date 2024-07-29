@@ -1,5 +1,22 @@
-<?php declare(strict_types=1);
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+<?php
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilTermsOfServiceAcceptanceDatabaseGateway
@@ -7,22 +24,14 @@
  */
 class ilTermsOfServiceAcceptanceDatabaseGateway implements ilTermsOfServiceAcceptanceDataGateway
 {
-    /** @var ilDBInterface */
-    protected $db;
+    protected ilDBInterface $db;
 
-    /**
-     * ilTermsOfServiceAcceptanceDatabaseGateway constructor.
-     * @param ilDBInterface $db
-     */
     public function __construct(ilDBInterface $db)
     {
         $this->db = $db;
     }
 
-    /**
-     * @inheritdoc
-     */
-    public function trackAcceptance(ilTermsOfServiceAcceptanceEntity $entity) : void
+    public function trackAcceptance(ilTermsOfServiceAcceptanceEntity $entity): void
     {
         $res = $this->db->queryF(
             'SELECT id FROM tos_versions WHERE hash = %s AND doc_id = %s',
@@ -31,19 +40,19 @@ class ilTermsOfServiceAcceptanceDatabaseGateway implements ilTermsOfServiceAccep
         );
 
         if ($this->db->numRows($res)) {
-            $row       = $this->db->fetchAssoc($res);
+            $row = $this->db->fetchAssoc($res);
             $versionId = $row['id'];
         } else {
             $versionId = $this->db->nextId('tos_versions');
             $this->db->insert(
                 'tos_versions',
                 [
-                    'id'     => ['integer', $versionId],
-                    'text'   => ['clob', $entity->getText()],
-                    'hash'   => ['text', $entity->getHash()],
+                    'id' => ['integer', $versionId],
+                    'text' => ['clob', $entity->getText()],
+                    'hash' => ['text', $entity->getHash()],
                     'doc_id' => ['integer', $entity->getDocumentId()],
-                    'title'  => ['text', $entity->getTitle()],
-                    'ts'     => ['integer', $entity->getTimestamp()]
+                    'title' => ['text', $entity->getTitle()],
+                    'ts' => ['integer', $entity->getTimestamp()]
                 ]
             );
         }
@@ -51,23 +60,21 @@ class ilTermsOfServiceAcceptanceDatabaseGateway implements ilTermsOfServiceAccep
         $this->db->insert(
             'tos_acceptance_track',
             [
-                'tosv_id'  => ['integer', $versionId],
-                'usr_id'   => ['integer', $entity->getUserId()],
+                'tosv_id' => ['integer', $versionId],
+                'usr_id' => ['integer', $entity->getUserId()],
                 'criteria' => ['clob', $entity->getSerializedCriteria()],
-                'ts'       => ['integer', $entity->getTimestamp()]
+                'ts' => ['integer', $entity->getTimestamp()]
             ]
         );
     }
 
-    /**
-     * @inheritdoc
-     */
     public function loadCurrentAcceptanceOfUser(
         ilTermsOfServiceAcceptanceEntity $entity
-    ) : ilTermsOfServiceAcceptanceEntity {
+    ): ilTermsOfServiceAcceptanceEntity {
         $this->db->setLimit(1, 0);
 
-        $res = $this->db->queryF('
+        $res = $this->db->queryF(
+            '
 			SELECT tos_versions.*,
 				tos_acceptance_track.ts accepted_ts,
 				tos_acceptance_track.criteria,
@@ -82,6 +89,10 @@ class ilTermsOfServiceAcceptanceDatabaseGateway implements ilTermsOfServiceAccep
         );
         $row = $this->db->fetchAssoc($res);
 
+        if ($row === null) {
+            return $entity;
+        }
+
         $entity = $entity
             ->withId((int) $row['id'])
             ->withUserId((int) $row['usr_id'])
@@ -95,12 +106,10 @@ class ilTermsOfServiceAcceptanceDatabaseGateway implements ilTermsOfServiceAccep
         return $entity;
     }
 
-    /**
-     * @inheritdoc
-     */
-    public function loadById(ilTermsOfServiceAcceptanceEntity $entity) : ilTermsOfServiceAcceptanceEntity
+    public function loadById(ilTermsOfServiceAcceptanceEntity $entity): ilTermsOfServiceAcceptanceEntity
     {
-        $res = $this->db->queryF('
+        $res = $this->db->queryF(
+            '
 			SELECT *
 			FROM tos_versions
 			WHERE id = %s
@@ -120,10 +129,7 @@ class ilTermsOfServiceAcceptanceDatabaseGateway implements ilTermsOfServiceAccep
         return $entity;
     }
 
-    /**
-     * @inheritdoc
-     */
-    public function deleteAcceptanceHistoryByUser(ilTermsOfServiceAcceptanceEntity $entity) : void
+    public function deleteAcceptanceHistoryByUser(ilTermsOfServiceAcceptanceEntity $entity): void
     {
         $this->db->manipulate(
             'DELETE FROM tos_acceptance_track WHERE usr_id = ' . $this->db->quote($entity->getUserId(), 'integer')

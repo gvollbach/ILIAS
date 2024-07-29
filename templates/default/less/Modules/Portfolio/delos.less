@@ -2,6 +2,10 @@
 
 ul.ilPCMyCoursesCourseList > li {
 	margin-bottom: 10px;
+	.course-list-tree-icon {
+		width: 20px;
+		height: 20px;
+	}
 }
 
 ul.ilPCMyCoursesObjectiveList > li {
@@ -15,7 +19,7 @@ a.ilPCMyCoursesToggle {
 
 div.ilPCMyCoursesPath {
 	margin-bottom: 10px;
-	font-size: 90%; 
+	font-size: @il-font-size-small; 
 	/* font-style: italic; */
 }
 
@@ -43,7 +47,7 @@ div.ilPrtfToc {
 }
 
 body.ilPrtfPdfBody {
-	> #ilAll > div.ilInvisibleBorder {
+	> div.ilInvisibleBorder {
 		padding: 0;
 		padding-left: 40px;
 	}

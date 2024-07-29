@@ -1,208 +1,190 @@
 <?php
 
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-require_once("./Services/COPage/classes/class.ilPageContent.php");
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
-* Class ilPlaceHolder
-*
-* List content object (see ILIAS DTD)
-*
-* @version $Id$
-*
-* @ingroup ServicesCOPage
-*/
+ * Class ilPlaceHolder
+ *
+ * List content object (see ILIAS DTD)
+ */
+class ilPCPlaceHolder extends ilPageContent
+{
+    protected ilCtrl $ctrl;
+    protected ilLanguage $lng;
+    public php4DOMElement $q_node;			// node of Paragraph element
+    public string $content_class;
+    public string $height;
 
-class ilPCPlaceHolder extends ilPageContent {
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    public function init(): void
+    {
+        global $DIC;
 
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
-	
-	//class of placeholder
-	
-	var $q_node;			// node of Paragraph element
-	var $content_class;
-	var $height;
-	
-	/**
-	* Init page content component.
-	*/
-	function init()
-	{
-		global $DIC;
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        $this->setType("plach");
+    }
 
-		$this->ctrl = $DIC->ctrl();
-		$this->lng = $DIC->language();
-		$this->setType("plach");
-	}
-	
-	
-	/**
-	* Set node
-	*/
-	function setNode($a_node)
-	{
-		parent::setNode($a_node);		// this is the PageContent node
-		$this->q_node = $a_node->first_child();		//... and this the PlaceHolder
-	}
-	
-	/**
-	* Create PlaceHolder Element
-	*/
-	function create(&$a_pg_obj, $a_hier_id)
-	{
-		$this->createPageContentNode();
-		$a_pg_obj->insertContent($this, $a_hier_id, IL_INSERT_AFTER);
-		$this->q_node = $this->dom->create_element("PlaceHolder");
-		$this->q_node = $this->node->append_child($this->q_node);
-	}
+    public function setNode(php4DOMElement $a_node): void
+    {
+        parent::setNode($a_node);		// this is the PageContent node
+        $this->q_node = $a_node->first_child();		//... and this the PlaceHolder
+    }
 
-	/**
-	* Set Content Class.
-	*
-	* @param	string	$a_class	Content Class
-	*/
-	function setContentClass($a_class)
-	{
-		if (is_object($this->q_node))
-		{
-			$this->q_node->set_attribute("ContentClass", $a_class);
-		}
-	}
+    public function create(
+        ilPageObject $a_pg_obj,
+        string $a_hier_id,
+        string $a_pc_id = ""
+    ): void {
+        $this->createPageContentNode();
+        $a_pg_obj->insertContent($this, $a_hier_id, IL_INSERT_AFTER, $a_pc_id);
+        $this->q_node = $this->dom->create_element("PlaceHolder");
+        $this->q_node = $this->node->append_child($this->q_node);
+    }
 
-	/**
-	* Get Content Class.
-	*
-	* @return	string	Content Class
-	*/
-	function getContentClass()
-	{
-		if (is_object($this->q_node))
-		{
-			return $this->q_node->get_attribute("ContentClass", $a_class);
-		}
-		return false;
-	}
-	
-	/**
-	* Set Height
-	*
-	* @param	string	$a_height	Height
-	*/
-	function setHeight($a_height)
-	{
-		if (is_object($this->q_node))
-		{
-			$this->q_node->set_attribute("Height", $a_height);
-		}
-	}
-	
-	
-	/**
-	* Get Height
-	*
-	* @return	string	Content Class
-	*/
-	function getHeight()
-	{
-		if (is_object($this->q_node))
-		{
-			return $this->q_node->get_attribute("Height", $a_class);
-		}
-		return false;
-	}
-	
-	/**
-	* Get characteristic of PlaceHolder.
-	*
-	* @return	string		characteristic
-	*/
-	function getClass()
-	{
-		return "";
-	}
-	
-	/**
-	 * Get lang vars needed for editing
-	 * @return array array of lang var keys
-	 */
-	static function getLangVars()
-	{
-		return array("question_placeh","media_placeh","text_placeh",
-			"ed_insert_plach","question_placehl","media_placehl","text_placehl",
-			"verification_placeh", "verification_placehl");
-	}
+    public function setContentClass(string $a_class): void
+    {
+        if (is_object($this->q_node)) {
+            $this->q_node->set_attribute("ContentClass", $a_class);
+        }
+    }
 
+    public function getContentClass(): string
+    {
+        if (is_object($this->q_node)) {
+            return $this->q_node->get_attribute("ContentClass");
+        }
+        return "";
+    }
 
-	/**
-	 * Modify page content after xsl
-	 *
-	 * @param string $a_html
-	 * @return string
-	 */
-	function modifyPageContentPostXsl($a_html, $a_mode)
-	{
-		$ilCtrl = $this->ctrl;
-		$lng = $this->lng;
+    public function setHeight(string $a_height): void
+    {
+        if (is_object($this->q_node)) {
+            $this->q_node->set_attribute("Height", $a_height);
+        }
+    }
 
-		//
-		// Note: this standard output is "overwritten", e.g. by ilPortfolioPageGUI::postOutputProcessing
-		//
+    public function getHeight(): string
+    {
+        if (is_object($this->q_node)) {
+            return $this->q_node->get_attribute("Height");
+        }
+        return "";
+    }
 
-		$c_pos = 0;
-		$start = strpos($a_html, "{{{{{PlaceHolder#");
-		if (is_int($start))
-		{
-			$end = strpos($a_html, "}}}}}", $start);
-		}
-		$i = 1;
-		while ($end > 0)
-		{
-			$param = substr($a_html, $start + 17, $end - $start - 17);
-			$param = explode("#", $param);
+    public function getClass(): string
+    {
+        return "";
+    }
 
-			$html = $param[2];
-			switch ($param[2])
-			{
-				case "Text":
-					$html = $lng->txt("cont_text_placeh");
-					break;
+    public static function getLangVars(): array
+    {
+        return array("question_placeh","media_placeh","text_placeh",
+            "ed_insert_plach","question_placehl","media_placehl","text_placehl",
+            "verification_placeh", "verification_placehl");
+    }
 
-				case "Media":
-					$html = $lng->txt("cont_media_placeh");
-					break;
+    public function modifyPageContentPostXsl(
+        string $a_output,
+        string $a_mode,
+        bool $a_abstract_only = false
+    ): string {
+        $lng = $this->lng;
 
-				case "Question":
-					$html = $lng->txt("cont_question_placeh");
-					break;
+        //
+        // Note: this standard output is "overwritten", e.g. by ilPortfolioPageGUI::postOutputProcessing
+        //
 
-				case "Verification":
-					$html = $lng->txt("cont_verification_placeh");
-					break;
-			}
+        $end = 0;
+        $start = strpos($a_output, "{{{{{PlaceHolder#");
+        if (is_int($start)) {
+            $end = strpos($a_output, "}}}}}", $start);
+        }
+        $i = 1;
+        while ($end > 0) {
+            $param = substr($a_output, $start + 17, $end - $start - 17);
+            $param = explode("#", $param);
 
-			$h2 = substr($a_html, 0, $start).
-				$html.
-				substr($a_html, $end + 5);
-			$a_html = $h2;
-			$i++;
+            $html = $param[2];
+            switch ($param[2]) {
+                case "Text":
+                    $html = $lng->txt("cont_text_placeh");
+                    break;
 
-			$start = strpos($a_html, "{{{{{PlaceHolder#", $start + 5);
-			$end = 0;
-			if (is_int($start))
-			{
-				$end = strpos($a_html, "}}}}}", $start);
-			}
-		}
-		return $a_html;
-	}
+                case "Media":
+                    $html = $lng->txt("cont_media_placeh");
+                    break;
 
+                case "Question":
+                    $html = $lng->txt("cont_question_placeh");
+                    break;
 
+                case "Verification":
+                    $html = $lng->txt("cont_verification_placeh");
+                    break;
+            }
+
+            $h2 = substr($a_output, 0, $start) .
+                $html .
+                substr($a_output, $end + 5);
+            $a_output = $h2;
+            $i++;
+
+            $start = strpos($a_output, "{{{{{PlaceHolder#", $start + 5);
+            $end = 0;
+            if (is_int($start)) {
+                $end = strpos($a_output, "}}}}}", $start);
+            }
+        }
+        return $a_output;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getModel(): ?stdClass
+    {
+        $model = new \stdClass();
+        $model->contentClass = $this->getContentClass();
+        return $model;
+    }
+
+    public function getCssFiles(string $a_mode): array
+    {
+        return [ilObjStyleSheet::getPlaceHolderStylePath()];
+    }
+
+    public static function handleCopiedContent(
+        DOMDocument $a_domdoc,
+        bool $a_self_ass = true,
+        bool $a_clone_mobs = false,
+        int $new_parent_id = 0,
+        int $obj_copy_id = 0
+    ): void {
+        // remove question placholders
+        if (!$a_self_ass) {
+            // Get question IDs
+            $path = "//PlaceHolder[@ContentClass = 'Question']";
+            $xpath = new DOMXPath($a_domdoc);
+            $nodes = $xpath->query($path);
+
+            foreach ($nodes as $node) {
+                $parent = $node->parentNode;
+                $parent->parentNode->removeChild($parent);
+            }
+        }
+    }
 }

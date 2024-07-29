@@ -28,7 +28,7 @@ also include Testers, Translators, Authors and other people into the processes
 described here. If you want to contribute to said activities please have a look
 [here](contributing.md).
 
-As a contributor you will be named in the release notes of our major relases
+As a contributor you will be named in the release notes of our major releases
 with your name and your organisation as we find them in our commit history and
 in your profile on GitHub. If your don't want to be listed, please write a short
 mail to the [Technical Board of the ILIAS society](mailto:tb@lists.ilias.de).
@@ -68,7 +68,10 @@ code please make sure:
   reviewers as well
 * that your commit follows the [ILIAS coding
   guidelines](http://www.ilias.de/docu/goto_docu_pg_202_42.html) - this is a
-  bare minimun of style we want to maintain for new code
+  bare minimum of style we want to maintain for new code
+* you don't introduce new code violations which could have been easily found by
+  importing and running our
+  [PhpStorm PHP Inspection Profile](./inspection-configs/php-storm-php-inspections.xml)
 * that your are approachable for questions of reviewers
 
 If your PR contains a bugfix please reference the number of the mantis ticket
@@ -84,7 +87,7 @@ to the ILIAS-repository as a general working space for incomplete features or id
 Prefer other measures like workshops or VCs for discussion about ideas or approaches.
 If you are positive that you definitely need to open a PR as a draft, prefix the
 summary with "WIP -"" for these kind of PRs to prevent them from being merged
-accidentially.
+accidentally.
 
 <a name="list-of-labels"></a>
 ## List of Labels
@@ -120,14 +123,11 @@ We are happy to get contributions that are no commits as well. There are many
 other things you could contribute to ILIAS:
 
 * **Ideas for new Features**: The development of ILIAS is driven by requirements
-  from the community. Contribute your ideas via [feature requests]
-  (http://www.ilias.de/docu/goto.php?target=wiki_5307&client_id=docu#ilPageTocA119).
+  from the community. Contribute your ideas via [feature requests](http://www.ilias.de/docu/goto.php?target=wiki_5307&client_id=docu#ilPageTocA119).
 * **Bug Reports**: We do our best, but ILIAS might contain bugs we do not know
-  yet. Check out how the ILIAS Community handles [bug reports]
-  (http://www.ilias.de/docu/goto.php?target=wiki_5307&client_id=docu#ilPageTocA115).
+  yet. Check out how the ILIAS Community handles [bug reports](http://www.ilias.de/docu/goto.php?target=wiki_5307&client_id=docu#ilPageTocA115).
 * **Information about Security Issues**: Check out how the ILIAS community
-  handles [security issues]
-  (http://www.ilias.de/docu/goto.php?target=wiki_5307&client_id=docu#ilPageTocA112). 
+  handles [security issues](http://www.ilias.de/docu/goto.php?target=wiki_5307&client_id=docu#ilPageTocA112). 
   Reporter of security issues will also be named in the release notes.
 * **Time for Testing or Testcases**: We always need people that contribute
   testcases and perform them before new releases. Please have a look

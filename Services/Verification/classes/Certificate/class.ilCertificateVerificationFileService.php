@@ -1,121 +1,111 @@
 <?php
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ */
 
 /**
  * @author  Niels Theen <ntheen@databay.de>
  */
 class ilCertificateVerificationFileService
 {
-	/**
-	 * @var ilLanguage
-	 */
-	private $language;
+    private ilLanguage $language;
+    private ilDBInterface $database;
+    private ilLogger $logger;
+    private ilCertificateVerificationClassMap $classMap;
 
-	/**
-	 * @var ilDBInterface
-	 */
-	private $database;
+    public function __construct(
+        ilLanguage $language,
+        ilDBInterface $database,
+        ilLogger $logger,
+        ilCertificateVerificationClassMap $classMap
+    ) {
+        $this->language = $language;
+        $this->database = $database;
+        $this->logger = $logger;
+        $this->classMap = $classMap;
+    }
 
-	/**
-	 * @var ilLogger
-	 */
-	private $logger;
+    /**
+     * @throws ilException
+     */
+    public function createFile(ilUserCertificatePresentation $userCertificatePresentation): ?ilCertificateVerificationObject
+    {
+        $userCertificate = $userCertificatePresentation->getUserCertificate();
+        $objectType = $userCertificate->getObjType();
 
-	/**
-	 * @var ilCertificateVerificationClassMap
-	 */
-	private $classMap;
+        $this->language->loadLanguageModule('cert');
 
-	/**
-	 * @param ilLanguage $language
-	 * @param ilDBInterface $database
-	 * @param ilLogger $logger
-	 * @param ilCertificateVerificationClassMap $classMap
-	 */
-	public function __construct(
-		ilLanguage $language,
-		ilDBInterface $database,
-		ilLogger $logger,
-		ilCertificateVerificationClassMap $classMap
-	) {
-		$this->language = $language;
-		$this->database = $database;
-		$this->logger   = $logger;
-		$this->classMap = $classMap;
-	}
+        $verificationObjectType = $this->classMap->getVerificationTypeByType($objectType);
 
-	public function createFile(ilUserCertificatePresentation $userCertificatePresentation)
-	{
-		$userCertificate = $userCertificatePresentation->getUserCertificate();
-		$objectType = $userCertificate->getObjType();
+        $verificationObject = new ilCertificateVerificationObject($verificationObjectType);
+        $verificationObject->setTitle($userCertificatePresentation->getObjectTitle());
+        $verificationObject->setDescription($userCertificatePresentation->getObjectDescription());
 
-		$this->language->loadLanguageModule('cert');
+        $objectId = $userCertificate->getObjId();
+        $userId = $userCertificate->getUserId();
 
-		$verificationObjectType = $this->classMap->getVerificationTypeByType($objectType);
+        $issueDate = new ilDate($userCertificate->getAcquiredTimestamp(), IL_CAL_UNIX);
 
-		$verificationObject = new ilCertificateVerificationObject($verificationObjectType);
-		$verificationObject->setTitle($userCertificatePresentation->getObjectTitle());
-		$verificationObject->setDescription($userCertificatePresentation->getObjectDescription());
+        $verificationObject->setProperty('issued_on', $issueDate);
 
-		$objectId = $userCertificate->getObjId();
-		$userId = $userCertificate->getUserId();
+        $ilUserCertificateRepository = new ilUserCertificateRepository($this->database, $this->logger);
+        $pdfGenerator = new ilPdfGenerator($ilUserCertificateRepository, $this->logger);
 
-		$issueDate = new ilDate($userCertificate->getAcquiredTimestamp(), IL_CAL_UNIX);
+        $pdfAction = new ilCertificatePdfAction(
+            $this->logger,
+            $pdfGenerator,
+            new ilCertificateUtilHelper(),
+            $this->language->txt('error_creating_certificate_pdf')
+        );
 
-		$verificationObject->setProperty('issued_on', $issueDate);
+        $certificateScalar = $pdfAction->createPDF($userId, $objectId);
 
-		$ilUserCertificateRepository = new ilUserCertificateRepository($this->database, $this->logger);
-		$pdfGenerator = new ilPdfGenerator($ilUserCertificateRepository, $this->logger);
+        if ($certificateScalar) {
+            // we need the object id for storing the certificate file
+            $verificationObject->create();
 
-		$pdfAction = new ilCertificatePdfAction(
-			$this->logger,
-			$pdfGenerator,
-			new ilCertificateUtilHelper(),
-			$this->language->txt('error_creating_certificate_pdf')
-		);
+            $path = $this->initStorage($verificationObject->getId(), 'certificate');
 
-		$certificateScalar = $pdfAction->createPDF($userId, $objectId);
+            $fileName = $objectType . '_' . $objectId . '_' . $userId . '.pdf';
 
-		if($certificateScalar) {
-			// we need the object id for storing the certificate file
-			$verificationObject->create();
+            if (file_put_contents($path . $fileName, $certificateScalar)) {
+                $verificationObject->setProperty('file', $fileName);
+                $verificationObject->update();
 
-			$path = $this->initStorage($verificationObject->getId(), 'certificate');
+                return $verificationObject;
+            }
 
-			$fileName = $objectType . '_' . $objectId . '_' . $userId . '.pdf';
+            $this->logger->info('File could not be created');
+            $verificationObject->delete();
+        }
+        return null;
+    }
 
-			if(file_put_contents($path . $fileName, $certificateScalar)) {
-				$verificationObject->setProperty('file', $fileName);
-				$verificationObject->update();
+    public function initStorage(int $objectId, string $subDirectory = ''): string
+    {
+        $storage = new ilVerificationStorageFile($objectId);
+        $storage->create();
 
-				return $verificationObject;
-			}
+        $path = $storage->getAbsolutePath() . "/";
 
-			$this->logger->info('File could not be created');
-			$verificationObject->delete();
-		}
-	}
+        if ($subDirectory !== '') {
+            $path .= $subDirectory . "/";
 
-	/**
-	 * @param int $objectId
-	 * @param string $subDirectory
-	 * @return string
-	 */
-	public function initStorage(int $objectId, string $subDirectory = '')
-	{
-		$storage = new ilVerificationStorageFile($objectId);
-		$storage->create();
+            if (!is_dir($path)) {
+                mkdir($path);
+            }
+        }
 
-		$path = $storage->getAbsolutePath()."/";
-
-		if($subDirectory !== '') {
-			$path .= $subDirectory."/";
-
-			if(!is_dir($path)) {
-				mkdir($path);
-			}
-		}
-
-		return $path;
-	}
+        return $path;
+    }
 }

@@ -1,31 +1,44 @@
 <?php
 
 /**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
  * Class ilBiblFieldFactory
  *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
 class ilBiblFieldFactory implements ilBiblFieldFactoryInterface
 {
-
-    /**
-     * @var \ilBiblTypeInterface
-     */
-    protected $type;
+    protected \ilBiblTypeInterface $type;
 
 
     /**
      * ilBiblFieldFactory constructor.
-     *
-     * @param \ilBiblTypeInterface $type
      */
-    public function __construct(\ilBiblTypeInterface $type) { $this->type = $type; }
+    public function __construct(\ilBiblTypeInterface $type)
+    {
+        $this->type = $type;
+    }
 
 
     /**
      * @inheritdoc
      */
-    public function getType() : ilBiblTypeInterface
+    public function getType(): ilBiblTypeInterface
     {
         return $this->type;
     }
@@ -34,13 +47,13 @@ class ilBiblFieldFactory implements ilBiblFieldFactoryInterface
     /**
      * @inheritDoc
      */
-    public function findById(int $id) : ilBiblFieldInterface
+    public function findById(int $id): ilBiblFieldInterface
     {
         /**
-         * @var $inst ilBiblField
+         * @var ilBiblField $inst
          */
         $inst = ilBiblField::findOrFail($id);
-        if ($this->type->isStandardField($inst->getIdentifier()) != $inst->getisStandardField()) {
+        if ($this->type->isStandardField($inst->getIdentifier()) !== $inst->isStandardField()) {
             $inst->setIsStandardField($this->type->isStandardField($inst->getIdentifier()));
             $inst->update();
         }
@@ -52,14 +65,14 @@ class ilBiblFieldFactory implements ilBiblFieldFactoryInterface
     /**
      * @inheritdoc
      */
-    public function getFieldByTypeAndIdentifier(int $type, string $identifier) : ilBiblFieldInterface
+    public function getFieldByTypeAndIdentifier(int $type, string $identifier): ilBiblFieldInterface
     {
-        $this->checkType($type);
         $inst = $this->getARInstance($type, $identifier);
         if (!$inst) {
             throw new ilException("bibliografic identifier {$identifier} not found");
         }
 
+        /** @noinspection PhpIncompatibleReturnTypeInspection */
         return $inst;
     }
 
@@ -67,20 +80,19 @@ class ilBiblFieldFactory implements ilBiblFieldFactoryInterface
     /**
      * @inheritdoc
      */
-    public function findOrCreateFieldByTypeAndIdentifier(int $type, string $identifier) : ilBiblFieldInterface
+    public function findOrCreateFieldByTypeAndIdentifier(int $type, string $identifier): ilBiblFieldInterface
     {
-        $this->checkType($type);
         $inst = $this->getARInstance($type, $identifier);
-        if (!$inst) {
+        if ($inst === null) {
             $inst = new ilBiblField();
             $inst->setIdentifier($identifier);
             $inst->setDataType($type);
-            $inst->setIsStandardField((bool) $this->getType()->isStandardField($identifier));
+            $inst->setIsStandardField($this->getType()->isStandardField($identifier));
             $inst->create();
         }
         $inst->setDataType($type);
         $inst->setIdentifier($identifier);
-        $inst->setIsStandardField((bool) $this->getType()->isStandardField($identifier));
+        $inst->setIsStandardField($this->getType()->isStandardField($identifier));
         $inst->update();
 
         return $inst;
@@ -90,11 +102,11 @@ class ilBiblFieldFactory implements ilBiblFieldFactoryInterface
     /**
      * @inheritDoc
      */
-    public function getAvailableFieldsForObjId(int $obj_id) : array
+    public function getAvailableFieldsForObjId(int $obj_id): array
     {
         global $DIC;
         $sql
-            = "SELECT DISTINCT(il_bibl_attribute.name), il_bibl_data.file_type FROM il_bibl_data 
+            = "SELECT DISTINCT(il_bibl_attribute.name), il_bibl_data.file_type FROM il_bibl_data
 					JOIN il_bibl_entry ON il_bibl_entry.data_id = il_bibl_data.id
 					JOIN il_bibl_attribute ON il_bibl_attribute.entry_id = il_bibl_entry.id
 				WHERE il_bibl_data.id = %s;";
@@ -113,7 +125,7 @@ class ilBiblFieldFactory implements ilBiblFieldFactoryInterface
     /**
      * @inheritDoc
      */
-    public function filterAllFieldsForType(ilBiblTypeInterface $type, ilBiblTableQueryInfoInterface $queryInfo = null) : array
+    public function filterAllFieldsForType(ilBiblTypeInterface $type, ilBiblTableQueryInfoInterface $queryInfo = null): array
     {
         return $this->getCollectionForFilter($type, $queryInfo)->get();
     }
@@ -122,7 +134,7 @@ class ilBiblFieldFactory implements ilBiblFieldFactoryInterface
     /**
      * @inheritDoc
      */
-    public function filterAllFieldsForTypeAsArray(ilBiblTypeInterface $type, ilBiblTableQueryInfoInterface $queryInfo = null) : array
+    public function filterAllFieldsForTypeAsArray(ilBiblTypeInterface $type, ilBiblTableQueryInfoInterface $queryInfo = null): array
     {
         return $this->getCollectionForFilter($type, $queryInfo)->getArray();
     }
@@ -131,7 +143,7 @@ class ilBiblFieldFactory implements ilBiblFieldFactoryInterface
     /**
      * @inheritDoc
      */
-    public function findOrCreateFieldOfAttribute(ilBiblAttributeInterface $attribute) : ilBiblFieldInterface
+    public function findOrCreateFieldOfAttribute(ilBiblAttributeInterface $attribute): ilBiblFieldInterface
     {
         $field = ilBiblField::where(['identifier' => $attribute->getName()])->first();
         if ($field === null) {
@@ -152,13 +164,15 @@ class ilBiblFieldFactory implements ilBiblFieldFactoryInterface
     /**
      * @inheritDoc
      */
-    public function forcePosition(ilBiblFieldInterface $field) : int
+    public function forcePosition(ilBiblFieldInterface $field): int
     {
         global $DIC;
         $tablename = ilBiblField::TABLE_NAME;
         $q = "UPDATE {$tablename} SET position = position + 1 WHERE data_type = %s AND position >= %s;";
         $DIC->database()->manipulateF(
-            $q, ['integer', 'integer'], [
+            $q,
+            ['integer', 'integer'],
+            [
                 $field->getDataType(),
                 $field->getPosition(),
             ]
@@ -166,7 +180,9 @@ class ilBiblFieldFactory implements ilBiblFieldFactoryInterface
         $field->store();
         $DIC->database()->query("SET @i=0");
         $DIC->database()->manipulateF(
-            "UPDATE {$tablename} SET position = (@i := @i + 1) WHERE data_type = %s ORDER BY position", ['integer'], [
+            "UPDATE {$tablename} SET position = (@i := @i + 1) WHERE data_type = %s ORDER BY position",
+            ['integer'],
+            [
                 $field->getDataType(),
             ]
         );
@@ -182,7 +198,7 @@ class ilBiblFieldFactory implements ilBiblFieldFactoryInterface
      *
      * @return int
      */
-    private function getNextFreePosition(ilBiblFieldInterface $field) : int
+    private function getNextFreePosition(ilBiblFieldInterface $field): int
     {
         global $DIC;
         $tablename = ilBiblField::TABLE_NAME;
@@ -194,42 +210,13 @@ class ilBiblFieldFactory implements ilBiblFieldFactoryInterface
     }
 
 
-    /**
-     * @param int    $type
-     * @param string $identifier
-     *
-     * @return \ilBiblField
-     */
-    private function getARInstance($type, $identifier)
+    private function getARInstance(int $type, string $identifier): ?\ilBiblField
     {
         return ilBiblField::where(["identifier" => $identifier, "data_type" => $type])->first();
     }
 
 
-    /**
-     * @param $type
-     *
-     * @throws \ilException
-     */
-    private function checkType($type)
-    {
-        switch ($type) {
-            case ilBiblTypeFactoryInterface::DATA_TYPE_BIBTEX:
-            case ilBiblTypeFactoryInterface::DATA_TYPE_RIS:
-                break;
-            default:
-                throw new ilException("bibliografic type not found");
-        }
-    }
-
-
-    /**
-     * @param \ilBiblTypeInterface           $type
-     * @param \ilBiblTableQueryInfoInterface $queryInfo
-     *
-     * @return \ActiveRecordList
-     */
-    private function getCollectionForFilter(ilBiblTypeInterface $type, ilBiblTableQueryInfoInterface $queryInfo = null)
+    private function getCollectionForFilter(ilBiblTypeInterface $type, ilBiblTableQueryInfoInterface $queryInfo = null): \ActiveRecordList
     {
         $collection = ilBiblField::getCollection();
 
@@ -257,4 +244,3 @@ class ilBiblFieldFactory implements ilBiblFieldFactoryInterface
         return $collection;
     }
 }
-

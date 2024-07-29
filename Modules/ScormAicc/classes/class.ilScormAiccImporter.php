@@ -1,120 +1,231 @@
 <?php
-/* Copyright (c) 1998-2016 ILIAS open source, Extended GPL, see docs/LICENSE */
-include_once("./Services/Export/classes/class.ilXmlImporter.php");
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+use ILIAS\Data\Factory as DataTypeFactory;
+
 class ilScormAiccImporter extends ilXmlImporter
 {
-	public function __construct()
-	{
-		require_once "./Modules/ScormAicc/classes/class.ilScormAiccDataSet.php";
-		$this->dataset = new ilScormAiccDataSet ();
-		//todo: at the moment restricted to one module in xml file, extend?
-		$this->moduleProperties = [];
-		$this->manifest = [];
-	}
+    private ilScormAiccDataSet $dataset;
+    private \ILIAS\Data\Result $result;
+    private DataTypeFactory $df;
+    /**
+     * @var array<string, string|SimpleXMLElement>
+     */
+    private array $module_properties = [];
 
-	public function init()
-	{
-	}
+    public function __construct()
+    {
+        $this->dataset = new ilScormAiccDataSet();
+        $this->df = new DataTypeFactory();
+        $this->initResult();
 
-	/**
-	 * Import XML
-	 *
-	 * @param
-	 * @return
-	 */
-	function importXmlRepresentation($a_entity, $a_id, $a_import_dirname, $a_mapping)
-	{
-		global $DIC;
-		$ilLog = $DIC['ilLog'];
+        parent::__construct();
+    }
 
-		if ($this->handleEditableLmXml($a_entity, $a_id, $a_import_dirname, $a_mapping))
-		{
-			return true;
-		}
+    private function initResult(): void
+    {
+        $this->publishResult($this->df->error('No XML parsed, yet'));
+        $this->module_properties = [];
+    }
 
-		$result = false;
-		if (file_exists($a_import_dirname))
-		{
-			$manifestFile = $a_import_dirname . "/manifest.xml";
-			if (file_exists($manifestFile))
-			{
-				$manifest = file_get_contents ($manifestFile);
-				$manifestRoot = simplexml_load_string($manifest);
-				$this->manifest["scormFile"] = $manifestRoot->scormFile;
-				$this->manifest["properties"] = $manifestRoot->properties;
-				if(isset ($manifest))
-				{
-					$propertiesFile = $a_import_dirname . "/" . $this->manifest["properties"][0];
-					$xml = file_get_contents ($propertiesFile);
-					if(isset ($xml))
-					{
-						$xmlRoot = simplexml_load_string($xml);
-						//todo: extend for import of multiple modules in one file ??
-						foreach ($this->dataset->properties as $key => $value)
-						{
-							$this->moduleProperties[$key] = $xmlRoot->$key;
-						}
-						$this->moduleProperties["Title"] = $xmlRoot->Title;
-						$this->moduleProperties["Description"] = $xmlRoot->Description;
-						$result = true;
-					}
-					else
-					{
-						$ilLog->write("error parsing xml file for scorm import");
-						//error xml parsing
-					}
-				}
-				else
-				{
-					$ilLog->write("error reading manifest file");
-				}
-			}
-			else
-			{
-				$ilLog->write("error no manifest file found");
-			}
-		}
-		else
-		{
-			$ilLog->write("error file lost while importing");
-			//error non existing file
-		}
-		return $result;
-	}
+    private function publishResult(\ILIAS\Data\Result $result): \ILIAS\Data\Result
+    {
+        $this->result = $result;
+        return $this->result;
+    }
 
-	public function writeData($a_entity, $version, $a_id)
-	{
-		$this->dataset->writeData($a_entity, $a_version, $a_id, $this->moduleProperties);
-	}
+    /**
+     * @return \ILIAS\Data\Result|\ILIAS\Data\Result\Ok<array<string, string|SimpleXMLElement>>
+     */
+    public function getResult(): \ILIAS\Data\Result
+    {
+        return $this->result;
+    }
 
-	/**
-	 * Handle editable (authoring) scorm lms
-	 *
-	 * @param string $a_entity entity
-	 * @param string $a_id id
-	 * @param string $a_xml xml
-	 * @param ilImportMapping $a_mapping import mapping object
-	 * @return bool success
-	 */
-	function handleEditableLmXml($a_entity, $a_id, $a_xml, $a_mapping)
-	{
-		// if editable...
-		if (is_int(strpos($a_xml, "<Editable>1</Editable>")))
-		{
-			// ...use ilScorm2004DataSet for import
-			include_once("./Modules/Scorm2004/classes/class.ilScorm2004DataSet.php");
-			$dataset = new ilScorm2004DataSet();
-			$dataset->setDSPrefix("ds");
-			$dataset->setImportDirectory($this->getImportDirectory());
+    public function init(): void
+    {
+    }
 
-			include_once("./Services/DataSet/classes/class.ilDataSetImportParser.php");
-			$parser = new ilDataSetImportParser($a_entity, $this->getSchemaVersion(),
-				$a_xml, $dataset, $a_mapping);
-			return true;
-		}
-		return false;
-	}
+    /**
+     * @throws ilDatabaseException
+     * @throws ilFileUtilsException
+     * @throws ilObjectNotFoundException
+     */
+    public function importXmlRepresentation(
+        string $a_entity,
+        string $a_id,
+        string $a_xml,
+        ?ilImportMapping $a_mapping
+    ): void {
+        global $DIC;
 
+        $this->initResult();
 
+        $xml_directory = $a_xml;
+        $new_object = null;
+
+        $this->publishResult(
+            $this->df
+                ->ok('Parsing started')
+                ->then(
+                    function (string $message) use (
+                        &$new_object,
+                        &$xml_directory,
+                        $a_id,
+                        $a_mapping
+                    ): ?\ILIAS\Data\Result {
+                        if ($a_id !== '' &&
+                            $a_mapping !== null &&
+                            ($new_id = $a_mapping->getMapping('Services/Container', 'objs', $a_id))) {
+                            $new_object = ilObjectFactory::getInstanceByObjId((int) $new_id, false);
+                            $xml_directory = $this->getImportDirectory();
+                        }
+
+                        return $this->df->ok($xml_directory);
+                    }
+                )
+                ->then(function (string $xml_directory): ?\ILIAS\Data\Result {
+                    if (!is_dir($xml_directory)) {
+                        return $this->df->error(
+                            sprintf('Directory lost while importing: %s', $xml_directory)
+                        );
+                    }
+
+                    return null;
+                })
+                ->then(function (string $xml_directory): ?\ILIAS\Data\Result {
+                    $manifest_file = $xml_directory . '/manifest.xml';
+                    if (!file_exists($manifest_file)) {
+                        return $this->df->error(
+                            sprintf(
+                                'No manifest file found in import directory "%s": %s',
+                                $xml_directory,
+                                $manifest_file
+                            )
+                        );
+                    }
+
+                    return $this->df->ok($manifest_file);
+                })
+                ->then(function (string $manifest_file): ?\ILIAS\Data\Result {
+                    $manifest_file_content = file_get_contents($manifest_file);
+                    if (!is_string($manifest_file_content) || $manifest_file_content === '') {
+                        return $this->df->error(
+                            sprintf(
+                                'Could not read content from manifest file: %s',
+                                $manifest_file
+                            )
+                        );
+                    }
+
+                    return $this->df->ok($manifest_file_content);
+                })
+                ->then(function (string $manifest_file_content) use ($xml_directory): ?\ILIAS\Data\Result {
+                    $properties_file = $xml_directory . '/properties.xml';
+                    $properties_file_content = file_get_contents($properties_file);
+                    if (!is_string($properties_file_content) || $properties_file_content === '') {
+                        return $this->df->error(
+                            sprintf(
+                                'Could not read file: %s',
+                                $properties_file
+                            )
+                        );
+                    }
+
+                    return $this->df->ok($properties_file_content);
+                })
+                ->then(function (string $properties_file_content): ?\ILIAS\Data\Result {
+                    return (new ilScormImportParser($this->df))->parse($properties_file_content);
+                })
+                ->then(
+                    function (SimpleXMLElement $properties_xml_doc): ?\ILIAS\Data\Result {
+                        try {
+                            foreach ($this->dataset->properties as $key => $value) {
+                                $this->module_properties[$key] = $properties_xml_doc->{$key};
+                            }
+
+                            $this->module_properties['Title'] = $properties_xml_doc->Title;
+                            $this->module_properties['Description'] = $properties_xml_doc->Description;
+
+                            foreach ($this->module_properties as $key => $property_node) {
+                                $property_value = $property_node->__toString();
+                                $filteredValue = preg_replace('%\s%', '', $property_value);
+                                $this->module_properties[$key] = ilUtil::stripSlashes($filteredValue);
+                            }
+
+                            return $this->df->ok($this->module_properties);
+                        } catch (Exception $exception) {
+                            return $this->df->error($exception);
+                        }
+                    }
+                )->then(function (array $module_properties) use (
+                    $xml_directory,
+                    $a_id,
+                    $a_mapping,
+                    $new_object
+                ): ?\ILIAS\Data\Result {
+                    if ($a_id !== '' &&
+                        $a_mapping !== null &&
+                        ($new_id = $a_mapping->getMapping(
+                            'Services/Container',
+                            'objs',
+                            $a_id
+                        ))) {
+                        $this->dataset->writeData(
+                            'sahs',
+                            '5.1.0',
+                            $new_object->getId(),
+                            $this->module_properties
+                        );
+
+                        $new_object->createReference();
+
+                        $scormFile = 'content.zip';
+                        $scormFilePath = $xml_directory . '/' . $scormFile;
+                        $targetPath = $new_object->getDataDirectory() . '/' . $scormFile;
+                        $file_path = $targetPath;
+
+                        ilFileUtils::rename($scormFilePath, $targetPath);
+                        ilFileUtils::unzip($file_path);
+                        unlink($file_path);
+                        ilFileUtils::renameExecutables($new_object->getDataDirectory());
+
+                        $new_ref_id = $new_object->getRefId();
+                        $subType = $module_properties['SubType'];
+                        if ($subType === 'scorm') {
+                            $new_object = new ilObjSCORMLearningModule($new_ref_id);
+                        } else {
+                            $new_object = new ilObjSCORM2004LearningModule($new_ref_id);
+                        }
+
+                        $title = $new_object->readObject();
+                        $new_object->setLearningProgressSettingsAtUpload();
+                    }
+
+                    return null;
+                })
+        );
+    }
+
+    public function writeData(string $a_entity, string $a_version, int $a_id): void
+    {
+        $this->dataset->writeData($a_entity, $a_version, $a_id, $this->module_properties);
+    }
 }
-?>

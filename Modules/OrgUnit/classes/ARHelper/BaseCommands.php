@@ -1,152 +1,174 @@
 <?php
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
 
 namespace ILIAS\Modules\OrgUnit\ARHelper;
 
+use ILIAS\DI\Container;
+
 /**
  * Interface BaseCommands
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
-abstract class BaseCommands {
+abstract class BaseCommands
+{
+    public const CMD_INDEX = "index";
+    public const CMD_ADD = "add";
+    public const CMD_CREATE = "create";
+    public const CMD_EDIT = "edit";
+    public const CMD_UPDATE = "update";
+    public const CMD_CONFIRM = "confirm";
+    public const CMD_CONFIRM_RECURSIVE = "confirmRecursive";
+    public const CMD_DELETE = "delete";
+    public const CMD_DELETE_RECURSIVE = "deleteRecursive";
+    public const CMD_CANCEL = "cancel";
+    public const AR_ID = "arid";
 
-	use DIC;
-	const CMD_INDEX = "index";
-	const CMD_ADD = "add";
-	const CMD_CREATE = "create";
-	const CMD_EDIT = "edit";
-	const CMD_UPDATE = "update";
-	const CMD_CONFIRM = "confirm";
-	const CMD_DELETE = "delete";
-	const CMD_CANCEL = "cancel";
-	const AR_ID = "arid";
-	/**
-	 * @var \ILIAS\Modules\OrgUnit\ARHelper\BaseCommands
-	 */
-	protected $parent_gui = null;
+    private \ilLanguage $lng;
+    private \ilCtrl $ctrl;
+    private \ilTabsGUI $tabsGUI;
+    private \ilAccess $access;
+    private \ILIAS\HTTP\Services $http;
+    private \ilGlobalTemplateInterface $tpl;
 
+    protected ?BaseCommands $parent_gui = null;
 
-	/**
-	 * @return \ILIAS\Modules\OrgUnit\ARHelper\BaseCommands
-	 */
-	public function getParentGui() {
-		return $this->parent_gui;
-	}
+    protected function __construct()
+    {
+        global $DIC;
 
+        $this->lng = $DIC->language();
+        $this->lng->loadLanguageModule("orgu");
+        $this->ctrl = $DIC->ctrl();
+        $this->tabsGUI = $DIC->tabs();
+        $this->access = $DIC->access();
+        $this->http = $DIC->http();
+        $this->tpl = $DIC->ui()->mainTemplate();
+    }
 
-	/**
-	 * @param \ILIAS\Modules\OrgUnit\ARHelper\BaseCommands $parent_gui
-	 */
-	public function setParentGui($parent_gui) {
-		$this->parent_gui = $parent_gui;
-	}
+    public function getParentGui(): ?BaseCommands
+    {
+        return $this->parent_gui;
+    }
 
+    public function setParentGui(BaseCommands $parent_gui)
+    {
+        $this->parent_gui = $parent_gui;
+    }
 
-	abstract protected function index();
+    abstract protected function index(): void;
 
+    protected function getPossibleNextClasses(): array
+    {
+        return array();
+    }
 
-	/**
-	 * @return array of GUI_Class-Names
-	 */
-	protected function getPossibleNextClasses() {
-		return array();
-	}
+    protected function getActiveTabId(): ?string
+    {
+        return null;
+    }
 
+    /**
+     * @throws \ilCtrlException
+     */
+    protected function cancel(): void
+    {
+        $this->ctrl->redirect($this, self::CMD_INDEX);
+    }
 
-	/**
-	 * @return null|string of active Tab
-	 */
-	protected function getActiveTabId() {
-		return null;
-	}
+    protected function setContent(string $html)
+    {
+        $this->tpl->setContent($html);
+    }
 
+    /**
+     * @throws \ilCtrlException
+     */
+    public function executeCommand()
+    {
+        global $DIC;
+        $this->ctrl = $DIC->ctrl();
+        $this->http = $DIC->http();
+        $this->access = $DIC->access();
+        $this->tabsGUI = $DIC->tabs();
+        $this->lng = $DIC->language();
+        $this->tpl = $DIC->ui()->mainTemplate();
+        $this->lng->loadLanguageModule("orgu");
 
-	protected function cancel() {
-		$this->ctrl()->redirect($this, self::CMD_INDEX);
-	}
+        $cmd = $this->ctrl->getCmd(self::CMD_INDEX);
+        $next_class = $this->ctrl->getNextClass();
+        if ($next_class) {
+            foreach ($this->getPossibleNextClasses() as $class) {
+                if (strtolower($class) === $next_class) {
+                    $instance = new $class();
+                    if ($instance instanceof BaseCommands) {
+                        $instance->setParentGui($this);
+                        $this->ctrl->forwardCommand($instance);
+                    }
 
+                    return;
+                }
+            }
+        }
 
-	/***
-	 * @param $html
-	 */
-	protected function setContent($html) {
-		$this->tpl()->setContent($html);
-	}
+        if ($this->getActiveTabId()) {
+            $this->tabsGUI->activateTab($this->getActiveTabId());
+        }
 
+        switch ($cmd) {
+            default:
+                if ($this->checkRequestReferenceId()) {
+                    $this->{$cmd}();
+                }
+                break;
+        }
+    }
 
-	public function executeCommand() {
-		$this->dic()->language()->loadLanguageModule("orgu");
-		$cmd = $this->dic()->ctrl()->getCmd(self::CMD_INDEX);
-		$next_class = $this->dic()->ctrl()->getNextClass();
-		if ($next_class) {
-			foreach ($this->getPossibleNextClasses() as $class) {
-				if (strtolower($class) === $next_class) {
-					$instance = new $class();
-					if ($instance instanceof BaseCommands) {
-						$instance->setParentGui($this);
-						$this->ctrl()->forwardCommand($instance);
-					}
+    protected function pushSubTab(string $subtab_id, string $url)
+    {
+        $this->tabsGUI->addSubTab($subtab_id, $this->lng->txt($subtab_id), $url);
+    }
 
-					return;
-				}
-			}
-		}
+    protected function activeSubTab(string $subtab_id)
+    {
+        $this->tabsGUI->activateSubTab($subtab_id);
+    }
 
-		if ($this->getActiveTabId()) {
-			$this->dic()->tabs()->activateTab($this->getActiveTabId());
-		}
+    protected function checkRequestReferenceId()
+    {
+        /**
+         * @var $ilAccess \ilAccessHandler
+         */
+        $ref_id = $this->getParentRefId();
+        if ($ref_id) {
+            return $this->access->checkAccess("read", "", $ref_id);
+        }
 
-		switch ($cmd) {
-			default:
-				if ($this->checkRequestReferenceId()) {
-					$this->{$cmd}();
-				}
-				break;
-		}
-	}
+        return true;
+    }
 
+    protected function getParentRefId(): ?int
+    {
+        $ref_id = $this->http->request()->getQueryParams()["ref_id"];
 
-	/**
-	 * @param $subtab_id
-	 * @param $url
-	 */
-	protected function pushSubTab($subtab_id, $url) {
-		$this->dic()->tabs()->addSubTab($subtab_id, $this->txt($subtab_id), $url);
-	}
+        return $ref_id;
+    }
 
-
-	/**
-	 * @param $subtab_id
-	 */
-	protected function activeSubTab($subtab_id) {
-		$this->dic()->tabs()->activateSubTab($subtab_id);
-	}
-
-
-	protected function checkRequestReferenceId() {
-		/**
-		 * @var $ilAccess \ilAccessHandler
-		 */
-		$ref_id = $this->getParentRefId();
-		if ($ref_id) {
-			return $this->dic()->access()->checkAccess("read", "", $ref_id);
-		}
-
-		return true;
-	}
-
-
-	/**
-	 * @return int|null
-	 */
-	protected function getParentRefId() {
-		$http = $this->dic()->http();
-		$ref_id = $http->request()->getQueryParams()["ref_id"];
-
-		return $ref_id;
-	}
-
-
-	public function addSubTabs() {
-
-	}
+    public function addSubTabs(): void
+    {
+    }
 }

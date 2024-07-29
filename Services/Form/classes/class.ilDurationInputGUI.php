@@ -1,471 +1,390 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2007 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
+
+declare(strict_types=1);
 
 /**
-* This class represents a duration (typical hh:mm:ss) property in a property form.
-*
-* @author Alex Killing <alex.killing@gmx.de> 
-* @version $Id$
-* @ingroup	ServicesForm
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * This class represents a duration (typical hh:mm:ss) property in a property form.
+ *
+ * @author Alexander Killing <killing@leifos.de>
+ */
 class ilDurationInputGUI extends ilFormPropertyGUI
 {
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+    protected int $months = 0;
+    protected int $days = 0;
+    protected int $hours = 0;
+    protected int $minutes = 0;
+    protected int $seconds = 0;
+    protected bool $showmonths = false;
+    protected bool $showdays = false;
+    protected bool $showhours = true;
+    protected bool $showminutes = true;
+    protected bool $showseconds = false;
 
-	protected $months = 0;
-	protected $days = 0;
-	protected $hours = 0;
-	protected $minutes = 0;
-	protected $seconds = 0;
-	protected $showmonths = false;
-	protected $showdays = false;
-	protected $showhours = true;
-	protected $showminutes = true;
-	protected $showseconds = false;
-	
-	/**
-	* Constructor
-	*
-	* @param	string	$a_title	Title
-	* @param	string	$a_postvar	Post Variable
-	*/
-	function __construct($a_title = "", $a_postvar = "")
-	{
-		global $DIC;
+    public function __construct(
+        string $a_title = "",
+        string $a_postvar = ""
+    ) {
+        global $DIC;
 
-		$this->lng = $DIC->language();
-		parent::__construct($a_title, $a_postvar);
-		$this->setType("duration");
-	}
+        $this->lng = $DIC->language();
+        parent::__construct($a_title, $a_postvar);
+        $this->setType("duration");
+    }
 
-	/**
-	* Set Days.
-	*
-	* @param	int	$a_days	Days
-	*/
-	function setDays($a_days)
-	{
-		$this->days = $a_days;
-	}
+    public function setDays(int $a_days): void
+    {
+        $this->days = $a_days;
+    }
 
-	/**
-	* Get Days.
-	*
-	* @return	int	Days
-	*/
-	function getDays()
-	{
-		return (int) $this->days;
-	}
+    public function getDays(): int
+    {
+        return $this->days;
+    }
 
-	/**
-	* Set Hours.
-	*
-	* @param	int	$a_hours	Hours
-	*/
-	function setHours($a_hours)
-	{
-		$this->hours = $a_hours;
-	}
+    public function setHours(int $a_hours): void
+    {
+        $this->hours = $a_hours;
+    }
 
-	/**
-	* Get Hours.
-	*
-	* @return	int	Hours
-	*/
-	function getHours()
-	{
-		return (int) $this->hours;
-	}
+    public function getHours(): int
+    {
+        return $this->hours;
+    }
 
-	/**
-	* Set Minutes.
-	*
-	* @param	int	$a_minutes	Minutes
-	*/
-	function setMinutes($a_minutes)
-	{
-		$this->minutes = $a_minutes;
-	}
+    public function setMinutes(int $a_minutes): void
+    {
+        $this->minutes = $a_minutes;
+    }
 
-	/**
-	* Get Minutes.
-	*
-	* @return	int	Minutes
-	*/
-	function getMinutes()
-	{
-		return (int) $this->minutes;
-	}
+    public function getMinutes(): int
+    {
+        return $this->minutes;
+    }
 
-	/**
-	* Set Seconds.
-	*
-	* @param	int	$a_seconds	Seconds
-	*/
-	function setSeconds($a_seconds)
-	{
-		$this->seconds = $a_seconds;
-	}
-	
-	/**
-	 * set months
-	 *
-	 * @access public
-	 * @param int months
-	 * 
-	 */
-	public function setMonths($a_months)
-	{
-	 	$this->months = $a_months;
-	}
-	
-	/**
-	 * get months
-	 *
-	 * @access public
-	 * 
-	 */
-	public function getMonths()
-	{
-	 	return (int) $this->months;
-	}
+    public function setSeconds(int $a_seconds): void
+    {
+        $this->seconds = $a_seconds;
+    }
 
-	/**
-	* Get Seconds.
-	*
-	* @return	int	Seconds
-	*/
-	function getSeconds()
-	{
-		return (int) $this->seconds;
-	}
-	
-	/**
-	 * Set show months
-	 *
-	 * @access public
-	 * @param boolean $a_show_month
-	 */
-	public function setShowMonths($a_show_months)
-	{
-	 	$this->showmonths = $a_show_months;
-	}
-	
-	/**
-	 * Get show months 
-	 *
-	 * @access public
-	 */
-	public function getShowMonths()
-	{
-	 	return $this->showmonths;
-	}
+    public function setMonths(int $a_months): void
+    {
+        $this->months = $a_months;
+    }
 
-	/**
-	* Set Show Days.
-	*
-	* @param	boolean	$a_showdays	Show Days
-	*/
-	function setShowDays($a_showdays)
-	{
-		$this->showdays = $a_showdays;
-	}
+    public function getMonths(): int
+    {
+        return $this->months;
+    }
 
-	/**
-	* Get Show Days.
-	*
-	* @return	boolean	Show Days
-	*/
-	function getShowDays()
-	{
-		return $this->showdays;
-	}
+    public function getSeconds(): int
+    {
+        return $this->seconds;
+    }
 
-	/**
-	* Set Show Hours.
-	*
-	* @param	boolean	$a_showhours	Show Hours
-	*/
-	function setShowHours($a_showhours)
-	{
-		$this->showhours = $a_showhours;
-	}
+    public function setShowMonths(bool $a_show_months): void
+    {
+        $this->showmonths = $a_show_months;
+    }
 
-	/**
-	* Get Show Hours.
-	*
-	* @return	boolean	Show Hours
-	*/
-	function getShowHours()
-	{
-		return $this->showhours;
-	}
+    public function getShowMonths(): bool
+    {
+        return $this->showmonths;
+    }
 
-	/**
-	* Set Show Minutes.
-	*
-	* @param	boolean	$a_showminutes	Show Minutes
-	*/
-	function setShowMinutes($a_showminutes)
-	{
-		$this->showminutes = $a_showminutes;
-	}
+    public function setShowDays(bool $a_showdays): void
+    {
+        $this->showdays = $a_showdays;
+    }
 
-	/**
-	* Get Show Minutes.
-	*
-	* @return	boolean	Show Minutes
-	*/
-	function getShowMinutes()
-	{
-		return $this->showminutes;
-	}
+    public function getShowDays(): bool
+    {
+        return $this->showdays;
+    }
 
-	/**
-	* Set Show Seconds.
-	*
-	* @param	boolean	$a_showseconds	Show Seconds
-	*/
-	function setShowSeconds($a_showseconds)
-	{
-		$this->showseconds = $a_showseconds;
-	}
+    public function setShowHours(bool $a_showhours): void
+    {
+        $this->showhours = $a_showhours;
+    }
 
-	/**
-	* Get Show Seconds.
-	*
-	* @return	boolean	Show Seconds
-	*/
-	function getShowSeconds()
-	{
-		return $this->showseconds;
-	}
+    public function getShowHours(): bool
+    {
+        return $this->showhours;
+    }
 
-	/**
-	* Set value by array
-	*
-	* @param	array	$a_values	value array
-	*/
-	function setValueByArray($a_values)
-	{
-		$this->setMonths($a_values[$this->getPostVar()]["MM"]);
-		$this->setDays($a_values[$this->getPostVar()]["dd"]);
-		$this->setHours($a_values[$this->getPostVar()]["hh"]);
-		$this->setMinutes($a_values[$this->getPostVar()]["mm"]);
-		$this->setSeconds($a_values[$this->getPostVar()]["ss"]);
-	}
+    public function setShowMinutes(bool $a_showminutes): void
+    {
+        $this->showminutes = $a_showminutes;
+    }
 
-	/**
-	* Check input, strip slashes etc. set alert, if input is not ok.
-	*
-	* @return	boolean		Input ok, true/false
-	*/	
-	function checkInput()
-	{
-		$lng = $this->lng;
-		
-		$_POST[$this->getPostVar()]["MM"] = 
-			ilUtil::stripSlashes($_POST[$this->getPostVar()]["MM"]);
-		$_POST[$this->getPostVar()]["dd"] = 
-			ilUtil::stripSlashes($_POST[$this->getPostVar()]["dd"]);
-		$_POST[$this->getPostVar()]["hh"] = 
-			ilUtil::stripSlashes($_POST[$this->getPostVar()]["hh"]);
-		$_POST[$this->getPostVar()]["mm"] = 
-			ilUtil::stripSlashes($_POST[$this->getPostVar()]["mm"]);
-		$_POST[$this->getPostVar()]["ss"] = 
-			ilUtil::stripSlashes($_POST[$this->getPostVar()]["ss"]);
+    public function getShowMinutes(): bool
+    {
+        return $this->showminutes;
+    }
 
-		return true;
-	}
+    public function setShowSeconds(bool $a_showseconds): void
+    {
+        $this->showseconds = $a_showseconds;
+    }
 
-	/**
-	* Insert property html
-	*
-	* @return	int	Size
-	*/
-	function insert($a_tpl)
-	{
-		$html = $this->render();
+    public function getShowSeconds(): bool
+    {
+        return $this->showseconds;
+    }
 
-		$a_tpl->setCurrentBlock("prop_generic");
-		$a_tpl->setVariable("PROP_GENERIC", $html);
-		$a_tpl->parseCurrentBlock();
-	}
+    public function setValueByArray(array $a_values): void
+    {
+        $values = ($a_values[$this->getPostVar()] ?? []);
+        $value_or_zero = fn ($part) => array_key_exists($part, $values ?? []) ? (int) $values[$part] : 0;
+        $this->setMonths($value_or_zero("MM"));
+        $this->setDays($value_or_zero("dd"));
+        $this->setHours($value_or_zero("hh"));
+        $this->setMinutes($value_or_zero("mm"));
+        $this->setSeconds($value_or_zero("ss"));
+    }
 
-	/**
-	* Insert property html
-	*
-	*/
-	function render()
-	{
-		$lng = $this->lng;
+    public function checkInput(): bool
+    {
+        return true;
+    }
 
-		$tpl = new ilTemplate("tpl.prop_duration.html", true, true, "Services/Form");
-		
-		if($this->getShowMonths())
-		{
-			$tpl->setCurrentBlock("dur_months");
-			$tpl->setVariable("TXT_MONTHS", $lng->txt("form_months"));
-			$val = array();
-			for ($i=0; $i<=36; $i++)
-			{
-				$val[$i] = $i;
-			}
-			$tpl->setVariable("SELECT_MONTHS",
-				ilUtil::formSelect($this->getMonths(), $this->getPostVar()."[MM]",
-				$val, false, true, 0, '', '', $this->getDisabled()));
-			$tpl->parseCurrentBlock();
-		}
-		if ($this->getShowDays())
-		{
-			$tpl->setCurrentBlock("dur_days");
-			$tpl->setVariable("TXT_DAYS", $lng->txt("form_days"));
-			$val = array();
-			for ($i=0; $i<=366; $i++)
-			{
-				$val[$i] = $i;
-			}
-			$tpl->setVariable("SELECT_DAYS",
-				ilUtil::formSelect($this->getDays(), $this->getPostVar()."[dd]",
-				$val, false, true, 0, '', '', $this->getDisabled()));
-			$tpl->parseCurrentBlock();
-		}
-		if ($this->getShowHours())
-		{
-			$tpl->setCurrentBlock("dur_hours");
-			$tpl->setVariable("TXT_HOURS", $lng->txt("form_hours"));
-			$val = array();
-			for ($i=0; $i<=23; $i++)
-			{
-				$val[$i] = $i;
-			}
-			$tpl->setVariable("SELECT_HOURS",
-				ilUtil::formSelect($this->getHours(), $this->getPostVar()."[hh]",
-				$val, false, true, 0, '', '', $this->getDisabled()));
-			$tpl->parseCurrentBlock();
-		}
-		if ($this->getShowMinutes())
-		{
-			$tpl->setCurrentBlock("dur_minutes");
-			$tpl->setVariable("TXT_MINUTES", $lng->txt("form_minutes"));
-			$val = array();
-			for ($i=0; $i<=59; $i++)
-			{
-				$val[$i] = $i;
-			}
-			$tpl->setVariable("SELECT_MINUTES",
-				ilUtil::formSelect($this->getMinutes(), $this->getPostVar()."[mm]",
-				$val, false, true, 0, '', '', $this->getDisabled()));
-			$tpl->parseCurrentBlock();
-		}
-		if ($this->getShowSeconds())
-		{
-			$tpl->setCurrentBlock("dur_seconds");
-			$tpl->setVariable("TXT_SECONDS", $lng->txt("form_seconds"));
-			$val = array();
-			for ($i=0; $i<=59; $i++)
-			{
-				$val[$i] = $i;
-			}
-			$tpl->setVariable("SELECT_SECONDS",
-				ilUtil::formSelect($this->getSeconds(), $this->getPostVar()."[ss]",
-				$val, false, true, 0, '', '', $this->getDisabled()));
-			$tpl->parseCurrentBlock();
-		}
-		
-		return $tpl->get();
-	}
+    public function getInput(): array
+    {
+        return $this->strArray($this->getPostVar());
+    }
 
-	/**
-	* Get HTML for table filter
-	*/
-	function getTableFilterHTML()
-	{
-		$html = $this->render();
-		return $html;
-	}
+    public function insert(ilTemplate $a_tpl): void
+    {
+        $html = $this->render();
 
-   /**
-	* serialize data
-	*/
-	function serializeData()
-	{
-		$data = array("months" => $this->getMonths(),
-			"days" => $this->getDays(),
-			"hours" => $this->getHours(),
-			"minutes" => $this->getMinutes(),
-			"seconds" => $this->getSeconds());
+        $a_tpl->setCurrentBlock("prop_generic");
+        $a_tpl->setVariable("PROP_GENERIC", $html);
+        $a_tpl->parseCurrentBlock();
+    }
 
-		return serialize($data);
-	}
+    public function render(): string
+    {
+        $lng = $this->lng;
 
-   /**
-	* unserialize data
-	*/
-	function unserializeData($a_data)
-	{
-		$data = unserialize($a_data);
-		
-		$this->setMonths($data["months"]);
-		$this->setDays($data["days"]);
-		$this->setHours($data["hours"]);
-		$this->setMinutes($data["minutes"]);
-		$this->setSeconds($data["seconds"]);
-	}
+        $tpl = new ilTemplate("tpl.prop_duration.html", true, true, "Services/Form");
 
-	/**
-	 * Get combined value in seconds
-	 *
-	 * @return int
-	 */
-	public function getValueInSeconds()
-	{
-		$value = 0;
-		if($this->getShowMonths())
-		{
-			$value += $this->getMonths()*30*24*60*60;
-		}
-		if($this->getShowDays())
-		{
-			$value += $this->getDays()*24*60*60;
-		}
-		if($this->getShowHours())
-		{
-			$value += $this->getHours()*60*60;
-		}
-		if($this->getShowMinutes())
-		{
-			$value += $this->getMinutes()*60;
-		}
-		if($this->getShowSeconds())
-		{
-			$value += $this->getSeconds();
-		}
-		return $value;
-	}
+        if ($this->getShowMonths()) {
+            $tpl->setCurrentBlock("dur_months");
+            $tpl->setVariable("TXT_MONTHS", $lng->txt("form_months"));
+            $val = array();
+            for ($i = 0; $i <= 36; $i++) {
+                $val[$i] = $i;
+            }
+            $tpl->setVariable(
+                "SELECT_MONTHS",
+                ilLegacyFormElementsUtil::formSelect(
+                    $this->getMonths(),
+                    $this->getPostVar() . "[MM]",
+                    $val,
+                    false,
+                    true,
+                    0,
+                    '',
+                    [],
+                    $this->getDisabled()
+                )
+            );
+            $tpl->parseCurrentBlock();
+        }
+        if ($this->getShowDays()) {
+            $tpl->setCurrentBlock("dur_days");
+            $tpl->setVariable("TXT_DAYS", $lng->txt("form_days"));
+            $val = array();
+            for ($i = 0; $i <= 366; $i++) {
+                $val[$i] = $i;
+            }
+            $tpl->setVariable(
+                "SELECT_DAYS",
+                ilLegacyFormElementsUtil::formSelect(
+                    $this->getDays(),
+                    $this->getPostVar() . "[dd]",
+                    $val,
+                    false,
+                    true,
+                    0,
+                    '',
+                    [],
+                    $this->getDisabled()
+                )
+            );
+            $tpl->parseCurrentBlock();
+        }
+        if ($this->getShowHours()) {
+            $tpl->setCurrentBlock("dur_hours");
+            $tpl->setVariable("TXT_HOURS", $lng->txt("form_hours"));
+            $val = array();
+            for ($i = 0; $i <= 23; $i++) {
+                $val[$i] = $i;
+            }
+            $tpl->setVariable(
+                "SELECT_HOURS",
+                ilLegacyFormElementsUtil::formSelect(
+                    $this->getHours(),
+                    $this->getPostVar() . "[hh]",
+                    $val,
+                    false,
+                    true,
+                    0,
+                    '',
+                    [],
+                    $this->getDisabled()
+                )
+            );
+            $tpl->parseCurrentBlock();
+        }
+        if ($this->getShowMinutes()) {
+            $tpl->setCurrentBlock("dur_minutes");
+            $tpl->setVariable("TXT_MINUTES", $lng->txt("form_minutes"));
+            $val = array();
+            for ($i = 0; $i <= 59; $i++) {
+                $val[$i] = $i;
+            }
+            $tpl->setVariable(
+                "SELECT_MINUTES",
+                ilLegacyFormElementsUtil::formSelect(
+                    $this->getMinutes(),
+                    $this->getPostVar() . "[mm]",
+                    $val,
+                    false,
+                    true,
+                    0,
+                    '',
+                    [],
+                    $this->getDisabled()
+                )
+            );
+            $tpl->parseCurrentBlock();
+        }
+        if ($this->getShowSeconds()) {
+            $tpl->setCurrentBlock("dur_seconds");
+            $tpl->setVariable("TXT_SECONDS", $lng->txt("form_seconds"));
+            $val = array();
+            for ($i = 0; $i <= 59; $i++) {
+                $val[$i] = $i;
+            }
+            $tpl->setVariable(
+                "SELECT_SECONDS",
+                ilLegacyFormElementsUtil::formSelect(
+                    $this->getSeconds(),
+                    $this->getPostVar() . "[ss]",
+                    $val,
+                    false,
+                    true,
+                    0,
+                    '',
+                    [],
+                    $this->getDisabled()
+                )
+            );
+            $tpl->parseCurrentBlock();
+        }
+
+        return $tpl->get();
+    }
+
+    public function getTableFilterHTML(): string
+    {
+        $html = $this->render();
+        return $html;
+    }
+
+    public function serializeData(): string
+    {
+        $data = array("months" => $this->getMonths(),
+            "days" => $this->getDays(),
+            "hours" => $this->getHours(),
+            "minutes" => $this->getMinutes(),
+            "seconds" => $this->getSeconds());
+
+        return serialize($data);
+    }
+
+    public function unserializeData(string $a_data): void
+    {
+        $data = unserialize($a_data);
+
+        $this->setMonths($data["months"]);
+        $this->setDays($data["days"]);
+        $this->setHours($data["hours"]);
+        $this->setMinutes($data["minutes"]);
+        $this->setSeconds($data["seconds"]);
+    }
+
+    public function getValueInSeconds(): int
+    {
+        $value = 0;
+        if ($this->getShowMonths()) {
+            $value += $this->getMonths() * 30 * 24 * 60 * 60;
+        }
+        if ($this->getShowDays()) {
+            $value += $this->getDays() * 24 * 60 * 60;
+        }
+        if ($this->getShowHours()) {
+            $value += $this->getHours() * 60 * 60;
+        }
+        if ($this->getShowMinutes()) {
+            $value += $this->getMinutes() * 60;
+        }
+        if ($this->getShowSeconds()) {
+            $value += $this->getSeconds();
+        }
+        return $value;
+    }
+
+    public function getPostValueForComparison(): int
+    {
+        $values = $this->getInput();
+        $value_or_zero = fn ($part) => array_key_exists($part, $values ?? []) ? (int) $values[$part] : 0;
+        $value = 0;
+        if ($this->getShowMonths()) {
+            $value += $value_or_zero("MM") * 30 * 24 * 60 * 60;
+        }
+        if ($this->getShowDays()) {
+            $value += $value_or_zero("dd") * 24 * 60 * 60;
+        }
+        if ($this->getShowHours()) {
+            $value += $value_or_zero("hh") * 60 * 60;
+        }
+        if ($this->getShowMinutes()) {
+            $value += $value_or_zero("mm") * 60;
+        }
+        if ($this->getShowSeconds()) {
+            $value += $value_or_zero("ss");
+        }
+        return $value;
+    }
+
+    /**
+     * @return array{MM: int, dd: int, hh: int, mm: int, ss: int}
+     */
+    public function getValueAsArray(): array
+    {
+        return [
+            'MM' => $this->getMonths(),
+            'dd' => $this->getDays(),
+            'hh' => $this->getHours(),
+            'mm' => $this->getMinutes(),
+            'ss' => $this->getSeconds()
+        ];
+    }
 }
-?>

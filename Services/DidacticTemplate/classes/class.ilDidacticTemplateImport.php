@@ -1,315 +1,304 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once './Services/DidacticTemplate/exceptions/class.ilDidacticTemplateImportException.php';
+declare(strict_types=1);
+/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
  * Description of ilDidacticTemplateImport
- *
- * @author Stefan Meyer <meyer@leifos.com>
+ * @author  Stefan Meyer <meyer@leifos.com>
  * @ingroup ServicesDidacticTemplate
  */
 class ilDidacticTemplateImport
 {
-    const IMPORT_FILE = 1;
+    public const IMPORT_FILE = 1;
 
-	private $type = 0;
-	private $xmlfile = '';
+    private int $type = 0;
+    private string $xmlfile = '';
 
+    private ilLogger $logger;
+    protected ilObjectDefinition $objDefinition;
+    protected ilSetting $settings;
 
-	/**
-	 * Constructor
-	 * @param <type> $a_type
-	 */
-	public function __construct($a_type)
-	{
-		$this->type = $a_type;
-	}
+    public function __construct(int $a_type)
+    {
+        global $DIC;
 
-	/**
-	 * Set input file
-	 * @param string $a_file
-	 */
-	public function setInputFile($a_file)
-	{
-		$this->xmlfile = $a_file;
-	}
+        $this->logger = $DIC->logger()->otpl();
+        $this->type = $a_type;
+        $this->objDefinition = $DIC['objDefinition'];
+        $this->settings = $DIC->settings();
+    }
 
-	/**
-	 * Get inputfile
-	 * @return <type>
-	 */
-	public function getInputFile()
-	{
-		return $this->xmlfile;
-	}
+    public function setInputFile(string $a_file): void
+    {
+        $this->xmlfile = $a_file;
+    }
 
-	/**
-	 * Get input type
-	 * @return string
-	 */
-	public function getInputType()
-	{
-		return $this->type;
-	}
+    public function getInputFile(): string
+    {
+        return $this->xmlfile;
+    }
 
-	/**
-	 * Do import
-	 */
-	public function import($a_dtpl_id = 0)
-	{
-		libxml_use_internal_errors(true);
+    public function getInputType(): int
+    {
+        return $this->type;
+    }
 
-		switch($this->getInputType())
-		{
-			case self::IMPORT_FILE:
+    /**
+     * Do import
+     */
+    public function import(int $a_dtpl_id = 0): ilDidacticTemplateSetting
+    {
+        $root = null;
+        $use_internal_errors = libxml_use_internal_errors(true);
+        switch ($this->getInputType()) {
+            case self::IMPORT_FILE:
+                $root = simplexml_load_string(file_get_contents($this->getInputFile()));
+                break;
+        }
+        libxml_use_internal_errors($use_internal_errors);
+        if (!$root instanceof SimpleXMLElement) {
+            throw new ilDidacticTemplateImportException(
+                $this->parseXmlErrors()
+            );
+        }
+        $settings = $this->parseSettings($root);
+        $this->parseActions($settings, $root->didacticTemplate->actions);
+        return $settings;
+    }
 
-				$root = simplexml_load_file($this->getInputFile());
-				if($root == FALSE)
-				{
-					throw new ilDidacticTemplateImportException(
-						$this->parseXmlErrors()
-					);
-				}
-				break;
-		}
+    /**
+     * Parse settings
+     */
+    protected function parseSettings(SimpleXMLElement $root): ilDidacticTemplateSetting
+    {
+        $icon = '';
+        $setting = new ilDidacticTemplateSetting();
+        foreach ($root->didacticTemplate as $tpl) {
+            switch ((string) $tpl->attributes()->type) {
+                case 'creation':
+                default:
+                    $setting->setType(ilDidacticTemplateSetting::TYPE_CREATION);
+                    break;
+            }
+            $setting->setTitle(trim((string) $tpl->title));
+            $setting->setDescription(trim((string) $tpl->description));
 
-		$settings = $this->parseSettings($root);
-		$this->parseActions($settings,$root->didacticTemplate->actions);
+            $icon = (string) $tpl->icon;
 
-		return $settings;
-	}
+            $info = '';
+            foreach ((array) $tpl->info->p as $paragraph) {
+                if ($info !== '') {
+                    $info .= "\n";
+                }
+                $info .= trim((string) $paragraph);
+            }
+            $setting->setInfo($info);
 
-	/**
-	 * Parse settings
-	 * @param SimpleXMLElement $el
-	 * @return ilDidacticTemplateSetting
-	 */
-	protected function parseSettings(SimpleXMLElement $root)
-	{
-		global $DIC;
+            if (isset($tpl->effectiveFrom) && (string) $tpl->effectiveFrom["nic_id"] == $this->settings->get('inst_id')) {
+                $node = array();
+                foreach ($tpl->effectiveFrom->node as $element) {
+                    $node[] = (int) $element;
+                }
 
-		$ilSetting = $DIC['ilSetting'];
-		include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateSetting.php';
-		$setting = new ilDidacticTemplateSetting();
+                $setting->setEffectiveFrom($node);
+            }
 
-		foreach($root->didacticTemplate as $tpl)
-		{
-			switch((string) $tpl->attributes()->type)
-			{
-				case 'creation':
-				default:
-					$setting->setType(ilDidacticTemplateSetting::TYPE_CREATION);
-					break;
-			}
-			$setting->setTitle(trim((string) $tpl->title));
-			$setting->setDescription(trim((string) $tpl->description));
+            if (isset($tpl->exclusive)) {
+                $setting->setExclusive(true);
+            }
 
-			$info = '';
-			foreach((array) $tpl->info->p as $paragraph)
-			{
-				if(strlen($info))
-				{
-					$info .= "\n";
-				}
-				$info .= trim((string) $paragraph);
-			}
-			$setting->setInfo($info);
+            foreach ($tpl->assignments->assignment as $element) {
+                $setting->addAssignment(trim((string) $element));
+            }
+        }
+        $setting->save();
 
-			if(isset($tpl->effectiveFrom) && (string)$tpl->effectiveFrom["nic_id"] == $ilSetting->get('inst_id') )
-			{
-				$node = array();
-				foreach($tpl->effectiveFrom->node as $element)
-				{
-					$node[] = (int) $element;
-				}
-				
-				$setting->setEffectiveFrom($node);
-			}
+        if ($icon !== '' && $this->canUseIcons($setting)) {
+            $setting->getIconHandler()->writeSvg($icon);
+        }
+        $trans = ilMultilingualism::getInstance($setting->getId(), "dtpl");
+        if (isset($root->didacticTemplate->translations)) {
+            $trans->fromXML($root->didacticTemplate->translations);
+        }
+        $trans->save();
 
-			if(isset($tpl->exclusive))
-			{
-				$setting->setExclusive(true);
-			}
+        return $setting;
+    }
 
-			foreach($tpl->assignments->assignment as $element)
-			{
-				$setting->addAssignment(trim((string) $element));
-			}
-		}
-		$setting->save();
+    protected function canUseIcons(ilDidacticTemplateSetting $setting): bool
+    {
+        foreach ($setting->getAssignments() as $assignment) {
+            if (!$this->objDefinition->isContainer($assignment)) {
+                return false;
+            }
+        }
 
-		include_once("./Services/Multilingualism/classes/class.ilMultilingualism.php");
-		$trans = ilMultilingualism::getInstance($setting->getId(), "dtpl");
+        return true;
+    }
 
-		if(isset($root->didacticTemplate->translations))
-		{
-			$trans->fromXML($root->didacticTemplate->translations);
-		}
-		$trans->save();
-		
-		return $setting;
-	}
+    /**
+     * Parse template action from xml
+     */
+    protected function parseActions(ilDidacticTemplateSetting $set, SimpleXMLElement $actions = null): void
+    {
+        if ($actions === null) {
+            return;
+        }
+        ////////////////////////////////////////////////
+        // Local role action
+        ///////////////////////////////////////////////
+        foreach ($actions->localRoleAction as $ele) {
+            $act = new ilDidacticTemplateLocalRoleAction();
+            $act->setTemplateId($set->getId());
 
-	/**
-	 * Parse template action from xml
-	 * @param ilDidacticTemplateSetting $set
-	 * @param SimpleXMLElement $root
-	 * @return void
-	 */
-	protected function parseActions(ilDidacticTemplateSetting $set, SimpleXMLElement $actions = NULL)
-	{
-		include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateActionFactory.php';
+            foreach ($ele->roleTemplate as $tpl) {
+                // extract role
+                foreach ($tpl->role as $roleDef) {
+                    $rimporter = new ilRoleXmlImporter(ROLE_FOLDER_ID);
+                    $role_id = $rimporter->importSimpleXml($roleDef);
+                    $act->setRoleTemplateId($role_id);
+                }
+                $act->save();
+            }
+        }
 
-		if($actions === NULL)
-		{
-			return void;
-		}
+        ////////////////////////////////////////////////
+        // Block role action
+        //////////////////////////////////////////////
+        foreach ($actions->blockRoleAction as $ele) {
+            $act = new ilDidacticTemplateBlockRoleAction();
+            $act->setTemplateId($set->getId());
 
-		////////////////////////////////////////////////
-		// Local role action
-		///////////////////////////////////////////////
-		foreach($actions->localRoleAction as $ele)
-		{
-			include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateLocalRoleAction.php';
-			$act = new ilDidacticTemplateLocalRoleAction();
-			$act->setTemplateId($set->getId());
+            // Role filter
+            foreach ($ele->roleFilter as $rfi) {
+                switch ((string) $rfi->attributes()->source) {
+                    case 'title':
+                        $act->setFilterType(\ilDidacticTemplateAction::FILTER_SOURCE_TITLE);
+                        break;
 
-			foreach($ele->roleTemplate as $tpl)
-			{
-				// extract role
-				foreach($tpl->role as $roleDef)
-				{
-					include_once './Services/AccessControl/classes/class.ilRoleXmlImporter.php';
-					$rimporter = new ilRoleXmlImporter(ROLE_FOLDER_ID);
-					$role_id = $rimporter->importSimpleXml($roleDef);
-					$act->setRoleTemplateId($role_id);
-				}
-				$act->save();
-			}
-		}
+                    case 'objId':
+                        $act->setFilterType(\ilDidacticTemplateAction::FILTER_SOURCE_OBJ_ID);
+                        break;
 
-		////////////////////////////////////////////////
-		// Block role action
-		//////////////////////////////////////////////
-		foreach($actions->blockRoleAction as $ele)
-		{
-			include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateBlockRoleAction.php';
-			$act = new ilDidacticTemplateBlockRoleAction();
-			$act->setTemplateId($set->getId());
+                    case 'parentRoles':
+                        $act->setFilterType(\ilDidacticTemplateAction::FILTER_PARENT_ROLES);
+                        break;
+                }
+                foreach ($rfi->includePattern as $pat) {
+                    // @TODO other subtypes
 
-			// Role filter
-			foreach($ele->roleFilter as $rfi)
-			{
-				$act->setFilterType((string) $rfi->attributes()->source);
-				foreach($rfi->includePattern as $pat)
-				{
-					// @TODO other subtypes
-					include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateIncludeFilterPattern.php';
-					$pattern = new ilDidacticTemplateIncludeFilterPattern();
-					$pattern->setPatternSubType(ilDidacticTemplateFilterPattern::PATTERN_SUBTYPE_REGEX);
-					$pattern->setPattern((string) $pat->attributes()->preg);
-					$act->addFilterPattern($pattern);
-				}
-				foreach($rfi->excludePattern as $pat)
-				{
-					// @TODO other subtypes
-					include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateExcludeFilterPattern.php';
-					$pattern = new ilDidacticTemplateExcludeFilterPattern();
-					$pattern->setPatternSubType(ilDidacticTemplateFilterPattern::PATTERN_SUBTYPE_REGEX);
-					$pattern->setPattern((string) $pat->attributes()->preg);
-					$act->addFilterPattern($pattern);
-				}
-			}
+                    $pattern = new ilDidacticTemplateIncludeFilterPattern();
+                    $pattern->setPatternSubType(ilDidacticTemplateFilterPattern::PATTERN_SUBTYPE_REGEX);
+                    $pattern->setPattern((string) $pat->attributes()->preg);
+                    $act->addFilterPattern($pattern);
+                }
+                foreach ($rfi->excludePattern as $pat) {
+                    // @TODO other subtypes
 
-			$act->save();
-		}
+                    $pattern = new ilDidacticTemplateExcludeFilterPattern();
+                    $pattern->setPatternSubType(ilDidacticTemplateFilterPattern::PATTERN_SUBTYPE_REGEX);
+                    $pattern->setPattern((string) $pat->attributes()->preg);
+                    $act->addFilterPattern($pattern);
+                }
+            }
 
+            $act->save();
+        }
 
+        ////////////////////////////////////////////
+        // Local policy action
+        /////////////////////////////////////////////
+        foreach ($actions->localPolicyAction as $ele) {
+            $act = new ilDidacticTemplateLocalPolicyAction();
+            $act->setTemplateId($set->getId());
 
-		////////////////////////////////////////////
-		// Local policy action
-		/////////////////////////////////////////////
-		foreach($actions->localPolicyAction as $ele)
-		{
-			include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateLocalPolicyAction.php';
-			$act = new ilDidacticTemplateLocalPolicyAction();
-			$act->setTemplateId($set->getId());
+            // Role filter
+            foreach ($ele->roleFilter as $rfi) {
+                $this->logger->dump($rfi->attributes(), \ilLogLevel::DEBUG);
+                $this->logger->debug(
+                    'Current filter source: ' . $rfi->attributes()->source
+                );
 
-			// Role filter
-			foreach($ele->roleFilter as $rfi)
-			{
-				$act->setFilterType((string) $rfi->attributes()->source);
-				foreach($rfi->includePattern as $pat)
-				{
-					// @TODO other subtypes
-					include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateIncludeFilterPattern.php';
-					$pattern = new ilDidacticTemplateIncludeFilterPattern();
-					$pattern->setPatternSubType(ilDidacticTemplateFilterPattern::PATTERN_SUBTYPE_REGEX);
-					$pattern->setPattern((string) $pat->attributes()->preg);
-					$act->addFilterPattern($pattern);
-				}
-				foreach($rfi->excludePattern as $pat)
-				{
-					// @TODO other subtypes
-					include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateExcludeFilterPattern.php';
-					$pattern = new ilDidacticTemplateExcludeFilterPattern();
-					$pattern->setPatternSubType(ilDidacticTemplateFilterPattern::PATTERN_SUBTYPE_REGEX);
-					$pattern->setPattern((string) $pat->attributes()->preg);
-					$act->addFilterPattern($pattern);
-				}
-			}
+                switch ((string) $rfi->attributes()->source) {
+                    case 'title':
+                        $act->setFilterType(\ilDidacticTemplateAction::FILTER_SOURCE_TITLE);
+                        break;
 
-			// role template assignment
-			foreach($ele->localPolicyTemplate as $lpo)
-			{
-				$act->setFilterType(ilDidacticTemplateLocalPolicyAction::FILTER_SOURCE_TITLE);
-				switch((string) $lpo->attributes()->type)
-				{
-					case 'overwrite':
-						$act->setRoleTemplateType(ilDidacticTemplateLocalPolicyAction::TPL_ACTION_OVERWRITE);
-						break;
+                    case 'objId':
+                        $act->setFilterType(\ilDidacticTemplateAction::FILTER_SOURCE_OBJ_ID);
+                        break;
 
-					case 'union':
-						$act->setRoleTemplateType(ilDidacticTemplateLocalPolicyAction::TPL_ACTION_UNION);
-						break;
+                    case 'parentRoles':
+                        $act->setFilterType(\ilDidacticTemplateAction::FILTER_PARENT_ROLES);
+                        break;
 
-					case 'intersect':
-						$act->setRoleTemplateType(ilDidacticTemplateLocalPolicyAction::TPL_ACTION_INTERSECT);
-						break;
-				}
+                    case 'localRoles':
+                        $act->setFilterType(\ilDidacticTemplateAction::FILTER_LOCAL_ROLES);
+                        break;
+                }
+                foreach ($rfi->includePattern as $pat) {
+                    // @TODO other subtypes
 
-				// extract role
-				foreach($lpo->role as $roleDef)
-				{
-					include_once './Services/AccessControl/classes/class.ilRoleXmlImporter.php';
-					$rimporter = new ilRoleXmlImporter(ROLE_FOLDER_ID);
-					$role_id = $rimporter->importSimpleXml($roleDef);
-					$act->setRoleTemplateId($role_id);
-				}
-			}
+                    $pattern = new ilDidacticTemplateIncludeFilterPattern();
+                    $pattern->setPatternSubType(ilDidacticTemplateFilterPattern::PATTERN_SUBTYPE_REGEX);
+                    $pattern->setPattern((string) $pat->attributes()->preg);
+                    $act->addFilterPattern($pattern);
+                }
+                foreach ($rfi->excludePattern as $pat) {
+                    // @TODO other subtypes
 
-			// Save action including all filter patterns
-			$act->save();
-		}
+                    $pattern = new ilDidacticTemplateExcludeFilterPattern();
+                    $pattern->setPatternSubType(ilDidacticTemplateFilterPattern::PATTERN_SUBTYPE_REGEX);
+                    $pattern->setPattern((string) $pat->attributes()->preg);
+                    $act->addFilterPattern($pattern);
+                }
+            }
 
-	}
+            // role template assignment
+            foreach ($ele->localPolicyTemplate as $lpo) {
+                switch ((string) $lpo->attributes()->type) {
+                    case 'overwrite':
+                        $act->setRoleTemplateType(ilDidacticTemplateLocalPolicyAction::TPL_ACTION_OVERWRITE);
+                        break;
 
-	/**
-	 * Parse xml errors from libxml_get_errors
-	 *
-	 * @return string
-	 */
-	protected function parseXmlErrors()
-	{
-		$errors = '';
-		foreach(libxml_get_errors() as $err)
-		{
-			$errors .= $err->code.'<br/>';
-		}
-		return $errors;
-	}
+                    case 'union':
+                        $act->setRoleTemplateType(ilDidacticTemplateLocalPolicyAction::TPL_ACTION_UNION);
+                        break;
 
+                    case 'intersect':
+                        $act->setRoleTemplateType(ilDidacticTemplateLocalPolicyAction::TPL_ACTION_INTERSECT);
+                        break;
+                }
 
+                // extract role
+                foreach ($lpo->role as $roleDef) {
+                    try {
+                        $rimporter = new ilRoleXmlImporter(ROLE_FOLDER_ID);
+                        $role_id = $rimporter->importSimpleXml($roleDef);
+                        $act->setRoleTemplateId($role_id);
+                    } catch (ilRoleImporterException $e) {
+                        // delete half-imported template
+                        $set->delete();
+                        throw new ilDidacticTemplateImportException($e->getMessage());
+                    }
+                }
+            }
+
+            // Save action including all filter patterns
+            $act->save();
+        }
+    }
+
+    /**
+     * Parse xml errors from libxml_get_errors
+     */
+    protected function parseXmlErrors(): string
+    {
+        $errors = '';
+        foreach (libxml_get_errors() as $err) {
+            $errors .= $err->code . '<br/>';
+        }
+        return $errors;
+    }
 }
-?>

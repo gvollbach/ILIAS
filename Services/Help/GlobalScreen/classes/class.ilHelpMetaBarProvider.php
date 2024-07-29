@@ -1,106 +1,67 @@
 <?php
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 use ILIAS\GlobalScreen\Identification\IdentificationInterface;
 use ILIAS\GlobalScreen\Scope\MetaBar\Provider\AbstractStaticMetaBarProvider;
 use ILIAS\GlobalScreen\Scope\MetaBar\Provider\StaticMetaBarProvider;
+use ILIAS\UI\Implementation\Component\Button\Bulky as BulkyButton;
+use ILIAS\UI\Implementation\Component\Link\Bulky as BulkyLink;
 
-/**
- * Help meta bar provider
- *
- * @author <killing@leifos.de>
- */
-class ilHelpMetaBarProvider extends AbstractStaticMetaBarProvider implements StaticMetaBarProvider
+class ilHelpMetaBarProvider extends AbstractStaticMetaBarProvider
 {
+    use ilHelpDisplayed;
 
-    /**
-     * @return IdentificationInterface
-     */
-    private function getId() : IdentificationInterface
+    private function getId(): IdentificationInterface
     {
         return $this->if->identifier('help');
     }
 
-
-    /**
-     * @inheritDoc
-     */
-    public function getAllIdentifications() : array
-    {
-        return [$this->getId()];
-    }
-
-
-    /**
-     * @inheritDoc
-     */
-    public function getMetaBarItems() : array
+    public function getMetaBarItems(): array
     {
         global $DIC;
-
-        $ctrl = $DIC->ctrl();
 
         $mb = $this->globalScreen()->metaBar();
 
         $f = $DIC->ui()->factory();
 
         $title = $DIC->language()->txt("help");
-        $icon = $f->symbol()->icon()->custom(\ilUtil::getImagePath("simpleline/info.svg"), $title);
 
-        if ($this->showHelpItem()) {
+        if ($this->showHelpTool()) {
+            // position should be 0, see bug #26794
             $item = $mb->topLinkItem($this->getId())
-                ->withAction($ctrl->getLinkTargetByClass("ildashboardgui", "toggleHelp"))
-                ->withSymbol($icon)
-                ->withTitle($title)
-                ->withPosition(2)
-                ->withAvailableCallable(
-                    function () use ($DIC) {
-                        return true;
-                    }
-                );
+                       ->addComponentDecorator(static function (ILIAS\UI\Component\Component $c): ?ILIAS\UI\Component\Component {
+                           if ($c instanceof BulkyButton || $c instanceof BulkyLink) {
+                               return $c->withAdditionalOnLoadCode(static function (string $id): string {
+                                   return "$('#$id').on('click', function() {
+                                    $('body').trigger('il-help-toggle-slate');
+                                    return false;
+                                })";
+                               });
+                           }
+                           return null;
+                       })
+                       ->withSymbol($f->symbol()->glyph()->help())
+                       ->withTitle($title)
+                       ->withPosition(0);
 
             return [$item];
         }
 
         return [];
     }
-
-    /**
-     * Show help tool?
-     *
-     * @param
-     * @return
-     */
-    protected function showHelpItem(): bool
-    {
-        global $DIC;
-
-        $user = $DIC->user();
-        $settings = $DIC->settings();
-
-        if ($user->getLanguage() != "de")
-        {
-            return false;
-        }
-
-        if ($settings->get("help_mode") == "2")
-        {
-            return false;
-        }
-
-        if ((defined("OH_REF_ID") && OH_REF_ID > 0))
-        {
-            true;
-        }
-        else
-        {
-            $module = (int) $settings->get("help_module");
-            if ($module == 0)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
 }

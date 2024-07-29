@@ -1,6 +1,6 @@
 var Container = require('../AppContainer');
 
-module.exports = function(conversationId, oldestMessageTimestamp) {
+module.exports = function(conversationId, oldestMessageTimestamp, reverseSorting) {
 	if(conversationId !== null)
 	{
 		var namespace = Container.getNamespace(this.nsp.name);
@@ -9,7 +9,7 @@ module.exports = function(conversationId, oldestMessageTimestamp) {
 		var oldestTimestamp = oldestMessageTimestamp;
 		var socket = this;
 
-		if(conversation.isParticipant(this.participant))
+		if(conversation !== null && conversation.isParticipant(this.participant))
 		{
 			function onConversationResult(row){
 				if(oldestTimestamp === null || oldestTimestamp > row.timestamp) {
@@ -26,12 +26,13 @@ module.exports = function(conversationId, oldestMessageTimestamp) {
 				}
 
 				var json = conversation.json();
-				json.messages = history;
+				json.messages = (reverseSorting ? history.reverse() : history);
+				json.reverseSorting = reverseSorting;
 				json.oldestMessageTimestamp = oldestTimestamp;
 
 				socket.participant.emit('history', json);
 
-				Container.getLogger().info('Requested History for %s since %s', conversationId, oldestMessageTimestamp);
+				Container.getLogger().debug('Requested History for %s since %s', conversationId, oldestMessageTimestamp);
 			}
 
 			namespace.getDatabase().loadConversationHistory(

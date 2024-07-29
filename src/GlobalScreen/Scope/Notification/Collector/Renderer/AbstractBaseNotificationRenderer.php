@@ -1,45 +1,57 @@
-<?php namespace ILIAS\GlobalScreen\Scope\Notification\Collector\Renderer;
+<?php
 
-use ILIAS\GlobalScreen\Scope\Notification\Factory\canHaveSymbol;
+declare(strict_types=1);
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+namespace ILIAS\GlobalScreen\Scope\Notification\Collector\Renderer;
+
+use ILIAS\GlobalScreen\Client\Notifications as ClientNotifications;
+use ILIAS\GlobalScreen\Scope\MainMenu\Collector\Renderer\Hasher;
 use ILIAS\GlobalScreen\Scope\Notification\Factory\isItem;
-use ILIAS\UI\Component\Symbol\Symbol;
-use ILIAS\UI\Factory;
+use ILIAS\UI\Factory as UIFactory;
 
 /**
  * Class AbstractBaseNotificationRenderer
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
 abstract class AbstractBaseNotificationRenderer implements NotificationRenderer
 {
+    use Hasher;
+
+    protected UIFactory $ui_factory;
 
     /**
-     * @var Factory
+     * AbstractBaseNotificationRenderer constructor.
+     * @param UIFactory $factory
      */
-    protected $ui_factory;
-
-
-    /**
-     * StandardNotificationRenderer constructor.
-     */
-    public function __construct()
+    public function __construct(UIFactory $factory)
     {
-        global $DIC;
-        $this->ui_factory = $DIC->ui()->factory();
+        $this->ui_factory = $factory;
     }
-
 
     /**
      * @param isItem $item
-     *
-     * @return Symbol
+     * @return string
      */
-    protected function getStandardSymbol(isItem $item) : Symbol
+    protected function buildCloseQuery(isItem $item): string
     {
-        if ($item instanceof canHaveSymbol && $item->hasSymbol()) {
-            return $item->getSymbol();
-        }
-
-        return $this->ui_factory->symbol()->icon()->custom("./src/UI/examples/Layout/Page/Standard/question.svg", 'ILIAS', 'small', true);
+        return http_build_query([
+            ClientNotifications::MODE => ClientNotifications::MODE_CLOSED,
+            ClientNotifications::ITEM_ID => $this->hash($item->getProviderIdentification()->serialize()),
+        ]);
     }
 }

@@ -1,16 +1,42 @@
 /* Services/News */
 
+td.il-news {
+	white-space:normal;
+	.il-news-locator {
+		margin: 2px 0px 4px 0px;
+	}
+	.ilIcon {
+		vertical-align:middle
+	}
+	.il-news-content {
+		clear:both;
+	}
+	.il-news-player {
+		margin-top: 15px;
+		max-width: 600px;
+	}
+	.il_BlockInfo {
+		text-align:right;
+	}
+}
+
+@media only screen and (max-width: @grid-float-breakpoint-max) {
+	td.il-news {
+		white-space: normal !important;
+	}
+}
+
 span.ilNewsRssIcon {
-	background-color: @badge-bg;
-	color: @badge-color;
+	background-color: @il-warning-color;
+	color: white;
 	min-width: 36px;
-	font-size: 10px;
+	font-size: @il-font-size-xsmall;
 	text-align: center;
 	display: inline-block;
 	padding: 0 5px;
 	&:hover {
 		text-decoration: none;
-		background-color: darken(@badge-bg, 10%);
+		background-color: darken(@il-warning-color, 10%);
 	}
 }
 
@@ -26,7 +52,7 @@ span.ilNewsRssIcon {
 		position: absolute;
 		content: " ";
 		width: 3px;
-		background-color: #d0d0d0;
+		background-color: @il-main-border-dark-color;
 		left: 50%;
 		margin-left: -1.5px;
 		@media only screen and (max-width: @grid-float-breakpoint-max) {
@@ -48,6 +74,10 @@ span.ilNewsRssIcon {
 				margin-left: -25px;
 				right: auto;
 				margin-right: 0;
+				@media only screen and (max-width: @grid-float-breakpoint-max) {
+					right: auto;
+					left: 90%;
+				}
 			}
 		}
 		@media only screen and (max-width: @grid-float-breakpoint-max) {
@@ -65,7 +95,8 @@ span.ilNewsRssIcon {
 			float: left;
 			padding: 20px;
 			position: relative;
-			background: @il-primary-container-bg;
+			background: @il-main-dark-bg;
+			border: @il-panel-border;
 			@media only screen and (max-width: @grid-float-breakpoint-max) {
 				width: 80%;
 			}
@@ -75,10 +106,13 @@ span.ilNewsRssIcon {
 				right: -14px;
 				display: inline-block;
 				border-top: 14px solid transparent;
-				border-left: 14px solid @il-primary-container-bg;
-				border-right: 0 solid @il-primary-container-bg;
+				border-left: 14px solid @il-main-border-color;
+				border-right: 0 solid @il-main-border-color;
 				border-bottom: 14px solid transparent;
 				content: " ";
+			}
+			.panel h2 {
+				display: none;
 			}
 		}
 		> .ilTimelineBadge {
@@ -87,23 +121,25 @@ span.ilNewsRssIcon {
 			height: 50px;
 			padding-top: 8px;
 			line-height: 1.2em;
-			font-size: 1em;
+			font-size: @il-font-size-base;
 			text-align: center;
 			position: absolute;
 			top: 16px;
-			background-color: #999;
+			background-color: @il-neutral-light-color;
 			z-index: 100;
 			border-radius: 50%;
 			right: 0;
 			margin-right: -25px;
 			@media only screen and (max-width: @grid-float-breakpoint-max) {
 				left: 90%;
+				right: auto;
+				margin-left: -25px;
 			}
 			> .ilTimelineDay {
-				font-size: 1.3em;
+				font-size: @il-font-size-base;
 			}
 			> .ilTimelineMonth {
-				font-size: 0.8em;
+				font-size: @il-font-size-xsmall;
 			}
 			> p {
 				padding: 0;
@@ -145,12 +181,15 @@ span.ilNewsRssIcon {
 		clear: right;
 		margin-top: 8px;
 	}
+	div.ilNotesHeader {
+		background-color: @il-main-dark-bg;
+	}
 }
 
 .ilNewsTimelineTruncatedText {
-	overflow: hidden;
+	/*overflow: hidden;
 	text-overflow: ellipsis;
-	white-space: nowrap;
+	white-space: nowrap;*/
 }
 
 .ilNewsTimelineObjHead img {

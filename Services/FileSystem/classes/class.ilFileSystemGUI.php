@@ -1,1084 +1,976 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\FileUpload\DTO\ProcessingStatus;
+use ILIAS\FileUpload\DTO\UploadResult;
+use ILIAS\FileUpload\Location;
+use ILIAS\FileUpload\MimeType;
+use ILIAS\Filesystem\Util\LegacyPathHelper;
+
+use ILIAS\ResourceStorage\Preloader\SecureString;
 
 /**
-* File System Explorer GUI class
-*
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* @version $Id$
-*
-*/
+ * File System Explorer GUI class
+ *
+ * @deprecated
+ */
 class ilFileSystemGUI
 {
-	var $ctrl;
-
-	protected $use_upload_directory = false;
-	const CDIR = "cdir";
-	/**
-	 * @var array
-	 */
-	protected $allowed_suffixes = array();
-
-	/**
-	 * @var array
-	 */
-	protected $forbidden_suffixes = array();
-
-	function __construct($a_main_directory)
-	{
-		global $DIC;
-		$lng = $DIC['lng'];
-		$ilCtrl = $DIC['ilCtrl'];
-		$tpl = $DIC['tpl'];
-		$ilias = $DIC['ilias'];
-
-		$this->ctrl = $ilCtrl;
-		$this->lng = $lng;
-		$this->ilias = $ilias;
-		$this->tpl = $tpl;
-		$this->main_dir = $a_main_directory;
-		$this->post_dir_path = false;
-
-		$this->defineCommands();
-
-		$this->file_labels = array();
-		$this->label_enable = false;
-		$this->ctrl->saveParameter($this, self::CDIR);
-		$lng->loadLanguageModule("content");
-		$this->setAllowDirectories(true);
-		$this->setAllowDirectoryCreation(true);
-		$this->setAllowFileCreation(true);
-//echo "<br>main_dir:".$this->main_dir.":";
-	}
-
-	/**
-	 * Set allowed Suffixes.
-	 *
-	 * @param	array	$a_suffixes	allowed Suffixes
-	 */
-	function setAllowedSuffixes($a_suffixes)
-	{
-		$this->allowed_suffixes = $a_suffixes;
-	}
-
-	/**
-	 * Get allowed Suffixes.
-	 *
-	 * @return	array	allowed Suffixes
-	 */
-	function getAllowedSuffixes()
-	{
-		return $this->allowed_suffixes;
-	}
-
-	/**
-	 * Set forbidden Suffixes.
-	 *
-	 * @param	array	$a_suffixes	forbidden Suffixes
-	 */
-	function setForbiddenSuffixes($a_suffixes)
-	{
-		$this->forbidden_suffixes = $a_suffixes;
-	}
-
-	/**
-	 * Get Accepted Suffixes.
-	 *
-	 * @return	array	forbidden Suffixes
-	 */
-	function getForbiddenSuffixes()
-	{
-		return $this->forbidden_suffixes;
-	}
-
-	/**
-	 * Is suffix valid?
-	 *
-	 * @param string $a_suffix
-	 * @return bool
-	 */
-	function isValidSuffix($a_suffix)
-	{
-		if (is_array($this->getForbiddenSuffixes()) && in_array($a_suffix, $this->getForbiddenSuffixes()))
-		{
-			return false;
-		}
-		if (is_array($this->getAllowedSuffixes()) && in_array($a_suffix, $this->getAllowedSuffixes()))
-		{
-			return true;
-		}
-		if (!is_array($this->getAllowedSuffixes()) || count($this->getAllowedSuffixes()) == 0)
-		{
-			return true;
-		}
-		return false;
-	}
-
-
-	/**
-	 * Set allow directories
-	 *
-	 * @param	boolean		allow directories
-	 */
-	function setAllowDirectories($a_val)
-	{
-		$this->allow_directories = $a_val;
-	}
-	
-	/**
-	 * Get allow directories
-	 *
-	 * @return	boolean		allow directories
-	 */
-	function getAllowDirectories()
-	{
-		return $this->allow_directories;
-	}
-
-	/**
-	 * Set post dir path
-	 *
-	 * @param	boolean		post dir path
-	 */
-	function setPostDirPath($a_val)
-	{
-		$this->post_dir_path = $a_val;
-	}
-
-	/**
-	 * Get post dir path
-	 *
-	 * @return	boolean		post dir path
-	 */
-	function getPostDirPath()
-	{
-		return $this->post_dir_path;
-	}
-
-	/**
-	* Set table id
-	*
-	* @param	string	table id
-	*/
-	function setTableId($a_val)
-	{
-		$this->table_id = $a_val;
-	}
-	
-	/**
-	* Get table id
-	*
-	* @return	string	table id
-	*/
-	function getTableId()
-	{
-		return $this->table_id;
-	}
-
-	/**
-	 * Set title
-	 *
-	 * @param	string	title
-	 */
-	function setTitle($a_val)
-	{
-		$this->title = $a_val;
-	}
-	
-	/**
-	 * Get title
-	 *
-	 * @return	string	title
-	 */
-	function getTitle()
-	{
-		return $this->title;
-	}
-
-	/**
-	 * Set use upload directory
-	 *
-	 * @param bool $a_val use upload directory
-	 */
-	function setUseUploadDirectory($a_val)
-	{
-		$this->use_upload_directory = $a_val;
-	}
-
-	/**
-	 * Get use upload directory
-	 *
-	 * @return bool use upload directory
-	 */
-	function getUseUploadDirectory()
-	{
-		return $this->use_upload_directory;
-	}
-	
-	/**
-	 * Set performed command
-	 *
-	 * @param	string	command
-	 * @param	array	parameter array
-	 */
-	protected function setPerformedCommand($command, $pars = "")
-	{
-		if (!is_array($pars))
-		{
-			$pars = array();
-		}
-		$_SESSION["fsys"]["lastcomm"] = array_merge(
-			array("cmd" => $command), $pars);
-	}
-	
-	/**
-	 * Get performed command
-	 *
-	 * @return	array	command array
-	 */
-	public function getLastPerformedCommand()
-	{
-		$ret = $_SESSION["fsys"]["lastcomm"];
-		$_SESSION["fsys"]["lastcomm"] = "none";
-		return $ret;
-	}
-	
-	/**
-	* execute command
-	*/
-	function executeCommand()
-	{
-		$next_class = $this->ctrl->getNextClass($this);
-		$cmd = $this->ctrl->getCmd("listFiles");
-
-		switch($next_class)
-		{
-
-			default:
-				if (substr($cmd, 0, 11) == "extCommand_")
-				{
-					$ret = $this->extCommand(substr($cmd, 11, strlen($cmd) - 11));
-				}
-				else
-				{
-					$ret = $this->$cmd();
-				}
-				break;
-		}
-
-		return $ret;
-	}
-
-
-	/**
-	 * Add command
-	 */
-	function addCommand(&$a_obj, $a_func, $a_name, $a_single = true,
-		$a_allow_dir = false)
-	{
-		$i = count($this->commands);
-
-		$this->commands[$i]["object"] = $a_obj;
-		$this->commands[$i]["method"] = $a_func;
-		$this->commands[$i]["name"] = $a_name;
-		$this->commands[$i]["single"] = $a_single;
-		$this->commands[$i]["allow_dir"] = $a_allow_dir;
-
-		//$this->commands[] = $arr;
-	}
-
-	/**
-	 * Clear commands
-	 */
-	function clearCommands()
-	{
-		$this->commands = array();
-	}
-
-	/**
-	* label a file
-	*/
-	function labelFile($a_file, $a_label)
-	{
-		$this->file_labels[$a_file][] = $a_label;
-	}
-
-	/**
-	* activate file labels
-	*/
-	function activateLabels($a_act, $a_label_header)
-	{
-		$this->label_enable = $a_act;
-		$this->label_header = $a_label_header;
-	}
-	
-	
-	
-	protected function parseCurrentDirectory()
-	{		
-		// determine directory
-		// FIXME: I have to call stripSlashes here twice, because I could not
-		//        determine where the second layer of slashes is added to the
-		//        URL Parameter
-		$cur_subdir = ilUtil::stripSlashes(ilUtil::stripSlashes($_GET[self::CDIR]));
-		$new_subdir = ilUtil::stripSlashes(ilUtil::stripSlashes($_GET["newdir"]));
-
-		if($new_subdir == "..")
-		{
-			$cur_subdir = substr($cur_subdir, 0, strrpos($cur_subdir, "/"));
-		}
-		else
-		{
-			if (!empty($new_subdir))
-			{
-				if (!empty($cur_subdir))
-				{
-					$cur_subdir = $cur_subdir."/".$new_subdir;
-				}
-				else
-				{
-					$cur_subdir = $new_subdir;
-				}
-			}
-		}
-
-		$cur_subdir = str_replace("..", "", $cur_subdir);
-		$cur_dir = (!empty($cur_subdir))
-			? $this->main_dir."/".$cur_subdir
-			: $this->main_dir;
-		
-		return array("dir"=>$cur_dir, "subdir"=>$cur_subdir);
-	}
-	
-	protected function getFileList($a_dir, $a_subdir = null)
-	{
-		$items = array();
-		
-		$entries = (is_dir($a_dir))
-			? ilUtil::getDir($a_dir)
-			: array(array("type" => "dir", "entry" => ".."));
-	
-		$items = array();
-		foreach ($entries as $e)
-		{
-			if(($e["entry"] == ".") || 
-				($e["entry"] == ".." && empty($a_subdir)))
-			{
-				continue;
-			}
-			
-			$cfile = (!empty($a_subdir))
-				? $a_subdir."/".$e["entry"]
-				: $e["entry"];
-			
-			$items[] = array(
-				"file" => $cfile, 
-				"entry" => $e["entry"],
-				"type" => $e["type"], 
-				"size" => $e["size"],
-				"hash" => md5($e["entry"])
-			);
-		}
-		
-		return $items;
-	}
-
-	protected function getIncomingFiles()
-	{						
-		$sel_files = $hashes = array();				
-		if (isset($_POST["file"]))
-		{
-			$hashes = $_POST["file"];
-		}
-		else if(isset($_GET["fhsh"]))
-		{
-			$hashes = array($_GET["fhsh"]);
-		}		
-		
-		if(sizeof($hashes))
-		{
-			$dir = $this->parseCurrentDirectory();
-			$all_files = $this->getFileList($dir["dir"], $dir["subdir"]);
-			foreach($hashes as $hash)
-			{
-				foreach($all_files as $file)
-				{
-					if($file["hash"] == $hash)
-					{
-						$sel_files[] = $this->getPostDirPath()
-							? $file["file"]
-							: $file["entry"];
-						break;
-					}
-				}
-			}
-		}	
-		
-		return $sel_files;
-	}
-
-	/**
-	* call external command
-	*/
-	function extCommand($a_nr)
-	{
-		$selected = $this->getIncomingFiles();
-
-		if(!count($selected))
-		{
-			ilUtil::sendFailure($this->lng->txt("no_checkbox"), true);
-			$this->ctrl->redirect($this, "listFiles");
-		}
-
-		// check if only one item is select, if command does not allow multiple selection
-		if (count($selected) > 1 && $this->commands[$a_nr]["single"])
-		{
-			ilUtil::sendFailure($this->lng->txt("cont_select_max_one_item"), true);
-			$this->ctrl->redirect($this, "listFiles");
-		}
-
-		$cur_subdir = $this->sanitizeCurrentDirectory();
-
-		// collect files and
-		$files = array();
-		foreach ($selected as $file)
-		{						
-			$file = ilUtil::stripSlashes($file);
-			$file = (!empty($cur_subdir))
-				? $cur_subdir."/".$file
-				: $file;
-			
-			// check wether selected item is a directory
-			if (@is_dir($this->main_dir."/".$file) && 
-				!$this->commands[$a_nr]["allow_dir"])
-			{
-				ilUtil::sendFailure($this->lng->txt("select_a_file"), true);
-				$this->ctrl->redirect($this, "listFiles");				
-			}
-						
-			$files[] = $file;
-		}
-		
-		if ($this->commands[$a_nr]["single"])
-		{
-			$files = array_shift($files);
-		}
-
-		$obj = $this->commands[$a_nr]["object"];
-		$method = $this->commands[$a_nr]["method"];
-
-		return $obj->$method($files);
-	}
-
-	/**
-	 * Set allowed directory creation
-	 */
-	public function setAllowDirectoryCreation($a_val)
-	{
-		$this->directory_creation = $a_val;
-	}
-
-	/**
-	 * Get allowed directory creation
-	 */
-	public function getAllowDirectoryCreation()
-	{
-		return $this->directory_creation;
-	}
-
-	/**
-	 * Set allowed file creation
-	 */
-	public function setAllowFileCreation($a_val)
-	{
-		$this->file_creation = $a_val;
-	}
-
-	/**
-	 * Get allowed file creation
-	 */
-	public function getAllowFileCreation()
-	{
-		return $this->file_creation;
-	}
-
-	/**
-	 * List files
-	 *
-	 * @param array $a_class_table_gui if we are here from a child class
-	 *
-	 */
-	function listFiles($a_table_gui = null)
-	{
-		global $DIC;
-		$ilToolbar = $DIC['ilToolbar'];
-		$lng = $DIC['lng'];
-		$ilCtrl = $DIC['ilCtrl'];
-		
-		$dir = $this->parseCurrentDirectory();
-		
-		$this->ctrl->setParameter($this, self::CDIR, $dir["subdir"]);
-		
-		// toolbar for adding files/directories
-		$ilToolbar->setFormAction($ilCtrl->getFormAction($this), true);
-		include_once("./Services/Form/classes/class.ilTextInputGUI.php");
-		
-		if ($this->getAllowDirectories() && $this->getAllowDirectoryCreation())
-		{
-			$ti = new ilTextInputGUI($this->lng->txt("cont_new_dir"), "new_dir");
-			$ti->setMaxLength(80);
-			$ti->setSize(10);
-			$ilToolbar->addInputItem($ti, true);
-			$ilToolbar->addFormButton($lng->txt("create"), "createDirectory");
-			
-			$ilToolbar->addSeparator();
-		}
-		
-		include_once("./Services/Form/classes/class.ilFileInputGUI.php");
-		if ($this->getAllowFileCreation())
-		{
-			$fi = new ilFileInputGUI($this->lng->txt("cont_new_file"), "new_file");
-			$fi->setSize(10);
-			$ilToolbar->addInputItem($fi, true);
-			$ilToolbar->addFormButton($lng->txt("upload"), "uploadFile");
-		}
-		
-		include_once 'Services/FileSystem/classes/class.ilUploadFiles.php';
-		if (ilUploadFiles::_getUploadDirectory() && $this->getAllowFileCreation() && $this->getUseUploadDirectory())
-		{
-			$ilToolbar->addSeparator();
-			$files = ilUploadFiles::_getUploadFiles();
-			$options[""] = $lng->txt("cont_select_from_upload_dir"); 
-			foreach($files as $file)
-			{
-				$file = htmlspecialchars($file, ENT_QUOTES, "utf-8");
-				$options[$file] = $file;
-			}
-			include_once("./Services/Form/classes/class.ilSelectInputGUI.php");
-			$si = new ilSelectInputGUI($this->lng->txt("cont_uploaded_file"), "uploaded_file");
-			$si->setOptions($options);
-			$ilToolbar->addInputItem($si, true);
-			$ilToolbar->addFormButton($lng->txt("copy"), "uploadFile");
-		}
-
-		$fs_table = $this->getTable($dir["dir"], $dir["subdir"]);
-
-		if ($this->getTitle() != "")
-		{
-			$fs_table->setTitle($this->getTitle());
-		}
-		if ($_GET["resetoffset"] == 1)
-		{
-			$fs_table->resetOffset();
-		}
-		$this->tpl->setContent($fs_table->getHTML());
-	}
-
-	/**
-	 * Get table
-	 *
-	 * @param
-	 * @return
-	 */
-	function getTable($a_dir, $a_subdir)
-	{
-		include_once("./Services/FileSystem/classes/class.ilFileSystemTableGUI.php");
-		return new ilFileSystemTableGUI($this, "listFiles", $a_dir, $a_subdir,
-			$this->label_enable, $this->file_labels, $this->label_header, $this->commands,
-			$this->getPostDirPath(), $this->getTableId());
-	}
-
-	/**
-	* list files
-	*/
-	function renameFileForm($a_file)
-	{
-		global $DIC;
-		$lng = $DIC['lng'];
-		$ilCtrl = $DIC['ilCtrl'];
-
-		$cur_subdir = $this->sanitizeCurrentDirectory();
-		$file = $this->main_dir."/".$a_file;
-
-		$this->ctrl->setParameter($this, "old_name", basename($a_file));
-		$this->ctrl->setParameter($this, self::CDIR, ilUtil::stripSlashes($_GET[self::CDIR]));
-			
-		include_once("Services/Form/classes/class.ilPropertyFormGUI.php");
-		$form = new ilPropertyFormGUI();
-		
-		// file/dir name
-		$ti = new ilTextInputGUI($this->lng->txt("name"), "new_name");
-		$ti->setMaxLength(200);
-		$ti->setSize(40);
-		$ti->setValue(basename($a_file));
-		$form->addItem($ti);
-		
-		// save and cancel commands
-		$form->addCommandButton("renameFile", $lng->txt("rename"));
-		$form->addCommandButton("cancelRename", $lng->txt("cancel"));
-		$form->setFormAction($ilCtrl->getFormAction($this, "renameFile"));
-
-		if (@is_dir($file))
-		{
-			$form->setTitle($this->lng->txt("cont_rename_dir"));
-		}
-		else
-		{
-			$form->setTitle($this->lng->txt("rename_file"));
-		}
-		
-		$this->tpl->setContent($form->getHTML());
-	}
-
-	/**
-	* rename a file
-	*/
-	function renameFile()
-	{
-		global $DIC;
-		$lng = $DIC['lng'];
-		
-		$new_name = str_replace("..", "", ilUtil::stripSlashes($_POST["new_name"]));
-		$new_name = str_replace("/", "", $new_name);
-		if ($new_name == "")
-		{
-			$this->ilias->raiseError($this->lng->txt("enter_new_name"),$this->ilias->error_obj->MESSAGE);
-		}
-
-		$pi = pathinfo($new_name);
-		$suffix = $pi["extension"];
-		if ($suffix != "" && !$this->isValidSuffix($suffix))
-		{
-			ilUtil::sendFailure($this->lng->txt("file_no_valid_file_type")." ($suffix)", true);
-			$this->ctrl->redirect($this, "listFiles");
-		}
-
-		$cur_subdir = $this->sanitizeCurrentDirectory();
-		$dir = (!empty($cur_subdir))
-			? $this->main_dir."/".$cur_subdir."/"
-			: $this->main_dir."/";
-
-
-		if (is_dir($dir.ilUtil::stripSlashes($_GET["old_name"])))
-		{
-			rename($dir.ilUtil::stripSlashes($_GET["old_name"]), $dir.$new_name);
-		}
-		else
-		{
-			include_once("./Services/Utilities/classes/class.ilFileUtils.php");
-
-			try
-			{
-				ilFileUtils::rename($dir . ilUtil::stripSlashes($_GET["old_name"]), $dir . $new_name);
-			} catch (ilException $e)
-			{
-				ilUtil::sendFailure($e->getMessage(), true);
-				$this->ctrl->redirect($this, "listFiles");
-			}
-		}
-
-		ilUtil::renameExecutables($this->main_dir);
-		if (@is_dir($dir.$new_name))
-		{
-			ilUtil::sendSuccess($lng->txt("cont_dir_renamed"), true);
-			$this->setPerformedCommand("rename_dir", array("old_name" => $_GET["old_name"],
-				"new_name" => $new_name));
-		}
-		else
-		{
-			ilUtil::sendSuccess($lng->txt("cont_file_renamed"), true);
-			$this->setPerformedCommand("rename_file", array("old_name" => $_GET["old_name"],
-				"new_name" => $new_name));
-		}
-		$this->ctrl->redirect($this, "listFiles");
-	}
-
-	/**
-	* cancel renaming a file
-	*/
-	function cancelRename()
-	{
-		$this->ctrl->redirect($this, "listFiles");
-	}
-
-	/**
-	* create directory
-	*/
-	function createDirectory()
-	{
-		global $DIC;
-		$lng = $DIC['lng'];
-		
-		// determine directory
-		$cur_subdir = $this->sanitizeCurrentDirectory();
-		$cur_dir = (!empty($cur_subdir))
-			? $this->main_dir."/".$cur_subdir
-			: $this->main_dir;
-
-		$new_dir = str_replace(".", "", ilUtil::stripSlashes($_POST["new_dir"]));
-		$new_dir = str_replace("/", "", $new_dir);
-
-		if (!empty($new_dir))
-		{
-			ilUtil::makeDir($cur_dir."/".$new_dir);
-			if (is_dir($cur_dir."/".$new_dir))
-			{
-				ilUtil::sendSuccess($lng->txt("cont_dir_created"), true);
-				$this->setPerformedCommand("create_dir", array("name" => $new_dir));
-			}
-		}
-		else
-		{
-			ilUtil::sendFailure($lng->txt("cont_enter_a_dir_name"), true);
-		}
-		$this->ctrl->saveParameter($this, self::CDIR);
-		$this->ctrl->redirect($this, 'listFiles');
-	}
-
-	/**
-	 * Upload file
-	 *
-	 */
-	function uploadFile()
-	{
-		global $DIC;
-		$lng = $DIC['lng'];
-		
-		// determine directory
-		$cur_subdir = $this->sanitizeCurrentDirectory();
-		$cur_dir = (!empty($cur_subdir))
-			? $this->main_dir."/".$cur_subdir
-			: $this->main_dir;
-
-		$tgt_file = null;
-
-		$pi = pathinfo($_FILES["new_file"]["name"]);
-		$suffix = $pi["extension"];
-		if (!$this->isValidSuffix($suffix))
-		{
-			ilUtil::sendFailure($this->lng->txt("file_no_valid_file_type")." ($suffix)", true);
-			$this->ctrl->redirect($this, "listFiles");
-		}
-
-		if (is_file($_FILES["new_file"]["tmp_name"]))
-		{
-			$name = ilUtil::stripSlashes($_FILES["new_file"]["name"]);
-			$tgt_file = $cur_dir."/".$name;
-
-			ilUtil::moveUploadedFile($_FILES["new_file"]["tmp_name"], $name, $tgt_file);
-
-		}
-		elseif ($_POST["uploaded_file"])
-		{					
-			include_once 'Services/FileSystem/classes/class.ilUploadFiles.php';
-
-			// check if the file is in the ftp directory and readable
-			if (ilUploadFiles::_checkUploadFile($_POST["uploaded_file"]))
-			{
-				$tgt_file = $cur_dir."/".ilUtil::stripSlashes($_POST["uploaded_file"]);			
-				
-				// copy uploaded file to data directory
-				ilUploadFiles::_copyUploadFile($_POST["uploaded_file"], $tgt_file);
-			}			
-		}
-		else if (trim($_FILES["new_file"]["name"]) == "")
-		{
-			ilUtil::sendFailure($lng->txt("cont_enter_a_file"), true);
-		}
-		
-		if($tgt_file && is_file($tgt_file))
-		{			
-			$unzip = null;
-			
-			// extract zip?						
-			include_once("./Services/Utilities/classes/class.ilMimeTypeUtil.php");					
-			if(ilMimeTypeUtil::getMimeType($tgt_file) == "application/zip")
-			{
-				$this->ctrl->setParameter($this, "upfile", basename($tgt_file));
-				$url = $this->ctrl->getLinkTarget($this, "unzipFile");
-				$this->ctrl->setParameter($this, "upfile", "");
-				
-				include_once "Services/UIComponent/Button/classes/class.ilLinkButton.php";
-				$unzip = ilLinkButton::getInstance();
-				$unzip->setCaption("unzip");
-				$unzip->setUrl($url);
-				$unzip = " ".$unzip->render();
-			}
-			
-			ilUtil::sendSuccess($lng->txt("cont_file_created").$unzip, true);
-			
-			$this->setPerformedCommand("create_file",
-				array("name" => substr($tgt_file, strlen($this->main_dir)+1)));		
-		}
-
-		$this->ctrl->saveParameter($this, self::CDIR);
-
-		ilUtil::renameExecutables($this->main_dir);
-
-		$this->ctrl->redirect($this, 'listFiles');
-	}
-
-	/**
-	* Confirm file deletion
-	*/
-	function confirmDeleteFile(array $a_files)
-	{
-		global $DIC;
-		$ilCtrl = $DIC['ilCtrl'];
-		$tpl = $DIC['tpl'];
-		$lng = $DIC['lng'];
-
-		include_once("./Services/Utilities/classes/class.ilConfirmationGUI.php");
-		$cgui = new ilConfirmationGUI();
-		$cgui->setFormAction($ilCtrl->getFormAction($this));
-		$cgui->setHeaderText($lng->txt("info_delete_sure"));
-		$cgui->setCancel($lng->txt("cancel"), "listFiles");
-		$cgui->setConfirm($lng->txt("delete"), "deleteFile");
-
-		foreach ($a_files as $i)
-		{
-			$cgui->addItem("file[]", $i, $i);
-		}
-			
-		$tpl->setContent($cgui->getHTML());		
-	}
-	
-	/**
-	 * delete object file
-	 */
-	function deleteFile()
-	{
-		global $DIC;
-		$lng = $DIC['lng'];
-
-		if (!isset($_POST["file"]))
-		{
-			$this->ilias->raiseError($this->lng->txt("no_checkbox"),$this->ilias->error_obj->MESSAGE);
-		}
-		
-		foreach ($_POST["file"] as $post_file)
-		{
-			if (ilUtil::stripSlashes($post_file) == "..")
-			{
-				$this->ilias->raiseError($this->lng->txt("no_checkbox"),$this->ilias->error_obj->MESSAGE);
-				break;
-			}
-
-			$cur_subdir = $this->sanitizeCurrentDirectory();
-			$cur_dir = (!empty($cur_subdir))
-				? $this->main_dir."/".$cur_subdir
-				: $this->main_dir;
-			$pi = pathinfo($post_file);
-			$file = $cur_dir."/".ilUtil::stripSlashes($pi["basename"]);
-
-			if (@is_file($file))
-			{
-				unlink($file);
-			}
-
-			if (@is_dir($file))
-			{
-				$is_dir = true;
-				ilUtil::delDir($file);
-			}
-		}
-
-		$this->ctrl->saveParameter($this, self::CDIR);
-		if ($is_dir)
-		{
-			ilUtil::sendSuccess($lng->txt("cont_dir_deleted"), true);
-			$this->setPerformedCommand("delete_dir",
-				array("name" => ilUtil::stripSlashes($post_file)));
-		}
-		else
-		{
-			ilUtil::sendSuccess($lng->txt("cont_file_deleted"), true);
-			$this->setPerformedCommand("delete_file",
-				array("name" => ilUtil::stripSlashes($post_file)));
-		}
-		$this->ctrl->redirect($this, 'listFiles');
-	}
-
-	/**
-	* delete object file
-	*/
-	function unzipFile($a_file = null)
-	{
-		global $DIC;
-		$lng = $DIC['lng'];
-		
-		// #17470 - direct unzip call (after upload)
-		if(!$a_file &&
-			isset($_GET["upfile"]))
-		{
-			$a_file = basename($_GET["upfile"]);
-		}
-
-		$cur_subdir = $this->sanitizeCurrentDirectory();
-		$cur_dir = (!empty($cur_subdir))
-			? $this->main_dir."/".$cur_subdir
-			: $this->main_dir;
-		$a_file = $this->main_dir."/".$a_file;
-		
-		if (@is_file($a_file))
-		{
-			include_once("./Services/Utilities/classes/class.ilFileUtils.php");
-			$cur_files = array_keys(ilUtil::getDir($cur_dir));
-			$cur_files_r = iterator_to_array(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($cur_dir)));
-			
-			if ($this->getAllowDirectories())
-			{
-				ilUtil::unzip($a_file, true);
-			}
-			else
-			{
-				ilUtil::unzip($a_file, true, true);
-			}
-			
-			$new_files = array_keys(ilUtil::getDir($cur_dir));
-			$new_files_r = iterator_to_array(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($cur_dir)));
-
-			$diff = array_diff($new_files, $cur_files);
-			$diff_r = array_diff($new_files_r, $cur_files_r);
-
-			// unlink forbidden file types
-			foreach ($diff_r as $f => $d)
-			{
-				$pi = pathinfo($f);
-				if (!is_dir($f) && !$this->isValidSuffix(strtolower($pi["extension"])))
-				{
-					ilUtil::sendFailure($lng->txt("file_some_invalid_file_types_removed")." (".$pi["extension"].")", true);
-					unlink($f);
-				}
-			}
-
-			if(sizeof($diff))
-			{
-				if ($this->getAllowDirectories())
-				{
-					include_once("./Services/Utilities/classes/class.ilFileUtils.php");
-					$new_files = array();
-					
-					foreach($diff as $new_item)
-					{
-						if(is_dir($cur_dir."/".$new_item))
-						{
-							ilFileUtils::recursive_dirscan($cur_dir."/".$new_item, $new_files);
-						}
-					}
-					
-					if(is_array($new_files["path"]))
-					{						
-						foreach($new_files["path"] as $idx => $path)
-						{
-							$path = substr($path, strlen($this->main_dir)+1);
-							$diff[] = $path.$new_files["file"][$idx];							
-						}
-					}					
-				}
-				
-				$this->setPerformedCommand("unzip_file",
-					array("name" => substr($file, strlen($this->main_dir)+1), 						
-						"added" => $diff));
-			}
-		}
-
-		ilUtil::renameExecutables($this->main_dir);
-
-		$this->ctrl->saveParameter($this, self::CDIR);
-		ilUtil::sendSuccess($lng->txt("cont_file_unzipped"), true);
-		$this->ctrl->redirect($this, "listFiles");
-	}
-
-	/**
-	* delete object file
-	*/
-	function downloadFile($a_file)
-	{		
-		$file = $this->main_dir."/".$a_file;
-	
-		if (@is_file($file) && !(@is_dir($file)))
-		{
-			ilUtil::deliverFile($file, basename($a_file));
-			exit;
-		}
-		else
-		{
-			$this->ctrl->saveParameter($this, self::CDIR);
-			$this->ctrl->redirect($this, "listFiles");
-		}
-	}
-
-	/**
-	* get tabs
-	*/
-	function getTabs(&$tabs_gui)
-	{
-		global $DIC;
-		$ilCtrl = $DIC['ilCtrl'];
-		
-		$ilCtrl->setParameter($this, "resetoffset", 1);
-		$tabs_gui->addTarget("cont_list_files",
-			$this->ctrl->getLinkTarget($this, "listFiles"), "listFiles",
-			get_class($this));
-		$ilCtrl->setParameter($this, "resetoffset", "");
-	}
-
-	/**
-	 * @return array of commands
-	 */
-	function getActionCommands()
-	{
-		return $this->commands;
-	}
-
-	/**
-	 * Define commands available
-	 */
-	public function defineCommands()
-	{
-		$this->commands = array(
-			0 => array(
-				"object" => $this,
-				"method" => "downloadFile",
-				"name" => $this->lng->txt("download"),
-				"int" => true,
-				"single" => true
-			),
-			1 => array(
-				"object" => $this,
-				"method" => "confirmDeleteFile",
-				"name" => $this->lng->txt("delete"),
-				"allow_dir" => true,
-				"int" => true
-			),
-			2 => array(
-				"object" => $this,
-				"method" => "unzipFile",
-				"name" => $this->lng->txt("unzip"),
-				"int" => true,
-				"single" => true
-			),
-			3 => array(
-				"object" => $this,
-				"method" => "renameFileForm",
-				"name" => $this->lng->txt("rename"),
-				"allow_dir" => true,
-				"int" => true,
-				"single" => true
-			),
-		);
-	}
-
-
-	/**
-	 * @return string
-	 */
-	private function sanitizeCurrentDirectory() {
-		global $DIC;
-
-		return  str_replace("..", "", ilUtil::stripSlashes($DIC->http()->request()->getQueryParams()[self::CDIR]));
-	}
+    use SecureString; // This is just for those legacy classes which will be removed soon anyway.
+    public const PARAMETER_CDIR = "cdir";
+    public const SESSION_LAST_COMMAND = "fsys_lastcomm";
+    public const PARAMETER_NEWDIR = "newdir";
+    public const PARAMETER_FHSH = "fhsh";
+    public const POST_PARAM_FILE = "file";
+    public const PARAM_RESETOFFSET = "resetoffset";
+    public const PARAM_OLD_NAME = "old_name";
+    public const PARAM_UPFILE = "upfile";
+    public const POST_PARAM_NEW_NAME = "new_name";
+    public const POST_PARAM_NEW_DIR = "new_dir";
+    public const POST_PARAM_UPLOADED_FILE = "uploaded_file";
+    protected ilCtrlInterface $ctrl;
+    protected bool $use_upload_directory = false;
+    protected array $allowed_suffixes = [];
+    protected array $forbidden_suffixes = [];
+    protected ilLanguage $lng;
+    protected string $main_absolute_dir;
+    protected bool $post_dir_path = false;
+    protected ilGlobalTemplateInterface $tpl;
+    protected array $file_labels = [];
+    protected bool $label_enable = false;
+    protected bool $allow_directories = true;
+    protected string $table_id = '';
+    protected string $title = '';
+    protected array $commands = [];
+    protected string $label_header = '';
+    protected bool $directory_creation = false;
+    protected bool $file_creation = false;
+    protected \ILIAS\HTTP\Wrapper\WrapperFactory $wrapper;
+    protected \ILIAS\Refinery\Factory $refinery;
+
+    /**
+     * @param string $main_absolute_directory
+     */
+    public function __construct(string $main_absolute_directory)
+    {
+        global $DIC;
+
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        $this->tpl = $DIC->ui()->mainTemplate();
+        $this->wrapper = $DIC->http()->wrapper();
+        $this->refinery = $DIC->refinery();
+        $this->main_absolute_dir = realpath($main_absolute_directory);
+
+        $this->defineCommands();
+
+        $this->ctrl->saveParameter($this, self::PARAMETER_CDIR);
+        $this->lng->loadLanguageModule("content");
+        $this->setAllowDirectories(true);
+        $this->setAllowDirectoryCreation(true);
+        $this->setAllowFileCreation(true);
+    }
+
+    /**
+     * @param string[] $a_suffixes
+     */
+    public function setAllowedSuffixes(array $a_suffixes): void
+    {
+        $this->allowed_suffixes = $a_suffixes;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getAllowedSuffixes(): array
+    {
+        return $this->allowed_suffixes;
+    }
+
+    /**
+     * @param string[] $a_suffixes
+     */
+    public function setForbiddenSuffixes(array $a_suffixes): void
+    {
+        $this->forbidden_suffixes = $a_suffixes;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getForbiddenSuffixes(): array
+    {
+        return $this->forbidden_suffixes;
+    }
+
+    public function isValidSuffix(string $a_suffix): bool
+    {
+        if (empty($a_suffix)) {
+            return true;
+        }
+
+        if (is_array($this->getForbiddenSuffixes()) && in_array($a_suffix, $this->getForbiddenSuffixes())) {
+            return false;
+        }
+        if (is_array($this->getAllowedSuffixes()) && in_array($a_suffix, $this->getAllowedSuffixes())) {
+            return true;
+        }
+        if (!is_array($this->getAllowedSuffixes()) || count($this->getAllowedSuffixes()) == 0) {
+            return true;
+        }
+        return false;
+    }
+
+    public function setAllowDirectories(bool $a_val): void
+    {
+        $this->allow_directories = $a_val;
+    }
+
+    public function getAllowDirectories(): bool
+    {
+        return $this->allow_directories;
+    }
+
+    public function setPostDirPath(bool $a_val): void
+    {
+        $this->post_dir_path = $a_val;
+    }
+
+    public function getPostDirPath(): bool
+    {
+        return $this->post_dir_path;
+    }
+
+    public function setTableId(string $a_val): void
+    {
+        $this->table_id = $a_val;
+    }
+
+    public function getTableId(): string
+    {
+        return $this->table_id;
+    }
+
+    public function setTitle(string $a_val): void
+    {
+        $this->title = $a_val;
+    }
+
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
+
+    public function setUseUploadDirectory(bool $a_val): void
+    {
+        $this->use_upload_directory = $a_val;
+    }
+
+    public function getUseUploadDirectory(): bool
+    {
+        return $this->use_upload_directory;
+    }
+
+    /**
+     * @param array|string $command
+     * @param array        $pars
+     * @return void
+     */
+    protected function setPerformedCommand($command, array $pars = []): void
+    {
+        if (!is_array($pars)) {
+            $pars = [];
+        }
+        ilSession::set(self::SESSION_LAST_COMMAND, array_merge(
+            ["cmd" => $command],
+            $pars
+        ));
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getLastPerformedCommand(): array
+    {
+        if (!ilSession::has(self::SESSION_LAST_COMMAND)) {
+            return [];
+        }
+        $ret = ilSession::get(self::SESSION_LAST_COMMAND);
+        ilSession::set(self::SESSION_LAST_COMMAND, null);
+        return (array) $ret;
+    }
+
+    public function executeCommand(): string
+    {
+        $next_class = $this->ctrl->getNextClass($this);
+        $cmd = $this->ctrl->getCmd("listFiles");
+        if (substr($cmd, 0, 11) == "extCommand_") {
+            $ret = $this->extCommand(substr($cmd, 11, strlen($cmd) - 11));
+        } else {
+            $ret = $this->$cmd();
+        }
+
+        return $ret ?? '';
+    }
+
+    public function addCommand(
+        object $a_obj,
+        string $a_func,
+        string $a_name,
+        bool $a_single = true,
+        bool $a_allow_dir = false
+    ): void {
+        $i = count($this->commands);
+
+        $this->commands[$i]["object"] = $a_obj;
+        $this->commands[$i]["method"] = $a_func;
+        $this->commands[$i]["name"] = $a_name;
+        $this->commands[$i]["single"] = $a_single;
+        $this->commands[$i]["allow_dir"] = $a_allow_dir;
+    }
+
+    public function clearCommands(): void
+    {
+        $this->commands = [];
+    }
+
+    public function labelFile(string $a_file, string $a_label): void
+    {
+        $this->file_labels[$a_file][] = $a_label;
+    }
+
+    public function activateLabels(bool $a_act, string $a_label_header): void
+    {
+        $this->label_enable = $a_act;
+        $this->label_header = $a_label_header;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function parseCurrentDirectory(): array
+    {
+        // determine directory
+        // FIXME: I have to call stripSlashes here twice, because I could not
+        //        determine where the second layer of slashes is added to the
+        //        URL Parameter
+
+        $cur_subdir = $this->wrapper->query()->has(self::PARAMETER_CDIR)
+            ? $this->wrapper->query()->retrieve(self::PARAMETER_CDIR, $this->refinery->to()->string())
+            : '';
+
+        $new_subdir = $this->wrapper->query()->has(self::PARAMETER_NEWDIR)
+            ? $this->wrapper->query()->retrieve(self::PARAMETER_NEWDIR, $this->refinery->to()->string())
+            : '';
+
+        $cur_subdir = ilUtil::stripSlashes(ilUtil::stripSlashes($cur_subdir));
+        $new_subdir = ilUtil::stripSlashes(ilUtil::stripSlashes($new_subdir));
+
+        if ($new_subdir === "..") {
+            $cur_subdir = substr($cur_subdir, 0, strrpos($cur_subdir, "/"));
+        } else {
+            if (!empty($new_subdir)) {
+                if (!empty($cur_subdir)) {
+                    $cur_subdir = $cur_subdir . "/" . $new_subdir;
+                } else {
+                    $cur_subdir = $new_subdir;
+                }
+            }
+        }
+
+        $cur_subdir = str_replace("..", "", $cur_subdir);
+        $cur_dir = (!empty($cur_subdir))
+            ? $this->main_absolute_dir . "/" . $cur_subdir
+            : $this->main_absolute_dir;
+
+        return [
+            "dir" => realpath($cur_dir),
+            "subdir" => $cur_subdir
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function getFileList(string $a_dir, ?string $a_subdir = null): array
+    {
+        $items = [];
+
+        $entries = (is_dir($a_dir))
+            ? ilFileUtils::getDir($a_dir)
+            : array(array("type" => "dir", "entry" => ".."));
+
+        $items = array();
+        foreach ($entries as $e) {
+            if (($e["entry"] == ".") ||
+                ($e["entry"] == ".." && empty($a_subdir))) {
+                continue;
+            }
+
+            $cfile = (!empty($a_subdir))
+                ? $a_subdir . "/" . $e["entry"]
+                : $e["entry"];
+
+            $items[] = array(
+                self::POST_PARAM_FILE => $cfile,
+                "entry" => $e["entry"],
+                "type" => $e["type"],
+                "size" => $e["size"] ?? 0,
+                "hash" => md5($e["entry"])
+            );
+        }
+
+        return $items;
+    }
+
+    /**
+     * @return string[]
+     */
+    protected function getIncomingFiles(): array
+    {
+        $sel_files = $hashes = [];
+        if ($this->wrapper->post()->has(self::POST_PARAM_FILE)) {
+            $hashes = $this->wrapper->post()->retrieve(
+                self::POST_PARAM_FILE,
+                $this->refinery->to()->listOf(
+                    $this->refinery->to()->string()
+                )
+            );
+        } elseif ($this->wrapper->query()->has(self::PARAMETER_FHSH)) {
+            $hashes = [$this->wrapper->query()->retrieve(
+                self::PARAMETER_FHSH,
+                $this->refinery->to()->string()
+            )
+            ];
+        }
+
+        if (count($hashes) > 0) {
+            $dir = $this->parseCurrentDirectory();
+            $all_files = $this->getFileList($dir["dir"], $dir["subdir"]);
+            foreach ($hashes as $hash) {
+                foreach ($all_files as $file) {
+                    if ($file["hash"] == $hash) {
+                        $sel_files[] = $this->getPostDirPath()
+                            ? $file[self::POST_PARAM_FILE]
+                            : $file["entry"];
+                        break;
+                    }
+                }
+            }
+        }
+
+        return $sel_files;
+    }
+
+    private function extCommand(int $a_nr): string
+    {
+        $selected = $this->getIncomingFiles();
+
+        if (!count($selected)) {
+            $this->tpl->setOnScreenMessage('failure', $this->lng->txt("no_checkbox"), true);
+            $this->ctrl->redirect($this, "listFiles");
+        }
+
+        // check if only one item is select, if command does not allow multiple selection
+        if (count($selected) > 1 && ($this->commands[$a_nr]["single"] ?? false)) {
+            $this->tpl->setOnScreenMessage('failure', $this->lng->txt("cont_select_max_one_item"), true);
+            $this->ctrl->redirect($this, "listFiles");
+        }
+
+        $cur_subdir = $this->sanitizeCurrentDirectory();
+
+        // collect files and
+        $files = array();
+        foreach ($selected as $file) {
+            $file = ilUtil::stripSlashes($file);
+            $file = (!empty($cur_subdir))
+                ? $cur_subdir . "/" . $file
+                : $file;
+
+            // check wether selected item is a directory
+            if (is_dir($this->main_absolute_dir . "/" . $file) &&
+                !$this->commands[$a_nr]["allow_dir"]) {
+                $this->tpl->setOnScreenMessage('failure', $this->lng->txt("select_a_file"), true);
+                $this->ctrl->redirect($this, "listFiles");
+            }
+
+            $files[] = $file;
+        }
+
+        if ($this->commands[$a_nr]["single"] ?? false) {
+            $files = array_shift($files);
+        }
+
+        $obj = $this->commands[$a_nr]["object"];
+        $method = $this->commands[$a_nr]["method"];
+
+        return (string) $obj->$method($files);
+    }
+
+    public function setAllowDirectoryCreation(bool $a_val): void
+    {
+        $this->directory_creation = $a_val;
+    }
+
+    public function getAllowDirectoryCreation(): bool
+    {
+        return $this->directory_creation;
+    }
+
+    /**
+     * Set allowed file creation
+     */
+    public function setAllowFileCreation(bool $a_val): void
+    {
+        $this->file_creation = $a_val;
+    }
+
+    public function getAllowFileCreation(): bool
+    {
+        return $this->file_creation;
+    }
+
+    public function listFiles(?ilTable2GUI $a_table_gui = null): void
+    {
+        global $DIC;
+        $ilToolbar = $DIC['ilToolbar'];
+        $lng = $DIC['lng'];
+        $ilCtrl = $DIC['ilCtrl'];
+
+        $dir = $this->parseCurrentDirectory();
+
+        $this->ctrl->setParameter($this, self::PARAMETER_CDIR, $dir["subdir"]);
+
+        // toolbar for adding files/directories
+        $ilToolbar->setFormAction($ilCtrl->getFormAction($this), true);
+
+        if ($this->getAllowDirectories() && $this->getAllowDirectoryCreation()) {
+            $ti = new ilTextInputGUI($this->lng->txt("cont_new_dir"), self::POST_PARAM_NEW_DIR);
+            $ti->setMaxLength(80);
+            $ti->setSize(10);
+            $ilToolbar->addInputItem($ti, true);
+            $ilToolbar->addFormButton($lng->txt("create"), "createDirectory");
+
+            $ilToolbar->addSeparator();
+        }
+        if ($this->getAllowFileCreation()) {
+            $fi = new ilFileInputGUI($this->lng->txt("cont_new_file"), "new_file");
+            $fi->setSize(10);
+            $ilToolbar->addInputItem($fi, true);
+            $ilToolbar->addFormButton($lng->txt("upload"), "uploadFile");
+        }
+        if (ilUploadFiles::_getUploadDirectory() && $this->getAllowFileCreation() && $this->getUseUploadDirectory()) {
+            $ilToolbar->addSeparator();
+            $files = ilUploadFiles::_getUploadFiles();
+            $options[""] = $lng->txt("cont_select_from_upload_dir");
+            foreach ($files as $file) {
+                $file = htmlspecialchars($file, ENT_QUOTES, "utf-8");
+                $options[$file] = $file;
+            }
+            $si = new ilSelectInputGUI($this->lng->txt("cont_uploaded_file"), self::POST_PARAM_UPLOADED_FILE);
+            $si->setOptions($options);
+            $ilToolbar->addInputItem($si, true);
+            $ilToolbar->addFormButton($lng->txt("copy"), "uploadFile");
+        }
+
+        $fs_table = $this->getTable($dir["dir"], $dir["subdir"]);
+
+        if ($this->getTitle() != "") {
+            $fs_table->setTitle($this->getTitle());
+        }
+        if (
+            $this->wrapper->query()->has(self::PARAM_RESETOFFSET)
+            && $this->wrapper->query()->retrieve(
+                self::PARAM_RESETOFFSET,
+                $this->refinery->kindlyTo()->int()
+            ) == 1) {
+            $fs_table->resetOffset();
+        }
+        $this->tpl->setContent($fs_table->getHTML());
+    }
+
+    public function getTable(string $a_dir, string $a_subdir): \ilFileSystemTableGUI
+    {
+        return new ilFileSystemTableGUI(
+            $this,
+            "listFiles",
+            $a_dir,
+            $a_subdir,
+            $this->label_enable,
+            $this->file_labels,
+            $this->label_header,
+            $this->commands,
+            $this->getPostDirPath(),
+            $this->getTableId()
+        );
+    }
+
+    public function renameFileForm(string $a_file): void
+    {
+        $cur_subdir = $this->sanitizeCurrentDirectory();
+        $file = $this->main_absolute_dir . "/" . $a_file;
+
+        $this->ctrl->setParameter($this, self::PARAM_OLD_NAME, basename($a_file));
+        $this->ctrl->saveParameter($this, self::PARAMETER_CDIR);
+        $form = new ilPropertyFormGUI();
+
+        // file/dir name
+        $ti = new ilTextInputGUI($this->lng->txt("name"), self::POST_PARAM_NEW_NAME);
+        $ti->setMaxLength(200);
+        $ti->setSize(40);
+        $ti->setValue(basename($a_file));
+        $form->addItem($ti);
+
+        // save and cancel commands
+        $form->addCommandButton("renameFile", $this->lng->txt("rename"));
+        $form->addCommandButton("cancelRename", $this->lng->txt("cancel"));
+        $form->setFormAction($this->ctrl->getFormAction($this, "renameFile"));
+
+        if (is_dir($file)) {
+            $form->setTitle($this->lng->txt("cont_rename_dir"));
+        } else {
+            $form->setTitle($this->lng->txt("rename_file"));
+        }
+
+        $this->tpl->setContent($form->getHTML());
+    }
+
+    public function renameFile(): void
+    {
+        $new_name = $this->wrapper->post()->has(self::POST_PARAM_NEW_NAME)
+            ? $this->wrapper->post()->retrieve(self::POST_PARAM_NEW_NAME, $this->refinery->to()->string())
+            : '';
+
+        $new_name = str_replace("..", "", ilUtil::stripSlashes($new_name));
+        $new_name = str_replace("/", "", $new_name);
+        if ($new_name === "") {
+            throw new LogicException($this->lng->txt("enter_new_name"));
+        }
+
+        $pi = pathinfo($new_name);
+        $suffix = $pi["extension"] ?? "";
+        if ($suffix != "" && !$this->isValidSuffix($suffix)) {
+            $this->tpl->setOnScreenMessage('failure', $this->lng->txt("file_no_valid_file_type") . " ($suffix)", true);
+            $this->ctrl->redirect($this, "listFiles");
+        }
+
+        $cur_subdir = $this->sanitizeCurrentDirectory();
+        $dir = (!empty($cur_subdir))
+            ? $this->main_absolute_dir . "/" . $cur_subdir . "/"
+            : $this->main_absolute_dir . "/";
+
+        $old_name = $this->wrapper->query()->has(self::PARAM_OLD_NAME)
+            ? $this->wrapper->query()->retrieve(self::PARAM_OLD_NAME, $this->refinery->to()->string())
+            : null;
+
+        // check if this path is inside $dir
+        $old_name = ilUtil::stripSlashes($old_name);
+        $realpath = realpath($dir . $old_name);
+        if (strpos($realpath, realpath($dir)) !== 0) {
+            throw new ilException($this->lng->txt("no_permission"));
+        }
+
+        if (is_dir($dir . $old_name)) {
+            rename($dir . $old_name, $dir . $new_name);
+        } else {
+            try {
+                ilFileUtils::rename($dir . $old_name, $dir . $new_name);
+            } catch (ilException $e) {
+                $this->tpl->setOnScreenMessage('failure', $e->getMessage(), true);
+                $this->ctrl->redirect($this, "listFiles");
+            }
+        }
+
+        ilFileUtils::renameExecutables($this->main_absolute_dir);
+        if (is_dir($dir . $new_name)) {
+            $this->tpl->setOnScreenMessage(
+                'success',
+                $this->lng->txt("cont_dir_renamed"),
+                true
+            );
+            $this->setPerformedCommand("rename_dir", [self::PARAM_OLD_NAME => $old_name,
+                                                      self::POST_PARAM_NEW_NAME => $new_name
+            ]);
+        } else {
+            $this->tpl->setOnScreenMessage(
+                'success',
+                $this->lng->txt("cont_file_renamed"),
+                true
+            );
+            $this->setPerformedCommand("rename_file", array(self::PARAM_OLD_NAME => $old_name,
+                                                            self::POST_PARAM_NEW_NAME => $new_name
+            ));
+        }
+        $this->ctrl->redirect($this, "listFiles");
+    }
+
+    public function cancelRename(): void
+    {
+        $this->ctrl->redirect($this, "listFiles");
+    }
+
+    public function createDirectory(): void
+    {
+        global $DIC;
+        $lng = $DIC['lng'];
+
+        // determine directory
+        $cur_subdir = $this->sanitizeCurrentDirectory();
+        $cur_dir = (!empty($cur_subdir))
+            ? $this->main_absolute_dir . "/" . $cur_subdir
+            : $this->main_absolute_dir;
+
+        $new_dir = $this->wrapper->post()->has(self::POST_PARAM_NEW_DIR)
+            ? $this->wrapper->post()->retrieve(self::POST_PARAM_NEW_DIR, $this->refinery->to()->string())
+            : '';
+
+        $new_dir = str_replace(".", "", ilUtil::stripSlashes($new_dir));
+        $new_dir = str_replace("/", "", $new_dir);
+
+        if (!empty($new_dir)) {
+            ilFileUtils::makeDir($cur_dir . "/" . $new_dir);
+            if (is_dir($cur_dir . "/" . $new_dir)) {
+                $this->tpl->setOnScreenMessage('success', $lng->txt("cont_dir_created"), true);
+                $this->setPerformedCommand("create_dir", array("name" => $new_dir));
+            }
+        } else {
+            $this->tpl->setOnScreenMessage('failure', $lng->txt("cont_enter_a_dir_name"), true);
+        }
+        $this->ctrl->saveParameter($this, self::PARAMETER_CDIR);
+        $this->ctrl->redirect($this, 'listFiles');
+    }
+
+    public function uploadFile(): void
+    {
+        global $DIC;
+        $lng = $DIC['lng'];
+
+        // determine directory
+        $cur_subdir = $this->sanitizeCurrentDirectory();
+        $cur_dir = (!empty($cur_subdir))
+            ? $this->main_absolute_dir . "/" . $cur_subdir
+            : $this->main_absolute_dir;
+
+        $tgt_file = null;
+
+        $pi = pathinfo($_FILES["new_file"]["name"]);
+        $suffix = $pi["extension"] ?? "";
+        if (!$this->isValidSuffix($suffix)) {
+            $this->tpl->setOnScreenMessage('failure', $this->lng->txt("file_no_valid_file_type") . " ($suffix)", true);
+            $this->ctrl->redirect($this, "listFiles");
+        }
+
+        $uploaded_file = $this->wrapper->post()->has(self::POST_PARAM_UPLOADED_FILE)
+            ? $this->wrapper->post()->retrieve(self::POST_PARAM_UPLOADED_FILE, $this->refinery->to()->string())
+            : '';
+        if (is_file($_FILES["new_file"]["tmp_name"])) {
+            $name = $this->secure(ilUtil::stripSlashes($_FILES["new_file"]["name"]));
+            $tgt_file = $cur_dir . "/" . $name;
+
+            // use filesystem directly
+            //ilFileUtils::moveUploadedFile(, $name, $tgt_file);
+            $upload = $DIC->upload();
+
+            // If the upload has not yet been processed make sure he gets processed now.
+            if (!$upload->hasBeenProcessed()) {
+                $upload->process();
+            }
+
+
+            if (!$upload->hasUploads()) {
+                throw new ilException(
+                    $DIC->language()->txt("upload_error_file_not_found")
+                );
+            }
+            $upload_result = $upload->getResults()[$_FILES["new_file"]["tmp_name"]];
+            if ($upload_result instanceof UploadResult) {
+                $processing_status = $upload_result->getStatus();
+                if ($processing_status->getCode() === ProcessingStatus::REJECTED) {
+                    $this->tpl->setOnScreenMessage(
+                        'failure',
+                        $processing_status->getMessage(),
+                        true
+                    );
+                    $this->ctrl->redirect($this, "listFiles");
+                }
+            }
+
+            $upload->moveOneFileTo(
+                $upload_result,
+                LegacyPathHelper::createRelativePath($cur_dir . "/"),
+                LegacyPathHelper::deriveLocationFrom($cur_dir),
+                $name,
+                true
+            );
+            // end upload
+        } elseif ($uploaded_file) {
+            // check if the file is in the ftp directory and readable
+            if (ilUploadFiles::_checkUploadFile($uploaded_file)) {
+                $tgt_file = $cur_dir . "/" . ilUtil::stripSlashes($uploaded_file);
+
+                // copy uploaded file to data directory
+                ilUploadFiles::_copyUploadFile($uploaded_file, $tgt_file);
+            }
+        } elseif (trim($_FILES["new_file"]["name"]) == "") {
+            $this->tpl->setOnScreenMessage('failure', $lng->txt("cont_enter_a_file"), true);
+        }
+
+        if ($tgt_file && is_file($tgt_file)) {
+            $unzip = null;
+            if (MimeType::getMimeType($tgt_file) == "application/zip") {
+                $this->ctrl->setParameter($this, self::PARAM_UPFILE, basename($tgt_file));
+                $url = $this->ctrl->getLinkTarget($this, "unzipFile");
+                $this->ctrl->setParameter($this, self::PARAM_UPFILE, "");
+                $unzip = ilLinkButton::getInstance();
+                $unzip->setCaption("unzip");
+                $unzip->setUrl($url);
+                $unzip = " " . $unzip->render();
+            }
+
+            $this->tpl->setOnScreenMessage('success', $lng->txt("cont_file_created") . $unzip, true);
+
+            $this->setPerformedCommand(
+                "create_file",
+                array("name" => substr($tgt_file, strlen($this->main_absolute_dir) + 1))
+            );
+        }
+
+        $this->ctrl->saveParameter($this, self::PARAMETER_CDIR);
+
+        ilFileUtils::renameExecutables($this->main_absolute_dir);
+
+        $this->ctrl->redirect($this, 'listFiles');
+    }
+
+    public function confirmDeleteFile(array $a_files): void
+    {
+        global $DIC;
+        $ilCtrl = $DIC['ilCtrl'];
+        $tpl = $DIC['tpl'];
+        $lng = $DIC['lng'];
+
+        $cgui = new ilConfirmationGUI();
+        $cgui->setFormAction($ilCtrl->getFormAction($this));
+        $cgui->setHeaderText($lng->txt("info_delete_sure"));
+        $cgui->setCancel($lng->txt("cancel"), "listFiles");
+        $cgui->setConfirm($lng->txt("delete"), "deleteFile");
+
+        foreach ($a_files as $i) {
+            $cgui->addItem("file[]", $i, $i);
+        }
+
+        $tpl->setContent($cgui->getHTML());
+    }
+
+    public function deleteFile(): void
+    {
+        if (!$this->wrapper->post()->has(self::POST_PARAM_FILE)) {
+            throw new LogicException($this->lng->txt("no_checkbox"));
+        }
+        $is_dir = false;
+        $post_file = null;
+
+        $postfiles = $this->wrapper->post()->retrieve(
+            self::POST_PARAM_FILE,
+            $this->refinery->to()->listOf(
+                $this->refinery->to()->string()
+            )
+        );
+        foreach ($postfiles as $post_file) {
+            if (ilUtil::stripSlashes($post_file) == "..") {
+                throw new LogicException($this->lng->txt("no_checkbox"));
+                break;
+            }
+
+            $cur_subdir = $this->sanitizeCurrentDirectory();
+            $cur_dir = (!empty($cur_subdir))
+                ? $this->main_absolute_dir . "/" . $cur_subdir
+                : $this->main_absolute_dir;
+            $pi = pathinfo($post_file);
+            $file = $cur_dir . "/" . ilUtil::stripSlashes($pi["basename"]);
+
+            if (is_file($file)) {
+                unlink($file);
+            }
+
+            if (is_dir($file)) {
+                $is_dir = true;
+                ilFileUtils::delDir($file);
+            }
+        }
+
+        $this->ctrl->saveParameter($this, self::PARAMETER_CDIR);
+        if ($is_dir) {
+            $this->tpl->setOnScreenMessage('success', $this->lng->txt("cont_dir_deleted"), true);
+            $this->setPerformedCommand(
+                "delete_dir",
+                array("name" => ilUtil::stripSlashes($post_file))
+            );
+        } else {
+            $this->tpl->setOnScreenMessage('success', $this->lng->txt("cont_file_deleted"), true);
+            $this->setPerformedCommand(
+                "delete_file",
+                array("name" => ilUtil::stripSlashes($post_file))
+            );
+        }
+        $this->ctrl->redirect($this, 'listFiles');
+    }
+
+    public function unzipFile(?string $a_file = null): void
+    {
+        // #17470 - direct unzip call (after upload)
+        $upname = $this->wrapper->query()->has(self::PARAM_UPFILE)
+            ? $this->wrapper->query()->retrieve(self::PARAM_UPFILE, $this->refinery->to()->string())
+            : null;
+        if (is_null($a_file) && $upname !== null) {
+            $a_file = basename($upname);
+        }
+
+        $cur_subdir = $this->sanitizeCurrentDirectory();
+        $cur_dir = (!empty($cur_subdir))
+            ? $this->main_absolute_dir . "/" . $cur_subdir
+            : $this->main_absolute_dir;
+        $a_file = $this->main_absolute_dir . "/" . $a_file;
+
+        if (is_file($a_file)) {
+            $cur_files = array_keys(ilFileUtils::getDir($cur_dir));
+            $cur_files_r = iterator_to_array(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($cur_dir)));
+
+            if ($this->getAllowDirectories()) {
+                ilFileUtils::unzip($a_file, true);
+            } else {
+                ilFileUtils::unzip($a_file, true, true);
+            }
+
+            $new_files = array_keys(ilFileUtils::getDir($cur_dir));
+            $new_files_r = iterator_to_array(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($cur_dir)));
+
+            $diff = array_diff($new_files, $cur_files);
+            $diff_r = array_diff($new_files_r, $cur_files_r);
+
+            // unlink forbidden file types
+            foreach ($diff_r as $f => $d) {
+                $pi = pathinfo($f);
+                if (!is_dir($f) && !$this->isValidSuffix(strtolower($pi["extension"] ?? ''))) {
+                    $this->tpl->setOnScreenMessage('failure', $this->lng->txt("file_some_invalid_file_types_removed") . " (" . $pi["extension"] . ")", true);
+                    unlink($f);
+                }
+            }
+
+            if (sizeof($diff)) {
+                if ($this->getAllowDirectories()) {
+                    $new_files = array();
+
+                    foreach ($diff as $new_item) {
+                        if (is_dir($cur_dir . "/" . $new_item)) {
+                            ilFileUtils::recursive_dirscan($cur_dir . "/" . $new_item, $new_files);
+                        }
+                    }
+
+                    if (isset($new_files["path"])) {
+                        foreach ($new_files["path"] as $idx => $path) {
+                            $path = substr($path, strlen($this->main_absolute_dir) + 1);
+                            $diff[] = $path . $new_files[self::POST_PARAM_FILE][$idx];
+                        }
+                    }
+                }
+
+                $this->setPerformedCommand(
+                    "unzip_file",
+                    array("added" => $diff
+                    )
+                );
+            }
+        }
+
+        ilFileUtils::renameExecutables($this->main_absolute_dir);
+
+        $this->ctrl->saveParameter($this, self::PARAMETER_CDIR);
+        $this->tpl->setOnScreenMessage('success', $this->lng->txt("cont_file_unzipped"), true);
+        $this->ctrl->redirect($this, "listFiles");
+    }
+
+    public function downloadFile(string $a_file): void
+    {
+        $file = $this->main_absolute_dir . "/" . $a_file;
+
+        if (is_file($file) && !(is_dir($file))) {
+            ilFileDelivery::deliverFileLegacy($file, basename($a_file));
+            exit;
+        } else {
+            $this->ctrl->saveParameter($this, self::PARAMETER_CDIR);
+            $this->ctrl->redirect($this, "listFiles");
+        }
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getActionCommands(): array
+    {
+        return $this->commands;
+    }
+
+    public function defineCommands(): void
+    {
+        $this->commands = array(
+            0 => array(
+                "object" => $this,
+                "method" => "downloadFile",
+                "name" => $this->lng->txt("download"),
+                "int" => true,
+                "single" => true
+            ),
+            1 => array(
+                "object" => $this,
+                "method" => "confirmDeleteFile",
+                "name" => $this->lng->txt("delete"),
+                "allow_dir" => true,
+                "int" => true
+            ),
+            2 => array(
+                "object" => $this,
+                "method" => "unzipFile",
+                "name" => $this->lng->txt("unzip"),
+                "int" => true,
+                "single" => true,
+                "id" => "unzip_file"
+            ),
+            3 => array(
+                "object" => $this,
+                "method" => "renameFileForm",
+                "name" => $this->lng->txt("rename"),
+                "allow_dir" => true,
+                "int" => true,
+                "single" => true
+            ),
+        );
+    }
+
+    private function sanitizeCurrentDirectory(): string
+    {
+        $cur_subdir = $this->wrapper->query()->has(self::PARAMETER_CDIR)
+            ? $this->wrapper->query()->retrieve(self::PARAMETER_CDIR, $this->refinery->to()->string())
+            : '';
+
+        return str_replace(
+            "..",
+            "",
+            ilUtil::stripSlashes($cur_subdir)
+        );
+    }
 }
-

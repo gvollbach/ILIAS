@@ -1,295 +1,167 @@
 <?php
 
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-/** @defgroup ServicesPermanentLink Services/PermanentLink
- */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
-* Class for permanent links
-*
-* @version $Id$
-*
-* @ilCtrl_Calls ilPermanentLinkGUI: ilNoteGUI, ilColumnGUI, ilPublicUserProfileGUI
-*
-* @ingroup ServicesPermanentLink
-*/
+ * Class for permanent links
+ * @author Alexander Killing <killing@leifos.de>
+ * @ilCtrl_Calls ilPermanentLinkGUI: ilNoteGUI, ilColumnGUI, ilPublicUserProfileGUI
+ */
 class ilPermanentLinkGUI
 {
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+    protected ilLanguage $lng;
+    protected ilCtrl $ctrl;
+    protected ilObjectDataCache $obj_data_cache;
+    protected bool $align_center = true;
+    protected bool $includepermanentlinktext = false;
+    protected string $type = "";
+    protected string $id = "";
+    protected string $append = "";
+    protected string $target = "";
+    protected string $title = "";
 
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    /**
+     * Example: type = "wiki", id (ref_id) = "234", append = "_Start_Page"
+     */
+    public function __construct(
+        string $a_type,
+        int $a_id,
+        string $a_append = "",
+        string $a_target = ""
+    ) {
+        global $DIC;
 
-	/**
-	 * @var ilObjectDataCache
-	 */
-	protected $obj_data_cache;
+        $this->lng = $DIC->language();
+        $this->ctrl = $DIC->ctrl();
+        $this->obj_data_cache = $DIC["ilObjDataCache"];
+        $this->setType($a_type);
+        $this->setId($a_id);
+        $this->setAppend($a_append);
+        $this->setIncludePermanentLinkText(true);
+        $this->setTarget($a_target);
+    }
 
-	protected $align_center = true;
-	
-	/**
-	* Example: type = "wiki", id (ref_id) = "234", append = "_Start_Page"
-	*/
-	function __construct($a_type, $a_id, $a_append = "", $a_target = "")
-	{
-		global $DIC;
+    /**
+     * Set Include permanent link text.
+     */
+    public function setIncludePermanentLinkText(bool $a_includepermanentlinktext): void
+    {
+        $this->includepermanentlinktext = $a_includepermanentlinktext;
+    }
 
-		$this->lng = $DIC->language();
-		$this->ctrl = $DIC->ctrl();
-		$this->obj_data_cache = $DIC["ilObjDataCache"];
-		$this->setType($a_type);
-		$this->setId($a_id);
-		$this->setAppend($a_append);
-		$this->setIncludePermanentLinkText(true);
-		$this->setTarget($a_target);
-	}
-	
-	/**
-	* Set Include permanent link text.
-	*
-	* @param	boolean	$a_includepermanentlinktext	Include permanent link text
-	*/
-	function setIncludePermanentLinkText($a_includepermanentlinktext)
-	{
-		$this->includepermanentlinktext = $a_includepermanentlinktext;
-	}
+    /**
+     * Include permanent link text
+     */
+    public function getIncludePermanentLinkText(): bool
+    {
+        return $this->includepermanentlinktext;
+    }
 
-	/**
-	* Get Include permanent link text.
-	*
-	* @return	boolean	Include permanent link text
-	*/
-	function getIncludePermanentLinkText()
-	{
-		return $this->includepermanentlinktext;
-	}
+    public function setType(string $a_type): void
+    {
+        $this->type = $a_type;
+    }
 
-	/**
-	* Set Type.
-	*
-	* @param	string	$a_type	Type
-	*/
-	function setType($a_type)
-	{
-		$this->type = $a_type;
-	}
+    public function getType(): string
+    {
+        return $this->type;
+    }
 
-	/**
-	* Get Type.
-	*
-	* @return	string	Type
-	*/
-	function getType()
-	{
-		return $this->type;
-	}
+    public function setId(string $a_id): void
+    {
+        $this->id = $a_id;
+    }
 
-	/**
-	* Set Id.
-	*
-	* @param	string	$a_id	Id
-	*/
-	function setId($a_id)
-	{
-		$this->id = $a_id;
-	}
+    public function getId(): string
+    {
+        return $this->id;
+    }
 
-	/**
-	* Get Id.
-	*
-	* @return	string	Id
-	*/
-	function getId()
-	{
-		return $this->id;
-	}
+    public function setAppend(string $a_append): void
+    {
+        $this->append = $a_append;
+    }
 
-	/**
-	* Set Append.
-	*
-	* @param	string	$a_append	Append
-	*/
-	function setAppend($a_append)
-	{
-		$this->append = $a_append;
-	}
+    public function getAppend(): string
+    {
+        return $this->append;
+    }
 
-	/**
-	* Get Append.
-	*
-	* @return	string	Append
-	*/
-	function getAppend()
-	{
-		return $this->append;
-	}
+    public function setTarget(string $a_target): void
+    {
+        $this->target = $a_target;
+    }
 
-	/**
-	* Set Target.
-	*
-	* @param	string	$a_target	Target
-	*/
-	function setTarget($a_target)
-	{
-		$this->target = $a_target;
-	}
+    public function getTarget(): string
+    {
+        return $this->target;
+    }
 
-	/**
-	* Get Target.
-	*
-	* @return	string	Target
-	*/
-	function getTarget()
-	{
-		return $this->target;
-	}
+    public function setTitle(string $a_val): void
+    {
+        $this->title = $a_val;
+    }
 
-	/**
-	 * Set title
-	 *
-	 * @param	string	title
-	 */
-	function setTitle($a_val)
-	{
-		$this->title = $a_val;
-	}
-	
-	/**
-	 * Get title
-	 *
-	 * @return	string	title
-	 */
-	function getTitle()
-	{
-		return $this->title;
-	}
-	
-	/**
-	 * Set center alignment
-	 *
-	 * @param	boolean	align the link at center
-	 */
-	function setAlignCenter($a_val)
-	{
-		$this->align_center = $a_val;
-	}
-	
-	/**
-	 * Get center alignment
-	 *
-	 * @return	boolean	align the link at center
-	 */
-	function getAlignCenter()
-	{
-		return $this->align_center;
-	}
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
 
-	/**
-	* Get HTML for link
-	*/
-	function getHTML()
-	{
-		$lng = $this->lng;
-		$ilCtrl = $this->ctrl;
-		$ilObjDataCache = $this->obj_data_cache;
-		
-		$tpl = new ilTemplate("tpl.permanent_link.html", true, true,
-			"Services/PermanentLink");
-		
-		include_once('./Services/Link/classes/class.ilLink.php');
-		$href = ilLink::_getStaticLink($this->getId(), $this->getType(),
-			true, $this->getAppend());
-		if ($this->getIncludePermanentLinkText())
-		{
-			$tpl->setVariable("TXT_PERMA", $lng->txt("perma_link").":");
-		}
+    public function getHTML(): string
+    {
+        $lng = $this->lng;
+        $ilObjDataCache = $this->obj_data_cache;
 
-		$title = '';
-		
-		// fetch default title for bookmark
+        $tpl = new ilTemplate(
+            "tpl.permanent_link.html",
+            true,
+            true,
+            "Services/PermanentLink"
+        );
 
-		if ($this->getTitle() != "")
-		{
-			$title = $this->getTitle();
-		}
-		else if(is_numeric($this->getId()))
-		{
-			$obj_id = $ilObjDataCache->lookupObjId($this->getId());
-			$title = $ilObjDataCache->lookupTitle($obj_id);
-		}
-		#if (!$title)
-		#	$bookmark->setTitle("untitled");
+        $href = ilLink::_getStaticLink(
+            $this->getId(),
+            $this->getType(),
+            true,
+            $this->getAppend()
+        );
+        if ($this->getIncludePermanentLinkText()) {
+            $tpl->setVariable("TXT_PERMA", $lng->txt("perma_link") . ":");
+        }
 
-		$tpl->setVariable("TXT_BOOKMARK_DEFAULT", $title);
+        $title = '';
 
-		$tpl->setVariable("LINK", $href);
-		
-		if ($this->getAlignCenter())
-		{
-			$tpl->setVariable("ALIGN", "center");
-		}
-		else
-		{
-			$tpl->setVariable("ALIGN", "left");
-		}
-		
-		if ($this->getTarget() != "")
-		{
-			$tpl->setVariable("TARGET", 'target="'.$this->getTarget().'"');
-		}
+        if ($this->getTitle() != "") {
+            $title = $this->getTitle();
+        } elseif (is_numeric($this->getId())) {
+            $obj_id = $ilObjDataCache->lookupObjId((int) $this->getId());
+            $title = $ilObjDataCache->lookupTitle($obj_id);
+        }
 
-		$bm_html = self::getBookmarksSelectionList($title, $href);
-		if($bm_html)
-		{
-			$tpl->setVariable('SELECTION_LIST', $bm_html);
-		}
+        $tpl->setVariable("TXT_BOOKMARK_DEFAULT", $title);
 
-		return $tpl->get();
-	}
-	
-	/**
-	 * @return string
-	 */
-	protected static function getBookmarksSelectionList($title, $href)
-	{
-		require_once 'Services/UIComponent/AdvancedSelectionList/classes/class.ilAdvancedSelectionListGUI.php';
+        $tpl->setVariable("LINK", $href);
 
-		$current_selection_list = new ilAdvancedSelectionListGUI();
-		$current_selection_list->setId('socialbm_actions_' . md5(uniqid(rand(), true)));
+        $tpl->setVariable("ALIGN", "left");
 
-		$html = '';
+        if ($this->getTarget() != "") {
+            $tpl->setVariable("TARGET", 'target="' . $this->getTarget() . '"');
+        }
 
-		if(!$GLOBALS['DIC']['ilUser']->isAnonymous() && !$GLOBALS['DIC']['ilSetting']->get('disable_bookmarks'))
-		{
-			$GLOBALS['DIC']->ctrl()->setParameterByClass(
-				'ilbookmarkadministrationgui', 'bmf_id', 1
-			);
-			$GLOBALS['DIC']->ctrl()->setParameterByClass(
-				'ilbookmarkadministrationgui', 'return_to', 'true'
-			);
-			$GLOBALS['DIC']->ctrl()->setParameterByClass(
-				'ilbookmarkadministrationgui', 'bm_title', urlencode($title)
-			);
-			$GLOBALS['DIC']->ctrl()->setParameterByClass(
-				'ilbookmarkadministrationgui', 'bm_link', urlencode($href)
-			);
-			$GLOBALS['DIC']->ctrl()->setParameterByClass(
-				'ilbookmarkadministrationgui', 'return_to_url', urlencode($_SERVER['REQUEST_URI'])
-			);
-			$link = $GLOBALS['DIC']->ctrl()->getLinkTargetByClass(
-				['ilDashboardGUI', 'ilbookmarkadministrationgui'],
-				'newFormBookmark'
-			);
-			$current_selection_list->addItem($GLOBALS['DIC']['lng']->txt("bm_add_to_ilias"), '', $link, '' , $GLOBALS['DIC']['lng']->txt('bm_add_to_ilias'), '_top');
-			$html = $current_selection_list->getHTML();
-		}
-
-		return $html;
-	}
+        return $tpl->get();
+    }
 }

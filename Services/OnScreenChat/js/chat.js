@@ -7,11 +7,13 @@
 			getModule().config = config;
 		},
 
-		init: function(userId, username, callback) {
+		init: function(userId, username, callback, unloadCallback) {
 			getModule().socket = $io.connect(getModule().config.url, {path: getModule().config.subDirectory});
 			getModule().socket.on('connect', function() {
 				getModule().login(userId, username, callback);
 			});
+
+			$(window).on('beforeunload', unloadCallback);
 		},
 
 		onHistory: function(callback) {
@@ -39,8 +41,8 @@
 			getModule().socket.emit('message', conversationId, getModule().config.userId, message);
 		},
 
-		getHistory: function(conversationId, oldestMessageTimestamp) {
-			getModule().socket.emit('history', conversationId, oldestMessageTimestamp);
+		getHistory: function(conversationId, oldestMessageTimestamp, reverseSorting = false) {
+			getModule().socket.emit('history', conversationId, oldestMessageTimestamp, reverseSorting); 
 		},
 
 		addUser: function(conversationId, userId, name) {
@@ -49,6 +51,22 @@
 
 		removeUser: function(conversationId, userId, name) {
 			getModule().socket.emit('removeUser', conversationId, userId, name);
+		},
+
+		userStartedTyping: function(conversationId) {
+			getModule().socket.emit('userStartedTyping', conversationId, getModule().config.userId);
+		},
+
+		onUserStartedTyping: function(callback) {
+			getModule().socket.on('userStartedTyping', callback);
+		},
+
+		userStoppedTyping: function(conversationId) {
+			getModule().socket.emit('userStoppedTyping', conversationId, getModule().config.userId);
+		},
+
+		onUserStoppedTyping: function(callback) {
+			getModule().socket.on('userStoppedTyping', callback);
 		},
 
 		onGroupConversationLeft: function(callback) {

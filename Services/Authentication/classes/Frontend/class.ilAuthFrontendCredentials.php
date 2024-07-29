@@ -1,116 +1,86 @@
 <?php
 
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
-include_once './Services/Authentication/interfaces/interface.ilAuthCredentials.php';
+declare(strict_types=1);
 
 /**
- * Description of class class 
- *
- * @author Stefan Meyer <smeyer.ilias@gmx.de> 
- *
+ * @author Stefan Meyer <smeyer.ilias@gmx.de>
  */
 class ilAuthFrontendCredentials implements ilAuthCredentials
 {
-	private $logger = null;
-	
-	private $username = '';
-	private $password = '';
-	private $captcha = '';
-	private $auth_mode = '';
-	
-	public function __construct()
-	{
-		$this->logger = ilLoggerFactory::getLogger('auth');
-	}
-	
-	/**
-	 * Get logger
-	 * @return \ilLogger
-	 */
-	public function getLogger()
-	{
-		return $this->logger;
-	}
-	
-	/**
-	 * Set Logger
-	 * @param ilLogger $logger
-	 */
-	public function setLogger(ilLogger $logger)
-	{
-		$this->logger = $logger;
-	}
+    private ilLogger $logger;
 
-	/**
-	 * Set username
-	 * @param string username
-	 */
-	public function setUsername($a_name)
-	{
-		$this->getLogger()->debug('Username: "'.$a_name.'"');
-		$this->username = trim($a_name);
-	}
+    private string $username = '';
+    private string $password = '';
+    private string $auth_mode = '';
 
-	/**
-	 * Get username
-	 */
-	public function getUsername()
-	{
-		return $this->username;
-	}
+    public function __construct()
+    {
+        global $DIC;
+        $this->logger = $DIC->logger()->auth();
+    }
 
-	/**
-	 * Set password
-	 * @param string $a_password
-	 */
-	public function setPassword($a_password)
-	{
-		$this->password = $a_password;
-	}
+    /**
+     * Set username
+     */
+    public function setUsername(string $a_name): void
+    {
+        $this->logger->debug('Username: "' . $a_name . '"');
+        $this->username = trim($a_name);
+    }
 
-	/**
-	 * Get password
-	 */
-	public function getPassword()
-	{
-		return $this->password;
-	}
+    /**
+     * Get username
+     */
+    public function getUsername(): string
+    {
+        return $this->username;
+    }
 
-	
-	/**
-	 * Set captcha code
-	 * @param string
-	 */
-	public function setCaptchaCode($a_code)
-	{
-		$this->captcha = $a_code;
-	}
-	
-	/**
-	 * Get captcha code
-	 */
-	public function getCaptchaCode()
-	{
-		return $this->captcha;
-	}
-	
+    /**
+     * Set password
+     */
+    public function setPassword(string $a_password): void
+    {
+        $this->password = $a_password;
+    }
 
-	/**
-	 * Set auth mode
-	 * @param type $a_auth_mode
-	 */
-	public function setAuthMode($a_auth_mode)
-	{
-		$this->auth_mode = $a_auth_mode;
-	}
-	
-	/**
-	 * Get auth mode
-	 */
-	public function getAuthMode()
-	{
-		return $this->auth_mode;
-	}
+    /**
+     * Get password
+     */
+    public function getPassword(): string
+    {
+        return $this->password;
+    }
+
+    /**
+     * Set auth mode
+     */
+    public function setAuthMode(string $a_auth_mode): void
+    {
+        $this->auth_mode = $a_auth_mode;
+    }
+
+    /**
+     * Get auth mode
+     */
+    public function getAuthMode(): string
+    {
+        return $this->auth_mode;
+    }
 }
-?>

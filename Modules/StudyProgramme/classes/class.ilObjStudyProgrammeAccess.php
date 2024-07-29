@@ -1,132 +1,119 @@
 <?php
 
-/* Copyright (c) 2015 Richard Klees <richard.klees@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
 
-require_once('./Services/Object/classes/class.ilObjectAccess.php');
-require_once('./Services/User/classes/class.ilUserAccountSettings.php');
-require_once('./Services/Conditions/interfaces/interface.ilConditionHandling.php');
-
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Class ilObjStudyProgrammeAccess
  *
- * TODO: deletion is only allowed if there are now more users assigned to the
- * programme.
+ * TODO: deletion is only allowed if there are no more users assigned to the programme.
  *
  * @author: Richard Klees <richard.klees@concepts-and-training.de>
- *
  */
-class ilObjStudyProgrammeAccess extends ilObjectAccess implements ilConditionHandling {
+class ilObjStudyProgrammeAccess extends ilObjectAccess implements ilConditionHandling
+{
+    public function _checkAccess(string $cmd, string $permission, int $ref_id, int $obj_id, ?int $user_id = null): bool
+    {
+        if ($user_id === 0 || $user_id === null) {
+            global $DIC;
+            $user_id = $DIC->user()->getId();
+        }
 
-	/**
-	* Checks wether a user may invoke a command or not
-	* (this method is called by ilAccessHandler::checkAccess)
-	*
-	* Please do not check any preconditions handled by
-	* ilConditionHandler here. Also don't do any RBAC checks.
-	*
-	* @param	string		$a_cmd			command (not permission!)
- 	* @param	string		$a_permission	permission
-	* @param	int			$a_ref_id		reference id
-	* @param	int			$a_obj_id		object id
-	* @param	int			$a_user_id		user id (if not provided, current user is taken)
-	*
-	* @return	boolean		true, if everything is ok
-	*/
-	function _checkAccess($a_cmd, $a_permission, $a_ref_id, $a_obj_id, $a_user_id = "")
-	{
-		if ($a_user_id == "")
-		{
-			$a_user_id = $ilUser->getId();
-		}
+        if ($permission === "delete") {
+            $prg = ilObjStudyProgramme::getInstanceByRefId($ref_id);
+            if ($prg->hasRelevantProgresses()) {
+                return false;
+            }
+        }
 
-		if ($a_permission == "delete") {
-			require_once("Modules/StudyProgramme/classes/class.ilObjStudyProgramme.php");
-			$prg = ilObjStudyProgramme::getInstanceByRefId($a_ref_id);
-			if ($prg->hasRelevantProgresses()) {
-				return false;
-			}
-		}
+        return parent::_checkAccess($cmd, $permission, $ref_id, $obj_id, $user_id);
+    }
 
-		return parent::_checkAccess($a_cmd, $a_permission, $a_ref_id, $a_obj_id, $a_user_id = "");
-	}
+    /**
+     * get commands
+     *
+     * this method returns an array of all possible commands/permission combinations
+     *
+     * example:
+     * $commands = array
+     *    (
+     *        array('permission' => 'read', 'cmd' => 'view', 'lang_var' => 'show'),
+     *        array('permission' => 'write', 'cmd' => 'edit', 'lang_var' => 'edit'),
+     *    );
+     */
+    public static function _getCommands(): array
+    {
+        $commands = [];
+        $commands[] = ['permission' => 'read', 'cmd' => 'view', 'lang_var' => 'show', 'default' => true];
+        $commands[] = ['permission' => 'write', 'cmd' => 'view', 'lang_var' => 'edit_content'];
+        $commands[] = [ 'permission' => 'write', 'cmd' => 'edit', 'lang_var' => 'settings'];
 
-	/**
-	 * get commands
-	 *
-	 * this method returns an array of all possible commands/permission combinations
-	 *
-	 * example:
-	 * $commands = array
-	 *    (
-	 *        array('permission' => 'read', 'cmd' => 'view', 'lang_var' => 'show'),
-	 *        array('permission' => 'write', 'cmd' => 'edit', 'lang_var' => 'edit'),
-	 *    );
-	 */
-	static function _getCommands()
-	{
-		$commands = array();
-		$commands[] = array('permission' => 'read', 'cmd' => 'view', 'lang_var' => 'show', 'default' => true);
-		$commands[] = array('permission' => 'write', 'cmd' => 'view', 'lang_var' => 'edit_content');
-		$commands[] = array( 'permission' => 'write', 'cmd' => 'edit', 'lang_var' => 'settings');
+        return $commands;
+    }
 
-		return $commands;
-	}
+    /**
+     * check whether goto script will succeed
+     */
+    public static function _checkGoto(string $target): bool
+    {
+        global $DIC;
+        $ilAccess = $DIC->access();
+        $t_arr = explode('_', $target);
+        if ($t_arr[0] !== 'prg' || ((int) $t_arr[1]) <= 0) {
+            return false;
+        }
 
-	/**
-	 * check whether goto script will succeed
-	 */
-	static function _checkGoto($a_target)
-	{
-		global $DIC;
-		$ilAccess = $DIC['ilAccess'];
-		$t_arr = explode('_', $a_target);
-		if ($t_arr[0] != 'prg' || ((int)$t_arr[1]) <= 0) {
-			return false;
-		}
-		if ($ilAccess->checkAccess('read', '', $t_arr[1])) {
-			return true;
-		}
+        return $ilAccess->checkAccess('read', '', (int) $t_arr[1]);
+    }
 
-		return false;
-	}
+    /**
+     * Get operators
+     */
+    public static function getConditionOperators(): array
+    {
+        return array(
+            ilConditionHandler::OPERATOR_ACCREDITED_OR_PASSED
+        );
+    }
 
-	/**
-	 * Get operators
-	 */
-	public static function getConditionOperators()
-	{
-		return array(
-			ilConditionHandler::OPERATOR_ACCREDITED_OR_PASSED
-		);
-	}
+    /**
+     * @param int    $a_trigger_obj_id
+     * @param string $a_operator
+     * @param string $a_value
+     * @param int    $a_usr_id
+     * @return boolean
+     */
+    public static function checkCondition(
+        int $a_trigger_obj_id,
+        string $a_operator,
+        string $a_value,
+        int $a_usr_id
+    ): bool {
+        if ($a_operator === ilConditionHandler::OPERATOR_ACCREDITED_OR_PASSED) {
+            $repo = ilStudyProgrammeDIC::dic()['repo.assignment'];
+            $assignments = $repo->getAllForNodeIsContained($a_trigger_obj_id, [$a_usr_id]);
 
-	/**
-	 *
-	 * @param type $a_obj_id
-	 * @param type $a_operator
-	 * @param type $a_value
-	 * @param type $a_usr_id
-	 * @return boolean
-	 */
-	public static function checkCondition($a_obj_id,$a_operator,$a_value,$a_usr_id)
-	{
-		if ($a_operator === ilConditionHandler::OPERATOR_ACCREDITED_OR_PASSED) {
-			$valid_progress = array(
-				ilStudyProgrammeProgress::STATUS_COMPLETED,
-				ilStudyProgrammeProgress::STATUS_ACCREDITED
-			);
-
-			$prg_user_progress = ilObjStudyProgramme::_getStudyProgrammeUserProgressDB()->getInstancesForUser($a_obj_id, $a_usr_id);
-			foreach ($prg_user_progress as $progress) {
-				if( in_array($progress->getStatus(), $valid_progress)) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
+            foreach ($assignments as $ass) {
+                if ($ass->getProgressForNode($a_trigger_obj_id)->isSuccessful()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }
-
-?>

@@ -1,79 +1,68 @@
 <?php
-/* Copyright (c) 1998-2017 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/Authentication/classes/Frontend/class.ilAuthFrontendCredentials.php';
-require_once 'Services/Authentication/interfaces/interface.ilAuthCredentials.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * Class ilAuthFrontendCredentialsSaml
+ * @author Michael Jansen <mjansen@databay.de>
  */
-class ilAuthFrontendCredentialsSaml extends ilAuthFrontendCredentials implements ilAuthCredentials
+class ilAuthFrontendCredentialsSaml extends ilAuthFrontendCredentials
 {
-	/**
-	 * @var array
-	 */
-	protected $attributes = array();
+    private ilSamlAuth $auth;
+    private ServerRequestInterface $request;
+    private string $return_to = '';
+    private array $attributes = [];
 
-	/**
-	 * @var string
-	 */
-	protected $return_to = '';
+    public function __construct(ilSamlAuth $auth, ServerRequestInterface $request)
+    {
+        parent::__construct();
 
-	/**
-	 * @var ilSamlAuth
-	 */
-	protected $auth;
+        $this->auth = $auth;
+        $this->request = $request;
 
-	/**
-	 * ilAuthFrontendCredentialsSaml constructor.
-	 * @param ilSamlAuth $auth
-	 */
-	public function __construct(ilSamlAuth $auth)
-	{
-		parent::__construct();
+        $this->setAttributes($this->auth->getAttributes());
+    }
 
-		$this->auth = $auth;
+    public function initFromRequest(): void
+    {
+        $this->setReturnTo((string) ($this->request->getQueryParams()['target'] ?? ''));
+    }
 
-		$this->setAttributes($this->auth->getAttributes());
-	}
+    public function setAttributes(array $attributes): void
+    {
+        $this->attributes = $attributes;
+    }
 
-	/**
-	 * Init credentials from request
-	 */
-	public function initFromRequest()
-	{
-		$this->setReturnTo(isset($_GET['target']) ? $_GET['target'] : '');
-	}
+    public function getAttributes(): array
+    {
+        return $this->attributes;
+    }
 
-	/**
-	 * @param array $attributes
-	 */
-	public function setAttributes(array $attributes)
-	{
-		$this->attributes = $attributes;
-	}
+    public function getReturnTo(): string
+    {
+        return $this->return_to;
+    }
 
-	/**
-	 * @return array
-	 */
-	public function getAttributes()
-	{
-		return $this->attributes;
-	}
-
-	/**
-	 * @return string
-	 */
-	public function getReturnTo()
-	{
-		return $this->return_to;
-	}
-
-	/**
-	 * @param string $return_to
-	 */
-	public function setReturnTo($return_to)
-	{
-		$this->return_to = $return_to;
-	}
+    public function setReturnTo(string $return_to): void
+    {
+        $this->return_to = $return_to;
+    }
 }

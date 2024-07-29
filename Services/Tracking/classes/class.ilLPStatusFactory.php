@@ -1,131 +1,127 @@
 <?php
 
+declare(strict_types=0);
+
 /* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once 'Services/Tracking/classes/class.ilLPObjSettings.php';
-
 /**
-* Class ilLPStatusFactory
-* Creates status class instances for learning progress modes of an object.
-* E.g obj_id of course returns an instance of ilLPStatusManual, ilLPStatusObjectives ...
-*
-* @author Stefan Meyer <meyer@leifos.com>
-*
-* @version $Id$
-*
-* @ingroup ServicesTracking
-*
-*/
+ * Class ilLPStatusFactory
+ * Creates status class instances for learning progress modes of an object.
+ * E.g obj_id of course returns an instance of ilLPStatusManual, ilLPStatusObjectives ...
+ * @author  Stefan Meyer <meyer@leifos.com>
+ * @ingroup ServicesTracking
+ */
 class ilLPStatusFactory
 {
-	static private $class_by_obj_id = array();
-	
-	static function _getClassById($a_obj_id, $a_mode = NULL)
-	{		
-		if($a_mode === NULL)
-		{
-			include_once 'Services/Object/classes/class.ilObjectLP.php';
-			$olp = ilObjectLP::getInstance($a_obj_id);					
-			$a_mode = $olp->getCurrentMode();
-			
-			// please keep the cache in this if-block, otherwise default values
-			// will not trigger the include_once calls
-			if (isset(self::$class_by_obj_id[$a_obj_id]))
-			{
-				return self::$class_by_obj_id[$a_obj_id];
-			}
-		}
+    private static ?self $instance = null;
+    private static array $class_by_obj_id = array();
 
-		$map = ilLPObjSettings::getClassMap();
-		
-		if(array_key_exists($a_mode, $map))
-		{
-			$class = $map[$a_mode];
-						
-			// undefined? try object lp directly
-			if($class === null)				
-			{
-				include_once 'Services/Object/classes/class.ilObjectLP.php';
-				$olp = ilObjectLP::getInstance($a_obj_id);					
-				$mode = $olp->getCurrentMode();
-				if($mode != ilLPObjSettings::LP_MODE_UNDEFINED)
-				{
-					return self::_getClassById($a_obj_id, $mode);
-				}	
-			}			
-			else
-			{
-				self::includeClass($class);
-				self::$class_by_obj_id[$a_obj_id] = $class;
-				return $class;
-			}			
-		}
+    private ilLogger $logger;
 
-		// we probably can do better
-		echo "ilLPStatusFactory: unknown type ".$a_mode;
-		exit;	
-	}
-	
-	protected static function includeClass($a_class)
-	{
-		 $path = ($a_class == 'ilLPStatus')
-			? 'Services/Tracking/classes/'
-			: 'Services/Tracking/classes/status/';
-		 include_once $path.'class.'.$a_class.'.php';
-	}
+    private static function getFactoryInstance(): ilLPStatusFactory
+    {
+        if (!self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
-	static function _getClassByIdAndType($a_obj_id,$a_type)
-	{
-		// id is ignored in the moment
-		switch($a_type)
-		{
-			case 'event':
-				self::includeClass('ilLPStatusEvent');		
-				return 'ilLPStatusEvent';
+    private function __construct()
+    {
+        global $DIC;
 
-			default:
-				echo "ilLPStatusFactory: unknown type: ".$a_type;
-				exit;
-		}
-	}
+        $this->logger = $DIC->logger()->trac();
+    }
 
-	static function _getInstance($a_obj_id, $a_mode = NULL)
-	{		
-		if($a_mode === NULL)
-		{
-			include_once 'Services/Object/classes/class.ilObjectLP.php';
-			$olp = ilObjectLP::getInstance($a_obj_id);					
-			$a_mode = $olp->getCurrentMode();
-		}
-		
-		$map = ilLPObjSettings::getClassMap();
-		
-		if(array_key_exists($a_mode, $map))
-		{
-			$class = $map[$a_mode];
-						
-			// undefined? try object lp directly
-			if($class === null)				
-			{
-				include_once 'Services/Object/classes/class.ilObjectLP.php';
-				$olp = ilObjectLP::getInstance($a_obj_id);					
-				$mode = $olp->getCurrentMode();
-				if($mode != ilLPObjSettings::LP_MODE_UNDEFINED)
-				{
-					return self::_getInstance($a_obj_id, $mode);
-				}
-			}			
-			else
-			{
-				self::includeClass($class);			
-				return new $class($a_obj_id);
-			}		
-		}
-		
-		// we probably can do better
-		echo "ilLPStatusFactory: unknown type ".$a_mode;
-		exit;
-	}
+    private function getLogger(): ilLogger
+    {
+        return $this->logger;
+    }
+
+    public static function _getClassById(
+        int $a_obj_id,
+        ?int $a_mode = null
+    ): string {
+        if ($a_mode === null) {
+            $olp = ilObjectLP::getInstance($a_obj_id);
+            $a_mode = $olp->getCurrentMode();
+
+            // please keep the cache in this if-block, otherwise default values
+            if (isset(self::$class_by_obj_id[$a_obj_id])) {
+                return self::$class_by_obj_id[$a_obj_id];
+            }
+        }
+
+        $map = ilLPObjSettings::getClassMap();
+
+        if (array_key_exists($a_mode, $map)) {
+            $class = $map[$a_mode];
+
+            // undefined? try object lp directly
+            if ($class === null) {
+                $olp = ilObjectLP::getInstance($a_obj_id);
+                $mode = $olp->getCurrentMode();
+                if ($mode != ilLPObjSettings::LP_MODE_UNDEFINED) {
+                    return self::_getClassById($a_obj_id, $mode);
+                }
+            } else {
+                self::$class_by_obj_id[$a_obj_id] = $class;
+                return $class;
+            }
+        }
+
+        $factory = self::getFactoryInstance();
+        $message = 'Unknown LP mode given: ' . $a_mode;
+        $factory->getLogger()->logStack(ilLogLevel::ERROR, $message);
+        throw new ilInvalidLPStatusException($message);
+    }
+
+    public static function _getClassByIdAndType(
+        int $a_obj_id,
+        string $a_type
+    ): string {
+        // id is ignored in the moment
+        switch ($a_type) {
+            case 'event':
+                return 'ilLPStatusEvent';
+
+            default:
+                $factory = self::getFactoryInstance();
+                $message = 'Unknown LP type given: ' . $a_type;
+                $factory->getLogger()->logStack(ilLogLevel::ERROR, $message);
+                throw new ilInvalidLPStatusException($message);
+        }
+    }
+
+    public static function _getInstance(
+        int $a_obj_id,
+        ?int $a_mode = null
+    ): ilLPStatus {
+        if ($a_mode === null) {
+            $olp = ilObjectLP::getInstance($a_obj_id);
+            $a_mode = $olp->getCurrentMode();
+        }
+
+        $map = ilLPObjSettings::getClassMap();
+
+        if (array_key_exists($a_mode, $map)) {
+            $class = $map[$a_mode];
+
+            // undefined? try object lp directly
+            if ($class === null) {
+                $olp = ilObjectLP::getInstance($a_obj_id);
+                $mode = $olp->getCurrentMode();
+                if ($mode != ilLPObjSettings::LP_MODE_UNDEFINED) {
+                    return self::_getInstance($a_obj_id, $mode);
+                }
+            } else {
+                return new $class($a_obj_id);
+            }
+        }
+
+        $factory = self::getFactoryInstance();
+        $message = 'Unknown LP mode given: ' . $a_mode;
+        $factory->getLogger()->logStack(ilLogLevel::ERROR, $message);
+        throw new ilInvalidLPStatusException($message);
+    }
 }
-
-?>

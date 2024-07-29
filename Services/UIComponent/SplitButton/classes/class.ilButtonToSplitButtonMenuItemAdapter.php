@@ -1,34 +1,37 @@
 <?php
-/* Copyright (c) 1998-2015 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/UIComponent/SplitButton/interfaces/interface.ilSplitButtonMenuItem.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Class ilButtonToSplitButtonMenuItemAdapter
  * @author Michael Jansen <mjansen@databay.de>
- * @ingroup ServicesUIComponent
  */
-class ilButtonToSplitButtonMenuItemAdapter implements ilSplitButtonMenuItem 
+class ilButtonToSplitButtonMenuItemAdapter implements ilSplitButtonMenuItem
 {
-	/**
-	 * @var ilButtonBase
-	 */
-	protected $button;
+    protected ilButtonBase $button;
 
-	/**
-	 * @param ilButtonBase $button
-	 */
-	public function __construct(ilButtonBase $button)
-	{
-		$this->button = $button;
-	}
+    public function __construct(ilButtonBase $button)
+    {
+        $this->button = $button;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getContent()
-	{
-		$this->button->applyDefaultCss(false);
-		return $this->button->render();
-	}
+    public function getContent(): string
+    {
+        $this->button->applyDefaultCss(false);
+        return $this->button->render();
+    }
 }

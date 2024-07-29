@@ -1,11 +1,30 @@
 <?php
 
-/* Copyright (c) 2017 Alex Killing <killing@leifos.de> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 namespace ILIAS\UI\Implementation\Component\Item;
 
 use ILIAS\UI\Component as C;
 use ILIAS\UI\Implementation\Component\ComponentHelper;
+use ILIAS\UI\Component\Button\Shy;
+use ILIAS\UI\Component\Link\Link;
+use ILIAS\UI\Component\Image\Image;
 
 /**
  * Common interface to all items.
@@ -15,40 +34,28 @@ abstract class Item implements C\Item\Item
     use ComponentHelper;
 
     /**
-     * @var \ILIAS\Data\Color color
-     */
-    protected $color = null;
-
-    /**
-     * @var string|\ILIAS\UI\Component\Button\Shy
+     * @var string|Shy|Link
      */
     protected $title;
+    protected ?string $desc = null;
+    protected array $props;
+    protected ?C\Dropdown\Standard $actions = null;
 
     /**
-     * @var string
-     */
-    protected $desc;
-
-    /**
-     * @var array
-     */
-    protected $props;
-
-    /**
-     * @var \ILIAS\UI\Component\Dropdown\Standard
-     */
-    protected $actions;
-
-    /**
-     * @var null|string|\ILIAS\UI\Component\Image\Image
+     * @var null|string|Image
      */
     protected $lead = null;
 
+    /**
+     * Item constructor.
+     * @param Shy|C\Link\Standard|string $title
+     */
     public function __construct($title)
     {
-        if (!$title instanceof \ILIAS\UI\Component\Button\Shy) {
+        if (!$title instanceof Shy && !$title instanceof Link) {
             $this->checkStringArg("title", $title);
         }
+
         $this->title = $title;
         $this->props = [];
     }
@@ -64,18 +71,17 @@ abstract class Item implements C\Item\Item
     /**
      * @inheritdoc
      */
-    public function withDescription($desc)
+    public function withDescription(string $description): C\Item\Item
     {
-        $this->checkStringArg("description", $desc);
         $clone = clone $this;
-        $clone->desc = $desc;
+        $clone->desc = $description;
         return $clone;
     }
 
     /**
      * @inheritdoc
      */
-    public function getDescription()
+    public function getDescription(): ?string
     {
         return $this->desc;
     }
@@ -83,17 +89,17 @@ abstract class Item implements C\Item\Item
     /**
      * @inheritdoc
      */
-    public function withProperties(array $props)
+    public function withProperties(array $properties): C\Item\Item
     {
         $clone = clone $this;
-        $clone->props = $props;
+        $clone->props = $properties;
         return $clone;
     }
 
     /**
      * @inheritdoc
      */
-    public function getProperties()
+    public function getProperties(): array
     {
         return $this->props;
     }
@@ -101,7 +107,7 @@ abstract class Item implements C\Item\Item
     /**
      * @inheritdoc
      */
-    public function withActions(\ILIAS\UI\Component\Dropdown\Standard $actions)
+    public function withActions(C\Dropdown\Standard $actions): C\Item\Item
     {
         $clone = clone $this;
         $clone->actions = $actions;
@@ -111,76 +117,8 @@ abstract class Item implements C\Item\Item
     /**
      * @inheritdoc
      */
-    public function getActions()
+    public function getActions(): ?C\Dropdown\Standard
     {
         return $this->actions;
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function withColor(\ILIAS\Data\Color $color)
-    {
-        $clone = clone $this;
-        $clone->color = $color;
-
-        return $clone;
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function getColor()
-    {
-        return $this->color;
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function withLeadImage(\ILIAS\UI\Component\Image\Image $image)
-    {
-        $clone = clone $this;
-        $clone->lead = $image;
-        return $clone;
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function withLeadIcon(\ILIAS\UI\Component\Symbol\Icon\Icon $icon)
-    {
-        $clone = clone $this;
-        $clone->lead = $icon;
-        return $clone;
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function withLeadText($text)
-    {
-        $this->checkStringArg("lead_text", $text);
-        $clone = clone $this;
-        $clone->lead = (string) $text;
-        return $clone;
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function withNoLead()
-    {
-        $clone = clone $this;
-        $clone->lead = null;
-        return $clone;
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function getLead()
-    {
-        return $this->lead;
     }
 }

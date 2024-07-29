@@ -1,219 +1,173 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once 'Services/Form/classes/class.ilSubEnabledFormPropertyGUI.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+use ILIAS\HTTP\GlobalHttpState;
+use ILIAS\Filesystem\Stream\Streams;
 
 /**
  * Class ilManualPlaceholderInputGUI
- * @author Nadia Ahmad <nahmad@databay.de> 
+ * @author Nadia Ahmad <nahmad@databay.de>
  */
 class ilManualPlaceholderInputGUI extends ilSubEnabledFormPropertyGUI
 {
-	/**
-	 * @var array
-	 */
-	protected $placeholders = array();
+    protected GlobalHttpState $httpState;
+    /**
+     * @var array<string, array{placeholder: string, title: string}>
+     */
+    protected array $placeholders = [];
+    protected string $rerenderUrl = '';
+    protected string $rerenderTriggerElementName = '';
+    protected string $dependencyElementId;
+    protected string $instructionText = '';
+    protected string $adviseText = '';
+    protected ilGlobalTemplateInterface $tpl;
+    /** @var mixed */
+    protected $value;
 
-	/**
-	 * @var string
-	 */
-	protected $rerenderUrl;
+    public function __construct(string $label, string $dependencyElementId)
+    {
+        global $DIC;
 
-	/**
-	 * @var string
-	 */
-	protected $rerenderTriggerElementName;
+        $this->tpl = $DIC->ui()->mainTemplate();
+        $this->httpState = $DIC->http();
 
-	/**
-	 * @var string
-	 */
-	protected $dependencyElementId;
+        $this->dependencyElementId = $dependencyElementId;
 
-	/**
-	 * @var string
-	 */
-	protected $instructionText = '';
+        parent::__construct($label);
 
-	/**
-	 * @var string
-	 */
-	protected $adviseText = '';
+        $this->tpl->addJavaScript('Services/Mail/js/ilMailComposeFunctions.js');
+    }
 
-	/**
-	 * @var \ilTemplate
-	 */
-	protected $tpl;
+    public function getRerenderUrl(): ?string
+    {
+        return $this->rerenderUrl;
+    }
 
-	/**
-	 * @var \ilLanguage
-	 */
-	protected $lng;
+    public function getRerenderTriggerElementName(): string
+    {
+        return $this->rerenderTriggerElementName;
+    }
 
-	/**
-	 * ilManualPlaceholderInputGUI constructor.
-	 * @param string $dependencyElementId
-	 */
-	public function __construct($dependencyElementId)
-	{	
-		global $DIC;
+    public function supportsRerenderSignal(string $elementId, string $url): void
+    {
+        $this->rerenderTriggerElementName = $elementId;
+        $this->rerenderUrl = $url;
+    }
 
-		$this->tpl = $DIC->ui()->mainTemplate();
-		$this->lng = $DIC->language();
+    public function getAdviseText(): string
+    {
+        return $this->adviseText;
+    }
 
-		parent::__construct('');
+    public function setAdviseText(string $adviseText): void
+    {
+        $this->adviseText = $adviseText;
+    }
 
-		$this->dependencyElementId = $dependencyElementId;
+    public function getInstructionText(): string
+    {
+        return $this->instructionText;
+    }
 
-		$this->tpl->addJavaScript('Services/Mail/js/ilMailComposeFunctions.js');
-	}
+    public function setInstructionText(string $instructionText): void
+    {
+        $this->instructionText = $instructionText;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getRerenderUrl()
-	{
-		return $this->rerenderUrl;
-	}
+    public function addPlaceholder(string $placeholder, string $title): void
+    {
+        $this->placeholders[$placeholder]['placeholder'] = $placeholder;
+        $this->placeholders[$placeholder]['title'] = $title;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getRerenderTriggerElementName()
-	{
-		return $this->rerenderTriggerElementName;
-	}
+    public function insert(ilTemplate $a_tpl): void
+    {
+        $html = $this->render();
 
-	/**
-	 * @param string $elementId
-	 * @param string $url
-	 */
-	public function supportsRerenderSignal($elementId, $url)
-	{
-		$this->rerenderTriggerElementName = $elementId;
-		$this->rerenderUrl                = $url;
-	}
+        $a_tpl->setCurrentBlock('prop_generic');
+        $a_tpl->setVariable('PROP_GENERIC', $html);
+        $a_tpl->parseCurrentBlock();
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getAdviseText()
-	{
-		return $this->adviseText;
-	}
+    public function render(bool $ajax = false): string
+    {
+        $subtpl = new ilTemplate(
+            'tpl.mail_manual_placeholders.html',
+            true,
+            true,
+            'Services/Mail'
+        );
+        $subtpl->setVariable('TXT_USE_PLACEHOLDERS', $this->lng->txt('mail_nacc_use_placeholder'));
+        $subtpl->setVariable('DEPENDENCY_ELM_ID_OUTER', $this->dependencyElementId);
+        if ($this->getAdviseText()) {
+            $subtpl->setVariable('TXT_PLACEHOLDERS_ADVISE', $this->getAdviseText());
+        }
 
-	/**
-	 * @param string $adviseText
-	 */
-	public function setAdviseText($adviseText)
-	{
-		$this->adviseText = $adviseText;
-	}
+        if (count($this->placeholders) > 0) {
+            foreach ($this->placeholders as $placeholder) {
+                $subtpl->setCurrentBlock('man_placeholder');
+                $subtpl->setVariable('DEPENDENCY_ELM_ID', $this->dependencyElementId);
+                $subtpl->setVariable('PLACEHOLDER', '[' . $placeholder['placeholder'] . ']');
+                $subtpl->setVariable('PLACEHOLDER_INTERACTION_INFO', sprintf(
+                    $this->lng->txt('mail_hint_add_placeholder_x'),
+                    '[' . $placeholder['placeholder'] . ']'
+                ));
+                $subtpl->setVariable('PLACEHOLDER_DESCRIPTION', $placeholder['title']);
+                $subtpl->parseCurrentBlock();
+            }
+        }
 
-	/**
-	 * @return string
-	 */
-	public function getInstructionText()
-	{
-		return $this->instructionText;
-	}
+        if ($this->getRerenderTriggerElementName() && $this->getRerenderUrl()) {
+            $subtpl->setVariable('RERENDER_URL', $this->getRerenderUrl());
+            $subtpl->setVariable('RERENDER_TRIGGER_ELM_NAME', $this->getRerenderTriggerElementName());
+        }
 
-	/**
-	 * @param string $instructionText
-	 */
-	public function setInstructionText($instructionText)
-	{
-		$this->instructionText = $instructionText;
-	}
+        if ($ajax) {
+            $this->httpState->saveResponse(
+                $this->httpState
+                    ->response()
+                    ->withBody(Streams::ofString($subtpl->get()))
+            );
+            $this->httpState->sendResponse();
+            $this->httpState->close();
+        }
 
-	/**
-	 * @param string $placeholder
-	 * @param string $title
-	 */
-	public function addPlaceholder($placeholder, $title)
-	{
-		$this->placeholders[$placeholder]['placeholder'] = $placeholder;
-		$this->placeholders[$placeholder]['title'] = $title;
-	}
+        return $subtpl->get();
+    }
 
-	/**
-	 * @param $a_tpl
-	 */
-	public function insert($a_tpl)
-	{
-		$html = $this->render();
+    public function setValueByArray(array $a_values): void
+    {
+        $this->setValue($a_values[$this->getPostVar()] ?? null);
+    }
 
-		$a_tpl->setCurrentBlock("prop_generic");
-		$a_tpl->setVariable("PROP_GENERIC", $html);
-		$a_tpl->parseCurrentBlock();
-	}
+    public function setValue($a_value): void
+    {
+        if (is_array($a_value) && $this->getMulti()) {
+            $this->setMultiValues($a_value);
+            $a_value = array_shift($a_value);
+        }
+        $this->value = $a_value;
+    }
 
-	/**
-	 * @param bool $ajax
-	 * @return string|void
-	 */
-	public function render($ajax = false)
-	{
-		$subtpl = new ilTemplate("tpl.mail_manual_placeholders.html", true, true, "Services/Mail");
-		$subtpl->setVariable('TXT_USE_PLACEHOLDERS', $this->lng->txt('mail_nacc_use_placeholder'));
-		if($this->getAdviseText())
-		{
-			$subtpl->setVariable('TXT_PLACEHOLDERS_ADVISE', $this->getAdviseText());
-		}
-
-		if(count($this->placeholders) > 0)
-		{
-			foreach($this->placeholders as $placeholder)
-			{
-				$subtpl->setCurrentBlock('man_placeholder');
-				$subtpl->setVariable('DEPENDENCY_ELM_ID', $this->dependencyElementId);
-				$subtpl->setVariable('MANUAL_PLACEHOLDER', $placeholder['placeholder']);
-				$subtpl->setVariable('TXT_MANUAL_PLACEHOLDER', $placeholder['title']);
-				$subtpl->parseCurrentBlock();
-			}
-		}
-
-		if($this->getRerenderTriggerElementName() && $this->getRerenderUrl())
-		{
-			$subtpl->setVariable('RERENDER_URL', $this->getRerenderUrl());
-			$subtpl->setVariable('RERENDER_TRIGGER_ELM_NAME', $this->getRerenderTriggerElementName());
-		}
-
-		if($ajax)
-		{
-			echo $subtpl->get();
-			exit();
-		}
-
-		return $subtpl->get();
-	}
-
-	/**
-	 * Set value by array
-	 *
-	 * @param	array	$a_values	value array
-	 */
-	function setValueByArray($a_values)
-	{
-		$this->setValue($a_values[$this->getPostVar()]);
-	}
-	/**
-	 * Set Value.
-	 *
-	 * @param	string	$a_value	Value
-	 */
-	function setValue($a_value)
-	{
-		if($this->getMulti() && is_array($a_value))
-		{
-			$this->setMultiValues($a_value);
-			$a_value = array_shift($a_value);
-		}
-		$this->value = $a_value;
-	}
-	
-	function checkInput()
-	{
-		return true;
-	}
-
+    public function checkInput(): bool
+    {
+        return true;
+    }
 }

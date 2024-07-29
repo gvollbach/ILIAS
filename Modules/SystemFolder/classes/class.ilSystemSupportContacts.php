@@ -11,75 +11,75 @@
  */
 class ilSystemSupportContacts
 {
-	/**
-	 * Get list
-	 *
-	 * @return string comma separated list of contacts
-	 */
-	static function getList()
-	{
-		global $DIC;
+    /**
+     * Get list
+     *
+     * @return string comma separated list of contacts
+     */
+    public static function getList()
+    {
+        global $DIC;
 
-		$ilSetting = $DIC->settings();
+        $ilSetting = $DIC->settings();
 
-		return $ilSetting->get("adm_support_contacts");
-	}
-	
-	/**
-	 * Set list
-	 *
-	 * @param string $a_list comma separated list of contacts
-	 */
-	static function setList($a_list)
-	{
-		global $DIC;
+        return $ilSetting->get("adm_support_contacts");
+    }
 
-		$ilSetting = $DIC->settings();
+    /**
+     * Set list
+     *
+     * @param string $a_list comma separated list of contacts
+     */
+    public static function setList($a_list)
+    {
+        global $DIC;
 
-		$list = explode(",", $a_list);
-		$accounts = array();
-		foreach ($list as $l)
-		{
-			if (ilObjUser::_lookupId(trim($l)) > 0)
-			{
-				$accounts[] = trim($l);
-			}
-		}
+        $ilSetting = $DIC->settings();
 
-		return $ilSetting->set("adm_support_contacts", implode(",", $accounts));
-	}
+        $list = explode(",", $a_list);
+        $accounts = array();
+        foreach ($list as $l) {
+            if (ilObjUser::_lookupId(trim($l)) > 0) {
+                $accounts[] = trim($l);
+            }
+        }
 
-	/**
-	 * Get valid support contacts
-	 *
-	 * @return array array of user IDs
-	 */
-	static function getValidSupportContactIds()
-	{
-		$list = self::getList();
-		$list = explode(",", $list);
+        return $ilSetting->set("adm_support_contacts", implode(",", $accounts));
+    }
 
-		return ilObjUser::_lookupId($list);
-	}
+    /**
+     * Get valid support contacts
+     *
+     * @return array array of user IDs
+     */
+    public static function getValidSupportContactIds()
+    {
+        $list = self::getList();
+        $list = explode(",", $list);
 
-	/**
-	 * Get mailto: email
-	 *
-	 * @param
-	 * @return
-	 */
-	static function getMailToAddress()
-	{
-		$emails = array();
-		foreach (self::getValidSupportContactIds() as $id)
-		{
-			if (($e = ilObjUser::_lookupEmail($id)) != "")
-			{
-				return $e;
-			}
-		}
-		return "";
-	}
+        return ilObjUser::_lookupId($list);
+    }
+
+    /**
+     * Get mailto: emails
+     *
+     * @param
+     * @return
+     */
+    public static function getMailsToAddress()
+    {
+        $emails = array();
+        foreach (self::getValidSupportContactIds() as $id) {
+            if (($e = ilObjUser::_lookupEmail($id)) != "") {
+                $emails[] = $e;
+            }
+        }
+        if (!empty($emails)) {
+            $emails = implode(',', $emails);
+            if (trim($emails)) {
+                return $emails;
+            }
+        }
+        return "";
+    }
 }
-
-?>

@@ -1,71 +1,63 @@
 <?php
-/* Copyright (c) 1998-2017 ILIAS open source, Extended GPL, see docs/LICENSE */
-
 
 /**
- * Class ilPDSelectedItemsBlockMembershipsViewGUI
- */
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 class ilPDSelectedItemsBlockMembershipsViewGUI extends ilPDSelectedItemsBlockViewGUI
 {
-	/**
-	 * @inheritdoc
-	 */
-	public function getGroups()
-	{
-		if($this->viewSettings->isSortedByLocation())
-		{
-			return $this->groupItemsByLocation();
-		}
-		else if($this->viewSettings->isSortedByStartDate())
-		{
-			return $this->groupItemsByStartDate();
-		}
+    public function getGroups(): array
+    {
+        if ($this->viewSettings->isSortedByLocation()) {
+            return $this->groupItemsByLocation();
+        } elseif ($this->viewSettings->isSortedByStartDate()) {
+            return $this->groupItemsByStartDate();
+        } elseif ($this->viewSettings->isSortedByAlphabet()) {
+            return $this->sortItemsByAlphabetInOneGroup();
+        }
 
-		return $this->groupItemsByType();
-	}
+        return $this->groupItemsByType();
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getScreenId()
-	{
-		return 'crs_grp';
-	}
+    public function getScreenId(): string
+    {
+        return 'crs_grp';
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getTitle()
-	{
-		return $this->lng->txt('my_courses_groups');
-	}
+    public function getTitle(): string
+    {
+        return $this->lng->txt('my_courses_groups');
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function supportsSelectAll()
-	{
-		return false;
-	}
+    public function supportsSelectAll(): bool
+    {
+        return false;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function mayRemoveItem($refId)
-	{
-		return $this->accessHandler->checkAccess('leave', $refId);
-	}
+    public function mayRemoveItem($refId): bool
+    {
+        return $this->accessHandler->checkAccess('leave', $refId);
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getIntroductionHtml()
-	{
-		$tpl = new ilTemplate('tpl.dashboard_my_memberships_intro.html', true, true, 'Services/Dashboard');
-		$tpl->setVariable('IMG_PD_LARGE', ilObject::_getIcon('', 'big', 'pd'));
-		$tpl->setVariable('TXT_WELCOME', $this->lng->txt('pd_my_memberships_intro'));
-		$tpl->setVariable('TXT_INTRO_1', $this->lng->txt('pd_my_memberships_intro2'));
+    public function getIntroductionHtml(): string
+    {
+        $tpl = new ilTemplate('tpl.dashboard_my_memberships_intro.html', true, true, 'Services/Dashboard');
+        $tpl->setVariable('IMG_PD_LARGE', ilObject::_getIcon(0, 'big', 'pd'));
+        $tpl->setVariable('TXT_WELCOME', $this->lng->txt('pd_my_memberships_intro'));
+        $tpl->setVariable('TXT_INTRO_1', $this->lng->txt('pd_my_memberships_intro2'));
 
-		return $tpl->get();
-	}
+        return $tpl->get();
+    }
 }

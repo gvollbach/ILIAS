@@ -1,121 +1,128 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once './Services/Block/classes/class.ilBlockGUI.php';
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Class ilRepositoryObjectSearchBlockGUI
- * Repository object search 
- * 
+ * Repository object search
+ *
  *
  * @author Stefan Meyer <meyer@leifos.com>
- * @version $Id$
- * 
+ *
  * @package ServicesSearch
  *
  */
 class ilRepositoryObjectSearchBlockGUI extends ilBlockGUI
 {
-	public static $block_type = "objectsearch";
-	public static $st_data;
-
-	
-	/**
-	 * Constructor
-	 * @global type $ilCtrl
-	 * @global type $lng
-	 */
-	public function __construct($a_title)
-	{
-		parent::__construct();
-		
-		$this->setEnableNumInfo(false);
-		
-		$this->setTitle($a_title);
-		$this->allow_moving = false;
-	}
-
-	/**
-	 * @inheritdoc
-	 */
-	public function getBlockType(): string 
-	{
-		return self::$block_type;
-	}
-
-	/**
-	 * @inheritdoc
-	 */
-	protected function isRepositoryObject(): bool 
-	{
-		return FALSE;
-	}
-
-	/**
-	 * Get Screen Mode for current command.
-	 */
-	public static function getScreenMode()
-	{
-		return IL_SCREEN_SIDE;
-	}
-
-	/**
-	 * execute command
-	 */
-	public function executeCommand()
-	{
-		$ilCtrl = $this->ctrl;
-
-		$next_class = $ilCtrl->getNextClass();
-		$cmd = $ilCtrl->getCmd("getHTML");
-
-		switch ($next_class)
-		{
-			default:
-				return $this->$cmd();
-		}
-	}
-
-	/**
-	 * Get bloch HTML code.
-	 */
-	public function getHTML()
-	{
-		return parent::getHTML();
-	}
-
-	/**
-	 * Fill data section
-	 */
-	function fillDataSection()
-	{
-		$this->setDataSection($this->getLegacyContent());
-	}
-
-	//
-	// New rendering
-	//
-
-	protected $new_rendering = true;
+    private \ILIAS\HTTP\GlobalHttpState $http;
+    private \ILIAS\Refinery\Factory $refinery;
 
 
-	/**
-	 * @inheritdoc
-	 */
-	protected function getLegacyContent(): string
-	{
-		$ilCtrl = $this->ctrl;
-		$lng = $this->lng;
+    public static string $block_type = "objectsearch";
 
-		$tpl = new ilTemplate("tpl.search_search_block.html", true, true, 'Services/Search');
+    public function __construct(string $a_title)
+    {
+        global $DIC;
 
-		$lng->loadLanguageModule('search');
-		$tpl->setVariable("TXT_PERFORM", $lng->txt('btn_search'));
-		$tpl->setVariable("FORMACTION", $ilCtrl->getFormActionByClass('ilrepositoryobjectsearchgui', 'performSearch'));
-		$tpl->setVariable("SEARCH_TERM", ilUtil::prepareFormOutput(ilUtil::stripSlashes($_POST["search_term"])));
+        parent::__construct();
 
-		return $tpl->get();
-	}
+        $this->http = $DIC->http();
+        $this->refinery = $DIC->refinery();
 
+        $this->setEnableNumInfo(false);
+
+        $this->setTitle($a_title);
+        $this->allow_moving = false;
+        $this->new_rendering = true;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getBlockType(): string
+    {
+        return self::$block_type;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    protected function isRepositoryObject(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Get Screen Mode for current command.
+     */
+    public static function getScreenMode(): string
+    {
+        return IL_SCREEN_SIDE;
+    }
+
+    public function executeCommand(): void
+    {
+        $ilCtrl = $this->ctrl;
+
+        $next_class = $ilCtrl->getNextClass();
+        $cmd = $ilCtrl->getCmd("getHTML");
+
+        switch ($next_class) {
+            default:
+                $this->$cmd();
+        }
+    }
+
+    public function getHTML(): string
+    {
+        return parent::getHTML();
+    }
+
+    public function fillDataSection(): void
+    {
+        $this->setDataSection($this->getLegacyContent());
+    }
+
+    /**
+     * @inheritdoc
+     */
+    protected function getLegacyContent(): string
+    {
+        $tpl = new ilTemplate("tpl.search_search_block.html", true, true, 'Services/Search');
+
+        $this->lng->loadLanguageModule('search');
+        $tpl->setVariable("TXT_SEARCH_INPUT_LABEL", $this->lng->txt('search_field'));
+        $tpl->setVariable("TXT_SEARCH_INPUT_PERFORM_LABEL", $this->lng->txt('search_field_perform'));
+        $tpl->setVariable("TXT_PERFORM", $this->lng->txt('btn_search'));
+        $tpl->setVariable("FORMACTION", $this->ctrl->getFormActionByClass('ilrepositoryobjectsearchgui', 'performSearch'));
+
+        $post_search_term = '';
+        if ($this->http->wrapper()->post()->has('search_term')) {
+            $post_search_term = $this->http->wrapper()->post()->retrieve(
+                'search_term',
+                $this->refinery->kindlyTo()->string()
+            );
+        }
+        $tpl->setVariable(
+            "SEARCH_TERM",
+            ilLegacyFormElementsUtil::prepareFormOutput($post_search_term)
+        );
+        return $tpl->get();
+    }
 }
-?>

@@ -1,42 +1,38 @@
 <?php
 
-use ILIAS\Data\DataSize;
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 use ILIAS\DI\Container;
-use ILIAS\Filesystem\Util\LegacyPathHelper;
 
 /**
  * Class ilFileVersionsTableGUI
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
 class ilFileVersionsTableGUI extends ilTable2GUI
 {
-
-    /**
-     * @var Container
-     */
-    private $dic;
-    /**
-     * @var int
-     */
-    private $max_version;
-    /**
-     * @var int
-     */
-    private $current_version;
-    /**
-     * @var ilObjFile
-     */
-    private $file;
-
+    private Container $dic;
+    private int $current_version;
+    private \ilObjFile $file;
+    protected bool $has_been_migrated = false;
 
     /**
      * ilFileVersionsTableGUI constructor.
-     *
-     * @param ilFileVersionsGUI $calling_gui_class
-     * @param string            $a_parent_cmd
      */
-    public function __construct(ilFileVersionsGUI $calling_gui_class, $a_parent_cmd = ilFileVersionsGUI::CMD_DEFAULT)
+    public function __construct(ilFileVersionsGUI $calling_gui_class, string $a_parent_cmd = ilFileVersionsGUI::CMD_DEFAULT)
     {
         global $DIC;
         $this->dic = $DIC;
@@ -44,8 +40,7 @@ class ilFileVersionsTableGUI extends ilTable2GUI
         $this->setId(self::class);
         parent::__construct($calling_gui_class, $a_parent_cmd, "");
         $this->file = $calling_gui_class->getFile();
-        $this->current_version = (int) $this->file->getVersion();
-        $this->max_version = (int) $this->file->getMaxVersion();
+        $this->current_version = $this->file->getVersion();
 
         // General
         $this->setPrefix("versions");
@@ -59,18 +54,23 @@ class ilFileVersionsTableGUI extends ilTable2GUI
         $this->setTitle($this->dic->language()->txt("versions"));
 
         // Form
+
         $this->setFormAction($this->dic->ctrl()->getFormAction($calling_gui_class));
         $this->setSelectAllCheckbox("hist_id[]");
-        $this->addColumn("", "", "1", true);
         $this->addMultiCommand(ilFileVersionsGUI::CMD_DELETE_VERSIONS, $this->dic->language()->txt("delete"));
-        $this->addMultiCommand(ilFileVersionsGUI::CMD_ROLLBACK_VERSION, $this->dic->language()->txt("file_rollback"));
+        $this->addMultiCommand(
+            ilFileVersionsGUI::CMD_ROLLBACK_VERSION,
+            $this->dic->language()->txt("file_rollback")
+        );
 
         // Columns
-        $this->addColumn($this->dic->language()->txt("version"), "", "1");
+        $this->addColumn("", "", "1", true);
+        $this->addColumn($this->dic->language()->txt("version"), "", "auto");
         $this->addColumn($this->dic->language()->txt("date"));
         $this->addColumn($this->dic->language()->txt("file_uploaded_by"));
         $this->addColumn($this->dic->language()->txt("filename"));
-        $this->addColumn($this->dic->language()->txt("filesize"), "", "", false, "ilRight");
+        $this->addColumn($this->dic->language()->txt("versionname"));
+        $this->addColumn($this->dic->language()->txt("filesize"), "", "", false);
         $this->addColumn($this->dic->language()->txt("type"));
         $this->addColumn($this->dic->language()->txt("action"));
         $this->addColumn("", "", "1");
@@ -78,16 +78,19 @@ class ilFileVersionsTableGUI extends ilTable2GUI
         $this->initData();
     }
 
-
-    private function initData()
+    private function initData(): void
     {
-        $versions = $this->file->getVersions();
+        $versions = [];
+        foreach ($this->file->getVersions() as $version) {
+            $versions[] = $version->getArrayCopy();
+        }
+        usort($versions, static fn (array $i1, array $i2): int => $i2['version'] - $i1['version']);
+
         $this->setData($versions);
         $this->setMaxCount(is_array($versions) ? count($versions) : 0);
     }
 
-
-    protected function fillRow($a_set)
+    protected function fillRow(array $a_set): void
     {
         $hist_id = $a_set["hist_entry_id"];
 
@@ -102,13 +105,7 @@ class ilFileVersionsTableGUI extends ilTable2GUI
         $username = trim($name["title"] . " " . $name["firstname"] . " " . $name["lastname"]);
 
         // get file size
-        $directory = LegacyPathHelper::createRelativePath($this->file->getDirectory($version));
-        $filepath = ilFileUtils::getValidFilename(rtrim($directory, "/") . "/" . $filename); // TODO remove after migration to filesystem
-        $filesize = 0;
-        if ($this->dic->filesystem()->storage()->has($filepath)) {
-            $size = $filesize = $this->dic->filesystem()->storage()->getSize($filepath, DataSize::Byte);
-            $filesize = $size->getSize();
-        }
+        $filesize = $a_set["size"];
 
         // get action text
         $action = $this->dic->language()->txt("file_version_" . $a_set["action"]); // create, replace, new_version, rollback
@@ -126,9 +123,17 @@ class ilFileVersionsTableGUI extends ilTable2GUI
         $actions = new ilAdvancedSelectionListGUI();
         $actions->setId($hist_id);
         $actions->setListTitle($this->dic->language()->txt("actions"));
-        $actions->addItem($this->dic->language()->txt("delete"), "", $this->dic->ctrl()->getLinkTarget($this->parent_obj, ilFileVersionsGUI::CMD_DELETE_VERSIONS));
+        $actions->addItem(
+            $this->dic->language()->txt("delete"),
+            "",
+            $this->dic->ctrl()->getLinkTarget($this->parent_obj, ilFileVersionsGUI::CMD_DELETE_VERSIONS)
+        );
         if ($this->current_version !== (int) $version) {
-            $actions->addItem($this->dic->language()->txt("file_rollback"), "", $this->dic->ctrl()->getLinkTarget($this->parent_obj, ilFileVersionsGUI::CMD_ROLLBACK_VERSION));
+            $actions->addItem(
+                $this->dic->language()->txt("file_rollback"),
+                "",
+                $this->dic->ctrl()->getLinkTarget($this->parent_obj, ilFileVersionsGUI::CMD_ROLLBACK_VERSION)
+            );
         }
 
         // reset history parameter
@@ -136,14 +141,17 @@ class ilFileVersionsTableGUI extends ilTable2GUI
 
         // fill template
         $this->tpl->setVariable("TXT_VERSION", $version);
-        $this->tpl->setVariable("TXT_DATE", ilDatePresentation::formatDate(new ilDateTime($a_set['date'], IL_CAL_DATETIME)));
+        $this->tpl->setVariable(
+            "TXT_DATE",
+            ilDatePresentation::formatDate(new ilDateTime($a_set['date'], IL_CAL_DATETIME))
+        );
         $this->tpl->setVariable("TXT_UPLOADED_BY", $username);
         $this->tpl->setVariable("DL_LINK", $link);
         $this->tpl->setVariable("TXT_FILENAME", $filename);
+        $this->tpl->setVariable("TXT_VERSIONNAME", $a_set['title']);
         $this->tpl->setVariable("TXT_FILESIZE", ilUtil::formatSize($filesize));
 
         // columns depending on confirmation
-
         $this->tpl->setCurrentBlock("version_selection");
         $this->tpl->setVariable("OBJ_ID", $hist_id);
         $this->tpl->parseCurrentBlock();
@@ -153,7 +161,9 @@ class ilFileVersionsTableGUI extends ilTable2GUI
         $this->tpl->parseCurrentBlock();
 
         $this->tpl->setCurrentBlock("version_actions");
+
         $this->tpl->setVariable("ACTIONS", $actions->getHTML());
+
         $this->tpl->parseCurrentBlock();
     }
 }

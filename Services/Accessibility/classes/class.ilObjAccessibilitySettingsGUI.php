@@ -1,201 +1,211 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
-include_once("./Services/Object/classes/class.ilObjectGUI.php");
-
 
 /**
-* Accessibility Settings.
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* @version $Id$
-*
-* @ilCtrl_Calls ilObjAccessibilitySettingsGUI: ilPermissionGUI
-* @ilCtrl_IsCalledBy ilObjAccessibilitySettingsGUI: ilAdministrationGUI
-*
-* @ingroup ServicesAccessibility
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Accessibility Settings.
+ * @author Alexander Killing <killing@leifos.de>
+ * @ilCtrl_Calls ilObjAccessibilitySettingsGUI: ilPermissionGUI, ilAccessibilityDocumentGUI
+ * @ilCtrl_IsCalledBy ilObjAccessibilitySettingsGUI: ilAdministrationGUI
+ */
 class ilObjAccessibilitySettingsGUI extends ilObjectGUI
 {
-	/**
-	 * @var ilRbacSystem
-	 */
-	protected $rbacsystem;
+    protected ilPropertyFormGUI $form;
+    protected \ILIAS\DI\Container $dic;
+    protected ilTabsGUI $tabs;
 
-	/**
-	 * @var ilErrorHandling
-	 */
-	protected $error;
+    public function __construct(
+        $a_data,
+        int $a_id,
+        bool $a_call_by_reference = true,
+        bool $a_prepare_output = true
+    ) {
+        global $DIC;
 
-	/**
-	 * @var ilAccessHandler
-	 */
-	protected $access;
+        $this->dic = $DIC;
+        $this->rbacsystem = $DIC->rbac()->system();
+        $this->access = $DIC->access();
+        $this->tabs = $DIC->tabs();
+        $this->tpl = $DIC["tpl"];
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        $this->type = 'accs';
+        parent::__construct($a_data, $a_id, $a_call_by_reference, $a_prepare_output);
 
-	/**
-	 * @var ilTabsGUI
-	 */
-	protected $tabs;
+        $this->lng->loadLanguageModule('acc');
+        $this->lng->loadLanguageModule('adm');
+        $this->lng->loadLanguageModule('meta');
+    }
 
-	/**
-	 * Contructor
-	 *
-	 * @access public
-	 */
-	public function __construct($a_data, $a_id, $a_call_by_reference = true, $a_prepare_output = true)
-	{
-		global $DIC;
+    public function executeCommand(): void
+    {
+        $rbacsystem = $this->rbacsystem;
 
-		$this->rbacsystem = $DIC->rbac()->system();
-		$this->error = $DIC["ilErr"];
-		$this->access = $DIC->access();
-		$this->tabs = $DIC->tabs();
-		$this->tpl = $DIC["tpl"];
-		$this->ctrl = $DIC->ctrl();
-		$this->lng = $DIC->language();
-		$this->type = 'accs';
-		parent::__construct($a_data, $a_id, $a_call_by_reference, $a_prepare_output);
+        $next_class = $this->ctrl->getNextClass($this);
+        $cmd = $this->ctrl->getCmd();
 
-		$this->lng->loadLanguageModule('acc');
-	}
+        $this->prepareOutput();
 
-	/**
-	 * Execute command
-	 *
-	 * @access public
-	 *
-	 */
-	public function executeCommand()
-	{
-		$rbacsystem = $this->rbacsystem;
-		$ilErr = $this->error;
-		$ilAccess = $this->access;
+        if (!$rbacsystem->checkAccess('read', $this->object->getRefId())) {
+            throw new ilPermissionException($this->lng->txt('no_permission'));
+        }
 
-		$next_class = $this->ctrl->getNextClass($this);
-		$cmd = $this->ctrl->getCmd();
+        switch ($next_class) {
+            case 'ilpermissiongui':
+                $this->tabs_gui->setTabActive('perm_settings');
+                $perm_gui = new ilPermissionGUI($this);
+                $ret = $this->ctrl->forwardCommand($perm_gui);
+                break;
 
-		$this->prepareOutput();
+            case 'ilaccessibilitydocumentgui':
+                $this->tabs_gui->activateTab('acc_ctrl_cpt');
 
-		if(!$rbacsystem->checkAccess('read',$this->object->getRefId()))
-		{
-			$ilErr->raiseError($this->lng->txt('no_permission'),$ilErr->WARNING);
-		}
+                $tableDataProviderFactory = new ilAccessibilityTableDataProviderFactory();
+                $tableDataProviderFactory->setDatabaseAdapter($this->dic->database());
 
-		switch($next_class)
-		{
-			case 'ilpermissiongui':
-				$this->tabs_gui->setTabActive('perm_settings');
-				include_once("Services/AccessControl/classes/class.ilPermissionGUI.php");
-				$perm_gui = new ilPermissionGUI($this);
-				$ret = $this->ctrl->forwardCommand($perm_gui);
-				break;
+                /** @var ilObjAccessibilitySettings $settings */
+                $settings = $this->object;
+                $documentGui = new ilAccessibilityDocumentGUI(
+                    $settings,
+                    $this->dic['acc.criteria.type.factory'],
+                    $this->dic->ui()->mainTemplate(),
+                    $this->dic->user(),
+                    $this->dic->ctrl(),
+                    $this->dic->language(),
+                    $this->dic->rbac()->system(),
+                    $this->dic['ilErr'],
+                    $this->dic->logger()->acc(),
+                    $this->dic->toolbar(),
+                    $this->dic->http(),
+                    $this->dic->ui()->factory(),
+                    $this->dic->ui()->renderer(),
+                    $this->dic->filesystem(),
+                    $this->dic->upload(),
+                    $tableDataProviderFactory,
+                    new ilAccessibilityTrimmedDocumentPurifier(new ilAccessibilityDocumentHtmlPurifier())
+                );
 
-			default:
-				if(!$cmd || $cmd == 'view')
-				{
-					$cmd = "editAccessibilitySettings";
-				}
+                $this->ctrl->forwardCommand($documentGui);
+                break;
 
-				$this->$cmd();
-				break;
-		}
-		return true;
-	}
+            default:
+                if (!$cmd || $cmd == 'view') {
+                    $cmd = "editAccessibilitySettings";
+                }
 
-	/**
-	 * @return ilPropertyFormGUI
-	 */
-	protected function  getSettingsForm()
-	{
-		require_once 'Services/Form/classes/class.ilPropertyFormGUI.php';
-		$form = new ilPropertyFormGUI();
-		$form->setTitle($this->lng->txt('settings'));
+                $this->$cmd();
+                break;
+        }
+    }
 
-		require_once 'Services/Administration/classes/class.ilAdministrationSettingsFormHandler.php';
-		ilAdministrationSettingsFormHandler::addFieldsToForm(
-			ilAdministrationSettingsFormHandler::FORM_ACCESSIBILITY,
-			$form,
-			$this
-		);
-		
-		return $form;
-	}
+    protected function getSettingsForm(): ilPropertyFormGUI
+    {
+        $this->form = new ilPropertyFormGUI();
+        $this->form->setTitle($this->lng->txt('settings'));
 
-	/**
-	 * @param ilPropertyFormGUI $form
-	 */
-	protected function editAccessibilitySettings(ilPropertyFormGUI $form = null)
-	{
-		$this->tabs_gui->setTabActive('acc_settings');
-		if(!$form)
-		{
-			$form = $this->getSettingsForm();
-		}
-		
-		$this->tpl->setContent($form->getHTML());
-	}
+        $cb = new ilCheckboxInputGUI($this->lng->txt('adm_acc_ctrl_cpt_enable'), 'acc_ctrl_cpt_status');
+        $cb->setValue(1);
+        $cb->setChecked(ilObjAccessibilitySettings::getControlConceptStatus());
+        $cb->setInfo($this->lng->txt('adm_acc_ctrl_cpt_desc'));
+        $this->form->addItem($cb);
 
-	/**
-	 * Get tabs
-	 *
-	 * @access public
-	 *
-	 */
-	public function getAdminTabs()
-	{
-		$rbacsystem = $this->rbacsystem;
-		$ilAccess = $this->access;
-		$ilTabs = $this->tabs;
+        $ti = new ilTextInputGUI($this->lng->txt("adm_accessibility_contacts"), "accessibility_support_contacts");
+        $ti->setMaxLength(500);
+        $ti->setValue(ilAccessibilitySupportContacts::getList());
+        $ti->setInfo($this->lng->txt("adm_accessibility_contacts_info"));
+        $this->form->addItem($ti);
 
-		if ($rbacsystem->checkAccess("read", $this->object->getRefId()))
-		{
-			$ilTabs->addTab('acc_settings', $this->lng->txt('settings'), $this->ctrl->getLinkTarget($this, 'editAccessibilitySettings'));
-		}
+        ilAdministrationSettingsFormHandler::addFieldsToForm(
+            ilAdministrationSettingsFormHandler::FORM_ACCESSIBILITY,
+            $this->form,
+            $this
+        );
 
-		if ($rbacsystem->checkAccess("read", $this->object->getRefId()))
-		{
-			$ilTabs->addTarget("acc_access_keys",
-				$this->ctrl->getLinkTarget($this, "editAccessKeys"),
-				array("editAccessKeys", "view"));
-		}
+        $this->form->addCommandButton("saveAccessibilitySettings", $this->lng->txt("save"));
+        $this->form->setFormAction($this->ctrl->getFormAction($this));
 
-		if ($rbacsystem->checkAccess("edit_permission", $this->object->getRefId()))
-		{
-			$ilTabs->addTarget("perm_settings",
-				$this->ctrl->getLinkTargetByClass('ilpermissiongui',"perm"),
-				array(),'ilpermissiongui');
-		}
-	}
+        return $this->form;
+    }
 
-	/**
-	* Edit access keys
-	*/
-	function editAccessKeys()
-	{
-		$tpl = $this->tpl;
+    /**
+     * Save accessibility settings form
+     */
+    public function saveAccessibilitySettings(): void
+    {
+        $tpl = $this->tpl;
+        $lng = $this->lng;
+        $ilCtrl = $this->ctrl;
+        $rbacsystem = $this->rbacsystem;
 
-		$this->tabs_gui->setTabActive('acc_access_keys');
-		
-		include_once("./Services/Accessibility/classes/class.ilAccessKeyTableGUI.php");
-		$table = new ilAccessKeyTableGUI($this, "editAccessKeys");
-		
-		$tpl->setContent($table->getHTML());
-	}
-	
-	/**
-	* Save access keys
-	*/
-	function saveAccessKeys()
-	{
-		$ilCtrl = $this->ctrl;
-		$lng = $this->lng;
-		$ilAccess = $this->access;
-		
-		if ($ilAccess->checkAccess("write", "", $_GET["ref_id"]))
-		{
-			include_once("./Services/Accessibility/classes/class.ilAccessKey.php");
-			ilAccessKey::writeKeys(ilUtil::stripSlashesArray($_POST["acckey"]));
-			ilUtil::sendSuccess($lng->txt("msg_obj_modified"), true);
-		}
-		$ilCtrl->redirect($this, "editAccessKeys");
-	}
+        if (!$rbacsystem->checkAccess("write", $this->object->getRefId())) {
+            throw new ilPermissionException($this->lng->txt('permission_denied'));
+        }
+
+        $this->getSettingsForm();
+        if ($this->form->checkInput()) {
+            // Accessibility Control Concept status
+            ilObjAccessibilitySettings::saveControlConceptStatus((bool) $this->form->getInput('acc_ctrl_cpt_status'));
+            // Accessibility support contacts
+            ilAccessibilitySupportContacts::setList(
+                $this->form->getInput("accessibility_support_contacts")
+            );
+
+            $this->tpl->setOnScreenMessage('success', $lng->txt("msg_obj_modified"), true);
+            $ilCtrl->redirect($this, "editAccessibilitySettings");
+        } else {
+            $this->form->setValuesByPost();
+            $tpl->setContent($this->form->getHTML());
+        }
+    }
+
+    protected function editAccessibilitySettings(ilPropertyFormGUI $form = null): void
+    {
+        $this->tabs_gui->setTabActive('acc_settings');
+        if (!$form) {
+            $this->form = $this->getSettingsForm();
+        }
+
+        $this->tpl->setContent($this->form->getHTML());
+    }
+
+    public function getAdminTabs(): void
+    {
+        $rbacsystem = $this->rbacsystem;
+        $ilTabs = $this->tabs;
+
+        if ($rbacsystem->checkAccess("read", $this->object->getRefId())) {
+            $ilTabs->addTab('acc_settings', $this->lng->txt('settings'), $this->ctrl->getLinkTarget($this, 'editAccessibilitySettings'));
+        }
+
+        if ($rbacsystem->checkAccess("read", $this->object->getRefId())) {
+            $ilTabs->addTab(
+                'acc_ctrl_cpt',
+                $this->lng->txt('acc_ctrl_cpt_txt'),
+                $this->ctrl->getLinkTargetByClass('ilaccessibilitydocumentgui')
+            );
+        }
+
+        if ($rbacsystem->checkAccess("edit_permission", $this->object->getRefId())) {
+            $ilTabs->addTarget(
+                "perm_settings",
+                $this->ctrl->getLinkTargetByClass('ilpermissiongui', "perm"),
+                array(),
+                'ilpermissiongui'
+            );
+        }
+    }
 }

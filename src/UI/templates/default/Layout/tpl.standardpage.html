@@ -1,41 +1,49 @@
 <!DOCTYPE html>
-<html lang="de" dir="ltr" id="{ID}">
+<html lang="{LANGUAGE}" dir="{TEXT_DIRECTION}">
 <head>
 	<meta charset="utf-8" />
 	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 
-	<!-- BEGIN base -->
+	<!-- BEGIN for_ui_examples_only -->
+	<!-- ATTENTION: This only exists to provide an example of the complete page.     -->
+	<!-- This won't be included in renderings of ordinary pages. Also have a look    -->
+	<!-- into \ILIAS\UI\Implementation\Component\Layout\Page\Renderer::setHeaderVars -->
 	<base href="{BASE}" />
-	<!-- END base -->
+	<!-- END for_ui_examples_only -->
 
-	<title>{SHORT_TITLE}: {VIEW_TITLE}</title>
+	<title>{VIEW_TITLE}: {SHORT_TITLE}</title>
+	<link rel="icon" href="{FAVICON_PATH}" type="image/x-icon">
 
-	<style type="text/css">
+	<style>
 		{CSS_INLINE}
 	</style>
 
 	<!-- BEGIN css_file -->
 	<link rel="stylesheet" type="text/css" href="{CSS_FILE}" />
 	<!-- END css_file -->
-
-	<!-- BEGIN js_file -->
-	<script type="text/javascript" src="{JS_FILE}"></script>
-	<!-- END js_file -->
+    <!-- BEGIN meta_datum -->
+    <meta name="{META_KEY}" content="{META_VALUE}" />
+    <!-- END meta_datum -->
 </head>
-
 <body>
+	<!-- BEGIN mode_info -->
+	{MODEINFO}
+	<!-- END mode_info -->
 
-	<section class="il-layout-page">
+	<div class="il-page-overlay">
+		{OVERLAY}
+	</div>
 
+	<div class="il-layout-page<!-- BEGIN slates_engaged --> with-mainbar-slates-engaged<!-- END slates_engaged -->" <!-- BEGIN with_id --> id="{ID}"<!-- END with_id -->>
 		<header>
 			<div class="header-inner">
 				<div class="il-logo">
-					{LOGO}
-				</div>
-
-				<div class="il-pagetitle">
-					{TITLE}
+					<span class="hidden-xs">{LOGO}</span>
+					<span class="visible-xs">{RESPONSIVE_LOGO}</span>
+					<div class="il-pagetitle">
+						{TITLE}
+					</div>
 				</div>
 
 				<!-- BEGIN header_locator -->
@@ -47,29 +55,39 @@
 			</div>
 		</header>
 
-		<nav class="breadcrumbs">
-			{BREADCRUMBS}
-		</nav>
+		<div class="il-system-infos">
+			{SYSTEMINFOS}
+		</div>
 
-		<nav class="nav il-maincontrols">
+		<div class="nav il-maincontrols">
 			{MAINBAR}
-		</nav>
+		</div>
 
 		<!-- html5 main-tag is not supported in IE / div is needed -->
 		<main class="il-layout-page-content">
+			<!-- BEGIN content_breadcrumbs -->
+			<div class="breadcrumbs">
+				{BREADCRUMBS}
+			</div>
+			<!-- END content_breadcrumbs -->
+
 			{CONTENT}
 
-			<footer>
+			<!-- BEGIN pagefooter -->
+			<footer role="contentinfo">
 				{FOOTER}
 			</footer>
+			<!-- END pagefooter -->
 		</main>
 
+	</div>
 
-	</section>
-
+<!-- BEGIN js_file -->
+<script src="{JS_FILE}"></script>
+<!-- END js_file -->
 
 <!-- BEGIN on_load_code -->
-<script type="text/javascript">
+<script>
 	<!-- BEGIN on_load_code_inner -->
 		il.Util.addOnLoad(function() {
 			{OLCODE}

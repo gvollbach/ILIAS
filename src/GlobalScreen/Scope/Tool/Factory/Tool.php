@@ -1,46 +1,53 @@
-<?php namespace ILIAS\GlobalScreen\Scope\Tool\Factory;
+<?php
 
-use ILIAS\GlobalScreen\Scope\MainMenu\Factory\AbstractParentItem;
+declare(strict_types=1);
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+namespace ILIAS\GlobalScreen\Scope\Tool\Factory;
+
+use Closure;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\hasContent;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\hasSymbol;
+use ILIAS\GlobalScreen\Scope\MainMenu\Factory\hasTitle;
 use ILIAS\GlobalScreen\Scope\MainMenu\Factory\isTopItem;
 use ILIAS\UI\Component\Component;
-use ILIAS\UI\Component\Symbol\Symbol;
 use ILIAS\UI\Component\Symbol\Glyph;
 use ILIAS\UI\Component\Symbol\Icon;
+use ILIAS\UI\Component\Symbol\Symbol;
+use LogicException;
 
 /**
  * Class Tool
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
-class Tool extends AbstractParentItem implements isTopItem, hasContent, hasSymbol
+class Tool extends AbstractBaseTool implements isTopItem, hasContent, supportsTerminating
 {
-
-    /**
-     * @var
-     */
-    protected $icon;
-    /**
-     * @var Component
-     */
-    protected $content;
-    /**
-     * @var string
-     */
-    protected $async_content_url;
-    /**
-     * @var string
-     */
-    protected $title;
-
+    protected string $title;
+    protected ?Closure $terminated_callback = null;
+    protected ?Symbol $symbol = null;
+    protected ?Component $content = null;
+    protected ?Closure $content_wrapper = null;
+    protected ?Closure $close_callback = null;
 
     /**
      * @param string $title
-     *
      * @return Tool
      */
-    public function withTitle(string $title) : Tool
+    public function withTitle(string $title): hasTitle
     {
         $clone = clone($this);
         $clone->title = $title;
@@ -48,20 +55,29 @@ class Tool extends AbstractParentItem implements isTopItem, hasContent, hasSymbo
         return $clone;
     }
 
-
     /**
      * @return string
      */
-    public function getTitle() : string
+    public function getTitle(): string
     {
         return $this->title;
     }
 
+    /**
+     * @inheritDoc
+     */
+    public function withContentWrapper(Closure $content_wrapper): hasContent
+    {
+        $clone = clone($this);
+        $clone->content_wrapper = $content_wrapper;
+
+        return $clone;
+    }
 
     /**
      * @inheritDoc
      */
-    public function withContent(Component $ui_component) : hasContent
+    public function withContent(Component $ui_component): hasContent
     {
         $clone = clone($this);
         $clone->content = $ui_component;
@@ -69,48 +85,77 @@ class Tool extends AbstractParentItem implements isTopItem, hasContent, hasSymbo
         return $clone;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function getContent() : Component
+    public function getContent(): Component
     {
+        if ($this->content_wrapper !== null) {
+            $wrapper = $this->content_wrapper;
+
+            return $wrapper();
+        }
+
         return $this->content;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function withSymbol(Symbol $symbol) : hasSymbol
+    public function withSymbol(Symbol $symbol): hasSymbol
     {
         // bugfix mantis 25526: make aria labels mandatory
-        if(($symbol instanceof Icon\Icon || $symbol instanceof Glyph\Glyph)
-            && ($symbol->getAriaLabel() === "")) {
-            throw new \LogicException("the symbol's aria label MUST be set to ensure accessibility");
+        if (($symbol instanceof Glyph\Glyph && $symbol->getAriaLabel() === "") ||
+            ($symbol instanceof Icon\Icon && $symbol->getLabel() === "")) {
+            throw new LogicException("the symbol's aria label MUST be set to ensure accessibility");
         }
 
         $clone = clone($this);
-        $clone->icon = $symbol;
+        $clone->symbol = $symbol;
 
         return $clone;
     }
 
-
     /**
      * @inheritDoc
      */
-    public function getSymbol() : Symbol
+    public function getSymbol(): Symbol
     {
-        return $this->icon;
+        return $this->symbol;
     }
 
+    /**
+     * @inheritDoc
+     */
+    public function hasSymbol(): bool
+    {
+        return ($this->symbol instanceof Symbol);
+    }
 
     /**
      * @inheritDoc
      */
-    public function hasSymbol() : bool
+    public function withTerminatedCallback(Closure $callback): supportsTerminating
     {
-        return ($this->icon instanceof Symbol);
+        $clone = clone $this;
+        $clone->terminated_callback = $callback;
+
+        return $clone;
+    }
+
+    /**
+     * @return Closure|null
+     */
+    public function getTerminatedCallback(): ?Closure
+    {
+        return $this->terminated_callback;
+    }
+
+    /**
+     * @return bool
+     */
+    public function hasTerminatedCallback(): bool
+    {
+        return $this->terminated_callback instanceof Closure;
     }
 }

@@ -1,99 +1,88 @@
 <?php
 
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
-
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
- * Class ilObjBookingPoolListGUI
- *
  * @author Jörg Lützenkirchen <luetzenkirchen@leifos.com>
- * $Id: class.ilObjCategoryListGUI.php 23764 2010-05-06 15:11:30Z smeyer $
- *
- * @ingroup ModulesBookingManager
  */
 class ilObjBookingPoolListGUI extends ilObjectListGUI
 {
-	/**
-	* constructor
-	*/
-	function __construct()
-	{
-		global $DIC;
+    protected \ILIAS\BookingManager\StandardGUIRequest $book_request;
 
-		$this->ctrl = $DIC->ctrl();
-		$this->lng = $DIC->language();
-		parent::__construct();
-	}
+    public function __construct()
+    {
+        global $DIC;
 
-	/**
-	* initialisation
-	*/
-	function init()
-	{
-		$this->static_link_enabled = true;
-		$this->delete_enabled = true;
-		$this->cut_enabled = true;
-		$this->copy_enabled = true;
-		$this->subscribe_enabled = true;
-		$this->link_enabled = true;
-		$this->info_screen_enabled = true;
-		$this->type = "book";
-		$this->gui_class_name = "ilobjbookingpoolgui";
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        parent::__construct();
+        $this->book_request = $DIC->bookingManager()
+                                  ->internal()
+                                  ->gui()
+                                  ->standardRequest();
+    }
 
-		// general commands array
-		$this->commands = ilObjBookingPoolAccess::_getCommands();
-	}
+    public function init(): void
+    {
+        $this->static_link_enabled = true;
+        $this->delete_enabled = true;
+        $this->cut_enabled = true;
+        $this->copy_enabled = true;
+        $this->subscribe_enabled = true;
+        $this->link_enabled = true;
+        $this->info_screen_enabled = true;
+        $this->type = "book";
+        $this->gui_class_name = "ilobjbookingpoolgui";
 
-	/**
-	* Get command target frame.
-	*
-	* Overwrite this method if link frame is not current frame
-	*
-	* @param	string		$a_cmd			command
-	* @return	string		command target frame
-	*/
-	function getCommandFrame($a_cmd)
-	{
-		return parent::getCommandFrame($a_cmd);
-	}
+        // general commands array
+        $this->commands = ilObjBookingPoolAccess::_getCommands();
+    }
 
-	/**
-	* Get command link url.
-	*
-	* @param	int			$a_ref_id		reference id
-	* @param	string		$a_cmd			command
-	*/
-	function getCommandLink($a_cmd)
-	{
-		$ilCtrl = $this->ctrl;
-		
-		switch ($a_cmd) 
-		{
-			default :
-				$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $this->ref_id);
-				$cmd_link = $ilCtrl->getLinkTargetByClass("ilrepositorygui", $a_cmd);
-				$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", (int) $_GET["ref_id"]);
-				break;
-		}
+    public function getCommandLink(string $cmd): string
+    {
+        $ilCtrl = $this->ctrl;
 
-		return $cmd_link;
-	}
-	
-	function getProperties()
-	{
-		$lng = $this->lng;
-		
-		// #11193
+        switch ($cmd) {
+            default:
+                $ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $this->ref_id);
+                $cmd_link = $ilCtrl->getLinkTargetByClass("ilrepositorygui", $cmd);
+                $ilCtrl->setParameterByClass(
+                    "ilrepositorygui",
+                    "ref_id",
+                    $this->book_request->getRefId()
+                );
+                break;
+        }
 
-		$props = array();
+        return $cmd_link;
+    }
 
-		if (!ilObjBookingPool::_lookupOnline($this->obj_id))
-		{
-			$props[] = array("alert" => true, "property" => $lng->txt("status"),
-				"value" => $lng->txt("offline"));
-		}
-		return $props;
-	}
+    public function getProperties(): array
+    {
+        $lng = $this->lng;
+
+        // #11193
+
+        $props = array();
+
+        if (!ilObjBookingPool::_lookupOnline($this->obj_id)) {
+            $props[] = array("alert" => true, "property" => $lng->txt("status"),
+                "value" => $lng->txt("offline"));
+        }
+        return $props;
+    }
 }
-
-?>

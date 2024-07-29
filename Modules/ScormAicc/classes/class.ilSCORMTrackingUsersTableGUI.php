@@ -1,7 +1,21 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once './Services/Table/classes/class.ilTable2GUI.php';
+declare(strict_types=1);
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Description of class
@@ -11,121 +25,116 @@ include_once './Services/Table/classes/class.ilTable2GUI.php';
  */
 class ilSCORMTrackingUsersTableGUI extends ilTable2GUI
 {
-    private $obj_id = 0;
+    private int $obj_id;
+    private array $filter;
 
-	/**
-	 * Constructor
-	 */
-	public function __construct($a_obj_id,$a_parent_obj,$a_parent_cmd)
-	{
-		$this->obj_id = $a_obj_id;
+    public function __construct(int $a_obj_id, ?object $a_parent_obj, string $a_parent_cmd)
+    {
+        $this->obj_id = $a_obj_id;
 
-		$this->setId('sco_tr_usrs_'.$this->obj_id);
-		parent::__construct($a_parent_obj, $a_parent_cmd);
-		$this->initFilter();
-	}
+        $this->setId('sco_tr_usrs_' . $this->obj_id);
+        parent::__construct($a_parent_obj, $a_parent_cmd);
+        $this->initFilter();
+    }
 
-	/**
-	 * Get Obj id
-	 * @return int
-	 */
-	public function getObjId()
-	{
-		return $this->obj_id;
-	}
+    public function getObjId(): int
+    {
+        return $this->obj_id;
+    }
 
-	/**
-	 * Parse table content
-	 */
-	public function parse()
-	{
-		$this->initTable();
+    /**
+     * Parse table content
+     * @throws ilDateTimeException
+     */
+    public function parse(): void
+    {
+        $this->initTable();
 
-		// @TODO add filter
-		$users = $this->getParentObject()->object->getTrackedUsers($this->filter['lastname']);
-		$attempts = $this->getParentObject()->object->getAttemptsForUsers();
-		$versions = $this->getParentObject()->object->getModuleVersionForUsers();
-		
-		include_once('./Services/PrivacySecurity/classes/class.ilPrivacySettings.php');
-		$privacy = ilPrivacySettings::_getInstance();
-		$allowExportPrivacy = $privacy->enabledExportSCORM();
+        $users = $this->getParentObject()->getObject()->getTrackedUsers((string) $this->filter['lastname']);
+        $attempts = $this->getParentObject()->getObject()->getAttemptsForUsers();
+        $versions = $this->getParentObject()->getObject()->getModuleVersionForUsers();
 
-		$data = array();
-		foreach($users as $user)
-		{
-			$tmp = array();
-			$tmp['user'] = $user['user_id'];
-			if ($allowExportPrivacy == true) {
-				$tmp['name'] = $user['lastname'].', '.$user['firstname'];
-			} else {
-				$tmp['name'] = $user['user_id'];
-			}
-			$dt = new ilDateTime($user['last_access'],IL_CAL_DATETIME);
-			$tmp['last_access'] = $dt->get(IL_CAL_UNIX);
-			$tmp['attempts'] = (int) $attempts[$user['user_id']];
-			$tmp['version'] = (int) $versions[$user['user_id']];
+        $data = array();
+        foreach ($users as $user) {
+            $tmp = array();
+            $tmp['user'] = $user['user_id'];
+            $tmp['name'] = $user['lastname'] . ', ' . $user['firstname'];
+            $dt = new ilDateTime($user['last_access'], IL_CAL_DATETIME);
+            $tmp['last_access'] = $dt->get(IL_CAL_UNIX);
+            $tmp['attempts'] = (int) $attempts[$user['user_id']];
+            $tmp['version'] = (int) $versions[$user['user_id']];
 
-			$data[] = $tmp;
-		}
-		$this->setData($data);
-	}
+            $data[] = $tmp;
+        }
+        $this->determineOffsetAndOrder();
+        $orderField = $this->getOrderField();
+        $orderDirection = $this->getOrderDirection();
+        if (in_array(ilUtil::stripSlashes($orderField), ['user', 'attempts', 'version'])) {
+            $this->setExternalSorting(true);
+            $data = ilArrayUtil::sortArray(
+                $data,
+                $orderField,
+                $orderDirection,
+                true
+            );
+        }
+        $this->setData($data);
+    }
 
-	public function  initFilter()
-	{
-		$item = $this->addFilterItemByMetaType("lastname", ilTable2GUI::FILTER_TEXT);
-		$this->filter["lastname"] = $item->getValue();
-	}
+    /**
+     * @throws Exception
+     */
+    public function initFilter(): void
+    {
+        $item = $this->addFilterItemByMetaType("lastname", ilTable2GUI::FILTER_TEXT);
+        if ($item !== null) {
+            $this->filter["lastname"] = $item->getValue();
+        }
+    }
 
-	/**
-	 * Fill row template
-	 * @param array $a_set
-	 */
-	protected function  fillRow($a_set)
-	{
-		global $DIC;
-		$ilCtrl = $DIC['ilCtrl'];
+    /**
+     * Fill row template
+     */
+    protected function fillRow(array $a_set): void
+    {
+        global $DIC;
+        $ilCtrl = $DIC->ctrl();
 
-		$this->tpl->setVariable('CHECKBOX_ID', $a_set['user']);
-		$this->tpl->setVariable('VAL_USERNAME', $a_set['name']);
+        $this->tpl->setVariable('CHECKBOX_ID', $a_set['user']);
+        $this->tpl->setVariable('VAL_USERNAME', $a_set['name']);
 
-		// $ilCtrl->setParameter($this->getParentObject(),'user_id',$a_set['user']);
-		// $this->tpl->setVariable('LINK_ITEM', $ilCtrl->getLinkTarget($this->getParentObject(),'showTrackingItem'));
+        // $ilCtrl->setParameter($this->getParentObject(),'user_id',$a_set['user']);
+        // $this->tpl->setVariable('LINK_ITEM', $ilCtrl->getLinkTarget($this->getParentObject(),'showTrackingItem'));
 
-		$this->tpl->setVariable('VAL_LAST', ilDatePresentation::formatDate(new ilDateTime($a_set['last_access'],IL_CAL_UNIX)));
-		$this->tpl->setVariable('VAL_ATTEMPT', (int) $a_set['attempts']);
-		$this->tpl->setVariable('VAL_VERSION', (string) $a_set['version']);
+        $this->tpl->setVariable('VAL_LAST', ilDatePresentation::formatDate(new ilDateTime($a_set['last_access'], IL_CAL_UNIX)));
+        $this->tpl->setVariable('VAL_ATTEMPT', (int) $a_set['attempts']);
+        $this->tpl->setVariable('VAL_VERSION', (string) $a_set['version']);
+    }
 
-	}
+    protected function initTable(): void
+    {
+        global $DIC;
+        $ilCtrl = $DIC->ctrl();
 
-	/**
-	 * Init table
-	 */
-	protected function initTable()
-	{
-		global $DIC;
-		$ilCtrl = $DIC['ilCtrl'];
+        $this->setFilterCommand('applyUserTableFilter');
+        $this->setResetCommand('resetUserTableFilter');
 
-		$this->setFilterCommand('applyUserTableFilter');
-		$this->setResetCommand('resetUserTableFilter');
+        $this->setDisableFilterHiding(false);
 
-		$this->setDisableFilterHiding(false);
+        $this->setFormAction($ilCtrl->getFormAction($this->getParentObject()));
+        $this->setRowTemplate('tpl.scorm_track_items.html', 'Modules/ScormAicc');
+        $this->setTitle($this->lng->txt('cont_tracking_items'));
 
-		$this->setFormAction($ilCtrl->getFormAction($this->getParentObject()));
-		$this->setRowTemplate('tpl.scorm_track_items.html', 'Modules/ScormAicc');
-		$this->setTitle($this->lng->txt('cont_tracking_items'));
+        $this->addColumn('', '', '1px');
+        $this->addColumn($this->lng->txt('user'), 'name', '35%');
+        $this->addColumn($this->lng->txt('last_access'), 'last_access', '25%');
+        $this->addColumn($this->lng->txt('attempts'), 'attempts', '20%');
+        $this->addColumn($this->lng->txt('version'), 'version', '20%');
 
-		$this->addColumn('','','1px');
-		$this->addColumn($this->lng->txt('user'), 'name','35%');
-		$this->addColumn($this->lng->txt('last_access'), 'last_access', '25%');
-		$this->addColumn($this->lng->txt('attempts'), 'attempts', '20%');
-		$this->addColumn($this->lng->txt('version'), 'version','20%');
+        $this->enable('select_all');
+        $this->setSelectAllCheckbox('user');
 
-		$this->enable('select_all');
-		$this->setSelectAllCheckbox('user');
-
-		$this->addMultiCommand('deleteTrackingForUser', $this->lng->txt('delete'));
-		$this->addMultiCommand('decreaseAttempts', $this->lng->txt('decrease_attempts'));
-		$this->addMultiCommand('exportSelectionUsers', $this->lng->txt('export'));
-	}
+        $this->addMultiCommand('deleteTrackingForUser', $this->lng->txt('delete'));
+        $this->addMultiCommand('exportSelectionUsers', $this->lng->txt('export'));
+    }
 }
-?>

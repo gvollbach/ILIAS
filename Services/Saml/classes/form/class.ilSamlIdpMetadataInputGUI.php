@@ -1,70 +1,65 @@
 <?php
-/* Copyright (c) 1998-2017 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
- * Class ilSamlIdpMetadataInputGUI
- */
-class ilSamlIdpMetadataInputGUI extends \ilTextAreaInputGUI
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+class ilSamlIdpMetadataInputGUI extends ilTextAreaInputGUI
 {
-	/**
-	 * @var \ilSamlIdpXmlMetadataParser
-	 */
-	protected $idpMetadataParser;
+    protected ilSamlIdpXmlMetadataParser $idpMetadataParser;
 
-	/**
-	 * ilSamlIdpMetadataInputGUI constructor.
-	 * @param string                          $a_title
-	 * @param string                          $a_postvar
-	 * @param ilSamlIdpXmlMetadataParser|null $idpMetadataParser
-	 */
-	public function __construct($a_title = '', $a_postvar = '', \ilSamlIdpXmlMetadataParser $idpMetadataParser = null)
-	{
-		parent::__construct($a_title, $a_postvar);
-		$this->idpMetadataParser = $idpMetadataParser;
-	}
+    public function __construct(string $title, string $httpPostVar, ilSamlIdpXmlMetadataParser $idpMetadataParser)
+    {
+        parent::__construct($title, $httpPostVar);
+        $this->idpMetadataParser = $idpMetadataParser;
+    }
 
-	/**
-	 * @return ilSamlIdpXmlMetadataParser
-	 */
-	public function getIdpMetadataParser()
-	{
-		return $this->idpMetadataParser;
-	}
+    public function getIdpMetadataParser(): ilSamlIdpXmlMetadataParser
+    {
+        return $this->idpMetadataParser;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function checkInput()
-	{
-		$valid = parent::checkInput();
-		if(!$valid)
-		{
-			return false;
-		}
+    public function checkInput(): bool
+    {
+        $valid = parent::checkInput();
+        if (!$valid) {
+            return false;
+        }
 
-		try
-		{
-			$httpValue = $_POST[$this->getPostVar()];
+        try {
+            $httpValue = $this->raw($this->getPostVar());
 
-			$this->idpMetadataParser->parse($httpValue);
-			if($this->idpMetadataParser->hasErrors())
-			{
-				$this->setAlert(implode('<br />', $this->idpMetadataParser->getErrors()));
-				return false;
-			}
+            $this->idpMetadataParser->parse($httpValue);
+            if ($this->idpMetadataParser->result()->isError()) {
+                $this->setAlert(implode(' ', [$this->lng->txt('auth_saml_add_idp_md_error'), $this->idpMetadataParser->result()->error()]));
+                return false;
+            }
 
-			if(!$this->idpMetadataParser->getEntityId())
-			{
-				$this->setAlert($GLOBALS['DIC']->language()->txt('auth_saml_add_idp_md_error'));
-				return false;
-			}
-		}
-		catch(\Exception $e)
-		{
-			$this->setAlert($GLOBALS['DIC']->language()->txt('auth_saml_add_idp_md_error'));
-			return false;
-		}
+            if (!$this->idpMetadataParser->result()->value()) {
+                $this->setAlert($this->lng->txt('auth_saml_add_idp_md_error'));
+                return false;
+            }
 
-		return true;
-	}
+            $this->value = $this->stripSlashesAddSpaceFallback($this->idpMetadataParser->result()->value());
+        } catch (Exception $e) {
+            $this->setAlert($this->lng->txt('auth_saml_add_idp_md_error'));
+            return false;
+        }
+
+        return true;
+    }
 }

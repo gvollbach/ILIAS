@@ -1,132 +1,142 @@
 <?php
 
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\Glossary\Presentation\PresentationGUIRequest;
 
 /**
  * Glossary Locator GUI
- *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- *
- * @ingroup ModulesGlossary
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilGlossaryLocatorGUI
 {
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    protected PresentationGUIRequest $presentation_request;
+    protected ?ilGlossaryDefinition $definition = null;
+    protected ?ilGlossaryTerm $term = null;
+    protected ilCtrl $ctrl;
+    protected ilLocatorGUI $locator;
 
-	/**
-	 * @var ilLocatorGUI
-	 */
-	protected $locator;
+    public string $mode;
+    public string $temp_var;
+    public ilTree $tree;
+    public ilObjGlossary $glossary;
+    public ilLanguage $lng;
+    public ilGlobalTemplateInterface $tpl;
 
-	var $mode;
-	var $temp_var;
-	var $tree;
-	var $obj;
-	var $lng;
-	var $tpl;
+    public function __construct()
+    {
+        global $DIC;
 
+        $this->ctrl = $DIC->ctrl();
+        $this->locator = $DIC["ilLocator"];
+        $lng = $DIC->language();
+        $tpl = $DIC["tpl"];
+        $tree = $DIC->repositoryTree();
 
-	function __construct()
-	{
-		global $DIC;
+        $this->mode = "edit";
+        $this->temp_var = "LOCATOR";
+        $this->lng = $lng;
+        $this->tpl = $tpl;
+        $this->tree = $tree;
+        $this->presentation_request = $DIC->glossary()
+            ->internal()
+            ->gui()
+            ->presentation()
+            ->request();
+    }
 
-		$this->ctrl = $DIC->ctrl();
-		$this->locator = $DIC["ilLocator"];
-		$lng = $DIC->language();
-		$tpl = $DIC["tpl"];
-		$tree = $DIC->repositoryTree();
+    public function setTemplateVariable(string $a_temp_var): void
+    {
+        $this->temp_var = $a_temp_var;
+    }
 
-		$this->mode = "edit";
-		$this->temp_var = "LOCATOR";
-		$this->lng = $lng;
-		$this->tpl = $tpl;
-		$this->tree = $tree;
-	}
+    public function setTerm(ilGlossaryTerm $a_term): void
+    {
+        $this->term = $a_term;
+    }
 
-	function setTemplateVariable($a_temp_var)
-	{
-		$this->temp_var = $a_temp_var;
-	}
+    public function setGlossary(ilObjGlossary $a_glossary): void
+    {
+        $this->glossary = $a_glossary;
+    }
 
-	function setTerm(&$a_term)
-	{
-		$this->term = $a_term;
-	}
+    public function setDefinition(ilGlossaryDefinition $a_def): void
+    {
+        $this->definition = $a_def;
+    }
 
-	function setGlossary(&$a_glossary)
-	{
-		$this->glossary = $a_glossary;
-	}
+    public function setMode(string $a_mode): void
+    {
+        $this->mode = $a_mode;
+    }
 
-	function setDefinition(&$a_def)
-	{
-		$this->definition = $a_def;
-	}
+    /**
+     * display locator
+     */
+    public function display(): void
+    {
+        $ilCtrl = $this->ctrl;
+        $ilLocator = $this->locator;
+        $tpl = $this->tpl;
 
-	function setMode($a_mode)
-	{
-		$this->mode = $a_mode;
-	}
+        // repository links
+        $ilLocator->addRepositoryItems();
 
-	/**
-	* display locator
-	*/
-	function display()
-	{
-		$lng = $this->lng;
-		$ilCtrl = $this->ctrl;
-		$ilLocator = $this->locator;
-		$tpl = $this->tpl;
-		
-		// repository links
-		$ilLocator->addRepositoryItems();
-		
-		// glossary link
-		$title = $this->glossary->getTitle();
-		if ($this->mode == "edit")
-		{
-			$link = $ilCtrl->getLinkTargetByClass("ilobjglossarygui", "listTerms");
-		}
-		else
-		{
-			$ilCtrl->setParameterByClass("ilglossarypresentationgui", "term_id", "");
-			$link = $ilCtrl->getLinkTargetByClass("ilglossarypresentationgui");
-			if (is_object($this->term))
-			{
-				$ilCtrl->setParameterByClass("ilglossarypresentationgui", "term_id", $this->term->getId());
-			}
-		}
-		$ilLocator->addItem($title, $link, "");
-		
-		if (is_object($this->term) && $this->mode != "edit")
-		{
-			$ilCtrl->setParameterByClass("ilglossarypresentationgui", "term_id", $this->term->getId());
-			$ilLocator->addItem($this->term->getTerm(),
-				$ilCtrl->getLinkTargetByClass("ilglossarypresentationgui", "listDefinitions"));
-			$ilCtrl->setParameterByClass("ilglossarypresentationgui", "term_id", $_GET["term_id"]);
-		}
+        // glossary link
+        $title = $this->glossary->getTitle();
+        if ($this->mode == "edit") {
+            $link = $ilCtrl->getLinkTargetByClass("ilobjglossarygui", "listTerms");
+        } else {
+            $ilCtrl->setParameterByClass("ilglossarypresentationgui", "term_id", "");
+            $link = $ilCtrl->getLinkTargetByClass("ilglossarypresentationgui");
+            if (is_object($this->term)) {
+                $ilCtrl->setParameterByClass("ilglossarypresentationgui", "term_id", $this->term->getId());
+            }
+        }
+        $ilLocator->addItem($title, $link, "");
 
-		if (is_object($this->definition))
-		{
-			$title = $this->term->getTerm()." (".$this->lng->txt("cont_definition")." ".$this->definition->getNr().")";
-			if ($this->mode == "edit")
-			{
-				$link = $ilCtrl->getLinkTargetByClass("ilglossarydefpagegui", "edit");
-			}
-			else
-			{
-				$ilCtrl->setParameterByClass("ilglossarypresentationgui", "def", $_GET["def"]);
-				$link = $ilCtrl->getLinkTargetByClass("ilglossarypresentationgui", "view");
-			}
-			$ilLocator->addItem($title, $link);
-		}
-		
-		$tpl->setLocator();
-	}
+        if (is_object($this->term) && $this->mode != "edit") {
+            $ilCtrl->setParameterByClass("ilglossarypresentationgui", "term_id", $this->term->getId());
+            $ilLocator->addItem(
+                $this->term->getTerm(),
+                $ilCtrl->getLinkTargetByClass("ilglossarypresentationgui", "listDefinitions")
+            );
+            $ilCtrl->setParameterByClass(
+                "ilglossarypresentationgui",
+                "term_id",
+                $this->presentation_request->getTermId()
+            );
+        }
 
+        if (is_object($this->definition)) {
+            $title = $this->term->getTerm() . " (" . $this->lng->txt("cont_definition") . " " . $this->definition->getNr() . ")";
+            if ($this->mode == "edit") {
+                $link = $ilCtrl->getLinkTargetByClass("ilglossarydefpagegui", "edit");
+            } else {
+                $ilCtrl->setParameterByClass(
+                    "ilglossarypresentationgui",
+                    "def",
+                    $this->presentation_request->getDefinitionId()
+                );
+                $link = $ilCtrl->getLinkTargetByClass("ilglossarypresentationgui", "view");
+            }
+            $ilLocator->addItem($title, $link);
+        }
+
+        $tpl->setLocator();
+    }
 }
-?>

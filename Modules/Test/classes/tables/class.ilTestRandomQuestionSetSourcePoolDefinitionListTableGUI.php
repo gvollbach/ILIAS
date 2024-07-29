@@ -1,7 +1,24 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/Table/classes/class.ilTable2GUI.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\Modules\Test\QuestionPoolLinkedTitleBuilder;
+use ILIAS\UI\Factory as UIFactory;
+use ILIAS\UI\Renderer as UIRenderer;
 
 /**
  *
@@ -12,353 +29,325 @@ require_once 'Services/Table/classes/class.ilTable2GUI.php';
  */
 class ilTestRandomQuestionSetSourcePoolDefinitionListTableGUI extends ilTable2GUI
 {
-	const IDENTIFIER = 'tstRndPools';
+    use QuestionPoolLinkedTitleBuilder;
+    public const IDENTIFIER = 'tstRndPools';
+    private bool $definitionEditModeEnabled;
+    private bool $questionAmountColumnEnabled;
+    private bool $showMappedTaxonomyFilter = false;
+    private ?ilTestTaxonomyFilterLabelTranslater $taxonomyLabelTranslater = null;
 
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl = null;
+    private ilAccess $access;
+    private UIFactory $ui_factory;
+    private UIRenderer $ui_renderer;
 
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng = null;
+    private \ILIAS\Test\InternalRequestService $testrequest;
 
-	/**
-	 * @var boolean
-	 */
-	private $definitionEditModeEnabled = null;
+    public function __construct(ilCtrl $ctrl, ilLanguage $lng, $parentGUI, $parentCMD)
+    {
+        parent::__construct($parentGUI, $parentCMD);
 
-	/**
-	 * @var boolean
-	 */
-	private $questionAmountColumnEnabled = null;
-	
-	// fau: taxFilter/typeFilter - flag to show the mapped taxonomy filter instead of the original
-	/**
-	 * @var boolean
-	 */
-	private $showMappedTaxonomyFilter = false;
-	// fau.
+        $this->ctrl = $ctrl;
+        $this->lng = $lng;
+        global $DIC;
+        $this->testrequest = $DIC->test()->internal()->request();
+        $this->access = $DIC['ilAccess'];
+        $this->ui_factory = $DIC['ui.factory'];
+        $this->ui_renderer = $DIC['ui.renderer'];
+        $this->definitionEditModeEnabled = false;
+        $this->questionAmountColumnEnabled = false;
+    }
 
-	/**
-	 * @var ilTestTaxonomyFilterLabelTranslater
-	 */
-	private $taxonomyLabelTranslater = null;
+    public function setTaxonomyFilterLabelTranslater(ilTestTaxonomyFilterLabelTranslater $translater): void
+    {
+        $this->taxonomyLabelTranslater = $translater;
+    }
 
-	public function __construct(ilCtrl $ctrl, ilLanguage $lng, $parentGUI, $parentCMD)
-	{
-		parent::__construct($parentGUI, $parentCMD);
+    public function setDefinitionEditModeEnabled($definitionEditModeEnabled): void
+    {
+        $this->definitionEditModeEnabled = $definitionEditModeEnabled;
+    }
 
-		$this->ctrl = $ctrl;
-		$this->lng = $lng;
+    public function isDefinitionEditModeEnabled(): bool
+    {
+        return $this->definitionEditModeEnabled;
+    }
 
-		$this->definitionEditModeEnabled = false;
-		$this->questionAmountColumnEnabled = false;
-	}
+    public function setQuestionAmountColumnEnabled(bool $questionAmountColumnEnabled): void
+    {
+        $this->questionAmountColumnEnabled = $questionAmountColumnEnabled;
+    }
 
-	public function setTaxonomyFilterLabelTranslater(ilTestTaxonomyFilterLabelTranslater $translater)
-	{
-		$this->taxonomyLabelTranslater = $translater;
-	}
+    public function isQuestionAmountColumnEnabled(): bool
+    {
+        return $this->questionAmountColumnEnabled;
+    }
 
-	public function setDefinitionEditModeEnabled($definitionEditModeEnabled)
-	{
-		$this->definitionEditModeEnabled = $definitionEditModeEnabled;
-	}
+    public function setShowMappedTaxonomyFilter(bool $showMappedTaxonomyFilter): void
+    {
+        $this->showMappedTaxonomyFilter = $showMappedTaxonomyFilter;
+    }
 
-	public function isDefinitionEditModeEnabled()
-	{
-		return $this->definitionEditModeEnabled;
-	}
+    public function fillRow(array $a_set): void
+    {
+        if ($this->isDefinitionEditModeEnabled()) {
+            $this->tpl->setCurrentBlock('col_selection_checkbox');
+            $this->tpl->setVariable('SELECTION_CHECKBOX_HTML', $this->getSelectionCheckboxHTML($a_set['def_id']));
+            $this->tpl->parseCurrentBlock();
 
-	public function setQuestionAmountColumnEnabled($questionAmountColumnEnabled)
-	{
-		$this->questionAmountColumnEnabled = $questionAmountColumnEnabled;
-	}
+            $this->tpl->setCurrentBlock('col_actions');
+            $this->tpl->setVariable('ACTIONS_HTML', $this->getActionsHTML($a_set['def_id']));
+            $this->tpl->parseCurrentBlock();
 
-	public function isQuestionAmountColumnEnabled()
-	{
-		return $this->questionAmountColumnEnabled;
-	}
-	
-	// fau: taxFilter - set flag to show the mapped tayonomy filter instead of original
-	public function setShowMappedTaxonomyFilter($showMappedTaxonomyFilter)
-	{
-		$this->showMappedTaxonomyFilter = $showMappedTaxonomyFilter;
-	}
-	// fau.
+            $this->tpl->setCurrentBlock('col_order_checkbox');
+            $this->tpl->setVariable('ORDER_INPUT_HTML', $this->getDefinitionOrderInputHTML(
+                $a_set['def_id'],
+                $this->getOrderNumberForSequencePosition($a_set['sequence_position'])
+            ));
+            $this->tpl->parseCurrentBlock();
+        }
+        // fau: taxFilter/typeFilter - show sequence position to identify the filter in the database
+        else {
+            $this->tpl->setCurrentBlock('col_order_checkbox');
+            $this->tpl->setVariable('ORDER_INPUT_HTML', $a_set['sequence_position']);
+            $this->tpl->parseCurrentBlock();
+        }
+        // fau.
 
-	public function fillRow($set)
-	{
-		if( $this->isDefinitionEditModeEnabled() )
-		{
-			$this->tpl->setCurrentBlock('col_selection_checkbox');
-			$this->tpl->setVariable('SELECTION_CHECKBOX_HTML', $this->getSelectionCheckboxHTML($set['def_id']));
-			$this->tpl->parseCurrentBlock();
+        if ($this->isQuestionAmountColumnEnabled()) {
+            if ($this->isDefinitionEditModeEnabled()) {
+                $questionAmountHTML = $this->getQuestionAmountInputHTML(
+                    $a_set['def_id'],
+                    $a_set['question_amount']
+                );
+            } else {
+                $questionAmountHTML = $a_set['question_amount'];
+            }
 
-			$this->tpl->setCurrentBlock('col_actions');
-			$this->tpl->setVariable('ACTIONS_HTML', $this->getActionsHTML($set['def_id']));
-			$this->tpl->parseCurrentBlock();
+            $this->tpl->setCurrentBlock('col_question_amount');
+            $this->tpl->setVariable('QUESTION_AMOUNT_INPUT_HTML', $questionAmountHTML);
+            $this->tpl->parseCurrentBlock();
+        }
 
-			$this->tpl->setCurrentBlock('col_order_checkbox');
-			$this->tpl->setVariable('ORDER_INPUT_HTML', $this->getDefinitionOrderInputHTML(
-				$set['def_id'], $this->getOrderNumberForSequencePosition($set['sequence_position'])
-			));
-			$this->tpl->parseCurrentBlock();
-		}
-		// fau: taxFilter/typeFilter - show sequence position to identify the filter in the database
-		else
-		{
-			$this->tpl->setCurrentBlock('col_order_checkbox');
-			$this->tpl->setVariable('ORDER_INPUT_HTML', $set['sequence_position']);
-			$this->tpl->parseCurrentBlock();
-		}
-		// fau.
+        $this->tpl->setVariable(
+            'SOURCE_POOL_LABEL',
+            $this->buildPossiblyLinkedQuestonPoolTitle(
+                $this->ctrl,
+                $this->access,
+                $this->lng,
+                $this->ui_factory,
+                $this->ui_renderer,
+                $a_set['ref_id'],
+                $a_set['source_pool_label'],
+                true
+            )
+        );
+        // fau: taxFilter/typeFilter - set taxonomy/type filter label in a single coulumn each
 
-		if( $this->isQuestionAmountColumnEnabled() )
-		{
-			if( $this->isDefinitionEditModeEnabled() )
-			{
-				$questionAmountHTML = $this->getQuestionAmountInputHTML(
-					$set['def_id'], $set['question_amount']
-				);
-			}
-			else
-			{
-				$questionAmountHTML = $set['question_amount'];
-			}
+        $this->tpl->setVariable('TAXONOMY_FILTER', $this->taxonomyLabelTranslater->getTaxonomyFilterLabel($a_set['taxonomy_filter'], '<br />'));
+        $this->tpl->setVariable('LIFECYCLE_FILTER', $this->taxonomyLabelTranslater->getLifecycleFilterLabel($a_set['lifecycle_filter']));
+        $this->tpl->setVariable('TYPE_FILTER', $this->taxonomyLabelTranslater->getTypeFilterLabel($a_set['type_filter']));
+        // fau.
+    }
 
-			$this->tpl->setCurrentBlock('col_question_amount');
-			$this->tpl->setVariable('QUESTION_AMOUNT_INPUT_HTML', $questionAmountHTML);
-			$this->tpl->parseCurrentBlock();
-		}
+    private function getSelectionCheckboxHTML($sourcePoolDefinitionId): string
+    {
+        return '<input type="checkbox" value="' . $sourcePoolDefinitionId . '" name="src_pool_def_ids[]" />';
+    }
 
-		$this->tpl->setVariable('SOURCE_POOL_LABEL', $set['source_pool_label']);
-		// fau: taxFilter/typeFilter - set taxonomy/type filter label in a single coulumn each
-		$this->tpl->setVariable('TAXONOMY_FILTER', $this->taxonomyLabelTranslater->getTaxonomyFilterLabel($set['taxonomy_filter'],'<br />'));
-		#$this->tpl->setVariable('FILTER_TAXONOMY', $this->getTaxonomyTreeLabel($set['filter_taxonomy']));
-		#$this->tpl->setVariable('FILTER_TAX_NODE', $this->getTaxonomyNodeLabel($set['filter_tax_node']));
-		$this->tpl->setVariable('LIFECYCLE_FILTER', $this->taxonomyLabelTranslater->getLifecycleFilterLabel($set['lifecycle_filter']));
-		$this->tpl->setVariable('TYPE_FILTER', $this->taxonomyLabelTranslater->getTypeFilterLabel($set['type_filter']));
-		// fau.
-	}
+    private function getDefinitionOrderInputHTML($srcPoolDefId, $defOrderNumber): string
+    {
+        return '<input type="text" size="2" value="' . $defOrderNumber . '" name="def_order[' . $srcPoolDefId . ']" />';
+    }
 
-	private function getSelectionCheckboxHTML($sourcePoolDefinitionId)
-	{
-		return '<input type="checkbox" value="'.$sourcePoolDefinitionId.'" name="src_pool_def_ids[]" />';
-	}
+    private function getQuestionAmountInputHTML($srcPoolDefId, $questionAmount): string
+    {
+        return '<input type="text" size="4" value="' . $questionAmount . '" name="quest_amount[' . $srcPoolDefId . ']" />';
+    }
 
-	private function getDefinitionOrderInputHTML($srcPoolDefId, $defOrderNumber)
-	{
-		return '<input type="text" size="2" value="'.$defOrderNumber.'" name="def_order['.$srcPoolDefId.']" />';
-	}
+    private function getActionsHTML($sourcePoolDefinitionId): string
+    {
+        require_once 'Services/UIComponent/AdvancedSelectionList/classes/class.ilAdvancedSelectionListGUI.php';
 
-	private function getQuestionAmountInputHTML($srcPoolDefId, $questionAmount)
-	{
-		return '<input type="text" size="4" value="'.$questionAmount.'" name="quest_amount['.$srcPoolDefId.']" />';
-	}
+        $selectionList = new ilAdvancedSelectionListGUI();
 
-	private function getActionsHTML($sourcePoolDefinitionId)
-	{
-		require_once 'Services/UIComponent/AdvancedSelectionList/classes/class.ilAdvancedSelectionListGUI.php';
+        $selectionList->setId('sourcePoolDefinitionActions_' . $sourcePoolDefinitionId);
+        $selectionList->setListTitle($this->lng->txt("actions"));
 
-		$selectionList = new ilAdvancedSelectionListGUI();
+        $selectionList->addItem($this->lng->txt('edit'), '', $this->getEditHref($sourcePoolDefinitionId));
+        $selectionList->addItem($this->lng->txt('delete'), '', $this->getDeleteHref($sourcePoolDefinitionId));
 
-		$selectionList->setId('sourcePoolDefinitionActions_'.$sourcePoolDefinitionId);
-		$selectionList->setListTitle($this->lng->txt("actions"));
+        return $selectionList->getHTML();
+    }
 
-		$selectionList->addItem($this->lng->txt('edit'), '', $this->getEditHref($sourcePoolDefinitionId));
-		$selectionList->addItem($this->lng->txt('delete'), '', $this->getDeleteHref($sourcePoolDefinitionId));
+    private function getEditHref($sourcePoolDefinitionId): string
+    {
+        $href = $this->ctrl->getLinkTarget(
+            $this->parent_obj,
+            ilTestRandomQuestionSetConfigGUI::CMD_SHOW_EDIT_SRC_POOL_DEF_FORM
+        );
 
-		return $selectionList->getHTML();
-	}
+        $href = ilUtil::appendUrlParameterString($href, "src_pool_def_id=" . $sourcePoolDefinitionId, true);
 
-	private function getEditHref($sourcePoolDefinitionId)
-	{
-		$href = $this->ctrl->getLinkTarget(
-			$this->parent_obj, ilTestRandomQuestionSetConfigGUI::CMD_SHOW_EDIT_SRC_POOL_DEF_FORM
-		);
+        return $href;
+    }
 
-		$href = ilUtil::appendUrlParameterString($href, "src_pool_def_id=".$sourcePoolDefinitionId, true);
+    private function getDeleteHref($sourcePoolDefinitionId): string
+    {
+        $href = $this->ctrl->getLinkTarget(
+            $this->parent_obj,
+            ilTestRandomQuestionSetConfigGUI::CMD_DELETE_SINGLE_SRC_POOL_DEF
+        );
 
-		return $href;
-	}
+        $href = ilUtil::appendUrlParameterString($href, "src_pool_def_id=" . $sourcePoolDefinitionId, true);
 
-	private function getDeleteHref($sourcePoolDefinitionId)
-	{
-		$href = $this->ctrl->getLinkTarget(
-			$this->parent_obj, ilTestRandomQuestionSetConfigGUI::CMD_DELETE_SINGLE_SRC_POOL_DEF
-		);
+        return $href;
+    }
 
-		$href = ilUtil::appendUrlParameterString($href, "src_pool_def_id=".$sourcePoolDefinitionId, true);
+    private function getOrderNumberForSequencePosition($sequencePosition)
+    {
+        return ($sequencePosition * 10);
+    }
 
-		return $href;
-	}
+    private function getTaxonomyTreeLabel($taxonomyTreeId)
+    {
+        if (!$taxonomyTreeId) {
+            return '';
+        }
 
-	private function getOrderNumberForSequencePosition($sequencePosition)
-	{
-		return ( $sequencePosition * 10 );
-	}
+        return $this->taxonomyLabelTranslater->getTaxonomyTreeLabel($taxonomyTreeId);
+    }
 
-	private function getTaxonomyTreeLabel($taxonomyTreeId)
-	{
-		if( !$taxonomyTreeId )
-		{
-			return '';
-		}
+    private function getTaxonomyNodeLabel($taxonomyNodeId)
+    {
+        if (!$taxonomyNodeId) {
+            return '';
+        }
 
-		return $this->taxonomyLabelTranslater->getTaxonomyTreeLabel($taxonomyTreeId);
-	}
+        return $this->taxonomyLabelTranslater->getTaxonomyNodeLabel($taxonomyNodeId);
+    }
 
-	private function getTaxonomyNodeLabel($taxonomyNodeId)
-	{
-		if( !$taxonomyNodeId )
-		{
-			return '';
-		}
+    public function build(): void
+    {
+        $this->setTableIdentifiers();
 
-		return $this->taxonomyLabelTranslater->getTaxonomyNodeLabel($taxonomyNodeId);
-	}
+        $this->setTitle($this->lng->txt('tst_src_quest_pool_def_list_table'));
 
-	public function build()
-	{
-		$this->setTableIdentifiers();
+        $this->setRowTemplate("tpl.il_tst_rnd_quest_set_src_pool_def_row.html", "Modules/Test");
 
-		$this->setTitle($this->lng->txt('tst_src_quest_pool_def_list_table'));
+        $this->enable('header');
+        $this->disable('sort');
 
-		$this->setRowTemplate("tpl.il_tst_rnd_quest_set_src_pool_def_row.html", "Modules/Test");
+        $this->enable('select_all');
+        $this->setSelectAllCheckbox('src_pool_def_ids[]');
 
-		$this->enable('header');
-		$this->disable('sort');
+        $this->setExternalSegmentation(true);
+        $this->setLimit(PHP_INT_MAX);
 
-		$this->enable('select_all');
-		$this->setSelectAllCheckbox('src_pool_def_ids[]');
+        $this->setFormAction($this->ctrl->getFormAction($this->parent_obj));
 
-		$this->setExternalSegmentation(true);
-		$this->setLimit(PHP_INT_MAX);
+        $this->addCommands();
+        $this->addColumns();
+    }
 
-		$this->setFormAction($this->ctrl->getFormAction($this->parent_obj));
+    private function setTableIdentifiers(): void
+    {
+        $this->setId(self::IDENTIFIER);
+        $this->setPrefix(self::IDENTIFIER);
+        $this->setFormName(self::IDENTIFIER);
+    }
 
-		$this->addCommands();
-		$this->addColumns();
-	}
+    private function addCommands(): void
+    {
+        if ($this->isDefinitionEditModeEnabled()) {
+            $this->addMultiCommand(ilTestRandomQuestionSetConfigGUI::CMD_DELETE_MULTI_SRC_POOL_DEFS, $this->lng->txt('delete'));
+            $this->addCommandButton(ilTestRandomQuestionSetConfigGUI::CMD_SAVE_SRC_POOL_DEF_LIST, $this->lng->txt('save'));
+        }
+    }
 
-	private function setTableIdentifiers()
-	{
-		$this->setId(self::IDENTIFIER);
-		$this->setPrefix(self::IDENTIFIER);
-		$this->setFormName(self::IDENTIFIER);
-	}
+    private function addColumns(): void
+    {
+        if ($this->isDefinitionEditModeEnabled()) {
+            $this->addColumn('', 'select', '1%', true);
+            $this->addColumn('', 'order', '1%', true);
+        } else {
+            $this->addColumn($this->lng->txt("position"));
+        }
 
-	private function addCommands()
-	{
-		if( $this->isDefinitionEditModeEnabled() )
-		{
-			$this->addMultiCommand(ilTestRandomQuestionSetConfigGUI::CMD_DELETE_MULTI_SRC_POOL_DEFS, $this->lng->txt('delete'));
-			$this->addCommandButton(ilTestRandomQuestionSetConfigGUI::CMD_SAVE_SRC_POOL_DEF_LIST, $this->lng->txt('save'));
-		}
-	}
+        $this->addColumn($this->lng->txt("tst_source_question_pool"), 'source_question_pool', '');
+        $this->addColumn($this->lng->txt("tst_filter_taxonomy") . ' / ' . $this->lng->txt("tst_filter_tax_node"), 'tst_filter_taxonomy', '');
+        #$this->addColumn($this->lng->txt("tst_filter_taxonomy"),'tst_filter_taxonomy', '');
+        #$this->addColumn($this->lng->txt("tst_filter_tax_node"),'tst_filter_tax_node', '');
+        $this->addColumn($this->lng->txt("qst_lifecycle"), 'tst_filter_lifecycle', '');
+        $this->addColumn($this->lng->txt("tst_filter_question_type"), 'tst_filter_question_type', '');
 
-	private function addColumns()
-	{
-		if( $this->isDefinitionEditModeEnabled() )
-		{
-			$this->addColumn('', 'select', '1%', true);
-			$this->addColumn('', 'order', '1%', true);
-		}
-		// fau: taxFilter/typeFilter - show order position to easily identify the filter in the database
-		else
-		{
-			$this->addColumn($this->lng->txt("position"));
-		}
-		// fau.
+        if ($this->isQuestionAmountColumnEnabled()) {
+            $this->addColumn($this->lng->txt("tst_question_amount"), 'tst_question_amount', '');
+        }
 
-		$this->addColumn($this->lng->txt("tst_source_question_pool"),'source_question_pool', '');
-		// fau: taxFilter/typeFilter - add one column for taxonomy and nodes and one for type filter
-		$this->addColumn($this->lng->txt("tst_filter_taxonomy").' / '. $this->lng->txt("tst_filter_tax_node"),'tst_filter_taxonomy', '');
-		#$this->addColumn($this->lng->txt("tst_filter_taxonomy"),'tst_filter_taxonomy', '');
-		#$this->addColumn($this->lng->txt("tst_filter_tax_node"),'tst_filter_tax_node', '');
-		$this->addColumn($this->lng->txt("qst_lifecycle"),'tst_filter_lifecycle', '');
-		$this->addColumn($this->lng->txt("tst_filter_question_type"),'tst_filter_question_type', '');
-		// fau.
+        if ($this->isDefinitionEditModeEnabled()) {
+            $this->addColumn($this->lng->txt("actions"), 'actions', '');
+        }
+    }
 
-		if( $this->isQuestionAmountColumnEnabled() )
-		{
-			$this->addColumn($this->lng->txt("tst_question_amount"),'tst_question_amount', '');
-		}
+    public function init(ilTestRandomQuestionSetSourcePoolDefinitionList $sourcePoolDefinitionList): void
+    {
+        $rows = array();
 
-		if( $this->isDefinitionEditModeEnabled() )
-		{
-			$this->addColumn($this->lng->txt("actions"),'actions', '');
-		}
-	}
+        foreach ($sourcePoolDefinitionList as $sourcePoolDefinition) {
+            /** @var ilTestRandomQuestionSetSourcePoolDefinition $sourcePoolDefinition */
 
-	public function init(ilTestRandomQuestionSetSourcePoolDefinitionList $sourcePoolDefinitionList)
-	{
-		$rows = array();
+            $set = array();
 
-		foreach($sourcePoolDefinitionList as $sourcePoolDefinition)
-		{
-			/** @var ilTestRandomQuestionSetSourcePoolDefinition $sourcePoolDefinition */
+            $set['def_id'] = $sourcePoolDefinition->getId();
+            $set['sequence_position'] = $sourcePoolDefinition->getSequencePosition();
+            $set['source_pool_label'] = $sourcePoolDefinition->getPoolTitle();
+            // fau: taxFilter/typeFilter - get the type and taxonomy filter for display
+            if ($this->showMappedTaxonomyFilter) {
+                // mapped filter will be used after synchronisation
+                $set['taxonomy_filter'] = $sourcePoolDefinition->getMappedTaxonomyFilter();
+            } else {
+                // original filter will be used before synchronisation
+                $set['taxonomy_filter'] = $sourcePoolDefinition->getOriginalTaxonomyFilter();
+            }
+            #$set['filter_taxonomy'] = $sourcePoolDefinition->getMappedFilterTaxId();
+            #$set['filter_tax_node'] = $sourcePoolDefinition->getMappedFilterTaxNodeId();
+            $set['lifecycle_filter'] = $sourcePoolDefinition->getLifecycleFilter();
+            $set['type_filter'] = $sourcePoolDefinition->getTypeFilter();
+            // fau.
+            $set['question_amount'] = $sourcePoolDefinition->getQuestionAmount();
+            $set['ref_id'] = $sourcePoolDefinition->getPoolRefId();
+            $rows[] = $set;
+        }
 
-			$set = array();
+        $this->setData($rows);
+    }
 
-			$set['def_id'] = $sourcePoolDefinition->getId();
-			$set['sequence_position'] = $sourcePoolDefinition->getSequencePosition();
-			$set['source_pool_label'] = $sourcePoolDefinition->getPoolTitle();
-			// fau: taxFilter/typeFilter - get the type and taxonomy filter for display
-			if ($this->showMappedTaxonomyFilter)
-			{
-				// mapped filter will be used after synchronisation
-				$set['taxonomy_filter'] = $sourcePoolDefinition->getMappedTaxonomyFilter();
-			}
-			else
-			{
-				// original filter will be used before synchronisation
-				$set['taxonomy_filter'] = $sourcePoolDefinition->getOriginalTaxonomyFilter();
-			}
-			#$set['filter_taxonomy'] = $sourcePoolDefinition->getMappedFilterTaxId();
-			#$set['filter_tax_node'] = $sourcePoolDefinition->getMappedFilterTaxNodeId();
-			$set['lifecycle_filter'] = $sourcePoolDefinition->getLifecycleFilter();
-			$set['type_filter'] = $sourcePoolDefinition->getTypeFilter();
-			// fau.
-			$set['question_amount'] = $sourcePoolDefinition->getQuestionAmount();
+    public function applySubmit(ilTestRandomQuestionSetSourcePoolDefinitionList $sourcePoolDefinitionList): void
+    {
+        foreach ($sourcePoolDefinitionList as $sourcePoolDefinition) {
+            /** @var ilTestRandomQuestionSetSourcePoolDefinition $sourcePoolDefinition */
 
-			$rows[] = $set;
-		}
+            $orderNumber = $this->fetchOrderNumberParameter($sourcePoolDefinition);
+            $sourcePoolDefinition->setSequencePosition($orderNumber);
 
-		$this->setData($rows);
-	}
+            if ($this->isQuestionAmountColumnEnabled()) {
+                $questionAmount = $this->fetchQuestionAmountParameter($sourcePoolDefinition);
+                $sourcePoolDefinition->setQuestionAmount($questionAmount);
+            } else {
+                $sourcePoolDefinition->setQuestionAmount(null);
+            }
+        }
+    }
 
-	public function applySubmit(ilTestRandomQuestionSetSourcePoolDefinitionList $sourcePoolDefinitionList)
-	{
-		foreach($sourcePoolDefinitionList as $sourcePoolDefinition)
-		{
-			/** @var ilTestRandomQuestionSetSourcePoolDefinition $sourcePoolDefinition */
+    private function fetchOrderNumberParameter(ilTestRandomQuestionSetSourcePoolDefinition $definition): int
+    {
+        $def_order = $this->testrequest->raw('def_order');
+        return array_key_exists($definition->getId(), $def_order) ? (int) $def_order[$definition->getId()] : 0;
+    }
 
-			$orderNumber = $this->fetchOrderNumberParameter($sourcePoolDefinition);
-			$sourcePoolDefinition->setSequencePosition($orderNumber);
-
-			if( $this->isQuestionAmountColumnEnabled())
-			{
-				$questionAmount = $this->fetchQuestionAmountParameter($sourcePoolDefinition);
-				$sourcePoolDefinition->setQuestionAmount($questionAmount);
-			}
-			else
-			{
-				$sourcePoolDefinition->setQuestionAmount(null);
-			}
-		}
-	}
-
-	private function fetchOrderNumberParameter(ilTestRandomQuestionSetSourcePoolDefinition $definition)
-	{
-		return (int)$_POST['def_order'][$definition->getId()];
-	}
-
-	private function fetchQuestionAmountParameter(ilTestRandomQuestionSetSourcePoolDefinition $definition)
-	{
-		return (int)$_POST['quest_amount'][$definition->getId()];
-	}
+    private function fetchQuestionAmountParameter(ilTestRandomQuestionSetSourcePoolDefinition $definition): int
+    {
+        $quest_amount = $this->testrequest->raw('quest_amount');
+        return array_key_exists($definition->getId(), $quest_amount) ? (int) $quest_amount[$definition->getId()] : 0;
+    }
 }

@@ -1,32 +1,44 @@
 <?php
 
-include_once("./Services/Calendar/interfaces/interface.ilAppointmentFileHandler.php");
-include_once("./Services/Calendar/classes/FileHandler/class.ilAppointmentBaseFileHandler.php");
+declare(strict_types=1);
 
 /* Copyright (c) 1998-2017 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+use ILIAS\Calendar\FileHandler\ilFileProperty;
+
 /**
  * Booking Pool appointment file handler
- *
- * @author Jesús López Reyes <lopez@leifos.com>
+ * @author  Jesús López Reyes <lopez@leifos.com>
  * @ingroup ServicesCalendar
  */
-
 class ilAppointmentBookingPoolFileHandler extends ilAppointmentBaseFileHandler implements ilAppointmentFileHandler
 {
-	/**
-	 * Get files (for appointment)*
-	 * @return array of strings which contain files full path
-	 */
-	function getFiles()
-	{
-		// context id is reservation id (see ilObjBookingPoolGUI->processBooking)
-		$res_id = $this->appointment['event']->getContextId();
-		include_once("./Modules/BookingManager/classes/class.ilBookingReservation.php");
-		include_once("./Modules/BookingManager/classes/class.ilBookingObject.php");
-		$res = new ilBookingReservation($res_id);
-		$b_obj = new ilBookingObject($res->getObjectId());
+    /**
+     * @inheritDoc
+     */
+    public function getFiles(): array
+    {
+        // context id is reservation id (see ilObjBookingPoolGUI->processBooking)
+        $res_id = $this->appointment['event']->getContextId();
+        $res = new ilBookingReservation($res_id);
+        $b_obj = new ilBookingObject($res->getObjectId());
 
-		return array($b_obj->getFileFullPath(), $b_obj->getPostFileFullPath());
-	}
+        $files = [];
 
+        if ($b_obj->getFile() !== "") {
+            $file_property = new ilFileProperty();
+            $file_property->setAbsolutePath($b_obj->getFileFullPath());
+            $file_property->setFileName($b_obj->getFile());
+            $files[] = $file_property;
+        }
+
+        if ($b_obj->getPostFile() !== "") {
+            $file_property = new ilFileProperty();
+            $file_property->setAbsolutePath($b_obj->getPostFileFullPath());
+            $file_property->setFileName($b_obj->getPostFile());
+            $files[] = $file_property;
+        }
+
+        return $files;
+    }
 }

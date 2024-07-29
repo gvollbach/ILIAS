@@ -1,5 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
+namespace ILIAS\UI\examples\Listing\Descriptive;
+
 function base()
 {
     //Init Factory and Renderer
@@ -10,9 +14,9 @@ function base()
     //Generate List
     $descriptive = $f->listing()->descriptive(
         [
-            "Title 1"=>"Description 1",
-            "Title 2"=>"Description 2",
-            "Title 3"=>"Description 3"]
+            "Title 1" => "Description 1",
+            "Title 2" => "Description 2",
+            "Title 3" => "Description 3"]
     );
 
     //Render

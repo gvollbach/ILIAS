@@ -1,5 +1,22 @@
 <?php
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Statically used helper class for generating links to the mail form user interface
@@ -9,268 +26,248 @@
  */
 class ilMailFormCall
 {
-	/**
-	 * 
-	 */
-	const SESSION_KEY = 'mail_transport';
-	
-	/**
-	 * HTTP-GET parameter for the referer url
-	 */
-	const REFERER_KEY = 'r';
+    public const SESSION_KEY = 'mail_transport';
+    public const REFERER_KEY = 'r';
+    public const SIGNATURE_KEY = 'sig';
+    public const CONTEXT_PREFIX = 'ctx';
+    public const CONTEXT_KEY = 'ctx_template';
 
-	/**
-	 * Session parameter for the hash
-	 */
-	const SIGNATURE_KEY = 'sig';
+    /**
+     * @param object|string $gui
+     * @param string $cmd
+     * @param array $gui_params
+     * @param array $mail_params
+     * @param array $context_params
+     * @return string
+     */
+    public static function getLinkTarget(
+        $gui,
+        string $cmd,
+        array $gui_params = [],
+        array $mail_params = [],
+        array $context_params = []
+    ): string {
+        return self::getTargetUrl('&', $gui, $cmd, $gui_params, $mail_params, $context_params);
+    }
 
-	/**
-	 * Session parameter for the context
-	 */
-	const CONTEXT_PREFIX = 'ctx';
+    /**
+     * @param object|string $gui
+     * @param string $cmd
+     * @param array $gui_params
+     * @param array $mail_params
+     * @param array $context_params
+     * @return string
+     */
+    public static function getRedirectTarget(
+        $gui,
+        string $cmd,
+        array $gui_params = [],
+        array $mail_params = [],
+        array $context_params = []
+    ): string {
+        return self::getTargetUrl('&', $gui, $cmd, $gui_params, $mail_params, $context_params);
+    }
 
-	/**
-	 * Session parameter for the context
-	 */
-	const CONTEXT_KEY = 'ctx_template';
+    /**
+     * @param string $argument_separator
+     * @param object|string $gui
+     * @param string $cmd
+     * @param array $gui_params
+     * @param array $mail_params
+     * @param array $context_params
+     * @return string
+     */
+    protected static function getTargetUrl(
+        string $argument_separator,
+        $gui,
+        string $cmd,
+        array $gui_params = [],
+        array $mail_params = [],
+        array $context_params = []
+    ): string {
+        global $DIC;
 
-	/**
-	 * @static
-	 * @param mixed $gui
-	 * @param string $cmd
-	 * @param array $gui_params
-	 * @param array $mail_params
-	 * @param array $context_params
-	 * @return string
-	 */
-	public static function getLinkTarget($gui, $cmd, Array $gui_params = array(), Array $mail_params = array(), $context_params = array())
-	{
-		return self::getTargetUrl('&amp;', $gui, $cmd, $gui_params, $mail_params, $context_params);
-	}
+        $mparams = '';
+        $referer = '';
 
-	/**
-	 * @static
-	 * @param mixed $gui
-	 * @param string $cmd
-	 * @param array $gui_params
-	 * @param array $mail_params
-	 * @param array $context_params
-	 * @return string
-	 */
-	public static function getRedirectTarget($gui, $cmd, array $gui_params = array(), array $mail_params = array(), array $context_params = array())
-	{
-		return self::getTargetUrl('&', $gui, $cmd, $gui_params, $mail_params, $context_params);
-	}
+        foreach ($mail_params as $key => $value) {
+            $mparams .= $argument_separator . $key . '=' . urlencode((string) $value);
+        }
 
-	/**
-	 * @static
-	 * @param string $argument_separator
-	 * @param mixed $gui
-	 * @param string $cmd
-	 * @param array $gui_params
-	 * @param array $mail_params
-	 * @return string
-	 */
-	protected static function getTargetUrl($argument_separator, $gui, $cmd, array $gui_params = array(), array $mail_params = array(), array $context_params = array())
-	{
-		global $DIC;
+        foreach ($context_params as $key => $value) {
+            if ($key === self::CONTEXT_KEY) {
+                $mparams .= $argument_separator . $key . '=' . urlencode((string) $value);
+            } else {
+                $mparams .= $argument_separator . self::CONTEXT_PREFIX . '_' . $key . '=' . urlencode((string) $value);
+            }
+        }
 
-		$mparams = '';
-		$referer = '';
+        if (is_object($gui)) {
+            $ilCtrlTmp = clone $DIC->ctrl();
+            foreach ($gui_params as $key => $value) {
+                $ilCtrlTmp->setParameter($gui, $key, $value);
+            }
+            $referer = $ilCtrlTmp->getLinkTarget($gui, $cmd, '');
+        } elseif (is_string($gui)) {
+            $referer = $gui;
+        }
 
-		foreach($mail_params as $key => $value)
-		{
-			$mparams .= $argument_separator . $key . '=' . urlencode($value);
-		}
+        $referer = $argument_separator . self::REFERER_KEY . '=' . rawurlencode(base64_encode($referer));
 
-		foreach($context_params as $key => $value)
-		{
-			if($key == self::CONTEXT_KEY)
-			{
-				$mparams .= $argument_separator . $key . '=' . urlencode($value);
-			}
-			else
-			{
-				$mparams .= $argument_separator . self::CONTEXT_PREFIX . '_' . $key . '=' . urlencode($value);
-			}
-		}
+        return 'ilias.php?baseClass=ilMailGUI' . $referer . $mparams;
+    }
 
-		if(is_object($gui))
-		{
-			$ilCtrlTmp = clone $DIC->ctrl();
-			foreach($gui_params as $key => $value)
-			{
-				$ilCtrlTmp->setParameter($gui, $key, $value);
-			}
-			$referer = $ilCtrlTmp->getLinkTarget($gui, $cmd, '', false, false);
-		}
-		else if(is_string($gui))
-		{
-			$referer = $gui;
-		}
+    /**
+     * @param array<string, mixed> $queryParameters
+     */
+    public static function storeReferer(array $queryParameters): void
+    {
+        $session = ilSession::get(self::SESSION_KEY);
 
-		$referer = $argument_separator . self::REFERER_KEY . '=' . rawurlencode(base64_encode($referer));
+        if (isset($queryParameters[self::REFERER_KEY])) {
+            $session[self::REFERER_KEY] = base64_decode(rawurldecode($queryParameters[self::REFERER_KEY]));
+            $session[self::SIGNATURE_KEY] = base64_decode(
+                rawurldecode(
+                    $queryParameters[self::SIGNATURE_KEY] ?? ''
+                )
+            );
 
-		return 'ilias.php?baseClass=ilMailGUI' . $referer . $mparams;
-	}
+            $contextParameters = [];
+            foreach ($queryParameters as $key => $value) {
+                $prefix = substr($key, 0, strlen(self::CONTEXT_PREFIX));
+                if ($prefix === self::CONTEXT_PREFIX) {
+                    if ($key === self::CONTEXT_KEY) {
+                        $contextParameters[$key] = $value;
+                    } else {
+                        $contextParameters[substr($key, strlen(self::CONTEXT_PREFIX . '_'))] = $value;
+                    }
+                }
+            }
+            $session[self::CONTEXT_PREFIX] = $contextParameters;
+        } else {
+            if (isset($session[self::REFERER_KEY])) {
+                unset($session[self::REFERER_KEY]);
+            }
+            if (isset($session[self::SIGNATURE_KEY])) {
+                unset($session[self::SIGNATURE_KEY]);
+            }
+            if (isset($session[self::CONTEXT_PREFIX])) {
+                unset($session[self::CONTEXT_PREFIX]);
+            }
+        }
 
-	/**
-	 * @static
-	 * @param array $request_params
-	 */
-	public static function storeReferer($request_params)
-	{
-		$session = ilSession::get(self::SESSION_KEY);
-		if(isset($request_params[self::REFERER_KEY]))
-		{
-			$session[self::REFERER_KEY]   = base64_decode(rawurldecode($request_params[self::REFERER_KEY]));
-			$session[self::SIGNATURE_KEY] = base64_decode(rawurldecode($request_params[self::SIGNATURE_KEY]));
+        ilSession::set(self::SESSION_KEY, $session);
+    }
 
-			$ctx_params = array();
-			foreach($request_params as $key => $value)
-			{
-				$prefix = substr($key, 0, strlen(self::CONTEXT_PREFIX));
-				if($prefix == self::CONTEXT_PREFIX)
-				{
-					if($key == self::CONTEXT_KEY)
-					{
-						$ctx_params[$key] = $value;
-					}
-					else
-					{
-						$ctx_params[substr($key, strlen(self::CONTEXT_PREFIX . '_'))] = $value;
-					}
-				}
-			}
-			$session[self::CONTEXT_PREFIX] = $ctx_params;
-		}
-		else
-		{
-			unset($session[self::REFERER_KEY]);
-			unset($session[self::SIGNATURE_KEY]);
-			unset($session[self::CONTEXT_PREFIX]);
-		}
-		ilSession::set(self::SESSION_KEY, $session);
-	}
+    public static function getSignature(): string
+    {
+        $sig = '';
+        $session = ilSession::get(self::SESSION_KEY);
 
-	/**
-	 * Get preset signature
-	 *
-	 * @return string signature
-	 */
-	public static function getSignature()
-	{
-		$session = ilSession::get(self::SESSION_KEY);
+        if (isset($session[self::SIGNATURE_KEY])) {
+            $sig = $session[self::SIGNATURE_KEY];
 
-		$sig = $session[self::SIGNATURE_KEY];
+            unset($session[self::SIGNATURE_KEY]);
+            ilSession::set(self::SESSION_KEY, $session);
+        }
 
-		unset($session[self::SIGNATURE_KEY]);
-		ilSession::set(self::SESSION_KEY, $session);
+        return $sig;
+    }
 
-		return $sig;
-	}
+    public static function getRefererRedirectUrl(): string
+    {
+        $url = '';
+        $session = ilSession::get(self::SESSION_KEY);
 
-	/**
-	 * @static
-	 * @return string
-	 */
-	public static function getRefererRedirectUrl()
-	{
-		$session = ilSession::get(self::SESSION_KEY);
+        if (isset($session[self::REFERER_KEY])) {
+            $url = $session[self::REFERER_KEY];
+            if (is_string($url) && $url !== '') {
+                $parts = parse_url($url);
+                if (isset($parts['query']) && $parts['query'] !== '') {
+                    $url .= '&returned_from_mail=1';
+                } else {
+                    $url .= '?returned_from_mail=1';
+                }
 
-		$url = $session[self::REFERER_KEY];
-		if(strlen($url))
-		{
-			$parts = parse_url($url);
-			if(isset($parts['query']) && strlen($parts['query']))
-			{
-				$url .= '&returned_from_mail=1';
-			}
-			else
-			{
-				$url .= '?returned_from_mail=1';
-			}
-		}
+                $ilias_url_parts = parse_url(ilUtil::_getHttpPath());
+                if (isset($parts['host']) && $ilias_url_parts['host'] !== $parts['host']) {
+                    $url = 'ilias.php?baseClass=ilMailGUI';
+                }
+            }
 
-		unset($session[self::REFERER_KEY]);
-		ilSession::set(self::SESSION_KEY, $session);
+            unset($session[self::REFERER_KEY]);
+            ilSession::set(self::SESSION_KEY, $session);
+        }
 
-		return $url;
-	}
+        return $url;
+    }
 
-	/**
-	 * @static
-	 * @return bool
-	 */
-	public static function isRefererStored()
-	{
-		$session = ilSession::get(self::SESSION_KEY);
-		return isset($session[self::REFERER_KEY]) && strlen($session[self::REFERER_KEY]) ? true : false;
-	}
+    public static function isRefererStored(): bool
+    {
+        $session = ilSession::get(self::SESSION_KEY);
 
-	/**
-	 * @return string|null
-	 */
-	public static function getContextId()
-	{
-		$session = ilSession::get(self::SESSION_KEY);
-		return ( 
-			isset($session[self::CONTEXT_PREFIX][self::CONTEXT_KEY]) &&
-			strlen($session[self::CONTEXT_PREFIX][self::CONTEXT_KEY]) ?
-			$session[self::CONTEXT_PREFIX][self::CONTEXT_KEY] : NULL
-		);
-	}
+        return (
+            isset($session[self::REFERER_KEY]) &&
+            is_string($session[self::REFERER_KEY]) &&
+            $session[self::REFERER_KEY] !== ''
+        );
+    }
 
-	/**
-	 * @param $id string
-	 */
-	public static function setContextId($id)
-	{
-		$session = ilSession::get(self::SESSION_KEY);
-		$session[self::CONTEXT_KEY] = $id;
-		ilSession::set(self::SESSION_KEY, $session);
-	}
+    public static function getContextId(): ?string
+    {
+        $session = ilSession::get(self::SESSION_KEY);
+        return (
+            isset($session[self::CONTEXT_PREFIX][self::CONTEXT_KEY]) &&
+            is_string($session[self::CONTEXT_PREFIX][self::CONTEXT_KEY]) ?
+            $session[self::CONTEXT_PREFIX][self::CONTEXT_KEY] : null
+        );
+    }
 
-	/**
-	 * @return array context parameters
-	 */
-	public static function getContextParameters()
-	{
-		$session = ilSession::get(self::SESSION_KEY);
-		if(isset($session[self::CONTEXT_PREFIX]))
-		{
-			return (array)$session[self::CONTEXT_PREFIX];
-		}
-		return array();
-	}
+    public static function setContextId(?string $id): void
+    {
+        $session = ilSession::get(self::SESSION_KEY);
+        $session[self::CONTEXT_KEY] = $id;
+        ilSession::set(self::SESSION_KEY, $session);
+    }
 
-	/**
-	 * @param array $parameters
-	 * @return array
-	 */
-	public static function setContextParameters(array $parameters)
-	{
-		$session = ilSession::get(self::SESSION_KEY);
-		$session[self::CONTEXT_PREFIX] = $parameters;
-		ilSession::set(self::SESSION_KEY, $session);
-	}
+    public static function getContextParameters(): array
+    {
+        $session = ilSession::get(self::SESSION_KEY);
+        if (isset($session[self::CONTEXT_PREFIX]) && is_array($session[self::CONTEXT_PREFIX])) {
+            return $session[self::CONTEXT_PREFIX];
+        }
 
-	/**
-	 * @param array $recipients
-	 */
-	public static function setRecipients(array $recipients)
-	{
-		$session = ilSession::get(self::SESSION_KEY);
-		$session['rcp_to'] = $recipients;
-		ilSession::set(self::SESSION_KEY, $session);
-	}
+        return [];
+    }
 
-	/**
-	 * @return array
-	 */
-	public static function getRecipients()
-	{
-		$session = ilSession::get(self::SESSION_KEY);
-		return (array)$session['rcp_to'];
-	}
+    public static function setContextParameters(array $parameters): void
+    {
+        $session = ilSession::get(self::SESSION_KEY);
+        $session[self::CONTEXT_PREFIX] = $parameters;
+        ilSession::set(self::SESSION_KEY, $session);
+    }
+
+    /**
+     * @param list<string> $recipients
+     */
+    public static function setRecipients(array $recipients, string $type = 'to'): void
+    {
+        $session = ilSession::get(self::SESSION_KEY) ?? [];
+        $session['rcp_' . $type] = array_map('strval', array_values($recipients));
+        ilSession::set(self::SESSION_KEY, $session);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function getRecipients(string $type = 'to'): array
+    {
+        $session = ilSession::get(self::SESSION_KEY) ?? [];
+        $key = 'rcp_' . $type;
+        if (isset($session[$key]) && is_array($session[$key])) {
+            return array_map('strval', array_values($session[$key]));
+        }
+
+        return [];
+    }
 }

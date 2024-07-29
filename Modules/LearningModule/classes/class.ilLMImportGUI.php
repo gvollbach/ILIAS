@@ -1,143 +1,133 @@
 <?php
 
-/* Copyright (c) 1998-2015 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\LearningModule\Editing\EditingGUIRequest;
 
 /**
  * Import related features for learning modules
- *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- * @ingroup ModulesLearningModule
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilLMImportGUI
 {
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    protected ilCtrl $ctrl;
+    protected ilLanguage $lng;
+    protected ilGlobalTemplateInterface $tpl;
+    protected ilObjLearningModule $lm;
+    protected EditingGUIRequest $request;
+    public function __construct(ilObjLearningModule $a_lm)
+    {
+        global $DIC;
 
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+        $this->request = $DIC
+            ->learningModule()
+            ->internal()
+            ->gui()
+            ->editing()
+            ->request();
 
-	/**
-	 * @var ilTemplate
-	 */
-	protected $tpl;
 
-	protected $lm;
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        $this->tpl = $DIC["tpl"];
+        $this->lm = $a_lm;
+    }
 
-	/**
-	 * Constructor
-	 */
-	function __construct($a_lm)
-	{
-		global $DIC;
+    public function executeCommand(): void
+    {
+        $ilCtrl = $this->ctrl;
 
-		$this->ctrl = $DIC->ctrl();
-		$this->lng = $DIC->language();
-		$this->tpl = $DIC["tpl"];
-		$this->lm = $a_lm;
-	}
-	
-	/**
-	 * Execute command
-	 */
-	function executeCommand()
-	{
-		$ilCtrl = $this->ctrl;
+        $cmd = $ilCtrl->getCmd("showTranslationImportForm");
 
-		$cmd = $ilCtrl->getCmd("showTranslationImportForm");
+        if (in_array($cmd, array("showTranslationImportForm", "importTranslation"))) {
+            $this->$cmd();
+        }
+    }
 
-		if (in_array($cmd, array("showTranslationImportForm", "importTranslation")))
-		{
-			$this->$cmd();
-		}
-	}
-	
-	/**
-	 * Translation import
-	 *
-	 * @param
-	 * @return
-	 */
-	function showTranslationImportForm()
-	{
-		$lng = $this->lng;
-		$tpl = $this->tpl;
+    public function showTranslationImportForm(): void
+    {
+        $lng = $this->lng;
+        $tpl = $this->tpl;
 
-		ilUtil::sendInfo($lng->txt("cont_trans_import_info"));
-		$form = $this->initTranslationImportForm();
-		$tpl->setContent($form->getHTML());
-	}
+        $this->tpl->setOnScreenMessage('info', $lng->txt("cont_trans_import_info"));
+        $form = $this->initTranslationImportForm();
+        $tpl->setContent($form->getHTML());
+    }
 
-	/**
-	 * Init translation input form.
-	 */
-	public function initTranslationImportForm()
-	{
-		$lng = $this->lng;
-		$ilCtrl = $this->ctrl;
+    public function initTranslationImportForm(): ilPropertyFormGUI
+    {
+        $lng = $this->lng;
+        $ilCtrl = $this->ctrl;
 
-		$lng->loadLanguageModule("meta");
+        $options = [];
 
-		$form = new ilPropertyFormGUI();
+        $lng->loadLanguageModule("meta");
 
-		// import file
-		$fi = new ilFileInputGUI($lng->txt("file"), "importfile");
-		$fi->setSuffixes(array("zip"));
-		$fi->setRequired(true);
-		$fi->setSize(30);
-		$form->addItem($fi);
+        $form = new ilPropertyFormGUI();
 
-		$ot = ilObjectTranslation::getInstance($this->lm->getId());
-		foreach ($ot->getLanguages() as $l)
-		{
-			if ($l["lang_code"] != $ot->getMasterLanguage())
-			{
-				$options[$l["lang_code"]] = $lng->txt("meta_l_".$l["lang_code"]);
-			}
-		}
-		$si = new ilSelectInputGUI($lng->txt("cont_import_lang"), "import_lang");
-		$si->setOptions($options);
-		$form->addItem($si);
+        // import file
+        $fi = new ilFileInputGUI($lng->txt("file"), "importfile");
+        $fi->setSuffixes(array("zip"));
+        $fi->setRequired(true);
+        $fi->setSize(30);
+        $form->addItem($fi);
 
-		$form->addCommandButton("importTranslation", $lng->txt("import"));
-		$form->setTitle($lng->txt("cont_import_trans"));
-		$form->setFormAction($ilCtrl->getFormAction($this));
+        $ot = ilObjectTranslation::getInstance($this->lm->getId());
+        foreach ($ot->getLanguages() as $l) {
+            if ($l->getLanguageCode() !== $ot->getMasterLanguage()) {
+                $options[$l->getLanguageCode()] = $lng->txt("meta_l_" . $l->getLanguageCode());
+            }
+        }
+        $si = new ilSelectInputGUI($lng->txt("cont_import_lang"), "import_lang");
+        $si->setOptions($options);
+        $form->addItem($si);
 
-		return $form;
-	}
+        $form->addCommandButton("importTranslation", $lng->txt("import"));
+        $form->setTitle($lng->txt("cont_import_trans"));
+        $form->setFormAction($ilCtrl->getFormAction($this));
 
-	/**
-	 * Import translation
-	 */
-	function importTranslation()
-	{
-		$ilCtrl = $this->ctrl;
-		$lng = $this->lng;
+        return $form;
+    }
 
-		$imp = new ilImport();
-		$conf = $imp->getConfig("Modules/LearningModule");
+    public function importTranslation(): void
+    {
+        $ilCtrl = $this->ctrl;
+        $lng = $this->lng;
 
-		$target_lang = ilUtil::stripSlashes($_POST["import_lang"]);
-		$ot = ilObjectTranslation::getInstance($this->lm->getId());
-		if ($target_lang == $ot->getMasterLanguage() || $target_lang == "")
-		{
-			ilUtil::sendFailure($lng->txt("cont_transl_master_language_not_allowed"), true);
-			$ilCtrl->redirect($this, "showTranslationImportForm");
-		}
+        $imp = new ilImport();
+        $conf = $imp->getConfig("Modules/LearningModule");
 
-		$conf->setTranslationImportMode($this->lm, $target_lang);
-		$imp->importObject(null, $_FILES["importfile"]["tmp_name"],
-			$_FILES["importfile"]["name"], "lm", "Modules/LearningModule");
-//echo "h"; exit;
-		ilUtil::sendSuccess($lng->txt("msg_obj_modified"), true);
-		$ilCtrl->redirect($this, "showTranslationImportForm");
-	}
+        $target_lang = $this->request->getImportLang();
+        $ot = ilObjectTranslation::getInstance($this->lm->getId());
+        if ($target_lang == $ot->getMasterLanguage() || $target_lang == "") {
+            $this->tpl->setOnScreenMessage('failure', $lng->txt("cont_transl_master_language_not_allowed"), true);
+            $ilCtrl->redirect($this, "showTranslationImportForm");
+        }
 
-	
+        $conf->setTranslationImportMode($this->lm, $target_lang);
+        $imp->importObject(
+            null,
+            $_FILES["importfile"]["tmp_name"],
+            $_FILES["importfile"]["name"],
+            "lm",
+            "Modules/LearningModule"
+        );
+        //echo "h"; exit;
+        $this->tpl->setOnScreenMessage('success', $lng->txt("msg_obj_modified"), true);
+        $ilCtrl->redirect($this, "showTranslationImportForm");
+    }
 }
-
-?>

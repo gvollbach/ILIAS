@@ -1,567 +1,401 @@
 <?php
 
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
-require_once("./Services/UIComponent/Explorer/classes/class.ilExplorer.php");
+use ILIAS\Repository\StandardGUIRequest;
 
 /*
  * Repository Explorer
  *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- * @ingroup	ServicesRepository
+ * @author Alexander Killing <killing@leifos.de>
+ * @deprecated
+ * only use seems to be ilPasteIntoMultipleItemsExplorer
+ * which is still used in repository and workspace.
  */
 class ilRepositoryExplorer extends ilExplorer
 {
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+    protected ilSetting $settings;
+    protected ilDBInterface $db;
+    protected ilObjUser $user;
+    protected ilAccessHandler $access;
+    protected ilCtrl $ctrl;
+    protected array $force_open_path;
+    protected StandardGUIRequest $request;
+    protected array $session_materials;
+    protected array $item_group_items;
+    protected array $type_grps;
 
-	/**
-	 * @var ilSetting
-	 */
-	protected $settings;
+    public function __construct(string $a_target, int $a_top_node = 0)
+    {
+        /** @var \ILIAS\DI\Container $DIC */
+        global $DIC;
 
-	/**
-	 * @var ilObjectDefinition
-	 */
-	protected $obj_definition;
+        $this->lng = $DIC->language();
+        $this->settings = $DIC->settings();
+        $this->obj_definition = $DIC["objDefinition"];
+        $this->rbacsystem = $DIC->rbac()->system();
+        $this->db = $DIC->database();
+        $this->user = $DIC->user();
+        $this->access = $DIC->access();
+        $tree = $DIC->repositoryTree();
+        $ilCtrl = $DIC->ctrl();
+        $lng = $DIC->language();
+        $ilSetting = $DIC->settings();
+        $objDefinition = $DIC["objDefinition"];
 
-	/**
-	 * @var ilRbacSystem
-	 */
-	protected $rbacsystem;
-
-	/**
-	 * @var ilDB
-	 */
-	protected $db;
-
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
-
-	/**
-	 * @var ilAccessHandler
-	 */
-	protected $access;
+        $this->ctrl = $ilCtrl;
 
 
-	/**
-	 * id of root folder
-	 * @var int root folder id
-	 * @access private
-	 */
-	var $root_id;
-	var $output;
-	var $ctrl;
-	/**
-	* Constructor
-	* @access	public
-	* @param	string	scriptname
-	* @param    int user_id
-	*/
-	function __construct($a_target, $a_top_node = 0)
-	{
-		global $DIC;
-
-		$this->lng = $DIC->language();
-		$this->settings = $DIC->settings();
-		$this->obj_definition = $DIC["objDefinition"];
-		$this->rbacsystem = $DIC->rbac()->system();
-		$this->db = $DIC->database();
-		$this->user = $DIC->user();
-		$this->access = $DIC->access();
-		$tree = $DIC->repositoryTree();
-		$ilCtrl = $DIC->ctrl();
-		$lng = $DIC->language();
-		$ilSetting = $DIC->settings();
-		$objDefinition = $DIC["objDefinition"];
-
-		$this->ctrl = $ilCtrl;
+        $this->force_open_path = [];
+        $this->request = $DIC->repository()->internal()->gui()->standardRequest();
 
 
-		$this->force_open_path = array();
+        parent::__construct($a_target);
+        $this->tree = $tree;
+        $this->root_id = $this->tree->readRootId();
+        $this->order_column = "title";
+        $this->setSessionExpandVariable("repexpand");
+        $this->setTitle($lng->txt("overview"));
 
+        // please do not uncomment this
+        if ($ilSetting->get("repository_tree_pres") == "" ||
+            ($ilSetting->get("rep_tree_limit_grp_crs") && $a_top_node === 0)) {
+            foreach ($objDefinition->getExplorerContainerTypes() as $type) {
+                $this->addFilter($type);
+            }
+            $this->setFiltered(true);
+            $this->setFilterMode(IL_FM_POSITIVE);
+        } elseif ($ilSetting->get("repository_tree_pres") === "all_types") {
+            foreach ($objDefinition->getAllRBACObjects() as $rtype) {
+                $this->addFilter($rtype);
+            }
+            $this->setFiltered(true);
+            $this->setFilterMode(IL_FM_POSITIVE);
+        }
+    }
 
-		parent::__construct($a_target);
-		$this->tree = $tree;
-		$this->root_id = $this->tree->readRootId();
-		$this->order_column = "title";
-		$this->setSessionExpandVariable("repexpand");
-		$this->setTitle($lng->txt("overview"));
+    /**
+     * set force open path
+     */
+    public function setForceOpenPath(array $a_path): void
+    {
+        $this->force_open_path = $a_path;
+    }
 
-		// please do not uncomment this
-		if ($ilSetting->get("repository_tree_pres") == "" ||
-			($ilSetting->get("rep_tree_limit_grp_crs") && $a_top_node == 0))
-		{
-			foreach($objDefinition->getExplorerContainerTypes() as $type)
-			{
-				$this->addFilter($type);
-			}			
-			$this->setFiltered(true);
-			$this->setFilterMode(IL_FM_POSITIVE);
-		}
-		else if ($ilSetting->get("repository_tree_pres") == "all_types")
-		{
-			foreach ($objDefinition->getAllRBACObjects() as $rtype)
-			{
-				$this->addFilter($rtype);
-			}
-			$this->setFiltered(true);
-			$this->setFilterMode(IL_FM_POSITIVE);
-		}
-	}
+    /**
+    * note: most of this stuff is used by ilCourseContentInterface too
+    */
+    public function buildLinkTarget($a_node_id, string $a_type): string
+    {
+        $ilCtrl = $this->ctrl;
 
-	/**
-	 * set force open path
-	 */
-	function setForceOpenPath($a_path)
-	{
-		$this->force_open_path = $a_path;
-	}
+        $ref_id = $this->request->getRefId();
 
-	/**
-	* note: most of this stuff is used by ilCourseContentInterface too
-	*/
-	function buildLinkTarget($a_node_id, $a_type)
-	{
-		$ilCtrl = $this->ctrl;
-		
-		switch($a_type)
-		{
-			case "cat":
-				$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $a_node_id);
-				$link = $ilCtrl->getLinkTargetByClass("ilrepositorygui", "");
-				$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $_GET["ref_id"]);
-				return $link;
+        switch ($a_type) {
+            case "cat":
+                $ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $a_node_id);
+                $link = $ilCtrl->getLinkTargetByClass("ilrepositorygui", "");
+                $ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $ref_id);
+                return $link;
 
-			case "catr":
-				$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $a_node_id);
-				$link = $ilCtrl->getLinkTargetByClass("ilrepositorygui", "redirect");
-				$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $_GET["ref_id"]);
-				return $link;
+            case "grpr":
+            case "crsr":
+            case "catr":
+                $ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $a_node_id);
+                $link = $ilCtrl->getLinkTargetByClass("ilrepositorygui", "redirect");
+                $ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $ref_id);
+                return $link;
 
-			case "grp":
-				$ilCtrl->setParameterByClass("ilobjgroupgui", "ref_id", $a_node_id);
-				$link = $ilCtrl->getLinkTargetByClass(array("ilrepositorygui", "ilobjgroupgui"), "");
-				$ilCtrl->setParameterByClass("ilobjgroupgui", "ref_id", $_GET["ref_id"]);
-				return $link;
-			case "grpr":
-				$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $a_node_id);
-				$link = $ilCtrl->getLinkTargetByClass("ilrepositorygui", "redirect");
-				$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $_GET["ref_id"]);
-				return $link;
+            case "grp":
+                $ilCtrl->setParameterByClass("ilobjgroupgui", "ref_id", $a_node_id);
+                $link = $ilCtrl->getLinkTargetByClass(["ilrepositorygui", "ilobjgroupgui"], "");
+                $ilCtrl->setParameterByClass("ilobjgroupgui", "ref_id", $ref_id);
+                return $link;
 
-			case "crs":
-				$ilCtrl->setParameterByClass("ilobjcoursegui", "ref_id", $a_node_id);
-				$link = $ilCtrl->getLinkTargetByClass(array("ilrepositorygui", "ilobjcoursegui"), "view");
-				$ilCtrl->setParameterByClass("ilobjcoursegui", "ref_id", $_GET["ref_id"]);
-				return $link;
-				
-			case "crsr":
-				$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $a_node_id);
-				$link = $ilCtrl->getLinkTargetByClass("ilrepositorygui", "redirect");
-				$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $_GET["ref_id"]);
-				return $link;
+            case "crs":
+                $ilCtrl->setParameterByClass("ilobjcoursegui", "ref_id", $a_node_id);
+                $link = $ilCtrl->getLinkTargetByClass(["ilrepositorygui", "ilobjcoursegui"], "view");
+                $ilCtrl->setParameterByClass("ilobjcoursegui", "ref_id", $ref_id);
+                return $link;
 
-			case 'rcrs':
-				$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $a_node_id);
-				$link = $ilCtrl->getLinkTargetByClass("ilrepositorygui", "infoScreen");
-				$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $_GET["ref_id"]);
-				return $link;
+            case 'rcrs':
+                $ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $a_node_id);
+                $link = $ilCtrl->getLinkTargetByClass("ilrepositorygui", "infoScreen");
+                $ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $ref_id);
+                return $link;
 
-			case 'prg':
-				$ilCtrl->setParameterByClass("ilobjstudyprogrammegui", "ref_id", $a_node_id);
-				$link = $ilCtrl->getLinkTargetByClass("ilobjstudyprogrammegui", "view");
-				$ilCtrl->setParameterByClass("ilobjstudyprogrammegui", "ref_id", $_GET["ref_id"]);
-				return $link;
+            case 'prg':
+                $ilCtrl->setParameterByClass("ilobjstudyprogrammegui", "ref_id", $a_node_id);
+                $link = $ilCtrl->getLinkTargetByClass("ilobjstudyprogrammegui", "view");
+                $ilCtrl->setParameterByClass("ilobjstudyprogrammegui", "ref_id", $ref_id);
+                return $link;
 
-			default:
-				include_once('./Services/Link/classes/class.ilLink.php');
-				return ilLink::_getStaticLink($a_node_id, $a_type, true);
+            default:
+                return ilLink::_getStaticLink($a_node_id, $a_type, true);
 
-		}
-	}
+        }
+    }
 
-	/**
-	*
-	* STATIC, do not use $this inside!
-	*
-	* Note: this is used by course interface !?
-	*/
-	function buildFrameTarget($a_type, $a_child = 0, $a_obj_id = 0)
-	{
-		switch($a_type)
-		{
-			case "cat":
-				$t_frame = ilFrameTargetInfo::_getFrame("RepositoryContent", "cat");
-				return $t_frame;
+    public function getImage(string $a_name, string $a_type = "", $a_obj_id = ""): string
+    {
+        if ($a_type !== "") {
+            return ilObject::_getIcon((int) $a_obj_id, "tiny", $a_type);
+        }
 
-			case "catr":
-				$t_frame = ilFrameTargetInfo::_getFrame("RepositoryContent", "catr");
-				return $t_frame;
+        return parent::getImage($a_name);
+    }
 
-			case "grp":
-				$t_frame = ilFrameTargetInfo::_getFrame("RepositoryContent", "grp");
-				return $t_frame;
+    public function isClickable(string $type, int $ref_id = 0): bool
+    {
+        $rbacsystem = $this->rbacsystem;
+        $ilDB = $this->db;
 
-			case "grpr":
-				$t_frame = ilFrameTargetInfo::_getFrame("RepositoryContent", "grpr");
-				return $t_frame;
+        $obj_id = ilObject::_lookupObjId($ref_id);
+        if (!ilConditionHandler::_checkAllConditionsOfTarget(
+            $ref_id,
+            $obj_id
+        )) {
+            return false;
+        }
 
-			case "crs":
-				$t_frame = ilFrameTargetInfo::_getFrame("RepositoryContent", "crs");
-				return $t_frame;
-				
-			case "crsr":
-				$t_frame = ilFrameTargetInfo::_getFrame("RepositoryContent", "crsr");
-				return $t_frame;
+        switch ($type) {
+            case 'tst':
+                if (!$rbacsystem->checkAccess("read", $ref_id)) {
+                    return false;
+                }
 
-			case 'rcrs':
-				$t_frame = ilFrameTargetInfo::_getFrame("RepositoryContent",'rcrs');
-				return $t_frame;
+                $query = sprintf("SELECT * FROM tst_tests WHERE obj_fi=%s", $obj_id);
+                $res = $ilDB->query($query);
+                while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+                    return (bool) $row->complete;
+                }
+                return false;
 
-			case 'prg':
-				$t_frame = ilFrameTargetInfo::_getFrame("RepositoryContent",'prg');
-				return $t_frame;
+            case 'svy':
+                if (!$rbacsystem->checkAccess("read", $ref_id)) {
+                    return false;
+                }
 
-			default:
-				return "_top";
-		}
-	}
-	
-	/**
-	* get image path
-	*/
-	function getImage($a_name, $a_type = "", $a_obj_id = "")
-	{
-		if ($a_type != "")
-		{
-			return ilObject::_getIcon($a_obj_id, "tiny", $a_type);
-		}
-		
-		return parent::getImage($a_name);
-	}
+                $query = sprintf("SELECT * FROM svy_svy WHERE obj_fi=%s", $obj_id);
+                $res = $ilDB->query($query);
+                while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
+                    return (bool) $row->complete;
+                }
+                return false;
 
-	function isClickable($a_type, $a_ref_id = 0,$a_obj_id = 0)
-	{
-		$rbacsystem = $this->rbacsystem;
-		$tree = $this->tree;
-		$ilDB = $this->db;
-		$ilUser = $this->user;
-		$ilAccess = $this->access;
-
-		if(!ilConditionHandler::_checkAllConditionsOfTarget($a_ref_id,$a_obj_id))
-		{
-			return false;
-		}
-
-		switch ($a_type)
-		{
-			case 'tst':
-				if(!$rbacsystem->checkAccess("read", $a_ref_id))
-				{
-					return false;
-				}
-
-				$query = sprintf("SELECT * FROM tst_tests WHERE obj_fi=%s",$a_obj_id);
-				$res = $ilDB->query($query);
-				while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-				{
-					return (bool) $row->complete;
-				}
-				return false;
-
-			case 'svy':
-				if(!$rbacsystem->checkAccess("read", $a_ref_id))
-				{
-					return false;
-				}
-
-				$query = sprintf("SELECT * FROM svy_svy WHERE obj_fi=%s",$a_obj_id);
-				$res = $ilDB->query($query);
-				while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
-				{
-					return (bool) $row->complete;
-				}
-				return false;
-
-			// media pools can only be edited
-			case "mep":
-				if ($rbacsystem->checkAccess("read", $a_ref_id))
-				{
-					return true;
-				}
-				else
-				{
-					return false;
-				}
-				break;
-			case 'grpr':
-			case 'crsr':
-			case 'catr':
-				include_once('./Services/ContainerReference/classes/class.ilContainerReferenceAccess.php');
-				return ilContainerReferenceAccess::_isAccessible($a_ref_id);
-			case 'prg': 
-					return $rbacsystem->checkAccess("visible", $a_ref_id);
-
-				
-
-			// all other types are only clickable, if read permission is given
-			default:
-				if ($rbacsystem->checkAccess("read", $a_ref_id))
-				{
-					// check if lm is online
-					if ($a_type == "lm")
-					{
-						include_once("./Modules/LearningModule/classes/class.ilObjLearningModule.php");
-						$lm_obj = new ilObjLearningModule($a_ref_id);
-						if(($lm_obj->getOfflineStatus()) && (!$rbacsystem->checkAccess('write',$a_ref_id)))
-						{
-							return false;
-						}
-					}
-					// check if fblm is online
-					if ($a_type == "htlm")
-					{
-						include_once("./Modules/HTMLLearningModule/classes/class.ilObjFileBasedLM.php");
-						$lm_obj = new ilObjFileBasedLM($a_ref_id);
-						if(($lm_obj->getOfflineStatus()) && (!$rbacsystem->checkAccess('write',$a_ref_id)))
-						{
-							return false;
-						}
-					}
-					// check if fblm is online
-					if ($a_type == "sahs")
-					{
-						include_once("./Modules/ScormAicc/classes/class.ilObjSAHSLearningModule.php");
-						$lm_obj = new ilObjSAHSLearningModule($a_ref_id);
-						if(($lm_obj->getOfflineStatus()) && (!$rbacsystem->checkAccess('write',$a_ref_id)))
-						{
-							return false;
-						}
-					}
-					// check if glossary is online
-					if ($a_type == "glo")
-					{
-						$obj_id = ilObject::_lookupObjectId($a_ref_id);
-						include_once("./Modules/Glossary/classes/class.ilObjGlossary.php");
-						if((!ilObjGlossary::_lookupOnline($obj_id)) &&
-							(!$rbacsystem->checkAccess('write',$a_ref_id)))
-						{
-							return false;
-						}
-					}
-
-					return true;
-				}
-				else
-				{
-					return false;
-				}
-				break;
-		}
-	}
-
-	function showChilds($a_ref_id,$a_obj_id = 0)
-	{
-		$rbacsystem = $this->rbacsystem;
-		$tree = $this->tree;
-//vd($a_ref_id);
-
-		if ($a_ref_id == 0)
-		{
-			return true;
-		}
-		if(!ilConditionHandler::_checkAllConditionsOfTarget($a_ref_id,$a_obj_id))
-		{
-			return false;
-		}
-		if ($rbacsystem->checkAccess("read", $a_ref_id))
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-
-	function isVisible($a_ref_id,$a_type)
-	{
-		$ilAccess = $this->access;
-		$tree = $this->tree;
-		$ilSetting = $this->settings;
-
-		if(!$ilAccess->checkAccess('visible', '', $a_ref_id))
-		{
-			return false;
-		}
-		
-		$is_course = false;
-		$container_parent_id = $tree->checkForParentType($a_ref_id,'grp');
-		if(!$container_parent_id)
-		{
-			$is_course = true;
-			$container_parent_id = $tree->checkForParentType($a_ref_id,'crs');
-		}	
-		if($container_parent_id)
-		{
-			// do not display session materials for container course/group
-			if($ilSetting->get("repository_tree_pres")  == "all_types" && $container_parent_id != $a_ref_id)
-			{
-				// get container event items only once
-				if(!isset($this->session_materials[$container_parent_id]))
-				{
-					include_once './Modules/Session/classes/class.ilEventItems.php';
-					$this->session_materials[$container_parent_id] = ilEventItems::_getItemsOfContainer($container_parent_id);
-				}			
-				// get item group items only once
-				if(!isset($this->item_group_items[$container_parent_id]))
-				{
-					include_once './Modules/ItemGroup/classes/class.ilItemGroupItems.php';
-					$this->item_group_items[$container_parent_id] = ilItemGroupItems::_getItemsOfContainer($container_parent_id);
-				}			
-				if(in_array($a_ref_id, $this->session_materials[$container_parent_id]))
-				{
-					return false;
-				}
-				if(in_array($a_ref_id, $this->item_group_items[$container_parent_id]))
-				{
-					return false;
-				}
-			}					
-		}
-		
-		return true;
-	}
+            // media pools can only be edited
+            case "mep":
+                if ($rbacsystem->checkAccess("read", $ref_id)) {
+                    return true;
+                }
+                return false;
+            case 'grpr':
+            case 'crsr':
+            case 'catr':
+                return ilContainerReferenceAccess::_isAccessible($ref_id);
+            case 'prg':
+                    return $rbacsystem->checkAccess("visible", $ref_id);
 
 
 
-	/**
-	* overwritten method from base class
-	* @access	public
-	* @param	integer obj_id
-	* @param	integer array options
-	* @return	string
-	*/
-	function formatHeader($tpl, $a_obj_id,$a_option)
-	{
-		$lng = $this->lng;
-		$tree = $this->tree;
-		$ilCtrl = $this->ctrl;
+            // all other types are only clickable, if read permission is given
+            default:
+                if ($rbacsystem->checkAccess("read", $ref_id)) {
+                    // check if lm is online
+                    if ($type === "lm") {
+                        $lm_obj = new ilObjLearningModule($ref_id);
+                        if (($lm_obj->getOfflineStatus()) && (!$rbacsystem->checkAccess('write', $ref_id))) {
+                            return false;
+                        }
+                    }
+                    // check if fblm is online
+                    if ($type === "htlm") {
+                        $lm_obj = new ilObjFileBasedLM($ref_id);
+                        if (($lm_obj->getOfflineStatus()) && (!$rbacsystem->checkAccess('write', $ref_id))) {
+                            return false;
+                        }
+                    }
+                    // check if fblm is online
+                    if ($type === "sahs") {
+                        $lm_obj = new ilObjSAHSLearningModule($ref_id);
+                        if (($lm_obj->getOfflineStatus()) && (!$rbacsystem->checkAccess('write', $ref_id))) {
+                            return false;
+                        }
+                    }
+                    // check if glossary is online
+                    if ($type === "glo") {
+                        $obj_id = ilObject::_lookupObjectId($ref_id);
+                        if ((!ilObjGlossary::_lookupOnline($obj_id)) &&
+                            (!$rbacsystem->checkAccess('write', $ref_id))) {
+                            return false;
+                        }
+                    }
 
-		// custom icons
-		$path = ilObject::_getIcon($a_obj_id, "tiny", "root");
+                    return true;
+                }
+                return false;
+        }
+    }
 
-		$tpl->setCurrentBlock("icon");
-		$nd = $tree->getNodeData(ROOT_FOLDER_ID);
-		$title = $nd["title"];
-		if ($title == "ILIAS")
-		{
-			$title = $lng->txt("repository");
-		}
+    /**
+     * @param int|string $a_parent_id
+     */
+    public function showChilds($a_parent_id, int $a_obj_id = 0): bool
+    {
+        $rbacsystem = $this->rbacsystem;
 
-		$tpl->setVariable("ICON_IMAGE", $path);
-		$tpl->setVariable("TXT_ALT_IMG", $lng->txt("icon")." ".$title);
-		$tpl->parseCurrentBlock();
+        if ($a_parent_id == 0) {
+            return true;
+        }
+        if (!ilConditionHandler::_checkAllConditionsOfTarget((int) $a_parent_id, $a_obj_id)) {
+            return false;
+        }
+        if ($rbacsystem->checkAccess("read", (int) $a_parent_id)) {
+            return true;
+        }
 
-		$tpl->setCurrentBlock("link");
-		$tpl->setVariable("TITLE", $title);
-		$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", "1");
-		$tpl->setVariable("LINK_TARGET",
-			$ilCtrl->getLinkTargetByClass("ilrepositorygui", "frameset"));
-		$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $_GET["ref_id"]);
-		$tpl->setVariable("TARGET", " target=\"_top\"");
-		$tpl->parseCurrentBlock();
+        return false;
+    }
 
-		$tpl->setCurrentBlock("element");
-		$tpl->parseCurrentBlock();
-	}
-	
-	/**
-	 * sort nodes
-	 *
-	 * @access public
-	 * @param
-	 * @return
-	 */
-	public function sortNodes($a_nodes,$a_parent_obj_id)
-	{
-		$objDefinition = $this->obj_definition;
+    public function isVisible($a_ref_id, string $a_type): bool
+    {
+        $ilAccess = $this->access;
+        $tree = $this->tree;
+        $ilSetting = $this->settings;
 
-		if ($a_parent_obj_id > 0)
-		{
-			$parent_type = ilObject::_lookupType($a_parent_obj_id);
-		}
-		else
-		{
-			$parent_type  = "dummy";
-			$this->type_grps["dummy"] = array("root" => "dummy");
-		}
+        if (!$ilAccess->checkAccess('visible', '', $a_ref_id)) {
+            return false;
+        }
 
-		if (empty($this->type_grps[$parent_type]))
-		{
-			$this->type_grps[$parent_type] =
-				$objDefinition->getGroupedRepositoryObjectTypes($parent_type);
-		}
-		$group = array();
-		
-		foreach ($a_nodes as $node)
-		{
-			$g = $objDefinition->getGroupOfObj($node["type"]);
-			if ($g == "")
-			{
-				$g = $node["type"];
-			}
-			$group[$g][] = $node;
-		}
+        $is_course = false;
+        $container_parent_id = $tree->checkForParentType($a_ref_id, 'grp');
+        if (!$container_parent_id) {
+            $is_course = true;
+            $container_parent_id = $tree->checkForParentType($a_ref_id, 'crs');
+        }
+        if ($container_parent_id) {
+            // do not display session materials for container course/group
+            if ($container_parent_id !== $a_ref_id && $ilSetting->get("repository_tree_pres") === "all_types") {
+                // get container event items only once
+                if (!isset($this->session_materials[$container_parent_id])) {
+                    $this->session_materials[$container_parent_id] = ilEventItems::_getItemsOfContainer($container_parent_id);
+                }
+                // get item group items only once
+                if (!isset($this->item_group_items[$container_parent_id])) {
+                    $this->item_group_items[$container_parent_id] = ilItemGroupItems::_getItemsOfContainer($container_parent_id);
+                }
+                if (in_array($a_ref_id, $this->session_materials[$container_parent_id])) {
+                    return false;
+                }
+                if (in_array($a_ref_id, $this->item_group_items[$container_parent_id])) {
+                    return false;
+                }
+            }
+        }
 
-		$nodes = array();
-		foreach ($this->type_grps[$parent_type] as $t => $g)
-		{
-			if (is_array($group[$t]))
-			{
-				// do we have to sort this group??
-				include_once("./Services/Container/classes/class.ilContainer.php");
-				include_once("./Services/Container/classes/class.ilContainerSorting.php");
-				$sort = ilContainerSorting::_getInstance($a_parent_obj_id);
-				$group = $sort->sortItems($group);
-				
-				// need extra session sorting here
-				if ($t == "sess")
-				{
+        return true;
+    }
 
-				}
-				
-				foreach ($group[$t] as $k => $item)
-				{
-					$nodes[] = $item;
-				}
-			}
-		}
-		
-		return $nodes;
-		//return parent::sortNodes($a_nodes,$a_parent_obj_id);
-	}
 
-	/**
-	 * Force expansion of node
-	 *
-	 * @param
-	 * @return
-	 */
-	function forceExpanded($a_node)
-	{
-		if (in_array($a_node, $this->force_open_path))
-		{
-			return true;
-		}
-		return false;
-	}
+    public function formatHeader(ilTemplate $tpl, $a_obj_id, array $a_option): void
+    {
+        $lng = $this->lng;
+        $tree = $this->tree;
+        $ilCtrl = $this->ctrl;
 
-} // END class ilRepositoryExplorer
-?>
+        // custom icons
+        $path = ilObject::_getIcon((int) $a_obj_id, "tiny", "root");
+
+        $tpl->setCurrentBlock("icon");
+        $nd = $tree->getNodeData(ROOT_FOLDER_ID);
+        $title = $nd["title"];
+        if ($title === "ILIAS") {
+            $title = $lng->txt("repository");
+        }
+
+        $tpl->setVariable("ICON_IMAGE", $path);
+        $tpl->setVariable("TXT_ALT_IMG", $lng->txt("icon") . " " . $title);
+        $tpl->parseCurrentBlock();
+
+        $tpl->setCurrentBlock("link");
+        $tpl->setVariable("TITLE", $title);
+        $ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", "1");
+        $tpl->setVariable(
+            "LINK_TARGET",
+            $ilCtrl->getLinkTargetByClass("ilrepositorygui", "")
+        );
+        $ilCtrl->setParameterByClass(
+            "ilrepositorygui",
+            "ref_id",
+            $this->request->getRefId()
+        );
+        $tpl->setVariable("TARGET", " target=\"_top\"");
+        $tpl->parseCurrentBlock();
+
+        $tpl->setCurrentBlock("element");
+        $tpl->parseCurrentBlock();
+    }
+
+    public function sortNodes(array $a_nodes, $a_parent_obj_id): array
+    {
+        $objDefinition = $this->obj_definition;
+
+        if ($a_parent_obj_id > 0) {
+            $parent_type = ilObject::_lookupType($a_parent_obj_id);
+        } else {
+            $parent_type = "dummy";
+            $this->type_grps["dummy"] = ["root" => "dummy"];
+        }
+
+        if (empty($this->type_grps[$parent_type])) {
+            $this->type_grps[$parent_type] = $objDefinition->getGroupedRepositoryObjectTypes($parent_type);
+        }
+        $group = [];
+
+        foreach ($a_nodes as $node) {
+            $g = $objDefinition->getGroupOfObj($node["type"]);
+            if ($g == "") {
+                $g = $node["type"];
+            }
+            $group[$g][] = $node;
+        }
+
+        $nodes = [];
+        foreach ($this->type_grps[$parent_type] as $t => $g) {
+            if (array_key_exists($t, $group)
+                && is_array($group[$t])) {
+                // do we have to sort this group??
+                $sort = ilContainerSorting::_getInstance($a_parent_obj_id);
+                $group = $sort->sortItems($group);
+
+                foreach ($group[$t] as $k => $item) {
+                    $nodes[] = $item;
+                }
+            }
+        }
+
+        return $nodes;
+    }
+
+    public function forceExpanded($a_obj_id): bool
+    {
+        if (in_array($a_obj_id, $this->force_open_path)) {
+            return true;
+        }
+        return false;
+    }
+}

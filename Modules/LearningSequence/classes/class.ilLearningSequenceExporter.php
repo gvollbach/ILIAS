@@ -3,65 +3,107 @@
 declare(strict_types=1);
 
 /**
- * @author Daniel Weise <daniel.weise@concepts-and-training.de>
- */
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 class ilLearningSequenceExporter extends ilXmlExporter
 {
-	public function init()
-	{
-		global $DIC;
+    protected ilSetting $settings;
+    protected ilRbacReview $rbac_review;
 
-		$this->settings = $DIC["ilSetting"];
-		$this->rbac_review = $DIC["rbacreview"];
-	}
+    public function init(): void
+    {
+        global $DIC;
 
-	public function getXmlRepresentation($entity, $target_release, $obj_id)
-	{
-		$writer = $this->getWriter((int)$obj_id);
-		$writer->start();
+        $this->settings = $DIC["ilSetting"];
+        $this->rbac_review = $DIC["rbacreview"];
+    }
 
-		return $writer->getXml();
-	}
+    public function getXmlRepresentation(string $a_entity, string $a_schema_version, string $a_id): string
+    {
+        $writer = $this->getWriter((int) $a_id);
+        $writer->start();
 
-	protected function getWriter(int $obj_id): ilLearningSequenceXMLWriter
-	{
-		if ($type = ilObject::_lookupType($obj_id) != "lso") {
-			throw new Exception("Wrong type ".$type." for lso export.");
-		}
+        return $writer->getXml();
+    }
 
-		$ls_ref_id = end(ilObject::_getAllReferences($obj_id));
-		$ls_object = ilObjectFactory::getInstanceByRefId($ls_ref_id, false);
-		$lp_settings = new ilLPObjSettings($obj_id);
+    protected function getWriter(int $obj_id): ilLearningSequenceXMLWriter
+    {
+        if ($type = ilObject::_lookupType($obj_id) != "lso") {
+            throw new Exception("Wrong type " . $type . " for lso export.");
+        }
 
-		return new ilLearningSequenceXMLWriter(
-			$ls_object,
-			$this->settings,
-			$lp_settings,
-			$this->rbac_review
-		);
-	}
+        $ref_ids = ilObject::_getAllReferences($obj_id);
+        $ls_ref_id = end($ref_ids);
 
-	public function getValidSchemaVersions($entity)
-	{
-		return array (
-			"5.4.0" => array(
-				"namespace" => "http://www.ilias.de/Modules/LearningSequence/lso/5_4",
-				"xsd_file" => "ilias_lso_5_4.xsd",
-				"uses_dataset" => false,
-				"min" => "5.4.0",
-				"max" => ""
-			)
-		);
-	}
+        /** @var ilObjLearningSequence $ls_object */
+        $ls_object = ilObjectFactory::getInstanceByRefId($ls_ref_id, false);
+        if (!$ls_object) {
+            throw new Exception("Object for ref id " . $ls_ref_id . " not found.");
+        }
 
-	public function getXmlExportHeadDependencies($entity, $target_release, $ids)
-	{
-		return array(
-			array(
-				'component'		=> 'Services/Container',
-				'entity'		=> 'struct',
-				'ids'			=> $ids
-			)
-		);
-	}
+        $lp_settings = new ilLPObjSettings($obj_id);
+
+        return new ilLearningSequenceXMLWriter(
+            $ls_object,
+            $this->settings,
+            $lp_settings,
+            $this->rbac_review
+        );
+    }
+
+    public function getValidSchemaVersions(string $a_entity): array
+    {
+        return array(
+            "5.4.0" => array(
+                "namespace" => "http://www.ilias.de/Modules/LearningSequence/lso/5_4",
+                "xsd_file" => "ilias_lso_5_4.xsd",
+                "uses_dataset" => false,
+                "min" => "5.4.0",
+                "max" => ""
+            )
+        );
+    }
+
+    public function getXmlExportHeadDependencies(string $a_entity, string $a_target_release, array $a_ids): array
+    {
+        return array(
+            array(
+                'component' => 'Services/Container',
+                'entity' => 'struct',
+                'ids' => $a_ids
+            )
+        );
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getXmlExportTailDependencies(string $a_entity, string $a_target_release, array $a_ids): array
+    {
+        $res = [];
+
+        if ($a_entity == "lso") {
+            // service settings
+            $res[] = array(
+                "component" => "Services/Object",
+                "entity" => "common",
+                "ids" => $a_ids
+            );
+        }
+
+        return $res;
+    }
 }

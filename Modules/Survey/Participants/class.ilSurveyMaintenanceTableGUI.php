@@ -1,172 +1,148 @@
 <?php
 
-/* Copyright (c) 1998-2019 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
- *
  * @author Helmut Schottmüller <ilias@aurealis.de>
  */
 class ilSurveyMaintenanceTableGUI extends ilTable2GUI
 {
-	protected $counter;
-	protected $confirmdelete;
-	
-	/**
-	 * Constructor
-	 *
-	 * @access public
-	 * @param
-	 * @return
-	 */
-	public function __construct($a_parent_obj, $a_parent_cmd, $confirmdelete = false)
-	{
-		global $DIC;
+    protected int $counter;
+    protected bool $confirmdelete;
 
-		parent::__construct($a_parent_obj, $a_parent_cmd);
+    public function __construct(
+        object $a_parent_obj,
+        string $a_parent_cmd,
+        bool $confirmdelete = false
+    ) {
+        global $DIC;
 
-		$lng = $DIC->language();
-		$ilCtrl = $DIC->ctrl();
+        parent::__construct($a_parent_obj, $a_parent_cmd);
 
-		$this->lng = $lng;
-		$this->ctrl = $ilCtrl;
-		$this->counter = 1;
-		$this->confirmdelete = $confirmdelete;
-		
-		$this->setFormName('maintenanceform');
-		$this->setStyle('table', 'fullwidth');
+        $lng = $DIC->language();
+        $ilCtrl = $DIC->ctrl();
 
-		if (!$confirmdelete)
-		{
-			$this->addColumn('','','1%', true);
-		}
-		$this->addColumn($this->lng->txt("name"),'name', '');
-		$this->addColumn($this->lng->txt("login"),'login', '');
-		$this->addColumn($this->lng->txt("last_access"),'last_access', '');
-		$this->addColumn($this->lng->txt("workingtime"),'workingtime', '');
-        $this->addColumn($this->lng->txt("svy_status"),'', '');
-		$this->addColumn($this->lng->txt("survey_results_finished"),'finished', '');
-	
-		$this->setRowTemplate("tpl.il_svy_svy_maintenance_row.html", "Modules/Survey/Participants");
+        $this->lng = $lng;
+        $this->ctrl = $ilCtrl;
+        $this->counter = 1;
+        $this->confirmdelete = $confirmdelete;
 
-		if ($confirmdelete)
-		{
-			$this->addCommandButton('confirmDeleteSelectedUserData', $this->lng->txt('confirm'));
-			$this->addCommandButton('cancelDeleteSelectedUserData', $this->lng->txt('cancel'));
-		}
-		else
-		{
-			$this->addMultiCommand('deleteSingleUserResults', $this->lng->txt('svy_remove_participants'));
-		}
+        $this->setFormName('maintenanceform');
+        $this->setStyle('table', 'fullwidth');
 
-		$this->setFormAction($this->ctrl->getFormAction($a_parent_obj, $a_parent_cmd));
+        if (!$confirmdelete) {
+            $this->addColumn('', '', '1%', true);
+        }
+        $this->addColumn($this->lng->txt("name"), 'name', '');
+        $this->addColumn($this->lng->txt("login"), 'login', '');
+        $this->addColumn($this->lng->txt("last_access"), 'last_access', '');
+        $this->addColumn($this->lng->txt("workingtime"), 'workingtime', '');
+        $this->addColumn($this->lng->txt("svy_status"), '', '');
+        $this->addColumn($this->lng->txt("survey_results_finished"), 'finished', '');
 
-		$this->setDefaultOrderField("name");
-		$this->setDefaultOrderDirection("asc");
-		
-		$this->setShowRowsSelector(true);
-		
-		if ($confirmdelete)
-		{
-			$this->disable('sort');
-			$this->disable('select_all');
-		}
-		else
-		{
-			$this->setPrefix('chbUser');
-			$this->setSelectAllCheckbox('chbUser');
-			$this->enable('sort');
-			$this->enable('select_all');
-		}
-		$this->enable('header');
-	}
+        $this->setRowTemplate("tpl.il_svy_svy_maintenance_row.html", "Modules/Survey/Participants");
 
-	/**
-	 * fill row 
-	 *
-	 * @access public
-	 * @param
-	 * @return
-	 */
-	public function fillRow($data)
-	{
-		if (!$this->confirmdelete)
-		{
-			$this->tpl->setCurrentBlock('checkbox');
-			if ($data["invited"]) {
-                $this->tpl->setVariable("CB_USER_ID", "inv".$data['usr_id']);
+        if ($confirmdelete) {
+            $this->addCommandButton('confirmDeleteSelectedUserData', $this->lng->txt('confirm'));
+            $this->addCommandButton('cancelDeleteSelectedUserData', $this->lng->txt('cancel'));
+        } else {
+            $this->addMultiCommand('deleteSingleUserResults', $this->lng->txt('svy_remove_participants'));
+        }
+
+        $this->setFormAction($this->ctrl->getFormAction($a_parent_obj, $a_parent_cmd));
+
+        $this->setDefaultOrderField("name");
+        $this->setDefaultOrderDirection("asc");
+
+        $this->setShowRowsSelector(true);
+
+        if ($confirmdelete) {
+            $this->disable('sort');
+            $this->disable('select_all');
+        } else {
+            $this->setPrefix('chbUser');
+            $this->setSelectAllCheckbox('chbUser');
+            $this->enable('sort');
+            $this->enable('select_all');
+        }
+        $this->enable('header');
+    }
+
+    protected function fillRow(array $a_set): void
+    {
+        if (!$this->confirmdelete) {
+            $this->tpl->setCurrentBlock('checkbox');
+            if ($a_set["invited"]) {
+                $this->tpl->setVariable("CB_USER_ID", "inv" . $a_set['usr_id']);
             } else {
-                $this->tpl->setVariable("CB_USER_ID", $data['id']);
+                $this->tpl->setVariable("CB_USER_ID", $a_set['id']);
             }
-			$this->tpl->parseCurrentBlock();
-		}
-		else
-		{
-			$this->tpl->setCurrentBlock('hidden');
-            if ($data["invited"]) {
-                $this->tpl->setVariable("HIDDEN_USER_ID", "inv".$data['usr_id']);
+        } else {
+            $this->tpl->setCurrentBlock('hidden');
+            if ($a_set["invited"]) {
+                $this->tpl->setVariable("HIDDEN_USER_ID", "inv" . $a_set['usr_id']);
             } else {
-                $this->tpl->setVariable("HIDDEN_USER_ID", $data['id']);
+                $this->tpl->setVariable("HIDDEN_USER_ID", $a_set['id']);
             }
-			$this->tpl->parseCurrentBlock();
-		}
-		$this->tpl->setVariable("USER_ID", $data["id"]);
-		$this->tpl->setVariable("VALUE_USER_NAME", $data['name']);
-		$this->tpl->setVariable("VALUE_USER_LOGIN", $data['login']);
-		$this->tpl->setVariable("LAST_ACCESS", ilDatePresentation::formatDate(new ilDateTime($data['last_access'],IL_CAL_UNIX)));
-		$this->tpl->setVariable("WORKINGTIME", $this->formatTime($data['workingtime']));
+        }
+        $this->tpl->parseCurrentBlock();
+        $this->tpl->setVariable("USER_ID", $a_set["id"]);
+        $this->tpl->setVariable("VALUE_USER_NAME", $a_set['name']);
+        $this->tpl->setVariable("VALUE_USER_LOGIN", $a_set['login']);
+        $this->tpl->setVariable("LAST_ACCESS", ilDatePresentation::formatDate(new ilDateTime($a_set['last_access'], IL_CAL_UNIX)));
+        $this->tpl->setVariable("WORKINGTIME", $this->formatTime($a_set['workingtime'] ?? null));
 
-		$state = $this->lng->txt("svy_status_in_progress");
-		if ($data['last_access'] == "" && $data["invited"]) {
+        $state = $this->lng->txt("svy_status_in_progress");
+        if ($a_set['last_access'] == "" && $a_set["invited"]) {
             $state = $this->lng->txt("svy_status_invited");
         }
-		if ($data["finished"] !== false) {
+        if (($a_set["finished"] ?? false) !== false) {
             $state = $this->lng->txt("svy_status_finished");
         }
         $this->tpl->setVariable("STATUS", $state);
-		
-		if($data["finished"] !== null)
-		{			
-			if($data["finished"] !== false)
-			{
-				$finished .= ilDatePresentation::formatDate(new ilDateTime($data["finished"], IL_CAL_UNIX));
-			}
-			else
-			{
-				$finished = "-";
-			}
-			$this->tpl->setVariable("FINISHED", $finished);
-		}
-		else
-		{
-			$this->tpl->setVariable("FINISHED", "&nbsp;");
-		}
-	}
-	
-	protected function formatTime($timeinseconds)
-	{
-		if (is_null($timeinseconds))
-		{
-			return " ";
-		}
-		else if ($timeinseconds == 0)
-		{
-			return $this->lng->txt('not_available');
-		}
-		else
-		{
-			return sprintf("%02d:%02d:%02d", ($timeinseconds / 3600), ($timeinseconds / 60) % 60, $timeinseconds % 60);
-		}
-	}
+        $finished = "";
+        if ((int) ($a_set["finished"] ?? 0) > 0) {
+            $finished .= ilDatePresentation::formatDate(new ilDateTime($a_set["finished"], IL_CAL_UNIX));
+        } else {
+            $finished = "-";
+        }
+        $this->tpl->setVariable("FINISHED", $finished);
+    }
 
     /**
-     * @access	public
-     * @param	string
-     * @return	boolean	numeric ordering
+     * @param mixed $timeinseconds
+     * @return string
      */
-    public function numericOrdering($a_field)
+    protected function formatTime($timeinseconds): string
     {
-        switch($a_field)
-        {
+        if (is_null($timeinseconds)) {
+            return " ";
+        }
+
+        if ($timeinseconds == 0) {
+            return $this->lng->txt('not_available');
+        }
+
+        return sprintf("%02d:%02d:%02d", ($timeinseconds / 3600), ($timeinseconds / 60) % 60, $timeinseconds % 60);
+    }
+
+    public function numericOrdering(string $a_field): bool
+    {
+        switch ($a_field) {
             case 'workingtime':
                 return true;
 
@@ -175,4 +151,3 @@ class ilSurveyMaintenanceTableGUI extends ilTable2GUI
         }
     }
 }
-?>

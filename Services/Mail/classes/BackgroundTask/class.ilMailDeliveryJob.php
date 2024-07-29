@@ -1,5 +1,22 @@
 <?php
-/* Copyright (c) 1998-2019 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 use ILIAS\BackgroundTasks\Implementation\Tasks\AbstractJob;
 use ILIAS\BackgroundTasks\Implementation\Values\ScalarValues\BooleanValue;
@@ -7,6 +24,8 @@ use ILIAS\BackgroundTasks\Implementation\Values\ScalarValues\IntegerValue;
 use ILIAS\BackgroundTasks\Implementation\Values\ScalarValues\StringValue;
 use ILIAS\BackgroundTasks\Observer;
 use ILIAS\BackgroundTasks\Types\SingleType;
+use ILIAS\BackgroundTasks\Types\Type;
+use ILIAS\BackgroundTasks\Value;
 
 /**
  * Class ilMailDeliveryJob
@@ -14,90 +33,78 @@ use ILIAS\BackgroundTasks\Types\SingleType;
  */
 class ilMailDeliveryJob extends AbstractJob
 {
-	/**
-	 * @inheritdoc
-	 */
-	public function run(array $input, Observer $observer)
-	{
-		global $DIC;
+    public function run(array $input, Observer $observer): Value
+    {
+        global $DIC;
 
-		$arguments = array_map(function($value) {
-			return $value->getValue();
-		}, $input);
+        $arguments = array_map(static function ($value) {
+            return $value->getValue();
+        }, $input);
 
-		$DIC->logger()->mail()->info(sprintf(
-			'Mail delivery background task executed for input: %s',
-			json_encode($arguments, JSON_PRETTY_PRINT)
-		));
+        $DIC->logger()->mail()->info('Mail delivery background task executed');
 
-		$mail = new ilMail((int)$input[0]->getValue());
-		$mail->setSaveInSentbox((bool)$input[8]->getValue());
-		$mail = $mail
-			->withContextId((string)$input[9]->getValue())
-			->withContextParameters((array)unserialize($input[10]->getValue()));
+        $DIC->logger()->mail()->debug(sprintf(
+            'Input: %s',
+            json_encode(array_slice($arguments, 0, 5), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT)
+        ));
 
-		$mail->sendMail(
-			(string)$input[1]->getValue(), // To
-			(string)$input[2]->getValue(),  // Cc
-			(string)$input[3]->getValue(),  // Bcc
-			(string)$input[4]->getValue(),  // Subject
-			(string)$input[5]->getValue(),  // Message
-			(array)unserialize($input[6]->getValue()),  // Attachments 
-			(bool)$input[7]->getValue() // Use Placeholders
-		);
+        if ((int) $input[0]->getValue() === ANONYMOUS_USER_ID) {
+            $mail = new ilMail((int) $input[0]->getValue());
+        } else {
+            $mail = new ilFormatMail((int) $input[0]->getValue());
+        }
+        $mail->setSaveInSentbox((bool) $input[8]->getValue());
+        $mail = $mail
+            ->withContextId((string) $input[9]->getValue())
+            ->withContextParameters((array) unserialize($input[10]->getValue(), ['allowed_classes' => false]));
 
-		$DIC->logger()->mail()->info(sprintf(
-			'Mail delivery background task finished: %s',
-			json_encode($arguments, JSON_PRETTY_PRINT)
-		));
+        $mail->sendMail(
+            (string) $input[1]->getValue(), // To
+            (string) $input[2]->getValue(),  // Cc
+            (string) $input[3]->getValue(),  // Bcc
+            (string) $input[4]->getValue(),  // Subject
+            (string) $input[5]->getValue(),  // Message
+            (array) unserialize($input[6]->getValue(), ['allowed_classes' => false]),  // Attachments
+            (bool) $input[7]->getValue() // Use Placeholders
+        );
 
-		$output = new BooleanValue();
-		$output->setValue(true);
+        $DIC->logger()->mail()->info('Mail delivery background task finished');
 
-		return $output;
-	}
+        $output = new BooleanValue();
+        $output->setValue(true);
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getInputTypes()
-	{
-		return [
-			new SingleType(IntegerValue::class), // 0. User Id
-			new SingleType(StringValue::class), // 1. To
-			new SingleType(StringValue::class), // 2. CC
-			new SingleType(StringValue::class), // 3. BCC
-			new SingleType(StringValue::class), // 4. Subject
-			new SingleType(StringValue::class), // 5. Message
-			new SingleType(StringValue::class), // 6. Attachments
-			new SingleType(BooleanValue::class), // 7. Use placeholders
-			new SingleType(BooleanValue::class), // 8. Save in sentbox
-			new SingleType(StringValue::class), // 9. Context Id
-			new SingleType(StringValue::class), // 10. Context Parameters
-		];
-	}
+        return $output;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function isStateless()
-	{
-		return true;
-	}
+    public function getInputTypes(): array
+    {
+        return [
+            new SingleType(IntegerValue::class), // 0. User Id
+            new SingleType(StringValue::class), // 1. To
+            new SingleType(StringValue::class), // 2. CC
+            new SingleType(StringValue::class), // 3. BCC
+            new SingleType(StringValue::class), // 4. Subject
+            new SingleType(StringValue::class), // 5. Message
+            new SingleType(StringValue::class), // 6. Attachments
+            new SingleType(BooleanValue::class), // 7. Use placeholders
+            new SingleType(BooleanValue::class), // 8. Save in sentbox
+            new SingleType(StringValue::class), // 9. Context Id
+            new SingleType(StringValue::class), // 10. Context Parameters
+        ];
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getExpectedTimeOfTaskInSeconds()
-	{
-		return 30;
-	}
+    public function isStateless(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getOutputType()
-	{
-		return new SingleType(BooleanValue::class);
-	}
+    public function getExpectedTimeOfTaskInSeconds(): int
+    {
+        return 30;
+    }
+
+    public function getOutputType(): Type
+    {
+        return new SingleType(BooleanValue::class);
+    }
 }

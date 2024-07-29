@@ -1,94 +1,70 @@
 <?php
-require_once(dirname(__FILE__) . '/../Statement/class.arStatement.php');
 
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 /**
  * Class arSelect
- *
  * @author  Fabian Schmid <fs@studer-raimann.ch>
- *
  * @version 2.0.7
  */
-class arSelect extends arStatement {
+class arSelect extends arStatement
+{
+    protected string $table_name = '';
+    protected string $as = '';
+    protected string $field_name = '';
 
-	/**
-	 * @var string
-	 */
-	protected $table_name = '';
-	/**
-	 * @var array
-	 */
-	protected $as = '';
-	/**
-	 * @var string
-	 */
-	protected $field_name = '';
+    public function asSQLStatement(ActiveRecord $ar): string
+    {
+        $return = '';
+        if ($this->getTableName()) {
+            $return .= $this->getTableName() . '.';
+        }
+        $return .= $this->getFieldName();
+        if ($this->getAs() && $this->getFieldName() !== '*') {
+            $return .= ' AS ' . $this->getAs();
+        }
 
+        return $return;
+    }
 
-	/**
-	 * @param ActiveRecord $ar
-	 *
-	 * @return string
-	 */
-	public function asSQLStatement(ActiveRecord $ar) {
-		$return = '';
-		if ($this->getTableName()) {
-			$return .= $this->getTableName() . '.';
-		}
-		$return .= $this->getFieldName();
-		if ($this->getAs() AND $this->getFieldName() != '*') {
-			$return .= ' AS ' . $this->getAs();
-		}
+    public function getTableName(): string
+    {
+        return $this->table_name;
+    }
 
-		return $return;
-	}
+    public function setTableName(string $table_name): void
+    {
+        $this->table_name = $table_name;
+    }
 
+    public function getAs(): string
+    {
+        return $this->as;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getTableName() {
-		return $this->table_name;
-	}
+    public function setAs(string $as): void
+    {
+        $this->as = $as;
+    }
 
+    public function getFieldName(): string
+    {
+        return $this->field_name;
+    }
 
-	/**
-	 * @param string $table_name
-	 */
-	public function setTableName($table_name) {
-		$this->table_name = $table_name;
-	}
-
-
-	/**
-	 * @return array
-	 */
-	public function getAs() {
-		return $this->as;
-	}
-
-
-	/**
-	 * @param array $as
-	 */
-	public function setAs($as) {
-		$this->as = $as;
-	}
-
-
-	/**
-	 * @return string
-	 */
-	public function getFieldName() {
-		return $this->field_name;
-	}
-
-
-	/**
-	 * @param string $field_name
-	 */
-	public function setFieldName($field_name) {
-		$this->field_name = $field_name;
-	}
+    public function setFieldName(string $field_name): void
+    {
+        $this->field_name = $field_name;
+    }
 }
-
-?>

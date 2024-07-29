@@ -1,392 +1,347 @@
 <?php
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once('Services/Object/classes/class.ilObject2GUI.php');
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ */
 
-/** 
-* 
+declare(strict_types=1);
+
+/**
 * @author Stefan Meyer <meyer@leifos.com>
-* @version $Id$
-* 
-* @ingroup ServicesWebServicesECS
 */
 abstract class ilRemoteObjectBaseGUI extends ilObject2GUI
-{		
-	public function __construct($a_id = 0, $a_id_type = self::REPOSITORY_NODE_ID, $a_parent_node_id = 0)
-	{
-		parent::__construct($a_id, $a_id_type, $a_parent_node_id);
+{
+    private ilLogger $logger;
 
-		$this->lng->loadLanguageModule('ecs');
-	}
-	
-	public function executeCommand()
-	{
-		global $DIC;
+    public function __construct($a_id = 0, $a_id_type = self::REPOSITORY_NODE_ID, $a_parent_node_id = 0)
+    {
+        global $DIC;
 
-		$ilTabs = $DIC['ilTabs'];
-		
-		$next_class = $this->ctrl->getNextClass($this);
-		$cmd = $this->ctrl->getCmd();
+        parent::__construct($a_id, $a_id_type, $a_parent_node_id);
 
-		$this->prepareOutput();
+        $this->logger = $DIC->logger()->wsrv();
 
-		switch($next_class)
-		{
-			case 'ilinfoscreengui':
-				// forwards command
-				$this->infoScreen();	
-				break;
-		
-			case 'ilpermissiongui':
-				$ilTabs->activateTab('id_permissions');
-				include_once("Services/AccessControl/classes/class.ilPermissionGUI.php");
-				$this->ctrl->forwardCommand(new ilPermissionGUI($this));
-				break;
-			
-			case "ilcommonactiondispatchergui":
-				include_once("Services/Object/classes/class.ilCommonActionDispatcherGUI.php");
-				$gui = ilCommonActionDispatcherGUI::getInstanceFromAjaxCall();
-				$this->ctrl->forwardCommand($gui);
-				break;
+        $this->lng->loadLanguageModule('ecs');
+    }
 
-			default:
-				if(!$cmd || $cmd == 'view')
-				{
-					$cmd = "editSettings";
-				}
-				$cmd .= "Object";
-				$this->$cmd();
-				break;
-		}
-		return true;
-	}
-	
-	/**
-	 * show remote object
-	 */
-	public function showObject()
-	{
-		global $DIC;
+    public function executeCommand(): void
+    {
+        $next_class = $this->ctrl->getNextClass($this);
+        $cmd = $this->ctrl->getCmd();
 
-		$ilUser = $DIC['ilUser'];
-		
-		if($ilUser->getId() == ANONYMOUS_USER_ID || 
-			$this->object->isLocalObject())
-		{
-			ilUtil::redirect($this->object->getRemoteLink());
-		}
-		else 
-		{
-			$link = $this->object->getFullRemoteLink();
-			ilUtil::redirect($link);
-		}	
-	}
-	
-	/**
-	 * get tabs
-	 */
-	public function setTabs()
-	{
-		global $DIC;
+        $this->prepareOutput();
+        $this->logger->info("Can write:" . print_r($this->checkPermissionBool('write'), true));
 
-		$ilTabs = $DIC['ilTabs'];
-		
-		if($this->checkPermissionBool('visible'))
-		{
-			$ilTabs->addTab("info", $this->lng->txt("info_short"),
-				$this->ctrl->getLinkTarget($this, "infoScreen"));
-		}
+        switch ($next_class) {
+            case 'ilinfoscreengui':
+                // forwards command
+                $this->infoScreen();
+                break;
 
-		if($this->checkPermissionBool('write'))
-		{
-			$ilTabs->addTab("edit", $this->lng->txt("edit"),
-				$this->ctrl->getLinkTarget($this, "edit"));
-		}
-		
-		// will add permissions if needed
-		parent::setTabs();
-	}
-	
-	/**
-	 * call remote object
-	 *
-	 * @return bool
-	 */
-	public function callObject()
-	{
-		include_once './Services/Tracking/classes/class.ilChangeEvent.php';
-		ilChangeEvent::_recordReadEvent(
-				$this->getType(),
-				$this->object->getRefId(),
-				$this->object->getId(),
-				$GLOBALS['DIC']['ilUser']->getId()
-		);
-				
+            case 'ilpermissiongui':
+                $this->tabs_gui->activateTab('id_permissions');
+                $this->ctrl->forwardCommand(new ilPermissionGUI($this));
+                break;
 
-		// check if the assigned object is hosted on the same installation
-		$link = $this->object->getFullRemoteLink();
-		if($link)
-		{
-			ilUtil::redirect($link);
-		 	return true;
-		}
-		else
-		{
-			ilUtil::sendFailure('Cannot call remote object.');
-			$this->infoScreenObject();
-			return false;
-		}
-	}
-	
-	/**
-	* this one is called from the info button in the repository
-	* not very nice to set cmdClass/Cmd manually, if everything
-	* works through ilCtrl in the future this may be changed
-	*/
-	function infoScreenObject()
-	{
-		$this->ctrl->setCmd("showSummary");
-		$this->ctrl->setCmdClass("ilinfoscreengui");
-		$this->infoScreen();
-	}
-	
-	/**
-	 * show info screen
-	 */
-	public function infoScreen()
-	{
-		global $DIC;
+            case "ilcommonactiondispatchergui":
+                $gui = ilCommonActionDispatcherGUI::getInstanceFromAjaxCall();
+                $this->ctrl->forwardCommand($gui);
+                break;
 
-		$ilErr = $DIC['ilErr'];
-		$ilUser = $DIC['ilUser'];
-		$ilTabs = $DIC['ilTabs'];
-		
-		if(!$this->checkPermissionBool('visible'))
-		{
-			$ilErr->raiseError($this->lng->txt('msg_no_perm_read'),$ilErr->MESSAGE);
-		}
-		
-		$ilTabs->activateTab('info');
+            case strtolower(ilECSUserConsentModalGUI::class):
+                $consent_gui = new ilECSUserConsentModalGUI(
+                    $this->user->getId(),
+                    $this->ref_id,
+                    $this
+                );
+                $this->ctrl->setReturn($this, 'call');
+                $this->ctrl->forwardCommand($consent_gui);
+                break;
 
-		include_once("./Services/InfoScreen/classes/class.ilInfoScreenGUI.php");
-		$info = new ilInfoScreenGUI($this);
-	
-		if($ilUser->getId() == ANONYMOUS_USER_ID ||
-			$this->object->isLocalObject())
-		{
-			$info->addButton($this->lng->txt($this->getType().'_call'),
-				$this->object->getRemoteLink(),
-				'target="_blank"');
-		}
-		else
-		{
-			$info->addButton($this->lng->txt($this->getType().'_call'),
-				$this->ctrl->getLinkTarget($this,'call'),
-				'target="_blank"');
-		}	
-		
-		$info->addSection($this->lng->txt('ecs_general_info'));
-		$info->addProperty($this->lng->txt('title'),$this->object->getTitle());
-		if(strlen($this->object->getOrganization()))
-		{
-			$info->addProperty($this->lng->txt('organization'),$this->object->getOrganization());
-		}			
-		if(strlen($this->object->getDescription()))
-		{
-			$info->addProperty($this->lng->txt('description'),$this->object->getDescription());
-		}
-		if(strlen($loc = $this->object->getLocalInformation()))
-		{
-			$info->addProperty($this->lng->txt('ecs_local_information'),$this->object->getLocalInformation());
-		}
-		
-		$this->addCustomInfoFields($info);
-				
-		include_once('Services/AdvancedMetaData/classes/class.ilAdvancedMDRecordGUI.php');
-		$record_gui = new ilAdvancedMDRecordGUI(ilAdvancedMDRecordGUI::MODE_INFO,
-			$this->getType(),$this->object->getId());
-		$record_gui->setInfoObject($info);
-		$record_gui->parse();
-		
-		$this->ctrl->forwardCommand($info);
-	}
-	
-	/**
-	 * Add custom fields to info screen
-	 * 
-	 * @param ilInfoScreenGUI $a_info 
-	 */
-	protected function addCustomInfoFields(ilInfoScreenGUI $a_info)
-	{
+            default:
+                if (!$cmd || $cmd === 'view') {
+                    $cmd = "infoScreen";
+                }
+                $cmd .= "Object";
+                $this->logger->info("cmd before call:" . print_r($cmd, true));
+                $this->$cmd();
+                break;
+        }
+        $this->logger->info("cmd:" . print_r($cmd, true));
+    }
 
-	}
-	
-	/**
-	 * Edit settings
-	 *
-	 * @param ilPropertyFormGUI $a_form
-	 */
-	public function editObject(ilPropertyFormGUI $a_form = null)
-	{
-		global $DIC;
+    /**
+     * show remote object
+     */
+    public function showObject(): void
+    {
+        if ($this->user->getId() === ANONYMOUS_USER_ID ||
+            $this->object->isLocalObject()) {
+            $this->ctrl->redirectToURL($this->object->getRemoteLink());
+        } else {
+            $link = $this->object->getFullRemoteLink();
+            $this->ctrl->redirectToURL($link);
+        }
+    }
 
-		$ilErr = $DIC['ilErr'];
-		$ilTabs = $DIC['ilTabs'];
+    /**
+     * get tabs
+     */
+    protected function setTabs(): void
+    {
+        if ($this->checkPermissionBool('visible')) {
+            $this->tabs_gui->addTab(
+                "info",
+                $this->lng->txt("info_short"),
+                $this->ctrl->getLinkTarget($this, "infoScreen")
+            );
+        }
 
-		if(!$this->checkPermissionBool('write'))
-		{
-			$ilErr->raiseError($this->lng->txt('msg_no_perm_read'),$ilErr->MESSAGE);
-		}
-		
-		$ilTabs->activateTab('edit');
-	 	
-		if(!$a_form)
-		{
-			$a_form = $this->initEditForm();
-		}
-		$this->tpl->setContent($a_form->getHTML());
-	}
-	
-	/**
-	 * Init edit settings form
-	 *
-	 * @return ilPropertyFormGUI
-	 */
-	protected function initEditForm()
-	{
-		include_once("./Services/Form/classes/class.ilPropertyFormGUI.php");
-		$form = new ilPropertyFormGUI();
-		$form->setFormAction($this->ctrl->getFormAction($this));
-		$form->setTitle($this->lng->txt('ecs_general_info'));
-		$form->addCommandButton('update',$this->lng->txt('save'));
-		$form->addCommandButton('edit',$this->lng->txt('cancel'));
-		
-		$text = new ilTextInputGUI($this->lng->txt('title'),'title');
-		$text->setValue($this->object->getTitle());
-		$text->setSize(min(40, ilObject::TITLE_LENGTH));
-		$text->setMaxLength(ilObject::TITLE_LENGTH);
-		$text->setDisabled(true);
-		$form->addItem($text);
+        if ($this->checkPermissionBool('write')) {
+            $this->tabs_gui->addTab(
+                "edit",
+                $this->lng->txt("edit"),
+                $this->ctrl->getLinkTarget($this, "edit")
+            );
+        }
 
-		$area = new ilTextAreaInputGUI($this->lng->txt('description'),'description');
-		$area->setValue($this->object->getDescription());
-		$area->setRows(3);
-		$area->setCols(80);
-		$area->setDisabled(true);
-		$form->addItem($area);
-		
-		$area = new ilTextAreaInputGUI($this->lng->txt('ecs_local_information'),'local_info');
-		$area->setValue($this->object->getLocalInformation());
-		$area->setRows(3);
-		$area->setCols(80);
-		$form->addItem($area);
-		
-		$this->addCustomEditForm($form);
-		
-		include_once('Services/AdvancedMetaData/classes/class.ilAdvancedMDRecordGUI.php');
-		$record_gui = new ilAdvancedMDRecordGUI(ilAdvancedMDRecordGUI::MODE_EDITOR,
-			$this->getType(),$this->object->getId());
-		$record_gui->setPropertyForm($form);
-		$record_gui->parse();
-		
-		return $form;
-	}		
-	
-	/**
-	 * Add custom fields to edit form
-	 * 
-	 * @param ilPropertyFormGUI $a_form 
-	 */
-	protected function addCustomEditForm(ilPropertyFormGUI $a_form)
-	{
-		
-	}
+        // will add permissions if needed
+        parent::setTabs();
+    }
 
-	/**
-	 * update object
-	 */
-	public function updateObject()
-	{
-		global $DIC;
+    /**
+     * call remote object
+     *
+     * @return bool
+     */
+    public function callObject(): bool
+    {
+        ilChangeEvent::_recordReadEvent(
+            $this->getType(),
+            $this->object->getRefId(),
+            $this->object->getId(),
+            $this->user->getId()
+        );
 
-		$ilErr = $DIC['ilErr'];
-				
-		if(!$this->checkPermissionBool('write'))
-		{
-			$ilErr->raiseError($this->lng->txt('msg_no_perm_read'),$ilErr->MESSAGE);
-		}
-		
-		$form = $this->initEditForm();
-		if($form->checkInput())
-		{
-			$this->object->setLocalInformation($a_form->getInput('local_info'));
-			
-			$this->updateCustomValues($form);
-					
-			$this->object->update();
 
-			// Save advanced meta data
-			include_once('Services/AdvancedMetaData/classes/class.ilAdvancedMDRecordGUI.php');
-			$record_gui = new ilAdvancedMDRecordGUI(ilAdvancedMDRecordGUI::MODE_EDITOR,
-				$this->getType(), $this->object->getId());
-			$record_gui->loadFromPost();
-			$record_gui->saveValues();
-			
-			ilUtil::sendSuccess($this->lng->txt("settings_saved"));
-			$this->editObject();
-		}
-		
-		$form->setValuesByPost();
-		$this->editObject($form);
-	}
-	
-	/**
-	 * Update object custom values
-	 * 
-	 * @param ilPropertyFormGUI $a_form 
-	 */
-	protected function updateCustomValues(ilPropertyFormGUI $a_form)
-	{
-		
-	}
-	
-	/**
-	* redirect script
-	*
-	* @param string $a_target
-	*/
-	public static function _goto($a_target)
-	{
-		global $DIC;
+        // check if the assigned object is hosted on the same installation
+        $link = $this->object->getFullRemoteLink();
+        if ($link) {
+            $this->ctrl->redirectToURL($link);
+            return true;
+        }
 
-		$ilErr = $DIC['ilErr'];
-		$lng = $DIC['lng'];
-		$ilAccess = $DIC['ilAccess'];
+        $this->tpl->setOnScreenMessage('failure', 'Cannot call remote object.');
+        $this->infoScreenObject();
+        return false;
+    }
 
-		//static if ($this->checkPermissionBool("visible", "", "", $a_target))
-		if($ilAccess->checkAccess('visible','',$a_target))
-		{
-			$_GET["cmd"] = "infoScreen";
-			$_GET["ref_id"] = $a_target;
-			$_GET["baseClass"] = "ilRepositoryGUI";
-			include("ilias.php");
-			exit;
-		}
-		//static else if ($this->checkPermissionBool("read", "", "", ROOT_FOLDER_ID))
-		if($ilAccess->checkAccess('read','',ROOT_FOLDER_ID))
-		{
-			$_GET["cmd"] = "frameset";
-			$_GET["target"] = "";
-			$_GET["ref_id"] = ROOT_FOLDER_ID;
-			ilUtil::sendFailure(sprintf($lng->txt("msg_no_perm_read_item"),
-				ilObject::_lookupTitle(ilObject::_lookupObjId($a_target))), true);
-			$_GET["baseClass"] = "ilRepositoryGUI";
-			include("ilias.php");
-			exit;
-		}
-		
-		$ilErr->raiseError($lng->txt("msg_no_perm_read"), $ilErr->FATAL);
-	}	
+    /**
+    * this one is called from the info button in the repository
+    * not very nice to set cmdClass/Cmd manually, if everything
+    * works through ilCtrl in the future this may be changed
+    */
+    public function infoScreenObject(): void
+    {
+        $this->ctrl->setCmd("showSummary");
+        $this->ctrl->setCmdClass("ilinfoscreengui");
+        $this->infoScreen();
+    }
+
+    /**
+     * show info screen
+     */
+    public function infoScreen(): void
+    {
+        if (!$this->access->checkAccess("visible", "", $this->object->getRefId())) {
+            $this->error->raiseError(
+                $this->lng->txt('msg_no_perm_read'),
+                $this->error->MESSAGE
+            );
+        }
+
+        $this->ctrl->setReturn($this, 'call');
+        $consent_gui = new ilECSUserConsentModalGUI(
+            $this->user->getId(),
+            $this->ref_id,
+            $this
+        );
+        $consent_gui->addLinkToToolbar($this->toolbar);
+
+        $this->tabs_gui->activateTab('info');
+
+        $info = new ilInfoScreenGUI($this);
+
+        $info->addSection($this->lng->txt('ecs_general_info'));
+        $info->addProperty($this->lng->txt('title'), $this->object->getTitle());
+        if ($this->object->getOrganization()) {
+            $info->addProperty($this->lng->txt('organization'), $this->object->getOrganization());
+        }
+        if ($this->object->getDescription()) {
+            $info->addProperty($this->lng->txt('description'), $this->object->getDescription());
+        }
+        if ($this->object->getLocalInformation()) {
+            $info->addProperty($this->lng->txt('ecs_local_information'), $this->object->getLocalInformation());
+        }
+
+        $this->addCustomInfoFields($info);
+
+        $record_gui = new ilAdvancedMDRecordGUI(
+            ilAdvancedMDRecordGUI::MODE_INFO,
+            $this->getType(),
+            $this->object->getId()
+        );
+        $record_gui->setInfoObject($info);
+        $record_gui->parse();
+
+        $this->ctrl->forwardCommand($info);
+    }
+
+    /**
+     * Add custom fields to info screen
+     *
+     * @param ilInfoScreenGUI $a_info
+     */
+    protected function addCustomInfoFields(ilInfoScreenGUI $a_info): void
+    {
+        // can be overwritten by subclasses
+    }
+
+    /**
+     * Edit settings
+     */
+    public function editObject(ilPropertyFormGUI $form = null): void
+    {
+        if (!$this->access->checkAccess("write", "", $this->object->getRefId())) {
+            $this->error->raiseError($this->lng->txt('msg_no_perm_read'), $this->error->MESSAGE);
+        }
+        $this->logger->info("Can write:" . print_r($this->checkPermissionBool('write'), true));
+        $this->tabs_gui->activateTab('edit');
+
+        if (!$form) {
+            $form = $this->initEditForm();
+        }
+        $this->tpl->setContent($form->getHTML());
+    }
+
+    /**
+     * Init edit settings form
+     */
+    protected function initEditForm(): ilPropertyFormGUI
+    {
+        $form = new ilPropertyFormGUI();
+        $form->setFormAction($this->ctrl->getFormAction($this));
+        $form->setTitle($this->lng->txt('ecs_general_info'));
+        $form->addCommandButton('update', $this->lng->txt('save'));
+        $form->addCommandButton('edit', $this->lng->txt('cancel'));
+
+        $text = new ilTextInputGUI($this->lng->txt('title'), 'title');
+        $text->setValue($this->object->getTitle());
+        $text->setSize(min(40, ilObject::TITLE_LENGTH));
+        $text->setMaxLength(ilObject::TITLE_LENGTH);
+        $text->setDisabled(true);
+        $form->addItem($text);
+
+        $area = new ilTextAreaInputGUI($this->lng->txt('description'), 'description');
+        $area->setValue($this->object->getDescription());
+        $area->setRows(3);
+        $area->setCols(80);
+        $area->setDisabled(true);
+        $form->addItem($area);
+
+        $area = new ilTextAreaInputGUI($this->lng->txt('ecs_local_information'), 'local_info');
+        $area->setValue($this->object->getLocalInformation());
+        $area->setRows(3);
+        $area->setCols(80);
+        $form->addItem($area);
+
+        $this->addCustomEditForm($form);
+
+        $record_gui = new ilAdvancedMDRecordGUI(
+            ilAdvancedMDRecordGUI::MODE_EDITOR,
+            $this->getType(),
+            $this->object->getId()
+        );
+        $record_gui->setPropertyForm($form);
+        $record_gui->parse();
+
+        return $form;
+    }
+
+    /**
+     * Add custom fields to edit form
+     *
+     * @param ilPropertyFormGUI $a_form
+     */
+    protected function addCustomEditForm(ilPropertyFormGUI $a_form): void
+    {
+    }
+
+    public function updateObject(): void
+    {
+        if (!$this->checkPermissionBool('write')) {
+            $this->error->raiseError($this->lng->txt('msg_no_perm_read'), $this->error->MESSAGE);
+        }
+
+        $form = $this->initEditForm();
+        if ($form->checkInput()) {
+            $this->object->setLocalInformation($form->getInput('local_info'));
+
+            $this->updateCustomValues($form);
+
+            $this->object->update();
+
+            // Save advanced meta data
+            $record_gui = new ilAdvancedMDRecordGUI(
+                ilAdvancedMDRecordGUI::MODE_EDITOR,
+                $this->getType(),
+                $this->object->getId()
+            );
+            $record_gui->importEditFormPostValues();
+            $record_gui->writeEditForm();
+
+            $this->tpl->setOnScreenMessage('success', $this->lng->txt("settings_saved"));
+            $this->editObject();
+        }
+
+        $form->setValuesByPost();
+        $this->editObject($form);
+    }
+
+    /**
+     * Update object custom values
+     *
+     * @param ilPropertyFormGUI $a_form
+     */
+    protected function updateCustomValues(ilPropertyFormGUI $a_form): void
+    {
+    }
+
+    public static function _goto(string $a_target): void
+    {
+        global $DIC;
+
+        $ilAccess = $DIC->access();
+        $ilErr = $DIC["ilErr"];
+        $lng = $DIC->language();
+        if ($ilAccess->checkAccess("read", "", (int) $a_target)) {
+            ilObjectGUI::_gotoRepositoryNode((int) $a_target);
+        }
+
+        if ($ilAccess->checkAccess("visible", "", (int) $a_target)) {
+            ilObjectGUI::_gotoRepositoryNode((int) $a_target, "infoScreen");
+        }
+        $ilErr->raiseError($lng->txt("msg_no_perm_read"), $ilErr->FATAL);
+    }
 }
-
-?>

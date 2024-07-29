@@ -1,377 +1,271 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2007 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
 
-include_once("./Services/Table/interfaces/interface.ilTableFilterItem.php");
-include_once("./Services/Form/classes/class.ilFormPropertyGUI.php");
+declare(strict_types=1);
 
 /**
-* This class represents a repository selector in a property form.
-*
-* The implementation is kind of beta. It looses all other inputs, if the
-* selector link is used.
-*
-* @author Alex Killing <alex.killing@gmx.de> 
-* @version $Id$
-* @ingroup	ServicesForm
-* @ilCtrl_IsCalledBy ilRepositorySelectorInputGUI: ilFormPropertyDispatchGUI
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * This class represents a repository selector in a property form.
+ *
+ * The implementation is kind of beta. It looses all other inputs, if the
+ * selector link is used.
+ *
+ * @author Alexander Killing <killing@leifos.de>
+ * @ilCtrl_IsCalledBy ilRepositorySelectorInputGUI: ilFormPropertyDispatchGUI
+ */
 class ilRepositorySelectorInputGUI extends ilFormPropertyGUI implements ilTableFilterItem
 {
-	/**
-	 * @var ilTemplate
-	 */
-	protected $tpl;
+    protected array $clickable_types = [];
+    protected string $hm = "";
+    protected string $select_text = "";
+    protected ilGlobalTemplateInterface $tpl;
+    protected ilTree $tree;
+    protected ilObjUser $user;
+    protected ilObjectDataCache $obj_data_cache;
+    protected array $options = [];
+    protected int $value = 0;
+    protected array $container_types = array("root", "cat", "grp", "fold", "crs");
 
-	/**
-	 * @var ilTree
-	 */
-	protected $tree;
+    public function __construct(
+        string $a_title = "",
+        string $a_postvar = ""
+    ) {
+        global $DIC;
 
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
+        $this->lng = $DIC->language();
+        $this->tpl = $DIC["tpl"];
+        $this->ctrl = $DIC->ctrl();
+        $this->tree = $DIC->repositoryTree();
+        $this->user = $DIC->user();
+        $this->obj_data_cache = $DIC["ilObjDataCache"];
+        $lng = $DIC->language();
 
-	/**
-	 * @var ilObjectDataCache
-	 */
-	protected $obj_data_cache;
+        parent::__construct($a_title, $a_postvar);
+        $this->setClickableTypes($this->container_types);
+        $this->setHeaderMessage($lng->txt('search_area_info'));
+        $this->setType("rep_select");
+        $this->setSelectText($lng->txt("select"));
+    }
 
-	protected $options;
-	protected $value;
-	protected $container_types = array("root", "cat", "grp", "fold", "crs");
-	
-	/**
-	* Constructor
-	*
-	* @param	string	$a_title	Title
-	* @param	string	$a_postvar	Post Variable
-	*/
-	function __construct($a_title = "", $a_postvar = "")
-	{
-		global $DIC;
+    /**
+     * @param int|string $a_value
+     * @return void
+     */
+    public function setValue($a_value): void
+    {
+        $this->value = (int) $a_value;
+    }
 
-		$this->lng = $DIC->language();
-		$this->tpl = $DIC["tpl"];
-		$this->ctrl = $DIC->ctrl();
-		$this->tree = $DIC->repositoryTree();
-		$this->user = $DIC->user();
-		$this->obj_data_cache = $DIC["ilObjDataCache"];
-		$lng = $DIC->language();
-		
-		parent::__construct($a_title, $a_postvar);
-		$this->setClickableTypes($this->container_types);
-		$this->setHeaderMessage($lng->txt('search_area_info'));
-		$this->setType("rep_select");
-		$this->setSelectText($lng->txt("select"));
-	}
+    public function getValue(): int
+    {
+        return $this->value;
+    }
 
-	/**
-	* Set Value.
-	*
-	* @param	int 		ref id of selected repository item
-	*/
-	function setValue($a_value)
-	{
-		$this->value = $a_value;
-	}
+    public function setValueByArray(array $a_values): void
+    {
+        $this->setValue($a_values[$this->getPostVar()] ?? "");
+    }
 
-	/**
-	* Get Value.
-	*
-	* @return	int 		ref id of selected repository item
-	*/
-	function getValue()
-	{
-		return $this->value;
-	}
-	
-	/**
-	* Set value by array
-	*
-	* @param	array	$a_values	value array
-	*/
-	function setValueByArray($a_values)
-	{
-		$this->setValue($a_values[$this->getPostVar()]);
-	}
+    public function setSelectText(string $a_val): void
+    {
+        $this->select_text = $a_val;
+    }
 
-	/**
-	* Set select link text
-	*
-	* @param	string	select link text
-	*/
-	function setSelectText($a_val)
-	{
-		$this->select_text = $a_val;
-	}
-	
-	/**
-	* Get select link text
-	*
-	* @return	string	select link text
-	*/
-	function getSelectText()
-	{
-		return $this->select_text;
-	}
-	
-	/**
-	* Set header message
-	*
-	* @param	string		header message
-	*/
-	function setHeaderMessage($a_val)
-	{
-		$this->hm = $a_val;
-	}
-	
-	/**
-	* Get header message
-	*
-	* @return	string		header message
-	*/
-	function getHeaderMessage()
-	{
-		return $this->hm;
-	}
-	
-	/**
-	* Set clickable types
-	*
-	* @param	array	 clickable types
-	*/
-	function setClickableTypes($a_types)
-	{
-		$this->clickable_types = $a_types;
-	}
-	
-	/**
-	* Get  clickable types
-	*
-	* @return	array	 clickable types
-	*/
-	function getClickableTypes()
-	{
-		return $this->clickable_types;
-	}
-	
-	/**
-	* Check input, strip slashes etc. set alert, if input is not ok.
-	*
-	* @return	boolean		Input ok, true/false
-	*/	
-	function checkInput()
-	{
-		$lng = $this->lng;
-		
-		$_POST[$this->getPostVar()] = 
-			ilUtil::stripSlashes($_POST[$this->getPostVar()]);
+    public function getSelectText(): string
+    {
+        return $this->select_text;
+    }
 
-		if ($this->getRequired() && trim($_POST[$this->getPostVar()]) == "")
-		{
-			$this->setAlert($lng->txt("msg_input_is_required"));
+    public function setHeaderMessage(string $a_val): void
+    {
+        $this->hm = $a_val;
+    }
 
-			return false;
-		}
-		return true;
-	}
+    public function getHeaderMessage(): string
+    {
+        return $this->hm;
+    }
 
-	/**
-	* Select Repository Item
-	*/
-	function showRepositorySelection()
-	{
-		$tpl = $this->tpl;
-		$lng = $this->lng;
-		$ilCtrl = $this->ctrl;
-		$tree = $this->tree;
-		$ilUser = $this->user;
-		
-		include_once 'Services/Repository/classes/class.ilRepositorySelectorExplorerGUI.php';
-		$ilCtrl->setParameter($this, "postvar", $this->getPostVar());
+    public function setClickableTypes(array $a_types): void
+    {
+        $this->clickable_types = $a_types;
+    }
 
-		ilUtil::sendInfo($this->getHeaderMessage());
+    public function getClickableTypes(): array
+    {
+        return $this->clickable_types;
+    }
 
-		$exp = new ilRepositorySelectorExplorerGUI($this, "showRepositorySelection",
-			$this, "selectRepositoryItem", "root_id");
-		$exp->setTypeWhiteList($this->getVisibleTypes());
-		$exp->setClickableTypes($this->getClickableTypes());
+    public function checkInput(): bool
+    {
+        $lng = $this->lng;
 
-		if($this->getValue())
-		{
-			$exp->setPathOpen($this->getValue());
-			$exp->setHighlightedNode($this->getHighlightedNode());
-		}
+        if ($this->getRequired() && trim($this->str($this->getPostVar())) == "") {
+            $this->setAlert($lng->txt("msg_input_is_required"));
+            return false;
+        }
+        return true;
+    }
 
-		if ($exp->handleCommand())
-		{
-			return;
-		}
-		// build html-output
-		$tpl->setContent($exp->getHTML());
-	}
-	
-	/**
-	* Select repository item
-	*/
-	function selectRepositoryItem()
-	{
-		$ilCtrl = $this->ctrl;
-		$ilUser = $this->user;
+    public function getInput(): int
+    {
+        return (int) trim($this->str($this->getPostVar()));
+    }
 
-		$anchor = $ilUser->prefs["screen_reader_optimization"]
-			? $this->getFieldId()."_anchor"
-			: "";
+    public function showRepositorySelection(): void
+    {
+        $tpl = $this->tpl;
+        $ilCtrl = $this->ctrl;
 
-		$this->setValue($_GET["root_id"]);
-		$this->writeToSession();
+        $ilCtrl->setParameter($this, "postvar", $this->getPostVar());
 
-		$ilCtrl->returnToParent($this, $anchor);
-	}
-	
-	/**
-	* Reset
-	*/
-	function reset()
-	{
-		$ilCtrl = $this->ctrl;
-		$ilUser = $this->user;
+        $this->tpl->setOnScreenMessage('info', $this->getHeaderMessage());
 
-		$anchor = $ilUser->prefs["screen_reader_optimization"]
-			? $this->getFieldId()."_anchor"
-			: "";
+        $exp = new ilRepositorySelectorExplorerGUI(
+            $this,
+            "showRepositorySelection",
+            $this,
+            "selectRepositoryItem",
+            "root_id"
+        );
+        $exp->setTypeWhiteList($this->getVisibleTypes());
+        $exp->setClickableTypes($this->getClickableTypes());
 
-		$this->setValue("");
-		$this->writeToSession();
+        if ($this->getValue()) {
+            $exp->setPathOpen($this->getValue());
+            $exp->setHighlightedNode((string) $this->getHighlightedNode());
+        }
 
-		$ilCtrl->returnToParent($this, $anchor);
-	}
-	
-	/**
-	* Render item
-	*/
-	function render($a_mode = "property_form")
-	{
-		$lng = $this->lng;
-		$ilCtrl = $this->ctrl;
-		$ilObjDataCache = $this->obj_data_cache;
-		$tree = $this->tree;
-		
-		$tpl = new ilTemplate("tpl.prop_rep_select.html", true, true, "Services/Form");
+        if ($exp->handleCommand()) {
+            return;
+        }
+        // build html-output
+        $tpl->setContent($exp->getHTML());
+    }
 
-		$tpl->setVariable("POST_VAR", $this->getPostVar());
-		$tpl->setVariable("ID", $this->getFieldId());
-		$tpl->setVariable("PROPERTY_VALUE", ilUtil::prepareFormOutput($this->getValue()));
-		$tpl->setVariable("TXT_SELECT", $this->getSelectText());
-		$tpl->setVariable("TXT_RESET", $lng->txt("reset"));
-		switch ($a_mode)
-		{
-			case "property_form":
-				$parent_gui = "ilpropertyformgui";
-				break;
-				
-			case "table_filter":
-				$parent_gui = get_class($this->getParent());
-				break;
-		}
+    public function selectRepositoryItem(): void
+    {
+        $ilCtrl = $this->ctrl;
 
-		$ilCtrl->setParameterByClass("ilrepositoryselectorinputgui",
-			"postvar", $this->getPostVar());
-		$tpl->setVariable("HREF_SELECT",
-			$ilCtrl->getLinkTargetByClass(array($parent_gui, "ilformpropertydispatchgui", "ilrepositoryselectorinputgui"),
-			"showRepositorySelection"));
-		$tpl->setVariable("HREF_RESET",
-			$ilCtrl->getLinkTargetByClass(array($parent_gui, "ilformpropertydispatchgui", "ilrepositoryselectorinputgui"),
-			"reset"));
+        $this->setValue((string) $this->int("root_id"));
+        $this->writeToSession();
 
-		if ($this->getValue() > 0 && $this->getValue() != ROOT_FOLDER_ID)
-		{
-			$tpl->setVariable("TXT_ITEM",
-				$ilObjDataCache->lookupTitle($ilObjDataCache->lookupObjId($this->getValue())));
-		}
-		else
-		{
-			$nd = $tree->getNodeData(ROOT_FOLDER_ID);
-			$title = $nd["title"];
-			if ($title == "ILIAS")
-			{
-				$title = $lng->txt("repository");
-			}
-			if (in_array($nd["type"], $this->getClickableTypes()))
-			{
-				$tpl->setVariable("TXT_ITEM", $title);
-			}
-		}
-		return $tpl->get();
-	}
-	
-	/**
-	* Insert property html
-	*
-	* @return	int	Size
-	*/
-	function insert($a_tpl)
-	{
-		$a_tpl->setCurrentBlock("prop_generic");
-		$a_tpl->setVariable("PROP_GENERIC", $this->render());
-		$a_tpl->parseCurrentBlock();
-	}
+        $ilCtrl->returnToParent($this);
+    }
 
-	/**
-	* Get HTML for table filter
-	*/
-	function getTableFilterHTML()
-	{
-		$html = $this->render("table_filter");
-		return $html;
-	}
+    public function reset(): void
+    {
+        $ilCtrl = $this->ctrl;
 
-	/**
-	 * Returns the highlighted object
-	 *
-	 * @return int ref_id (node)
-	 */
-	protected function getHighlightedNode()
-	{
-		$tree = $this->tree;
+        $this->setValue("");
+        $this->writeToSession();
 
-		if(!in_array(ilObject::_lookupType($this->getValue(),true), $this->getVisibleTypes()))
-		{
-			return $tree->getParentId($this->getValue());
-		}
+        $ilCtrl->returnToParent($this);
+    }
 
-		return $this->getValue();
-	}
+    public function render($a_mode = "property_form"): string
+    {
+        $lng = $this->lng;
+        $ilCtrl = $this->ctrl;
+        $ilObjDataCache = $this->obj_data_cache;
+        $tree = $this->tree;
+        $parent_gui = "";
 
-	/**
-	 * returns all visible types like container and clickable types
-	 *
-	 * @return array
-	 */
-	protected function getVisibleTypes()
-	{
-		return array_merge((array)$this->container_types, (array)$this->getClickableTypes());
-	}
+        $tpl = new ilTemplate("tpl.prop_rep_select.html", true, true, "Services/Form");
 
+        $tpl->setVariable("POST_VAR", $this->getPostVar());
+        $tpl->setVariable("ID", $this->getFieldId());
+        $tpl->setVariable("PROPERTY_VALUE", ilLegacyFormElementsUtil::prepareFormOutput((string) $this->getValue()));
+        $tpl->setVariable("TXT_SELECT", $this->getSelectText());
+        $tpl->setVariable("TXT_RESET", $lng->txt("reset"));
+        switch ($a_mode) {
+            case "property_form":
+                $parent_gui = "ilpropertyformgui";
+                break;
+
+            case "table_filter":
+                $parent_gui = get_class($this->getParentTable());
+                break;
+        }
+
+        $ilCtrl->setParameterByClass(
+            "ilrepositoryselectorinputgui",
+            "postvar",
+            $this->getPostVar()
+        );
+        $tpl->setVariable(
+            "HREF_SELECT",
+            $ilCtrl->getLinkTargetByClass(
+                array($parent_gui, "ilformpropertydispatchgui", "ilrepositoryselectorinputgui"),
+                "showRepositorySelection"
+            )
+        );
+        $tpl->setVariable(
+            "HREF_RESET",
+            $ilCtrl->getLinkTargetByClass(
+                array($parent_gui, "ilformpropertydispatchgui", "ilrepositoryselectorinputgui"),
+                "reset"
+            )
+        );
+
+        if ($this->getValue() > 0 && $this->getValue() != ROOT_FOLDER_ID) {
+            $tpl->setVariable(
+                "TXT_ITEM",
+                $ilObjDataCache->lookupTitle($ilObjDataCache->lookupObjId($this->getValue()))
+            );
+        } else {
+            $nd = $tree->getNodeData(ROOT_FOLDER_ID);
+            $title = $nd["title"];
+            if ($title == "ILIAS") {
+                $title = $lng->txt("repository");
+            }
+            if (in_array($nd["type"], $this->getClickableTypes())) {
+                $tpl->setVariable("TXT_ITEM", $title);
+            }
+        }
+        return $tpl->get();
+    }
+
+    public function insert(ilTemplate $a_tpl): void
+    {
+        $a_tpl->setCurrentBlock("prop_generic");
+        $a_tpl->setVariable("PROP_GENERIC", $this->render());
+        $a_tpl->parseCurrentBlock();
+    }
+
+    public function getTableFilterHTML(): string
+    {
+        $html = $this->render("table_filter");
+        return $html;
+    }
+
+    protected function getHighlightedNode(): int
+    {
+        $tree = $this->tree;
+
+        if (!in_array(ilObject::_lookupType($this->getValue(), true), $this->getVisibleTypes())) {
+            return $tree->getParentId($this->getValue());
+        }
+
+        return $this->getValue();
+    }
+
+    protected function getVisibleTypes(): array
+    {
+        return array_merge($this->container_types, $this->getClickableTypes());
+    }
 }

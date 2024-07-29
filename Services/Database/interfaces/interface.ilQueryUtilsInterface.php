@@ -1,125 +1,83 @@
 <?php
 
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 /**
  * Interface ilQueryUtilsInterface
  *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
-interface ilQueryUtilsInterface {
-
-	/**
-	 * @param string $field
-	 * @param string[] $values
-	 * @param bool $negate
-	 * @param string $type
-	 * @return string
-	 */
-	public function in($field, $values, $negate = false, $type = "");
+interface ilQueryUtilsInterface
+{
+    /**
+     * @param string[] $values
+     */
+    public function in(string $field, array $values, bool $negate = false, string $type = ""): string;
 
 
-	/**
-	 * @param mixed $value
-	 * @param null $type
-	 * @return string
-	 */
-	public function quote($value, $type = null);
+    /**
+     * @param mixed $value
+     */
+    public function quote($value, ?string $type = null): string;
 
 
-	/**
-	 * @param array $values
-	 * @param bool $allow_null
-	 * @return string
-	 */
-	public function concat(array $values, $allow_null = true);
+    public function concat(array $values, bool $allow_null = true): string;
 
 
-	/**
-	 * @param $a_needle
-	 * @param $a_string
-	 * @param int $a_start_pos
-	 * @return string
-	 */
-	public function locate($a_needle, $a_string, $a_start_pos = 1);
+    public function locate(string $a_needle, string $a_string, int $a_start_pos = 1): string;
 
 
-	/**
-	 * @param \ilPDOStatement $statement
-	 * @return bool
-	 */
-	public function free(ilPDOStatement $statement);
+    public function free(ilPDOStatement $statement): bool;
 
 
-	/**
-	 * @param $identifier
-	 * @return string
-	 */
-	public function quoteIdentifier($identifier);
+    public function quoteIdentifier(string $identifier): string;
 
 
-	/**
-	 * @param $name
-	 * @param $fields
-	 * @param array $options
-	 * @return string
-	 * @throws \ilDatabaseException
-	 */
-	public function createTable($name, $fields, $options = array());
+    /**
+     * @throws \ilDatabaseException
+     */
+    public function createTable(string $name, array $fields, array $options = []): string;
 
 
-	/**
-	 * @param $column
-	 * @param $type
-	 * @param string $value
-	 * @param bool $case_insensitive
-	 * @return string
-	 * @throws \ilDatabaseException
-	 */
-	public function like($column, $type, $value = "?", $case_insensitive = true);
+    /**
+     * @throws \ilDatabaseException
+     */
+    public function like(string $column, string $type, string $value = "?", bool $case_insensitive = true): string;
 
 
-	/**
-	 * @return string
-	 */
-	public function now();
+    public function now(): string;
 
 
-	/**
-	 * @param array $tables
-	 * @return string
-	 */
-	public function lock(array $tables);
+    public function lock(array $tables): string;
 
 
-	/**
-	 * @return string
-	 */
-	public function unlock();
+    public function unlock(): string;
 
 
-	/**
-	 * @param $a_name
-	 * @param string $a_charset
-	 * @param string $a_collation
-	 * @return mixed
-	 */
-	public function createDatabase($a_name, $a_charset = "utf8", $a_collation = "");
-	
-	
-	/**
-	 * 
-	 * @param string $a_field_name
-	 * @param string $a_seperator
-	 * @param string $a_order
-	 * @return string
-	 */
-	public function groupConcat($a_field_name, $a_seperator = ",", $a_order = NULL);
+    public function createDatabase(string $name, string $charset = "utf8", string $collation = ""): string;
 
 
-	/**
-	 * @param string $a_field_name 
-	 * @param mixed $a_dest_type
-	 * @return string
-	 */
-	public function cast($a_field_name, $a_dest_type);
+    public function groupConcat(string $a_field_name, string $a_seperator = ",", string $a_order = null): string;
 
+
+    /**
+     * @param mixed $a_dest_type
+     */
+    public function cast(string $a_field_name, $a_dest_type): string;
 }

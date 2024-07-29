@@ -1,296 +1,282 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2001 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
-
-
-define('IL_REG_DISABLED',1);
-define('IL_REG_DIRECT',2);
-define('IL_REG_APPROVE',3);
-define('IL_REG_ACTIVATION',4);
-define('IL_REG_CODES',5);
-
-define('IL_REG_ROLES_FIXED',1);
-define('IL_REG_ROLES_EMAIL',2);
-
-define('IL_REG_ERROR_UNKNOWN',1);
-define('IL_REG_ERROR_NO_PERM',2);
 
 /**
-* Class ilObjAuthSettingsGUI
-*
-* @author Stefan Meyer <smeyer.ilias@gmx.de>
-* @version $Id$
-* 
-* @ingroup ServicesRegistration
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+/**
+ * Class ilObjAuthSettingsGUI
+ * @author  Stefan Meyer <smeyer.ilias@gmx.de>
+ * @ingroup ServicesRegistration
+ */
 class ilRegistrationSettings
 {
-	const ERR_UNKNOWN_RCP = 1;
-	const ERR_MISSING_RCP = 2;
-	
-	const REG_HASH_LIFETIME_MIN_VALUE = 60;
+    public const ERR_UNKNOWN_RCP = 1;
+    public const ERR_MISSING_RCP = 2;
 
-	private $registration_type;
-	private $password_generation_enabled;
-	private $access_limitation;
-	private $approve_recipient_logins;
-	private $approve_recipient_ids;
-	private $role_type;
-	private $unknown;		
-	private $reg_hash_life_time = 0;
-	private $reg_allow_codes = false;
-	private $allowed_domains;	
-	
-	function __construct()
-	{
-		$this->__read();
-	}
+    public const REG_HASH_LIFETIME_MIN_VALUE = 60;
 
-	function getRegistrationType()
-	{
-		return $this->registration_type;
-	}
-	function setRegistrationType($a_type)
-	{
-		$this->registration_type = $a_type;
-	}
+    public const IL_REG_DISABLED = 1;
+    public const IL_REG_DIRECT = 2;
+    public const IL_REG_APPROVE = 3;
+    public const IL_REG_ACTIVATION = 4;
+    public const IL_REG_CODES = 5;
+    public const IL_REG_ROLE_UNDEFINED = 0;
+    public const IL_REG_ROLES_FIXED = 1;
+    public const IL_REG_ROLES_EMAIL = 2;
+    public const IL_REG_ERROR_UNKNOWN = 1;
+    public const IL_REG_ERROR_NO_PERM = 2;
 
-	static function _lookupRegistrationType()
-	{
-		global $DIC;
+    private int $registration_type;
+    private bool $password_generation_enabled = false;
+    private bool $access_limitation = false;
+    private string $approve_recipient_logins = '';
+    private array $approve_recipient_ids = [];
+    private int $role_type = self::IL_REG_ROLE_UNDEFINED;
+    private array $unknown = [];
+    private int $reg_hash_life_time = 0;
+    private bool $reg_allow_codes = false;
+    private array $allowed_domains = [];
 
-		$ilSetting = $DIC['ilSetting'];
+    protected ilSetting $settings;
 
-		$ret = (int)$ilSetting->get('new_registration_type',IL_REG_DISABLED);
+    public function __construct()
+    {
+        global $DIC;
 
-		if($ret < 1 or $ret > 5)
-		{
-			//data is corrupted and should be processed like "No Registration possible" (#18261)
-			$ret = IL_REG_DISABLED;
-		}
+        $this->settings = $DIC->settings();
+        $this->read();
+    }
 
-		return $ret;
-	}
+    public function getRegistrationType(): int
+    {
+        return $this->registration_type;
+    }
 
-	function enabled()
-	{
-		return $this->registration_type != IL_REG_DISABLED;
-	}
-	function directEnabled()
-	{
-		return $this->registration_type == IL_REG_DIRECT;
-	}
-	function approveEnabled()
-	{
-		return $this->registration_type == IL_REG_APPROVE;
-	}
-	public function activationEnabled()
-	{
-		return $this->registration_type == IL_REG_ACTIVATION;
-	}
-	function registrationCodeRequired()
-	{
-		return $this->registration_type == IL_REG_CODES;
-	}
-	
-	function passwordGenerationEnabled()
-	{
-		return $this->password_generation_enabled;
-	}
-	function setPasswordGenerationStatus($a_status)
-	{
-		$this->password_generation_enabled = $a_status;
-	}
+    public function setRegistrationType(int $a_type): void
+    {
+        $this->registration_type = $a_type;
+    }
 
-	function getAccessLimitation()
-	{
-		return $this->access_limitation;
-	}
+    public static function _lookupRegistrationType(): int
+    {
+        global $DIC;
 
-	function setAccessLimitation($a_access_limitation)
-	{
-		$this->access_limitation = $a_access_limitation;
-	}
+        $ilSetting = $DIC['ilSetting'];
+        $ret = (int) $ilSetting->get('new_registration_type', (string) self::IL_REG_DISABLED);
 
-	function setApproveRecipientLogins($a_rec_string)
-	{
-		$this->approve_recipient_logins = $a_rec_string;
-		$this->approve_recipient_ids = array();
+        if ($ret < 1 || $ret > 5) {
+            //data is corrupted and should be processed like "No Registration possible" (#18261)
+            $ret = self::IL_REG_DISABLED;
+        }
+        return $ret;
+    }
 
-		// convert logins to array of ids
-		foreach(explode(',',trim($this->approve_recipient_logins)) as $login)
-		{
-			if($uid = ilObjUser::_lookupId(trim($login)))
-			{
-				$this->approve_recipient_ids[] = $uid;
-			}
-		}
-	}
-	function getApproveRecipientLogins()
-	{
-		return $this->approve_recipient_logins;
-	}
-	function getApproveRecipients()
-	{
-		return $this->approve_recipient_ids ? $this->approve_recipient_ids : array();
-	}
-	function getUnknown()
-	{
-		return implode(',',$this->unknown);
-	}
+    public function enabled(): bool
+    {
+        return $this->registration_type !== self::IL_REG_DISABLED;
+    }
 
-	function roleSelectionEnabled()
-	{
-		return $this->role_type == IL_REG_ROLES_FIXED;
-	}
-	function automaticRoleAssignmentEnabled()
-	{
-		return $this->role_type == IL_REG_ROLES_EMAIL;
-	}
-	function setRoleType($a_type)
-	{
-		$this->role_type = $a_type;
-	}
-	
-	public function setRegistrationHashLifetime($a_lifetime)
-	{
-		$this->reg_hash_life_time = $a_lifetime;
-		
-		return $this;
-	}
-	
-	public function getRegistrationHashLifetime()
-	{
-		return max($this->reg_hash_life_time, self::REG_HASH_LIFETIME_MIN_VALUE);
-	}
+    public function directEnabled(): bool
+    {
+        return $this->registration_type === self::IL_REG_DIRECT;
+    }
 
-	public function setAllowCodes($a_allow_codes)
-	{
-		$this->reg_allow_codes = (bool)$a_allow_codes;
+    public function approveEnabled(): bool
+    {
+        return $this->registration_type === self::IL_REG_APPROVE;
+    }
 
-		return $this;
-	}
+    public function activationEnabled(): bool
+    {
+        return $this->registration_type === self::IL_REG_ACTIVATION;
+    }
 
-	public function getAllowCodes()
-	{
-		return $this->reg_allow_codes;
-	}
-	
-	public function setAllowedDomains($a_value)
-	{
-		$a_value = explode(";", trim($a_value));
-		$this->allowed_domains = $a_value;
-	}
-	
-	public function getAllowedDomains()
-	{
-		return (array)$this->allowed_domains;
-	}
-	
-	function validate()
-	{		
-		$this->unknown = array();
-		$this->mail_perm = array();
+    public function registrationCodeRequired(): bool
+    {
+        return $this->registration_type === self::IL_REG_CODES;
+    }
 
-		$login_arr = explode(',',$this->getApproveRecipientLogins());
-		$login_arr = $login_arr ? $login_arr : array();
-		foreach($login_arr as $recipient)
-		{
-			if(!$recipient = trim($recipient))
-			{
-				continue;
-			}
-			if(!ilObjUser::_lookupId($recipient))
-			{
-				$this->unknown[] = $recipient;
-				continue;
-			}
-			else
-			{
-				$valid = $recipient;
-			}
-		}
-		if(count($this->unknown))
-		{
-			return self::ERR_UNKNOWN_RCP;
-		}
-		if($this->getRegistrationType() == IL_REG_APPROVE and !count((array) $valid))
-		{
-			return self::ERR_MISSING_RCP;
-		}
-		return 0;
-	}
+    public function passwordGenerationEnabled(): bool
+    {
+        return $this->password_generation_enabled;
+    }
 
-			
-	function save()
-	{
-		global $DIC;
+    public function setPasswordGenerationStatus(bool $a_status): void
+    {
+        $this->password_generation_enabled = $a_status;
+    }
 
-		$ilias = $DIC['ilias'];
+    public function getAccessLimitation(): bool
+    {
+        return $this->access_limitation;
+    }
 
-		$ilias->setSetting('reg_role_assignment',$this->role_type);
-		$ilias->setSetting('new_registration_type',$this->registration_type);
-		$ilias->setSetting('passwd_reg_auto_generate',$this->password_generation_enabled);
-		$ilias->setSetting('approve_recipient',addslashes(serialize($this->approve_recipient_ids)));
-		$ilias->setSetting('reg_access_limitation',$this->access_limitation);
-		$ilias->setSetting('reg_hash_life_time',$this->reg_hash_life_time);
-		$ilias->setSetting('reg_allow_codes',$this->reg_allow_codes);	
-		$ilias->setSetting('reg_allowed_domains',implode(';', $this->allowed_domains));
-		
-		return true;
-	}
+    public function setAccessLimitation(bool $a_access_limitation): void
+    {
+        $this->access_limitation = $a_access_limitation;
+    }
 
-	function __read()
-	{
-		global $DIC;
+    public function setApproveRecipientLogins(string $a_rec_string): void
+    {
+        $this->approve_recipient_logins = $a_rec_string;
+        $this->approve_recipient_ids = [];
 
-		$ilias = $DIC['ilias'];
+        // convert logins to array of ids
+        foreach (explode(',', trim($this->approve_recipient_logins)) as $login) {
+            if ($uid = ilObjUser::_lookupId(trim($login))) {
+                $this->approve_recipient_ids[] = $uid;
+            }
+        }
+    }
 
-		//static method validates value
-		$this->registration_type = self::_lookupRegistrationType();
+    public function getApproveRecipientLogins(): string
+    {
+        return $this->approve_recipient_logins;
+    }
 
-		$this->role_type = $ilias->getSetting('reg_role_assignment',1);
-		$this->password_generation_enabled = $ilias->getSetting('passwd_reg_auto_generate');
-		$this->access_limitation = $ilias->getSetting('reg_access_limitation');
-		$this->reg_hash_life_time = $ilias->getSetting('reg_hash_life_time');
-		$this->reg_allow_codes = (bool)$ilias->getSetting('reg_allow_codes');
-		
-		$this->approve_recipient_ids = unserialize(stripslashes($ilias->getSetting('approve_recipient')));
-		$this->approve_recipient_ids = $this->approve_recipient_ids ? 
-			$this->approve_recipient_ids : 
-			array();
+    public function getApproveRecipients(): array
+    {
+        return $this->approve_recipient_ids;
+    }
 
-		// create login array
-		$tmp_logins = array();
-		foreach($this->approve_recipient_ids as $id)
-		{
-			if($login = ilObjUser::_lookupLogin($id))
-			{
-				$tmp_logins[] = $login;
-			}
-		}
-		$this->approve_recipient_logins = implode(',',$tmp_logins);
+    public function getUnknown(): string
+    {
+        return implode(',', $this->unknown);
+    }
 
-		$this->setAllowedDomains($ilias->getSetting('reg_allowed_domains'));
-	}
+    public function roleSelectionEnabled(): bool
+    {
+        return $this->role_type === self::IL_REG_ROLES_FIXED;
+    }
+
+    public function automaticRoleAssignmentEnabled(): bool
+    {
+        return $this->role_type === self::IL_REG_ROLES_EMAIL;
+    }
+
+    public function setRoleType(int $a_type): void
+    {
+        $this->role_type = $a_type;
+    }
+
+    public function setRegistrationHashLifetime(int $a_lifetime): self
+    {
+        $this->reg_hash_life_time = $a_lifetime;
+        return $this;
+    }
+
+    public function getRegistrationHashLifetime(): int
+    {
+        return max($this->reg_hash_life_time, self::REG_HASH_LIFETIME_MIN_VALUE);
+    }
+
+    public function setAllowCodes(bool $a_allow_codes): self
+    {
+        $this->reg_allow_codes = $a_allow_codes;
+
+        return $this;
+    }
+
+    public function getAllowCodes(): bool
+    {
+        return $this->reg_allow_codes;
+    }
+
+    public function setAllowedDomains(string $a_value): void
+    {
+        $a_value = array_map(
+            static function (string $value): string {
+                return trim($value);
+            },
+            explode(";", trim($a_value))
+        );
+
+        $this->allowed_domains = $a_value;
+    }
+
+    public function getAllowedDomains(): array
+    {
+        return $this->allowed_domains;
+    }
+
+    public function validate(): int
+    {
+        $this->unknown = [];
+
+        $login_arr = explode(',', $this->getApproveRecipientLogins());
+        $login_arr = $login_arr ?: [];
+        $valid = [];
+        foreach ($login_arr as $recipient) {
+            if (!$recipient = trim($recipient)) {
+                continue;
+            }
+            if (!ilObjUser::_lookupId($recipient)) {
+                $this->unknown[] = $recipient;
+            } else {
+                $valid[] = $recipient;
+            }
+        }
+        if (count($this->unknown)) {
+            return self::ERR_UNKNOWN_RCP;
+        }
+        if ($this->getRegistrationType() === self::IL_REG_APPROVE && !count($valid)) {
+            return self::ERR_MISSING_RCP;
+        }
+        return 0;
+    }
+
+    public function save(): bool
+    {
+        $this->settings->set('reg_role_assignment', (string) $this->role_type);
+        $this->settings->set('new_registration_type', (string) $this->registration_type);
+        $this->settings->set('passwd_reg_auto_generate', (string) $this->password_generation_enabled);
+        $this->settings->set('approve_recipient', addslashes(serialize($this->approve_recipient_ids)));
+        $this->settings->set('reg_access_limitation', (string) $this->access_limitation);
+        $this->settings->set('reg_hash_life_time', (string) $this->reg_hash_life_time);
+        $this->settings->set('reg_allow_codes', (string) $this->reg_allow_codes);
+        $this->settings->set('reg_allowed_domains', implode(';', $this->allowed_domains));
+        return true;
+    }
+
+    private function read(): void
+    {
+        //static method validates value
+        $this->registration_type = self::_lookupRegistrationType();
+
+        $this->role_type = (int) $this->settings->get('reg_role_assignment', '1');
+        $this->password_generation_enabled = (bool) $this->settings->get('passwd_reg_auto_generate');
+        $this->access_limitation = (bool) $this->settings->get('reg_access_limitation');
+        $this->reg_hash_life_time = (int) $this->settings->get('reg_hash_life_time');
+        $this->reg_allow_codes = (bool) $this->settings->get('reg_allow_codes');
+
+        $this->approve_recipient_ids = unserialize(
+            stripslashes($this->settings->get('approve_recipient', "")),
+            ['allowed_classes' => false]
+        ) ?: [];
+
+        // create login array
+        $tmp_logins = [];
+        foreach ($this->approve_recipient_ids as $id) {
+            if ($login = ilObjUser::_lookupLogin((int) $id)) {
+                $tmp_logins[] = $login;
+            }
+        }
+        $this->approve_recipient_logins = implode(',', $tmp_logins);
+        $this->setAllowedDomains((string) $this->settings->get('reg_allowed_domains'));
+    }
 }
-?>

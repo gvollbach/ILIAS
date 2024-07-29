@@ -1,83 +1,67 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2001 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
 
+declare(strict_types=1);
 
 /**
-* Class ilObjRootFolderListGUI
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* $Id$
-*
-* @extends ilObjectListGUI
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ */
 
+use ILIAS\RootFolder\StandardGUIRequest;
 
-include_once "Services/Object/classes/class.ilObjectListGUI.php";
-
+/**
+ * Class ilObjRootFolderListGUI
+ *
+ * @author Alexander Killing <killing@leifos.de>
+ */
 class ilObjRootFolderListGUI extends ilObjectListGUI
 {
-	
-	public function __construct()
-	{
-		parent::__construct();
-	}
+    protected StandardGUIRequest $root_request;
 
-	/**
-	* initialisation
-	*/
-	function init()
-	{
-		$this->copy_enabled = false;
-		$this->delete_enabled = true;
-		$this->cut_enabled = true;
-		$this->subscribe_enabled = true;
-		$this->link_enabled = false;
-		$this->type = "root";
-		$this->gui_class_name = "ilobjrootfoldergui";
+    public function __construct()
+    {
+        /** @var \ILIAS\DI\Container $DIC */
+        global $DIC;
 
-		// general commands array
-		include_once('./Modules/RootFolder/classes/class.ilObjRootFolderAccess.php');
-		$this->commands = ilObjRootFolderAccess::_getCommands();
-	}
+        parent::__construct();
 
-	/**
-	* Get command link url.
-	*
-	* @param	int			$a_ref_id		reference id
-	* @param	string		$a_cmd			command
-	*
-	*/
-	function getCommandLink($a_cmd)
-	{
-		global $ilCtrl;
+        $this->root_request = $DIC
+            ->rootFolder()
+            ->internal()
+            ->gui()
+            ->standardRequest();
+    }
 
-		$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $this->ref_id);
-		$cmd_link = $ilCtrl->getLinkTargetByClass("ilrepositorygui", $a_cmd);
-		$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $_GET["ref_id"]);
+    public function init(): void
+    {
+        $this->copy_enabled = false;
+        $this->delete_enabled = true;
+        $this->cut_enabled = true;
+        $this->subscribe_enabled = true;
+        $this->link_enabled = false;
+        $this->type = "root";
+        $this->gui_class_name = "ilobjrootfoldergui";
 
-		return $cmd_link;
-	}
+        // general commands array
+        $this->commands = ilObjRootFolderAccess::_getCommands();
+    }
 
+    public function getCommandLink(string $cmd): string
+    {
+        global $ilCtrl;
 
-} // END class.ilObjRootFolderGUI
-?>
+        $ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $this->ref_id);
+        $cmd_link = $ilCtrl->getLinkTargetByClass("ilrepositorygui", $cmd);
+        $ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $this->root_request->getRefId());
+
+        return $cmd_link;
+    }
+}

@@ -1,222 +1,154 @@
 <?php
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
-* Class UserMail
-* this class handles user mails 
-* 
-*  
-* @author	Stefan Meyer <meyer@leifos.com>
-* @version $Id$
-* 
-*/
-include_once "Services/Mail/classes/class.ilMail.php";
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
+declare(strict_types=1);
+
+/**
+ * @author Stefan Meyer <meyer@leifos.com>
+ * TODO All these utility functions could be moved to some kind of decorator once a mail is an elaborated object and not an array anymore
+ */
 class ilFormatMail extends ilMail
 {
+    public function __construct(int $a_user_id)
+    {
+        parent::__construct($a_user_id);
+    }
 
-	/**
-	* Constructor
-	* setup an mail object
-	* @param int user_id
-	* @access	public
-	*/
-	public function __construct($a_user_id)
-	{
-		parent::__construct($a_user_id);
-	}
+    public function formatReplyRecipientsForCC(): string
+    {
+        global $DIC;
 
-	/**
-	* format a reply message
-	* @access	public
-	* @return string
-	*/
-	function formatReplyMessage()
-	{
-		if(empty($this->mail_data))
-		{
-			return false;
-		}
+        if (empty($this->mail_data)) {
+            return '';
+        }
 
-		$bodylines = preg_split("/\r\n|\n|\r/", $this->mail_data["m_message"]);
-		for ($i = 0; $i < count($bodylines); $i++)
-		{
-			$bodylines[$i] = "> ".$bodylines[$i];
-		}
+        $newCC = [];
 
-		return $this->mail_data["m_message"] = implode(chr(10), $bodylines);
-	}
+        $currentUserLogin = $DIC->user()->getLogin();
 
-	/**
-	* format a reply subject
-	* @access	public
-	* @return string
-	*/
-	function formatReplySubject()
-	{
-		if(empty($this->mail_data))
-		{
-			return false;
-		}
-		return $this->mail_data["m_subject"] = "RE: ".$this->mail_data["m_subject"];
-	}
-	
-	/**
-	* get reply recipients for cc
-	* @access	public
-	* @return string
-	*/
-	function formatReplyRecipientsForCC()
-	{
-		global $DIC;
+        foreach (explode(',', $this->mail_data['rcp_to']) as $to) {
+            $to = trim($to);
+            if ($to !== '' && $currentUserLogin !== $to) {
+                $newCC[] = $to;
+            }
+        }
 
-		if(empty($this->mail_data))
-		{
-			return '';
-		}
+        foreach (explode(',', $this->mail_data['rcp_cc']) as $cc) {
+            $cc = trim($cc);
+            if ($cc !== '' && $currentUserLogin !== $cc) {
+                $newCC[] = $cc;
+            }
+        }
 
-		$newCC = array();
+        return $this->mail_data['rcp_cc'] = implode(', ', $newCC);
+    }
 
-		$currentUserLogin = $DIC->user()->getLogin();
+    public function formatReplyRecipient(): string
+    {
+        if (empty($this->mail_data)) {
+            return '';
+        }
 
-		foreach(explode(',', $this->mail_data['rcp_to']) as $to)
-		{
-			if(trim($to) != '' && $currentUserLogin != trim($to))
-			{
-				$newCC[] = trim($to);
-			}
-		}
+        $user = new ilObjUser((int) $this->mail_data['sender_id']);
+        return $this->mail_data['rcp_to'] = $user->getLogin();
+    }
 
-		foreach(explode(',', $this->mail_data['rcp_cc']) as $cc)
-		{
-			if(trim($cc) != '' && $currentUserLogin != trim($cc))
-			{
-				$newCC[] = trim($cc);
-			}
-		}
+    /**
+     * @param string[] $a_names
+     * @param string $a_type
+     * @return array
+     */
+    public function appendSearchResult(array $a_names, string $a_type): array
+    {
+        $name_str = implode(',', $a_names);
 
-		return ($this->mail_data['rcp_cc'] = implode(', ', $newCC));
-	}
-	
-	/**
-	* get reply recipient
-	* @access	public
-	* @return string
-	*/
-	function formatReplyRecipient()
-	{
-		if(empty($this->mail_data))
-		{
-			return false;
-		}
+        $key = 'rcp_to';
+        if ('cc' === $a_type) {
+            $key = 'rcp_cc';
+        } elseif ('bc' === $a_type) {
+            $key = 'rcp_bcc';
+        }
 
-		require_once './Services/User/classes/class.ilObjUser.php';
+        if (!isset($this->mail_data[$key]) || !is_string($this->mail_data[$key])) {
+            $this->mail_data[$key] = '';
+        } else {
+            $this->mail_data[$key] = trim($this->mail_data[$key]);
+        }
 
-		$user = new ilObjUser($this->mail_data["sender_id"]);
-		return $this->mail_data["rcp_to"] = $user->getLogin();
-	}
-	/**
-	* format a forward subject
-	* @access	public
-	* @return string
-	*/
-	function formatForwardSubject()
-	{
-		if(empty($this->mail_data))
-		{
-			return false;
-		}
-		return $this->mail_data["m_subject"] = "[FWD: ".$this->mail_data["m_subject"]."]";
-	}
+        if ($this->mail_data[$key] !== '') {
+            $this->mail_data[$key] .= ',';
+        }
+        $this->mail_data[$key] .= $name_str;
 
-	/**
-	* append search result to recipient
-	* @access	public
-	* @param array names to append
-	* @param string rcp type ('to','cc','bc')
-	* @return string
-	*/
-	function appendSearchResult($a_names,$a_type)
-	{
-		if(empty($this->mail_data))
-		{
-			return false;
-		}
-		$name_str = implode(',',$a_names);
-		switch($a_type)
-		{
-			case 'to':
-				$this->mail_data["rcp_to"] = trim($this->mail_data["rcp_to"]);
-				if($this->mail_data["rcp_to"])
-				{
-					$this->mail_data["rcp_to"] = $this->mail_data["rcp_to"].",";
-				}
-				$this->mail_data["rcp_to"] = $this->mail_data["rcp_to"] . $name_str;
-				break;
+        return $this->mail_data;
+    }
 
-			case 'cc':
-				$this->mail_data["rcp_cc"] = trim($this->mail_data["rcp_cc"]);
-				if($this->mail_data["rcp_cc"])
-				{
-					$this->mail_data["rcp_cc"] = $this->mail_data["rcp_cc"].",";
-				}
-				$this->mail_data["rcp_cc"] = $this->mail_data["rcp_cc"] . $name_str;
-				break;
+    public function formatLinebreakMessage(string $message): string
+    {
+        $formatted = [];
 
-			case 'bc':
-				$this->mail_data["rcp_bcc"] = trim($this->mail_data["rcp_bcc"]);
-				if($this->mail_data["rcp_bcc"])
-				{
-					$this->mail_data["rcp_bcc"] = $this->mail_data["rcp_bcc"].",";
-				}
-				$this->mail_data["rcp_bcc"] = $this->mail_data["rcp_bcc"] . $name_str;
-				break;
+        $linebreak = $this->mail_options->getLinebreak();
 
-		}
-		return $this->mail_data;
-	}
+        $lines = explode(chr(10), $message);
+        foreach ($lines as $iValue) {
+            if (strpos($iValue, '>') !== 0) {
+                $formatted[] = wordwrap($iValue, $linebreak, chr(10));
+            } else {
+                $formatted[] = $iValue;
+            }
+        }
+        return implode(chr(10), $formatted);
+    }
 
-	/**
-	 * @param string $message
-	 * @return string
-	 */
-	public function formatLinebreakMessage(string $message): string 
-	{
-		$formatted = [];
+    public function appendSignature(string $message): string
+    {
+        $message .= chr(13) . chr(10) . $this->mail_options->getSignature();
 
-		$linebreak = $this->mail_options->getLinebreak();
+        return $message;
+    }
 
-		$lines = explode(chr(10), $message);
-		for ($i = 0; $i < count($lines); $i++) {
-			if (substr($lines[$i], 0, 1) != '>') {
-				$formatted[] = wordwrap($lines[$i], $linebreak, chr(10));
-			} else {
-				$formatted[] = $lines[$i];
-			}
-		}
-		$formatted = implode(chr(10), $formatted);
+    public function prependSignature(string $message): string
+    {
+        return $this->mail_options->getSignature() .
+            chr(13) .
+            chr(10) .
+            chr(13) .
+            chr(10) .
+            $message;
+    }
 
-		return $formatted;
-	}
-					
-				
+    public function formatReplyMessage(string $message): string
+    {
+        $bodylines = preg_split("/\r\n|\n|\r/", $message);
+        foreach ($bodylines as $i => $iValue) {
+            $bodylines[$i] = '> ' . $iValue;
+        }
 
-	/**
-	* append signature to mail body
-	* @access	public
-	* @return string
-	*/
-	function appendSignature()
-	{
-		return $this->mail_data["m_message"] .= chr(13).chr(10).$this->mail_options->getSignature();
-	}
+        return implode(chr(10), $bodylines);
+    }
 
-	/**
-	 * @return string
-	 */
-	public function prependSignature()
-	{
-		return $this->mail_options->getSignature().chr(13).chr(10).chr(13).chr(10).$this->mail_data["m_message"];
-	}
-} // END class.ilFormatMail
-?>
+    public function formatReplySubject(string $subject): string
+    {
+        return 'RE: ' . $subject;
+    }
+
+    public function formatForwardSubject(string $subject): string
+    {
+        return '[FWD: ' . $subject . ']';
+    }
+}

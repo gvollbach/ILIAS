@@ -1,380 +1,468 @@
 <?php
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ ********************************************************************
+ */
+declare(strict_types=1);
+
+/*use Closure;
+use ilAdvancedSelectionListGUI;
+use ilCSVWriter;
+use ilExcel;*/
+use ILIAS\MyStaff\ilMyStaffAccess;
+
+/*use ilLPStatus;
+use ilMStListCoursesGUI;
+use ilMyStaffGUI;
+use ilObjUserTracking;
+use ilOrgUnitPathStorage;
+use ilRepositorySelectorInputGUI;
+use ilSelectInputGUI;
+use ilTable2GUI;
+use ilTextInputGUI;
+use ilUserSearchOptions;*/
 
 /**
  * Class ilMStListCoursesTableGUI
- *
  * @author Martin Studer <ms@studer-raimann.ch>
+ * @ilCtrl_Calls      ilMStListCoursesTableGUI: ilFormPropertyDispatchGUI
  */
-class ilMStListCoursesTableGUI extends ilTable2GUI {
+class ilMStListCoursesTableGUI extends ilTable2GUI
+{
+    protected array $filter = [];
+    protected array $selectable_columns_cached = [];
+    protected ?array $orgu_names = null;
+    protected array $usr_orgu_names = [];
+    protected ilMyStaffAccess $access;
 
-	/**
-	 * @var array
-	 */
-	protected $filter = array();
-	/**
-	 * @var ilMyStaffAccess
-	 */
-	protected $access;
+    /**
+     * @param ilMStListCoursesGUI $parent_obj
+     * @param string              $parent_cmd
+     */
+    public function __construct(ilMStListCoursesGUI $parent_obj, $parent_cmd = ilMStListCoursesGUI::CMD_INDEX)
+    {
+        global $DIC;
 
+        $this->access = ilMyStaffAccess::getInstance();
 
-	/**
-	 * @param ilMStListCoursesGUI $parent_obj
-	 * @param string              $parent_cmd
-	 */
-	public function __construct(ilMStListCoursesGUI $parent_obj, $parent_cmd = ilMStListCoursesGUI::CMD_INDEX) {
-		global $DIC;
+        $this->setPrefix('myst_lc');
+        $this->setFormName('myst_lc');
+        $this->setId('myst_lc');
 
-		$this->access = ilMyStaffAccess::getInstance();
+        parent::__construct($parent_obj, $parent_cmd, '');
 
-		$this->setPrefix('myst_lc');
-		$this->setFormName('myst_lc');
-		$this->setId('myst_lc');
+        $this->setRowTemplate('tpl.list_courses_row.html', "Services/MyStaff");
+        $this->setFormAction($DIC->ctrl()->getFormAction($parent_obj));
+        $this->setDefaultOrderDirection('desc');
 
-		parent::__construct($parent_obj, $parent_cmd, '');
+        $this->setShowRowsSelector(true);
 
-		$this->setRowTemplate('tpl.list_courses_row.html', "Services/MyStaff");
-		$this->setFormAction($DIC->ctrl()->getFormAction($parent_obj));
-		$this->setDefaultOrderDirection('desc');
+        $this->setEnableTitle(true);
+        $this->setDisableFilterHiding(true);
+        $this->setEnableNumInfo(true);
 
-		$this->setShowRowsSelector(true);
+        $this->setExportFormats(array(self::EXPORT_EXCEL, self::EXPORT_CSV));
 
-		$this->setEnableTitle(true);
-		$this->setDisableFilterHiding(true);
-		$this->setEnableNumInfo(true);
+        $this->setFilterCols(5);
+        $this->initFilter();
 
-		$this->setExportFormats(array( self::EXPORT_EXCEL, self::EXPORT_CSV ));
+        $this->addColumns();
 
-		$this->setFilterCols(5);
-		$this->initFilter();
+        $this->parseData();
+    }
 
-		$this->addColumns();
+    protected function parseData()
+    {
+        global $DIC;
 
-		$this->parseData();
-	}
+        $this->setExternalSorting(true);
+        $this->setExternalSegmentation(true);
+        $this->setDefaultOrderField('crs_title');
 
+        $this->determineLimit();
+        $this->determineOffsetAndOrder();
 
-	/**
-	 *
-	 */
-	protected function parseData() {
-		global $DIC;
+        $options = array(
+            'filters' => $this->filter,
+            'limit' => array(
+                'start' => $this->getOffset(),
+                'end' => $this->getLimit(),
+            ),
+            'count' => true,
+            'sort' => array(
+                'field' => $this->getOrderField(),
+                'direction' => $this->getOrderDirection(),
+            ),
+        );
 
-		$this->setExternalSorting(true);
-		$this->setExternalSegmentation(true);
-		$this->setDefaultOrderField('crs_title');
+        $arr_usr_id = $this->access->getUsersForUserOperationAndContext(
+            $DIC->user()->getId(),
+            ilMyStaffAccess::ACCESS_ENROLMENTS_ORG_UNIT_OPERATION,
+            ilMyStaffAccess::COURSE_CONTEXT
+        );
 
-		$this->determineLimit();
-		$this->determineOffsetAndOrder();
+        $list_courses_fetcher = new \ILIAS\MyStaff\ListCourses\ilMStListCourses($DIC);
+        $result = $list_courses_fetcher->getData($arr_usr_id, $options);
+        $this->setMaxCount($result->getTotalDatasetCount());
+        $data = $result->getDataset();
 
-		$options = array(
-			'filters' => $this->filter,
-			'limit' => array(),
-			'count' => true,
-			'sort' => array(
-				'field' => $this->getOrderField(),
-				'direction' => $this->getOrderDirection(),
-			),
-		);
+        // Workaround because the fillRow Method only accepts arrays
+        $data = array_map(function (\ILIAS\MyStaff\ListCourses\ilMStListCourse $it): array {
+            return [$it];
+        }, $data);
+        $this->setData($data);
+    }
 
-		$all_users_for_user = $this->access->getUsersForUser($DIC->user()->getId());
+    final public function initFilter(): void
+    {
+        global $DIC;
 
-		$count = ilMStListCourses::getData($all_users_for_user, $options);
-		$options['limit'] = array(
-			'start' => intval($this->getOffset()),
-			'end' => intval($this->getLimit()),
-		);
-		$options['count'] = false;
-		$data = ilMStListCourses::getData($all_users_for_user, $options);
-		$this->setMaxCount($count);
-		$this->setData($data);
-	}
+        $item = new ilTextInputGUI($DIC->language()->txt("crs_title"), "crs_title");
+        $this->addFilterItem($item);
+        $item->readFromSession();
+        $this->filter['crs_title'] = $item->getValue();
 
+        // course members
+        $item = new ilRepositorySelectorInputGUI($DIC->language()->txt("usr_filter_coursemember"), "course");
+        //$item->setParent($this->getParentObject());
+        $item->setSelectText($DIC->language()->txt("mst_select_course"));
+        $item->setHeaderMessage($DIC->language()->txt("mst_please_select_course"));
+        $item->setClickableTypes(array(ilMyStaffAccess::COURSE_CONTEXT));
+        $this->addFilterItem($item);
+        $item->readFromSession();
+        //$item->setParent($this->getParentObject());
+        $this->filter["course"] = $item->getValue();
 
-	/**
-	 *
-	 */
-	public function initFilter() {
-		global $DIC;
+        //membership status
+        $item = new ilSelectInputGUI($DIC->language()->txt('member_status'), 'memb_status');
+        $item->setOptions(array(
+            "" => $DIC->language()->txt("mst_opt_all"),
+            \ILIAS\MyStaff\ListCourses\ilMStListCourse::MEMBERSHIP_STATUS_REQUESTED => $DIC->language()->txt('mst_memb_status_requested'),
+            \ILIAS\MyStaff\ListCourses\ilMStListCourse::MEMBERSHIP_STATUS_WAITINGLIST => $DIC->language()->txt('mst_memb_status_waitinglist'),
+            \ILIAS\MyStaff\ListCourses\ilMStListCourse::MEMBERSHIP_STATUS_REGISTERED => $DIC->language()->txt('mst_memb_status_registered'),
+        ));
+        $this->addFilterItem($item);
+        $item->readFromSession();
+        $this->filter["memb_status"] = $item->getValue();
 
-		$item = new ilTextInputGUI($DIC->language()->txt("crs_title"), "crs_title");
-		$this->addFilterItem($item);
-		$item->readFromSession();
-		$this->filter['crs_title'] = $item->getValue();
-
-		// course members
-		$item = new ilRepositorySelectorInputGUI($DIC->language()->txt("usr_filter_coursemember"), "course");
-		$item->setParent($this->getParentObject());
-		$item->setSelectText($DIC->language()->txt("mst_select_course"));
-		$item->setHeaderMessage($DIC->language()->txt("mst_please_select_course"));
-		$item->setClickableTypes(array( ilMyStaffAccess::DEFAULT_CONTEXT ));
-		$this->addFilterItem($item);
-		$item->readFromSession();
-		$item->setParent($this->getParentObject());
-		$this->filter["course"] = $item->getValue();
-
-		//membership status
-		$item = new ilSelectInputGUI($DIC->language()->txt('member_status'), 'memb_status');
-		$item->setOptions(array(
-			"" => $DIC->language()->txt("mst_opt_all"),
-			ilMStListCourse::MEMBERSHIP_STATUS_REQUESTED => $DIC->language()->txt('mst_memb_status_requested'),
-			ilMStListCourse::MEMBERSHIP_STATUS_WAITINGLIST => $DIC->language()->txt('mst_memb_status_waitinglist'),
-			ilMStListCourse::MEMBERSHIP_STATUS_REGISTERED => $DIC->language()->txt('mst_memb_status_registered'),
-		));
-		$this->addFilterItem($item);
-		$item->readFromSession();
-		$this->filter["memb_status"] = $item->getValue();
-
-		if (ilObjUserTracking::_enabledLearningProgress() && $this->access->hasCurrentUserAccessToCourseLearningProgressForAtLeastOneUser()) {
-			//learning progress status
-			$item = new ilSelectInputGUI($DIC->language()->txt('learning_progress'), 'lp_status');
-			//+1 because LP_STATUS_NOT_ATTEMPTED_NUM is 0.
-			$item->setOptions(array(
-				"" => $DIC->language()->txt("mst_opt_all"),
-				ilLPStatus::LP_STATUS_NOT_ATTEMPTED_NUM + 1 => $DIC->language()->txt(ilLPStatus::LP_STATUS_NOT_ATTEMPTED),
-				ilLPStatus::LP_STATUS_IN_PROGRESS_NUM + 1 => $DIC->language()->txt(ilLPStatus::LP_STATUS_IN_PROGRESS),
-				ilLPStatus::LP_STATUS_COMPLETED_NUM + 1 => $DIC->language()->txt(ilLPStatus::LP_STATUS_COMPLETED),
-				ilLPStatus::LP_STATUS_FAILED_NUM + 1 => $DIC->language()->txt(ilLPStatus::LP_STATUS_FAILED),
-			));
-			$this->addFilterItem($item);
-			$item->readFromSession();
-			$this->filter["lp_status"] = $item->getValue();
-			if ($this->filter["lp_status"]) {
-				$this->filter["lp_status"] = $this->filter["lp_status"] - 1;
-			}
-		}
-
-		//user
-		$item = new ilTextInputGUI($DIC->language()->txt("login") . "/" . $DIC->language()->txt("email") . "/" . $DIC->language()
-				->txt("name"), "user");
-
-		$this->addFilterItem($item);
-		$item->readFromSession();
-		$this->filter['user'] = $item->getValue();
-
-		if (ilUserSearchOptions::_isEnabled('org_units')) {
-			$paths = ilOrgUnitPathStorage::getTextRepresentationOfOrgUnits();
-			$options[0] = $DIC->language()->txt('mst_opt_all');
-			foreach ($paths as $org_ref_id => $path) {
-				$options[$org_ref_id] = $path;
-			}
-			$item = new ilSelectInputGUI($DIC->language()->txt('obj_orgu'), 'org_unit');
-			$item->setOptions($options);
-			$this->addFilterItem($item);
-			$item->readFromSession();
-			$this->filter['org_unit'] = $item->getValue();
-		}
-	}
+        if (ilObjUserTracking::_enabledLearningProgress() && $this->access->hasCurrentUserAccessToCourseLearningProgressForAtLeastOneUser()) {
+            //learning progress status
+            $item = new ilSelectInputGUI($DIC->language()->txt('learning_progress'), 'lp_status');
+            //+1 because LP_STATUS_NOT_ATTEMPTED_NUM is 0.
+            $item->setOptions(array(
+                "" => $DIC->language()->txt("mst_opt_all"),
+                ilLPStatus::LP_STATUS_NOT_ATTEMPTED_NUM + 1 => $DIC->language()->txt(ilLPStatus::LP_STATUS_NOT_ATTEMPTED),
+                ilLPStatus::LP_STATUS_IN_PROGRESS_NUM + 1 => $DIC->language()->txt(ilLPStatus::LP_STATUS_IN_PROGRESS),
+                ilLPStatus::LP_STATUS_COMPLETED_NUM + 1 => $DIC->language()->txt(ilLPStatus::LP_STATUS_COMPLETED),
+                ilLPStatus::LP_STATUS_FAILED_NUM + 1 => $DIC->language()->txt(ilLPStatus::LP_STATUS_FAILED),
+            ));
+            $this->addFilterItem($item);
+            $item->readFromSession();
+            $this->filter["lp_status"] = $item->getValue();
+            $this->filter["lp_status"] = (int) $this->filter["lp_status"] - 1;
+        }
 
 
-	/**
-	 * @return array
-	 */
-	public function getSelectableColumns() {
-		global $DIC;
 
-		$cols = array();
+        //user
+        $item = new ilTextInputGUI(
+            $DIC->language()->txt("login") . "/" . $DIC->language()->txt("email") . "/" . $DIC->language()
+                                                                                                                     ->txt("name"),
+            "user"
+        );
 
-		$arr_searchable_user_columns = ilUserSearchOptions::getSelectableColumnInfo();
+        $this->addFilterItem($item);
+        $item->readFromSession();
+        $this->filter['user'] = $item->getValue();
 
-		$cols['crs_title'] = array(
-			'txt' => $DIC->language()->txt('crs_title'),
-			'default' => true,
-			'width' => 'auto',
-			'sort_field' => 'crs_title',
-		);
-		$cols['usr_reg_status'] = array(
-			'txt' => $DIC->language()->txt('member_status'),
-			'default' => true,
-			'width' => 'auto',
-			'sort_field' => 'reg_status',
-		);
-		if (ilObjUserTracking::_enabledLearningProgress() && $this->access->hasCurrentUserAccessToCourseLearningProgressForAtLeastOneUser()) {
-			$cols['usr_lp_status'] = array(
-				'txt' => $DIC->language()->txt('learning_progress'),
-				'default' => true,
-				'width' => 'auto',
-				'sort_field' => 'lp_status',
-			);
-		}
+        if (ilUserSearchOptions::_isEnabled('org_units')) {
+            $paths = $this->getTextRepresentationOfOrgUnits();
+            $options[0] = $DIC->language()->txt('mst_opt_all');
+            foreach ($paths as $org_ref_id => $path) {
+                $options[$org_ref_id] = $path;
+            }
+            $item = new ilSelectInputGUI($DIC->language()->txt('obj_orgu'), 'org_unit');
+            $item->setOptions($options);
+            $this->addFilterItem($item);
+            $item->readFromSession();
+            $this->filter['org_unit'] = $item->getValue();
+        }
+    }
 
-		if ($arr_searchable_user_columns['login']) {
-			$cols['usr_login'] = array(
-				'txt' => $DIC->language()->txt('login'),
-				'default' => true,
-				'width' => 'auto',
-				'sort_field' => 'usr_login',
-			);
-		}
-		if ($arr_searchable_user_columns['firstname']) {
-			$cols['usr_firstname'] = array(
-				'txt' => $DIC->language()->txt('firstname'),
-				'default' => true,
-				'width' => 'auto',
-				'sort_field' => 'usr_firstname',
-			);
-		}
-		if ($arr_searchable_user_columns['lastname']) {
-			$cols['usr_lastname'] = array(
-				'txt' => $DIC->language()->txt('lastname'),
-				'default' => true,
-				'width' => 'auto',
-				'sort_field' => 'usr_lastname',
-			);
-		}
+    protected function getTextRepresentationOfOrgUnits(): array
+    {
+        if (isset($this->orgu_names)) {
+            return $this->orgu_names;
+        }
 
-		if ($arr_searchable_user_columns['email']) {
-			$cols['usr_email'] = array(
-				'txt' => $DIC->language()->txt('email'),
-				'default' => true,
-				'width' => 'auto',
-				'sort_field' => 'usr_email',
-			);
-		}
+        return $this->orgu_names = ilOrgUnitPathStorage::getTextRepresentationOfOrgUnits();
+    }
 
-		if ($arr_searchable_user_columns['org_units']) {
-			$cols['usr_assinged_orgus'] = array(
-				'txt' => $DIC->language()->txt('objs_orgu'),
-				'default' => true,
-				'width' => 'auto',
-			);
-		}
+    protected function getTextRepresentationOfUsersOrgUnits(int $user_id): string
+    {
+        if (isset($this->usr_orgu_names[$user_id])) {
+            return $this->usr_orgu_names[$user_id];
+        }
 
-		return $cols;
-	}
+        return $this->usr_orgu_names[$user_id] = ilOrgUnitPathStorage::getTextRepresentationOfUsersOrgUnits($user_id);
+    }
 
+    final public function getSelectableColumns(): array
+    {
+        if ($this->selectable_columns_cached) {
+            return $this->selectable_columns_cached;
+        }
 
-	/**
-	 *
-	 */
-	private function addColumns() {
-		global $DIC;
+        return $this->selectable_columns_cached = $this->initSelectableColumns();
+    }
 
-		foreach ($this->getSelectableColumns() as $k => $v) {
-			if ($this->isColumnSelected($k)) {
-				if (isset($v['sort_field'])) {
-					$sort = $v['sort_field'];
-				} else {
-					$sort = null;
-				}
-				$this->addColumn($v['txt'], $sort, $v['width']);
-			}
-		}
+    protected function initSelectableColumns(): array
+    {
+        global $DIC;
 
-		//Actions
-		if (!$this->getExportMode()) {
-			$this->addColumn($DIC->language()->txt('actions'));
-		}
-	}
+        $cols = array();
 
+        $arr_searchable_user_columns = ilUserSearchOptions::getSelectableColumnInfo();
 
-	/**
-	 * @param ilMStListCourse $my_staff_course
-	 */
-	public function fillRow($my_staff_course) {
-		global $DIC;
+        $cols['crs_title'] = array(
+            'txt' => $DIC->language()->txt('crs_title'),
+            'default' => true,
+            'width' => 'auto',
+            'sort_field' => 'crs_title',
+        );
+        $cols['usr_reg_status'] = array(
+            'txt' => $DIC->language()->txt('member_status'),
+            'default' => true,
+            'width' => 'auto',
+            'sort_field' => 'reg_status',
+        );
+        if (ilObjUserTracking::_enabledLearningProgress() && $this->access->hasCurrentUserAccessToCourseLearningProgressForAtLeastOneUser()) {
+            $cols['usr_lp_status'] = array(
+                'txt' => $DIC->language()->txt('learning_progress'),
+                'default' => true,
+                'width' => 'auto',
+                'sort_field' => 'lp_status',
+            );
+        }
 
-		$propGetter = Closure::bind(function ($prop) { return $this->$prop; }, $my_staff_course, $my_staff_course);
+        if ($arr_searchable_user_columns['login'] ?? false) {
+            $cols['usr_login'] = array(
+                'txt' => $DIC->language()->txt('login'),
+                'default' => true,
+                'width' => 'auto',
+                'sort_field' => 'usr_login',
+            );
+        }
+        if ($arr_searchable_user_columns['firstname'] ?? false) {
+            $cols['usr_firstname'] = array(
+                'txt' => $DIC->language()->txt('firstname'),
+                'default' => true,
+                'width' => 'auto',
+                'sort_field' => 'usr_firstname',
+            );
+        }
+        if ($arr_searchable_user_columns['lastname'] ?? false) {
+            $cols['usr_lastname'] = array(
+                'txt' => $DIC->language()->txt('lastname'),
+                'default' => true,
+                'width' => 'auto',
+                'sort_field' => 'usr_lastname',
+            );
+        }
 
-		foreach ($this->getSelectableColumns() as $k => $v) {
-			if ($this->isColumnSelected($k)) {
-				switch ($k) {
-					case 'usr_assinged_orgus':
-						$this->tpl->setCurrentBlock('td');
-						$this->tpl->setVariable('VALUE', strval(ilOrgUnitPathStorage::getTextRepresentationOfUsersOrgUnits($my_staff_course->getUsrId())));
-						$this->tpl->parseCurrentBlock();
-						break;
-					case 'usr_reg_status':
-						$this->tpl->setCurrentBlock('td');
-						$this->tpl->setVariable('VALUE', ilMStListCourse::getMembershipStatusText($my_staff_course->getUsrRegStatus()));
-						$this->tpl->parseCurrentBlock();
-						break;
-					case 'usr_lp_status':
-						$this->tpl->setCurrentBlock('td');
-						$this->tpl->setVariable('VALUE', ilMyStaffGUI::getUserLpStatusAsHtml($my_staff_course));
-						$this->tpl->parseCurrentBlock();
-						break;
-					default:
-						if ($propGetter($k) !== null) {
-							$this->tpl->setCurrentBlock('td');
-							$this->tpl->setVariable('VALUE', (is_array($propGetter($k)) ? implode(", ", $propGetter($k)) : $propGetter($k)));
-							$this->tpl->parseCurrentBlock();
-						} else {
-							$this->tpl->setCurrentBlock('td');
-							$this->tpl->setVariable('VALUE', '&nbsp;');
-							$this->tpl->parseCurrentBlock();
-						}
-						break;
-				}
-			}
-		}
+        if ($arr_searchable_user_columns['email'] ?? false) {
+            $cols['usr_email'] = array(
+                'txt' => $DIC->language()->txt('email'),
+                'default' => true,
+                'width' => 'auto',
+                'sort_field' => 'usr_email',
+            );
+        }
 
-		$actions = new ilAdvancedSelectionListGUI();
-		$actions->setListTitle($DIC->language()->txt("actions"));
-		$actions->setAsynch(true);
-		$actions->setId($my_staff_course->getUsrId() . "-" . $my_staff_course->getCrsRefId());
+        if ($arr_searchable_user_columns['org_units'] ?? false) {
+            $cols['usr_assinged_orgus'] = array(
+                'txt' => $DIC->language()->txt('objs_orgu'),
+                'default' => true,
+                'width' => 'auto',
+            );
+        }
 
-		$DIC->ctrl()->setParameterByClass(ilMStListCoursesGUI::class, 'mst_lco_usr_id', $my_staff_course->getUsrId());
-		$DIC->ctrl()->setParameterByClass(ilMStListCoursesGUI::class, 'mst_lco_crs_ref_id', $my_staff_course->getCrsRefId());
+        return $cols;
+    }
 
-		$actions->setAsynchUrl(str_replace("\\", "\\\\", $DIC->ctrl()
-			->getLinkTarget($this->parent_obj, ilMStListCoursesGUI::CMD_GET_ACTIONS, "", true)));
-		$this->tpl->setVariable('ACTIONS', $actions->getHTML());
-		$this->tpl->parseCurrentBlock();
-	}
+    private function addColumns(): void
+    {
+        global $DIC;
 
+        foreach ($this->getSelectableColumns() as $k => $v) {
+            if ($this->isColumnSelected($k)) {
+                $sort = $v['sort_field'] ?? "";
+                $this->addColumn($v['txt'], $sort);
+            }
+        }
 
-	/**
-	 * @param ilExcel         $a_excel excel wrapper
-	 * @param int             $a_row
-	 * @param ilMStListCourse $my_staff_course
-	 */
-	protected function fillRowExcel(ilExcel $a_excel, &$a_row, $my_staff_course) {
-		$col = 0;
-		foreach ($this->getFieldValuesForExport($my_staff_course) as $k => $v) {
-			$a_excel->setCell($a_row, $col, $v);
-			$col ++;
-		}
-	}
+        //Actions
+        if (!$this->getExportMode()) {
+            $this->addColumn($DIC->language()->txt('actions'));
+        }
+    }
 
+    /**
+     * @param array<\ILIAS\MyStaff\ListCourses\ilMStListCourse> $a_set
+     * @return void
+     * @throws \ilCtrlException
+     * @throws \ilTemplateException
+     */
+    final protected function fillRow(array $a_set): void
+    {
+        global $DIC;
 
-	/**
-	 * @param ilCSVWriter     $a_csv
-	 * @param ilMStListCourse $my_staff_course
-	 */
-	protected function fillRowCSV($a_csv, $my_staff_course) {
-		foreach ($this->getFieldValuesForExport($my_staff_course) as $k => $v) {
-			$a_csv->addColumn($v);
-		}
-		$a_csv->addRow();
-	}
+        $set = array_pop($a_set);
 
+        $propGetter = Closure::bind(function ($prop) {
+            return $this->$prop ?? null;
+        }, $set, $set);
 
-	/**
-	 * @param ilMStListCourse $my_staff_course
-	 *
-	 * @return array
-	 */
-	protected function getFieldValuesForExport(ilMStListCourse $my_staff_course) {
-		$propGetter = Closure::bind(function ($prop) { return $this->$prop; }, $my_staff_course, $my_staff_course);
+        foreach ($this->getSelectedColumns() as $k => $v) {
+            switch ($k) {
+                case 'usr_assinged_orgus':
+                    $this->tpl->setCurrentBlock('td');
+                    $this->tpl->setVariable(
+                        'VALUE',
+                        $this->getTextRepresentationOfUsersOrgUnits($set->getUsrId())
+                    );
+                    $this->tpl->parseCurrentBlock();
+                    break;
+                case 'usr_reg_status':
+                    $this->tpl->setCurrentBlock('td');
+                    $this->tpl->setVariable(
+                        'VALUE',
+                        \ILIAS\MyStaff\ListCourses\ilMStListCourse::getMembershipStatusText($set->getUsrRegStatus())
+                    );
+                    $this->tpl->parseCurrentBlock();
+                    break;
+                case 'usr_lp_status':
+                    $this->tpl->setCurrentBlock('td');
+                    $this->tpl->setVariable('VALUE', ilMyStaffGUI::getUserLpStatusAsHtml($set));
+                    $this->tpl->parseCurrentBlock();
+                    break;
+                default:
+                    if ($propGetter($k) !== null) {
+                        $this->tpl->setCurrentBlock('td');
+                        $this->tpl->setVariable(
+                            'VALUE',
+                            (is_array($propGetter($k)) ? implode(", ", $propGetter($k)) : $propGetter($k))
+                        );
+                        $this->tpl->parseCurrentBlock();
+                    } else {
+                        $this->tpl->setCurrentBlock('td');
+                        $this->tpl->setVariable('VALUE', '&nbsp;');
+                        $this->tpl->parseCurrentBlock();
+                    }
+                    break;
+            }
+        }
 
-		$field_values = array();
-		foreach ($this->getSelectedColumns() as $k => $v) {
-			switch ($k) {
-				case 'usr_assinged_orgus':
-					$field_values[$k] = ilOrgUnitPathStorage::getTextRepresentationOfUsersOrgUnits($my_staff_course->getUsrId());
-					break;
-				case 'usr_reg_status':
-					$field_values[$k] = ilMStListCourse::getMembershipStatusText($my_staff_course->getUsrRegStatus());
-					break;
-				case 'usr_lp_status':
-					$field_values[$k] = ilMyStaffGUI::getUserLpStatusAsText($my_staff_course);
-					break;
-				default:
-					$field_values[$k] = strip_tags($propGetter($k));
-					break;
-			}
-		}
+        $actions = new ilAdvancedSelectionListGUI();
+        $actions->setListTitle($DIC->language()->txt("actions"));
+        $actions->setId($set->getUsrId() . "-" . $set->getCrsRefId());
 
-		return $field_values;
-	}
+        $mst_lco_usr_id = $set->getUsrId();
+        $mst_lco_crs_ref_id = $set->getCrsRefId();
+
+        if ($DIC->access()->checkAccess("visible", "", $mst_lco_crs_ref_id)) {
+            $link = ilLink::_getStaticLink($mst_lco_crs_ref_id, ilMyStaffAccess::COURSE_CONTEXT);
+            $actions->addItem(
+                ilObject2::_lookupTitle(ilObject2::_lookupObjectId($mst_lco_crs_ref_id)),
+                '',
+                $link
+            );
+        };
+
+        foreach (ilOrgUnitUserAssignment::innerjoin('object_reference', 'orgu_id', 'ref_id')->where(array(
+            'user_id' => $mst_lco_usr_id,
+            'object_reference.deleted' => null
+        ), array('user_id' => '=', 'object_reference.deleted' => '!='))->get() as $org_unit_assignment) {
+            if ($DIC->access()->checkAccess("read", "", $org_unit_assignment->getOrguId())) {
+                $org_units = $this->getTextRepresentationOfOrgUnits();
+                $link = ilLink::_getStaticLink($org_unit_assignment->getOrguId(), 'orgu');
+                $actions->addItem($org_units[$org_unit_assignment->getOrguId()], '', $link);
+            }
+        }
+
+        $DIC->ctrl()->setParameterByClass(ilMStListCoursesGUI::class, 'mst_lco_usr_id', $mst_lco_usr_id);
+        $DIC->ctrl()->setParameterByClass(ilMStListCoursesGUI::class, 'mst_lco_crs_ref_id', $mst_lco_crs_ref_id);
+
+        $actions = ilMyStaffGUI::extendActionMenuWithUserActions(
+            $actions,
+            $mst_lco_usr_id,
+            rawurlencode($this->ctrl->getLinkTargetByClass(
+                "ilMStListCoursesGUI",
+                ilMStListCoursesGUI::CMD_INDEX
+            ))
+        );
+
+        $this->tpl->setVariable('ACTIONS', $actions->getHTML());
+        $this->tpl->parseCurrentBlock();
+    }
+
+    protected function fillRowExcel(ilExcel $a_excel, int &$a_row, array $a_set): void
+    {
+        $set = array_pop($a_set);
+
+        $col = 0;
+        foreach ($this->getFieldValuesForExport($set) as $k => $v) {
+            $a_excel->setCell($a_row, $col, $v);
+            $col++;
+        }
+    }
+
+    protected function fillRowCSV(ilCSVWriter $a_csv, array $a_set): void
+    {
+        $set = array_pop($a_set);
+
+        foreach ($this->getFieldValuesForExport($set) as $k => $v) {
+            $a_csv->addColumn($v);
+        }
+        $a_csv->addRow();
+    }
+
+    protected function getFieldValuesForExport(\ILIAS\MyStaff\ListCourses\ilMStListCourse $my_staff_course): array
+    {
+        $propGetter = Closure::bind(function ($prop) {
+            return $this->$prop ?? null;
+        }, $my_staff_course, $my_staff_course);
+
+        $field_values = array();
+        foreach ($this->getSelectedColumns() as $k => $v) {
+            switch ($k) {
+                case 'usr_assinged_orgus':
+                    $field_values[$k] = $this->getTextRepresentationOfUsersOrgUnits($my_staff_course->getUsrId());
+                    break;
+                case 'usr_reg_status':
+                    $field_values[$k] = \ILIAS\MyStaff\ListCourses\ilMStListCourse::getMembershipStatusText($my_staff_course->getUsrRegStatus());
+                    break;
+                case 'usr_lp_status':
+                    $field_values[$k] = ilMyStaffGUI::getUserLpStatusAsText($my_staff_course);
+                    break;
+                default:
+                    $field_values[$k] = strip_tags($propGetter($k) ?? "");
+                    break;
+            }
+        }
+
+        return $field_values;
+    }
 }

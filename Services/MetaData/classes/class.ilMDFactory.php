@@ -1,232 +1,200 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2001 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
 
+declare(strict_types=1);
+/*
+    +-----------------------------------------------------------------------------+
+    | ILIAS open source                                                           |
+    +-----------------------------------------------------------------------------+
+    | Copyright (c) 1998-2001 ILIAS open source, University of Cologne            |
+    |                                                                             |
+    | This program is free software; you can redistribute it and/or               |
+    | modify it under the terms of the GNU General Public License                 |
+    | as published by the Free Software Foundation; either version 2              |
+    | of the License, or (at your option) any later version.                      |
+    |                                                                             |
+    | This program is distributed in the hope that it will be useful,             |
+    | but WITHOUT ANY WARRANTY; without even the implied warranty of              |
+    | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
+    | GNU General Public License for more details.                                |
+    |                                                                             |
+    | You should have received a copy of the GNU General Public License           |
+    | along with this program; if not, write to the Free Software                 |
+    | Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
+    +-----------------------------------------------------------------------------+
+*/
 
 /**
-* Meta Data factory class 
-*
-* @package ilias-core
-* @version $Id$
-*/
-
+ * Meta Data factory class
+ * @package ilias-core
+ * @version $Id$
+ */
 class ilMDFactory
 {
-	/*
-	 * get md element by index and type
-	 *
-	 * @param string type (name e.g meta_general,meta_language)
-	 *
-	 * @return MD object
-	 */
-	public static function _getInstance($a_type,$a_index,$a_technical_id = 0)
-	{
-		switch($a_type)
-		{
-			case 'meta_technical':
-				include_once 'Services/MetaData/classes/class.ilMDTechnical.php';
+    /**
+     * @return null|ilMDTechnical|ilMDTechnical|ilMDRequirement|ilMDLocation|ilMDFormat|ilMDLifecycle|ilMDEntity|ilMDContribute|ilMDIdentifier|ilMDDescription|ilMDKeyword|ilMDLanguage|ilMDRights|ilMDEducational|ilMDTypicalAgeRange|ilMDRelation|ilMDIdentifier_|ilMDAnnotation|ilMDClassification|ilMDTaxonPath|ilMDTaxon|ilMDMetaMetadata
+     */
+    public static function _getInstance(string $a_type, int $a_index, ?int $a_technical_id = 0): ?object
+    {
+        switch ($a_type) {
+            case 'meta_technical':
 
-				$tec = new ilMDTechnical();
-				$tec->setMetaId($a_index);
+                $tec = new ilMDTechnical();
+                $tec->setMetaId($a_index);
 
-				return $tec;
+                return $tec;
 
-			case 'meta_or_composite':
-				include_once 'Services/MetaData/classes/class.ilMDOrComposite.php';
-				include_once 'Services/MetaData/classes/class.ilMDTechnical.php';
+            case 'meta_or_composite':
 
-				$tec = new ilMDTechnical();
-				$tec->setMetaId($a_technical_id);
+                $tec = new ilMDTechnical();
+                $tec->setMetaId($a_technical_id);
 
-				return $tec->getOrComposite($a_index);
+                return $tec->getOrComposite($a_index);
 
-			case 'meta_requirement':
-				include_once 'Services/MetaData/classes/class.ilMDRequirement.php';
+            case 'meta_requirement':
 
-				$req = new ilMDRequirement();
-				$req->setMetaId($a_index);
+                $req = new ilMDRequirement();
+                $req->setMetaId($a_index);
 
-				return $req;
-				
+                return $req;
 
-			case 'meta_location':
-				include_once 'Services/MetaData/classes/class.ilMDLocation.php';
+            case 'meta_location':
 
-				$loc = new ilMDLocation();
-				$loc->setMetaId($a_index);
+                $loc = new ilMDLocation();
+                $loc->setMetaId($a_index);
 
-				return $loc;
+                return $loc;
 
-			case 'meta_format':
-				include_once 'Services/MetaData/classes/class.ilMDFormat.php';
+            case 'meta_format':
 
-				$for = new ilMDFormat();
-				$for->setMetaId($a_index);
+                $for = new ilMDFormat();
+                $for->setMetaId($a_index);
 
-				return $for;
+                return $for;
 
-			case 'meta_lifecycle':
-				include_once 'Services/MetaData/classes/class.ilMDLifecycle.php';
+            case 'meta_lifecycle':
 
-				$lif = new ilMDLifecycle();
-				$lif->setMetaId($a_index);
+                $lif = new ilMDLifecycle();
+                $lif->setMetaId($a_index);
 
-				return $lif;
+                return $lif;
 
-			case 'meta_entity':
-				include_once 'Services/MetaData/classes/class.ilMDEntity.php';
+            case 'meta_entity':
 
-				$ent = new ilMDEntity();
-				$ent->setMetaId($a_index);
+                $ent = new ilMDEntity();
+                $ent->setMetaId($a_index);
 
-				return $ent;
+                return $ent;
 
-			case 'meta_contribute':
-				include_once 'Services/MetaData/classes/class.ilMDContribute.php';
+            case 'meta_contribute':
 
-				$con = new ilMDContribute();
-				$con->setMetaId($a_index);
-				
-				return $con;
+                $con = new ilMDContribute();
+                $con->setMetaId($a_index);
 
-			case 'meta_identifier':
-				include_once 'Services/MetaData/classes/class.ilMDIdentifier.php';
+                return $con;
 
-				$ide = new ilMDIdentifier();
-				$ide->setMetaId($a_index);
-				
-				return $ide;
-			
-			case 'educational_description':
-			case 'meta_description':
-				include_once 'Services/MetaData/classes/class.ilMDDescription.php';
+            case 'meta_identifier':
 
-				$des = new ilMDDescription();
-				$des->setMetaId($a_index);
-				
-				return $des;
+                $ide = new ilMDIdentifier();
+                $ide->setMetaId($a_index);
 
-			case 'meta_keyword':
-			case 'classification_keyword':
-				include_once 'Services/MetaData/classes/class.ilMDKeyword.php';
+                return $ide;
 
-				$key = new ilMDKeyword();
-				$key->setMetaId($a_index);
-				
-				return $key;
+            case 'educational_description':
+            case 'meta_description':
 
-			case 'educational_language':
-			case 'meta_language':
-				include_once 'Services/MetaData/classes/class.ilMDLanguage.php';
+                $des = new ilMDDescription();
+                $des->setMetaId($a_index);
 
-				$lan = new ilMDLanguage();
-				$lan->setMetaId($a_index);
+                return $des;
 
-				return $lan;
-				
-			case 'meta_rights':
-				include_once 'Services/MetaData/classes/class.ilMDRights.php';
+            case 'meta_keyword':
+            case 'classification_keyword':
 
-				$rights = new ilMDRights();
-				$rights->setMetaId($a_index);
-				return $rights;
+                $key = new ilMDKeyword();
+                $key->setMetaId($a_index);
 
-			case 'meta_educational':
-				include_once 'Services/MetaData/classes/class.ilMDEducational.php';
+                return $key;
 
-				$edu = new ilMDEducational();
-				$edu->setMetaId($a_index);
-				return $edu;
+            case 'educational_language':
+            case 'meta_language':
 
-			case 'educational_typical_age_range':
-				include_once 'Services/MetaData/classes/class.ilMDTypicalAgeRange.php';
+                $lan = new ilMDLanguage();
+                $lan->setMetaId($a_index);
 
-				$age = new ilMDTypicalAgeRange();
-				$age->setMetaId($a_index);
-				return $age;
+                return $lan;
 
-			case 'meta_relation':
-				include_once 'Services/MetaData/classes/class.ilMDRelation.php';
+            case 'meta_rights':
 
-				$relation = new ilMDRelation();
-				$relation->setMetaId($a_index);
-				return $relation;
-				
-			case 'relation_resource_identifier':
-				include_once 'Services/MetaData/classes/class.ilMDIdentifier_.php';
+                $rights = new ilMDRights();
+                $rights->setMetaId($a_index);
+                return $rights;
 
-				$ide = new ilMDIdentifier_();
-				$ide->setMetaId($a_index);
-				
-				return $ide;
-				
-			case 'relation_resource_description':
-				include_once 'Services/MetaData/classes/class.ilMDDescription.php';
+            case 'meta_educational':
 
-				$des = new ilMDDescription();
-				$des->setMetaId($a_index);
-				
-				return $des;
+                $edu = new ilMDEducational();
+                $edu->setMetaId($a_index);
+                return $edu;
 
-			case 'meta_annotation':
-				include_once 'Services/MetaData/classes/class.ilMDAnnotation.php';
+            case 'educational_typical_age_range':
 
-				$anno = new ilMDAnnotation();
-				$anno->setMetaId($a_index);
-				return $anno;
+                $age = new ilMDTypicalAgeRange();
+                $age->setMetaId($a_index);
+                return $age;
 
-			case 'meta_classification':
-				include_once 'Services/MetaData/classes/class.ilMDClassification.php';
+            case 'meta_relation':
 
-				$class = new ilMDClassification();
-				$class->setMetaId($a_index);
-				return $class;
-				
-			case 'classification_taxon_path':
-				include_once 'Services/MetaData/classes/class.ilMDTaxonPath.php';
+                $relation = new ilMDRelation();
+                $relation->setMetaId($a_index);
+                return $relation;
 
-				$tax_path = new ilMDTaxonPath();
+            case 'relation_resource_identifier':
 
-				$tax_path->setMetaId($a_index);
-				return $tax_path;
+                $ide = new ilMDIdentifier_();
+                $ide->setMetaId($a_index);
 
-			case 'classification_taxon':
-				include_once 'Services/MetaData/classes/class.ilMDTaxon.php';
+                return $ide;
 
-				$tax = new ilMDTaxon();
-				$tax->setMetaId($a_index);
-				return $tax;
+            case 'relation_resource_description':
 
-			case 'meta_meta_metadata':
-				include_once 'Services/MetaData/classes/class.ilMDMetaMetadata.php';
+                $des = new ilMDDescription();
+                $des->setMetaId($a_index);
 
-				$met = new ilMDMetaMetadata();
-				$met->setMetaId($a_index);
-				return $met;
+                return $des;
 
-			default:
-				echo $a_type . " not known";
-				
-		}
-	}
+            case 'meta_annotation':
+
+                $anno = new ilMDAnnotation();
+                $anno->setMetaId($a_index);
+                return $anno;
+
+            case 'meta_classification':
+
+                $class = new ilMDClassification();
+                $class->setMetaId($a_index);
+                return $class;
+
+            case 'classification_taxon_path':
+
+                $tax_path = new ilMDTaxonPath();
+
+                $tax_path->setMetaId($a_index);
+                return $tax_path;
+
+            case 'classification_taxon':
+
+                $tax = new ilMDTaxon();
+                $tax->setMetaId($a_index);
+                return $tax;
+
+            case 'meta_meta_metadata':
+
+                $met = new ilMDMetaMetadata();
+                $met->setMetaId($a_index);
+                return $met;
+
+            default:
+                echo $a_type . " not known";
+                return null;
+        }
+    }
 }
-?>

@@ -1,314 +1,301 @@
 <?php
-require_once("./Services/Style/System/classes/Less/class.ilSystemStyleLessItem.php");
-require_once("./Services/Style/System/classes/Less/class.ilSystemStyleLessCategory.php");
-require_once("./Services/Style/System/classes/Less/class.ilSystemStyleLessComment.php");
-require_once("./Services/Style/System/classes/Less/class.ilSystemStyleLessVariable.php");
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /***
  * This data abstracts a complete less file. A less file is composed of categories, variables and random comments
  * (unclassified information)
- *
- * @author            Timon Amstutz <timon.amstutz@ilub.unibe.ch>
- * @version           $Id$
- *
  */
 class ilSystemStyleLessFile
 {
-	/**
-	 * List of items (variabe, category or comment) this file contains
-	 *
-	 * @var ilSystemStyleLessVariable[]
-	 */
-	protected $items = array();
+    /**
+     * List of items (variabe, category or comment) this file contains
+     * @var ilSystemStyleLessItem[]
+     */
+    protected array $items = [];
 
-	/**
-	 * Separated array with all comments ids (performance reasons)
-	 *
-	 * @var array
-	 */
-	protected $comments_ids = array();
+    /**
+     * Separated array with all comments ids (performance reasons)
+     */
+    protected array $comments_ids = [];
 
-	/**
-	 * Separated array with all variable ids (performance reasons)
-	 *
-	 * @var array
-	 */
-	protected $variables_ids= array();
+    /**
+     * Separated array with all variable ids (performance reasons)
+     */
+    protected array $variables_ids = [];
 
-	/**
-	 * Separated array with all category ids (performance reasons)
-	 *
-	 * @var array
-	 */
-	protected $categories_ids = array();
+    /**
+     * Separated array with all category ids (performance reasons)
+     */
+    protected array $categories_ids = [];
 
-	/**
-	 * Complete path the the variables file on the file system
-	 *
-	 * @var string
-	 */
-	protected $less_variables_file_path = "";
+    /**
+     * Complete path the the variables file on the file system
+     */
+    protected string $less_variables_file_path_name = '';
 
-	/**
-	 * KitchenSinkLessFile constructor.
-	 * @param string $less_variables_file
-	 */
-	public function __construct($less_variables_file)
-	{
-		$this->less_variables_file = $less_variables_file;
-		$this->read();
-	}
+    public function __construct(string $less_variables_file_path_name)
+    {
+        $this->less_variables_file_path_name = $less_variables_file_path_name;
+        $this->read();
+    }
 
-	/**
-	 * Reads the file from the file system
-	 *
-	 * @throws ilSystemStyleException
-	 */
-	public function read(){
-		$last_variable_comment = null;
-		$last_category_id = null;
-		$last_category_name = null;
+    /**
+     * Reads the file from the file system
+     * @throws ilSystemStyleException
+     */
+    public function read(): void
+    {
+        $last_variable_comment = '';
+        $last_category_id = '';
+        $last_category_name = '';
 
-		$regex_category = '/\/\/==\s(.*)/'; //Matches //== Category Name
-		$regex_category_by_line = '/^\/\/[\s]?$/'; //Matches // at the end of the line with not comment
-		$regex_category_comment = '/\/\/##\s(.*)/'; //Matches Matches //## Category Description
-		$regex_variable = '/^@(.*)/'; //Matches @VariableName value;
-		$regex_variable_comment = '/\/\/\*\*\s(.*)/'; //Matches //** Variable Comment
-		$regex_variable_name = '/(?:@)(.*)(?:\:)/'; //Matches @variableName
-		$regex_variable_value = '/(?::)(.*)(?:;)/'; //Matches value;
-		$regex_variable_references = '/(?:@)([a-zA-Z0-9_-]*)/'; //Matches references in value
+        $regex_category = '/\/\/==\s(.*)/'; //Matches //== Category Name
+        $regex_category_by_line = '/^\/\/[\s]?$/'; //Matches // at the end of the line with not comment
+        $regex_category_comment = '/\/\/##\s(.*)/'; //Matches Matches //## Category Description
+        $regex_variable = '/^@(.*)/'; //Matches @VariableName value;
+        $regex_variable_comment = '/\/\/\*\*\s(.*)/'; //Matches //** Variable Comment
+        $regex_variable_name = '/(?:@)(.*)(?:\:)/'; //Matches @variableName
+        $regex_variable_value = '/(?::)(.*)(?:;)/'; //Matches value;
+        $regex_variable_references = '/(?:@)([a-zA-Z0-9_-]*)/'; //Matches references in value
 
-		try{
-			$handle = fopen($this->getLessVariablesFile(), "r");
-		}catch(Exception $e){
-			throw new ilSystemStyleException(ilSystemStyleException::FILE_OPENING_FAILED, $this->getLessVariablesFile());
-		}
+        try {
+            $handle = fopen($this->getLessVariablesFilePathName(), 'r');
+        } catch (Exception $e) {
+            throw new ilSystemStyleException(
+                ilSystemStyleException::FILE_OPENING_FAILED,
+                $this->getLessVariablesFilePathName()
+            );
+        }
 
+        if ($handle) {
+            $line_number = 1;
+            $last_line_is_category = false;
+            //Reads file line by line
+            while (($line = fgets($handle)) !== false) {
+                //This might be part of the categories structure, if so, ignore
+                if ($last_line_is_category && preg_match($regex_category_by_line, $line, $out)) {
+                    $line = fgets($handle);
+                }
+                $last_line_is_category = false;
+                if (preg_match($regex_category, $line, $out)) {
+                    //Check Category
+                    $last_category_id = $this->addItem(new ilSystemStyleLessCategory($out[1]));
+                    $last_category_name = $out[1] ?: '';
+                    $last_line_is_category = true;
+                } elseif (preg_match($regex_category_comment, $line, $out)) {
+                    //Check Comment Category
+                    $last_category = $this->getItemById($last_category_id);
+                    $last_category->setComment($out[1]);
+                } elseif (preg_match($regex_variable_comment, $line, $out)) {
+                    //Check Variables Comment
+                    $last_variable_comment = $out[1];
+                } elseif (preg_match($regex_variable, $line, $out)) {
+                    //Check Variables
 
-		if ($handle) {
-			$line_number = 1;
-			$last_line_is_category = false;
-			//Reads file line by line
-			while (($line = fgets($handle)) !== false) {
-				//This might be part of the categories structure, if so, ignore
-				if($last_line_is_category && preg_match($regex_category_by_line, $line, $out)){
-					$line = fgets($handle);
-				}
-				$last_line_is_category = false;
-				if(preg_match($regex_category, $line, $out)){
-					//Check Category
-					$last_category_id = $this->addItem(new ilSystemStyleLessCategory($out[1]));
-					$last_category_name = $out[1];
-					$last_line_is_category = true;
-				} else if(preg_match($regex_category_comment, $line, $out)){
-					//Check Comment Category
-					$last_category = $this->getItemById($last_category_id);
-					$last_category->setComment($out[1]);
-				} else if(preg_match($regex_variable_comment, $line, $out)){
-					//Check Variables Comment
-					$last_variable_comment = $out[1];
-				} else if(preg_match($regex_variable, $line, $out)){
-					//Check Variables
+                    //Name
+                    preg_match($regex_variable_name, $out[0], $variable);
 
-					//Name
-					preg_match($regex_variable_name, $out[0], $variable);
+                    //Value
+                    preg_match($regex_variable_value, $line, $value);
 
-					//Value
-					preg_match($regex_variable_value, $line, $value);
+                    //References
+                    $temp_value = $value[0];
+                    $references = [];
+                    while (preg_match($regex_variable_references, $temp_value, $reference)) {
+                        $references[] = $reference[1];
+                        $temp_value = str_replace($reference, '', $temp_value);
+                    }
 
-					//References
-					$temp_value = $value[0];
-					$references = array();
-					while(preg_match($regex_variable_references,$temp_value,$reference)){
-						$references[] = $reference[1];
-						$temp_value = str_replace($reference,"",$temp_value);
-					}
+                    $this->addItem(new ilSystemStyleLessVariable(
+                        $variable[1],
+                        ltrim($value[1]),
+                        $last_variable_comment,
+                        $last_category_name,
+                        $references
+                    ));
+                    $last_variable_comment = '';
+                } else {
+                    $this->addItem(new ilSystemStyleLessComment($line));
+                }
 
-					$this->addItem(new ilSystemStyleLessVariable(
-						$variable[1],
-						ltrim ( $value[1] ," \t\n\r\0\x0B" ),
-						$last_variable_comment,
-						$last_category_name,
-						$references));
-					$last_variable_comment = "";
+                $line_number++;
+            }
+            fclose($handle);
+        } else {
+            throw new ilSystemStyleException(ilSystemStyleException::FILE_OPENING_FAILED);
+        }
+    }
 
-				}else{
-					$this->addItem(new ilSystemStyleLessComment($line));
-				}
+    /**
+     * Write the complete file back to the file system (including comments and random content)
+     */
+    public function write(): void
+    {
+        file_put_contents($this->getLessVariablesFilePathName(), $this->getContent());
+    }
 
+    public function getContent(): string
+    {
+        $output = '';
 
-				$line_number++;
-			}
-			fclose($handle);
-		} else {
-			throw new ilSystemStyleException(ilSystemStyleException::FILE_OPENING_FAILED);
-		}
-	}
+        foreach ($this->items as $item) {
+            $output .= $item->__toString();
+        }
+        return $output;
+    }
 
-	/**
-	 * Write the complete file back to the file system (including comments and random content)
-	 */
-	public function write(){
-		file_put_contents($this->getLessVariablesFile(),$this->getContent());
-	}
+    public function addItem(ilSystemStyleLessItem $item): int
+    {
+        $id = array_push($this->items, $item) - 1;
 
-	/**
-	 * @return string
-	 */
-	public function getContent(){
-		$output = "";
+        if (get_class($item) == 'ilSystemStyleLessComment') {
+            $this->comments_ids[] = $id;
+        } elseif (get_class($item) == 'ilSystemStyleLessCategory') {
+            $this->categories_ids[] = $id;
+        } elseif (get_class($item) == 'ilSystemStyleLessVariable') {
+            $this->variables_ids[] = $id;
+        }
 
-		foreach($this->items as $item){
-			$output .= $item->__toString();
-		}
-		return $output;
-	}
+        return $id;
+    }
 
-	/**
-	 * @param ilSystemStyleLessItem $item
-	 * @return int
-	 */
-	public function addItem(ilSystemStyleLessItem $item){
-		$id = array_push($this->items,$item)-1;
+    /**
+     * @return ilSystemStyleLessCategory[]
+     */
+    public function getCategories(): array
+    {
+        $categories = [];
 
+        foreach ($this->categories_ids as $category_id) {
+            $categories[] = $this->items[$category_id];
+        }
 
-		if(get_class($item)=="ilSystemStyleLessComment"){
-			$this->comments_ids[] = $id;
-		}else if(get_class($item)=="ilSystemStyleLessCategory"){
-			$this->categories_ids[] = $id;
-		}else if(get_class($item)=="ilSystemStyleLessVariable"){
-			$this->variables_ids[] = $id;
-		}
+        return $categories;
+    }
 
-		return $id;
-	}
+    /**
+     * @return ilSystemStyleLessVariable[]
+     */
+    public function getVariablesPerCategory(string $category = ''): array
+    {
+        $variables = [];
 
-	/**
-	 * @return ilSystemStyleLessCategory[]
-	 */
-	public function getCategories(){
-		$categories = array();
+        foreach ($this->variables_ids as $variables_id) {
+            if (!$category || $this->items[$variables_id]->getCategoryName() == $category) {
+                $variables[] = $this->items[$variables_id];
+            }
+        }
 
-		foreach($this->categories_ids as $category_id){
-			$categories[] = $this->items[$category_id];
-		}
+        return $variables;
+    }
 
-		return $categories;
+    public function getItemById(int $id): ilSystemStyleLessItem
+    {
+        return $this->items[$id];
+    }
 
-	}
+    public function getVariableByName(string $name = ''): ?ilSystemStyleLessItem
+    {
+        foreach ($this->variables_ids as $variables_id) {
+            if ($this->items[$variables_id]->getName() == $name) {
+                return $this->items[$variables_id];
+            }
+        }
+        return null;
+    }
 
-	/**
-	 * @param string $category
-	 * @return ilSystemStyleLessVariable[]|null
-	 */
-	public function getVariablesPerCategory($category = ""){
-		$variables = array();
+    public function getReferencesToVariable(string $variable_name): array
+    {
+        $references = [];
 
-		foreach($this->variables_ids as $variables_id){
-			if(!$category || $this->items[$variables_id]->getCategoryName() == $category){
-				$variables[] = $this->items[$variables_id];
-			}
-		}
+        foreach ($this->variables_ids as $id) {
+            foreach ($this->items[$id]->getReferences() as $reference) {
+                if ($variable_name == $reference) {
+                    $references[] = $this->items[$id]->getName();
+                }
+            }
+        }
+        return $references;
+    }
 
-		return $variables;
-	}
+    public function getReferencesToVariableAsString(string $variable_name): string
+    {
+        $references_string = '';
+        foreach ($this->getReferencesToVariable($variable_name) as $reference) {
+            $references_string .= "$reference; ";
+        }
+        return $references_string;
+    }
 
-	/**
-	 * @param $id
-	 * @return ilSystemStyleLessVariable
-	 */
-	public function getItemById($id){
-		return $this->items[$id];
-	}
+    public function getRefAndCommentAsString(string $variable_name, string $refs_wording): string
+    {
+        $references_string = '';
+        foreach ($this->getReferencesToVariable($variable_name) as $reference) {
+            $references_string .= "$reference; ";
+        }
 
-	/**
-	 * @param string $name
-	 * @return ilSystemStyleLessVariable|null
-	 */
-	public function getVariableByName($name = ""){
-		foreach($this->variables_ids as $variables_id){
-			if($this->items[$variables_id]->getName() == $name){
-				return $this->items[$variables_id];
-			}
-		}
-		return null;
+        $variable = $this->getVariableByName($variable_name);
 
-	}
+        if ($references_string != '') {
+            if ($variable->getComment()) {
+                $info = $variable->getComment() . '</br>' . $refs_wording . ' ' . $references_string;
+            } else {
+                $info = $refs_wording . ' ' . $references_string;
+            }
+        } else {
+            $info = $variable->getComment();
+        }
 
-	/**
-	 * @param $variable_name
-	 * @return array
-	 */
-	public function getReferencesToVariable($variable_name){
-		$references = [];
+        return $info;
+    }
 
-		foreach($this->variables_ids as $id){
-			foreach($this->items[$id]->getReferences() as $reference){
-				if($variable_name == $reference)
-				$references[] = $this->items[$id]->getName();
-			}
-		}
-		return $references;
-	}
+    public function getLessVariablesFilePathName(): string
+    {
+        return $this->less_variables_file_path_name;
+    }
 
-	/**
-	 * @param $variable_name
-	 * @return string
-	 */
-	public function getReferencesToVariableAsString($variable_name){
-		$references_string = "";
-		foreach($this->getReferencesToVariable($variable_name) as $reference){
-			$references_string .= "$reference; ";
-		}
-		return $references_string;
-	}
+    public function setLessVariablesFilePathName(string $less_variables_file_path_name): void
+    {
+        $this->less_variables_file_path_name = $less_variables_file_path_name;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getLessVariablesFile()
-	{
-		return $this->less_variables_file;
-	}
+    /**
+     * @return ilSystemStyleLessVariable[]
+     */
+    public function getItems(): array
+    {
+        return $this->items;
+    }
 
-	/**
-	 * @param string $less_variables_file
-	 */
-	public function setLessVariablesFile($less_variables_file)
-	{
-		$this->less_variables_file = $less_variables_file;
-	}
+    public function getCommentsIds(): array
+    {
+        return $this->comments_ids;
+    }
 
-	/**
-	 * @return ilSystemStyleLessVariable[]
-	 */
-	public function getItems()
-	{
-		return $this->items;
-	}
+    public function getVariablesIds(): array
+    {
+        return $this->variables_ids;
+    }
 
-	/**
-	 * @return array
-	 */
-	public function getCommentsIds()
-	{
-		return $this->comments_ids;
-	}
-
-	/**
-	 * @return array
-	 */
-	public function getVariablesIds()
-	{
-		return $this->variables_ids;
-	}
-
-	/**
-	 * @return array
-	 */
-	public function getCategoriesIds()
-	{
-		return $this->categories_ids;
-	}
+    public function getCategoriesIds(): array
+    {
+        return $this->categories_ids;
+    }
 }

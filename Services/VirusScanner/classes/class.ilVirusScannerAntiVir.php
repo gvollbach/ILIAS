@@ -1,74 +1,52 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
- * Interface to the AntiVir virus protector
- * @author    Alex Killing <alex.killing@gmx.de>
- * @version   $Id$
- * @extends   ilVirusScanner
- */
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
-require_once "Services/VirusScanner/classes/class.ilVirusScanner.php";
+declare(strict_types=1);
 
 class ilVirusScannerAntiVir extends ilVirusScanner
 {
-	/**
-	 * Constructor
-	 * @access    public
-	 * @param    string virus scanner command
-	 */
-	public function __construct($a_scancommand, $a_cleancommand)
-	{
-		parent::__construct($a_scancommand, $a_cleancommand);
-		$this->type         = "antivir";
-		$this->scanZipFiles = true;
-	}
+    public function __construct(string $scan_command, string $clean_command)
+    {
+        parent::__construct($scan_command, $clean_command);
+        $this->type = "antivir";
+        $this->scanZipFiles = true;
+    }
 
-	/**
-	 * scan a file for viruses
-	 * @param    string    path of file to check
-	 * @param    string    original name of the file to ckeck
-	 * @return   string  virus message (empty if not infected)
-	 * @access    public
-	 */
-	function scanFile($a_filepath, $a_origname = "")
-	{
-		// This function should:
-		// - call the external scanner for a_filepath
-		// - set scanFilePath to a_filepath
-		// - set scanFileOrigName to a_origname
-		// - set scanFileIsInfected according the scan result
-		// - set scanResult to the scanner output message
-		// - call logScanResult() if file is infected
-		// - return the scanResult, if file is infected
-		// - return an empty string, if file is not infected
+    public function scanFile(string $file_path, string $org_name = ""): string
+    {
+        $this->scanFilePath = $file_path;
+        $this->scanFileOrigName = $org_name;
 
-		$this->scanFilePath     = $a_filepath;
-		$this->scanFileOrigName = $a_origname;
+        // Call of antivir command
+        $a_filepath = realpath($file_path);
+        $cmd = ilShellUtil::escapeShellCmd($this->scanCommand);
+        $args = ilShellUtil::escapeShellArg(" " . $a_filepath . " ");
+        $out = ilShellUtil::execQuoted($cmd, $args);
+        $this->scanResult = implode("\n", $out);
 
-		// Call of antivir command
-		$cmd = $this->scanCommand . " " . $a_filepath . " ";
-		exec($cmd, $out, $ret);
-		$this->scanResult = implode("\n", $out);
+        // sophie could be called
+        if (preg_match('/ALERT:/', $this->scanResult)) {
+            $this->scanFileIsInfected = true;
+            $this->logScanResult();
+            return $this->scanResult;
+        }
 
-		// sophie could be called
-		if(preg_match('/ALERT:/', $this->scanResult))
-		{
-			$this->scanFileIsInfected = true;
-			$this->logScanResult();
-			return $this->scanResult;
-		}
-		else
-		{
-			$this->scanFileIsInfected = false;
-			return "";
-		}
-
-		// antivir has failed (todo)
-		$this->log->write("ERROR (Virus Scanner failed): "
-			. $this->scanResult
-			. "; COMMAMD=" . $cmd);
-
-	}
-
+        $this->scanFileIsInfected = false;
+        return "";
+    }
 }

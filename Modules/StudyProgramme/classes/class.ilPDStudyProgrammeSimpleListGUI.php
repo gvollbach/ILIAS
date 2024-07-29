@@ -1,9 +1,25 @@
 <?php
 
-/* Copyright (c) 2015 Richard Klees <richard.klees@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
 
-require_once("Services/Block/classes/class.ilBlockGUI.php");
-require_once('./Modules/StudyProgramme/classes/class.ilObjStudyProgrammeAdmin.php');
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\HTTP\Wrapper\RequestWrapper;
+use ILIAS\Refinery\Factory;
 
 /**
  * Personal Desktop-Presentation for the Study Programme
@@ -12,203 +28,193 @@ require_once('./Modules/StudyProgramme/classes/class.ilObjStudyProgrammeAdmin.ph
  * @author : Stefan Hecken <stefan.hecken@concepts-and-training.de>
  * @ilCtrl_IsCalledBy ilPDStudyProgrammeSimpleListGUI: ilColumnGUI
  */
-class ilPDStudyProgrammeSimpleListGUI extends ilBlockGUI {
-	const BLOCK_TYPE = "prgsimplelist";
-	
-	/**
-	 * @var ilLanguage
-	 */
-	protected $il_lng;
-	
-	/**
-	 * @var ilUser
-	 */
-	protected $il_user;
-	
-	/**
-	 * @var ilAccessHandler
-	 */
-	protected $il_access;
-	
-	/**
-	 * @var ilSetting
-	 */
-	protected $il_setting;
+class ilPDStudyProgrammeSimpleListGUI extends ilBlockGUI
+{
+    public const BLOCK_TYPE = "prgsimplelist";
 
-	/**
-	 * @var ilStudyProgrammeUserAssignment[]
-	 */
-	protected $users_assignments;
+    protected ilSetting $setting;
+    /**
+     * @var ilComponentLogger|ilLogger
+     */
+    protected $logger;
+    protected ilStudyProgrammeAssignmentDBRepository $sp_user_assignment_db;
+    protected RequestWrapper $request_wrapper;
+    protected Factory $refinery;
 
-	/**
-	* @var visible_on_pd_mode
-	*/
-	protected $visible_on_pd_mode;
-	
-	/**
-	* @var show_info_message
-	*/
-	protected $show_info_message;
+    /**
+     * @var ilStudyProgrammeAssignment[]
+     */
+    protected array $users_assignments;
+    protected ?string $visible_on_pd_mode;
+    protected bool $show_info_message;
 
-	public function __construct() {
-		global $DIC;
+    public function __construct()
+    {
+        global $DIC;
 
-		parent::__construct();
+        parent::__construct();
 
-		$lng = $DIC['lng'];
-		$ilUser = $DIC['ilUser'];
-		$ilAccess = $DIC['ilAccess'];
-		$ilSetting = $DIC['ilSetting'];
-		$this->il_lng = $lng;
-		$this->il_user = $ilUser;
-		$this->il_access = $ilAccess;
-		$this->il_setting = $ilSetting;
-		$this->il_logger = ilLoggerFactory::getLogger('prg');
+        $this->setting = $DIC['ilSetting'];
+        $this->logger = ilLoggerFactory::getLogger('prg');
+        $this->sp_user_assignment_db = ilStudyProgrammeDIC::dic()['ilStudyProgrammeUserAssignmentDB'];
+        $this->request_wrapper = $DIC->http()->wrapper()->query();
+        $this->refinery = $DIC->refinery();
 
-		// No need to load data, as we won't display this. 
-		if (!$this->shouldShowThisList()) {
-			return;
-		}
+        // No need to load data, as we won't display this.
+        if (!$this->shouldShowThisList()) {
+            return;
+        }
 
-		$this->readUsersAssignments();
-		//check which kind of option is selected in settings
-		$this->readVisibleOnPDMode();
-		//check to display info message if option "read" is selected
-		$this->readToShowInfoMessage();
-		
-		// As this won't be visible we don't have to initialize this.
-		if (!$this->userHasReadableStudyProgrammes()) {
-			return;
-		}
+        $this->getUsersAssignments();
+        //check which kind of option is selected in settings
+        $this->getVisibleOnPDMode();
+        //check to display info message if option "read" is selected
+        $viewSettings = new ilPDSelectedItemsBlockViewSettings(
+            $DIC->user(),
+            $this->request_wrapper->retrieve("view", $this->refinery->kindlyTo()->int())
+        );
+        $this->show_info_message = $viewSettings->isStudyProgrammeViewActive();
 
-		$this->setTitle($this->il_lng->txt("objs_prg"));
-	}
-	
-	public function getHTML() {
-		// TODO: This should be determined from somewhere up in the hierarchy, as
-		// this will lead to problems, when e.g. a command changes. But i don't see
-		// how atm...
-		if (!$this->shouldShowThisList()) {
-			return "";
-		}
-		
-		if (!$this->userHasReadableStudyProgrammes()) {
-			return "";
-		}
-		return parent::getHTML();
-	}
-	
-	public function getDataSectionContent() {
-		$content = "";
-		foreach ($this->users_assignments as $assignment) {
-			if(!$this->isReadable($assignment)) {
-				continue;
-			}
+        // As this won't be visible we don't have to initialize this.
+        if (!$this->userHasReadableStudyProgrammes()) {
+            return;
+        }
 
-			try {
-				$list_item = $this->new_ilStudyProgrammeAssignmentListGUI($assignment);
-				$list_item->setShowInfoMessage($this->show_info_message);
-				$list_item->setVisibleOnPDMode($this->visible_on_pd_mode);
-				$content .= $list_item->getHTML();
-			}
-			catch (ilStudyProgrammeNoProgressForAssignmentException $e) {
-				$this->il_logger->alert("$e");
-			}
-			catch(ilStudyProgrammeTreeException $e) {
-				$this->il_logger->alert("$e");
-			}
-		}
-		return $content;
-	}
+        $this->setTitle($this->lng->txt("objs_prg"));
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getBlockType(): string {
-		return self::BLOCK_TYPE;
-	}
+    public function getHTML(): string
+    {
+        // TODO: This should be determined from somewhere up in the hierarchy, as
+        // this will lead to problems, when e.g. a command changes. But i don't see
+        // how atm...
+        if (!$this->shouldShowThisList()) {
+            return "";
+        }
 
-	/**
-	 * @inheritdoc
-	 */
-	protected function isRepositoryObject(): bool {
-		return false;
-	}
-	
-	public function fillDataSection() {
-		assert($this->userHasReadableStudyProgrammes()); // We should not get here.
-		$this->tpl->setVariable("BLOCK_ROW", $this->getDataSectionContent());
-	}
-	
-	
-	protected function userHasVisibleStudyProgrammes() {
-		if (count($this->users_assignments) == 0) {
-			return false;
-		}
-		foreach ($this->users_assignments as $assignment) {
-			if ($this->isVisible($assignment)) {
-				return true;
-			}
-		}
-		return false;
-	}
+        if (!$this->userHasReadableStudyProgrammes()) {
+            return "";
+        }
+        return parent::getHTML();
+    }
 
-	protected function userHasReadableStudyProgrammes() {
-		if (count($this->users_assignments) == 0) {
-			return false;
-		}
-		foreach ($this->users_assignments as $assignment) {
-			if ($this->isReadable($assignment)) {
-				return true;
-			}
-		}
-		return false;
-	}
-	
-	protected function readVisibleOnPDMode() {
-		$this->visible_on_pd_mode = $this->il_setting->get(ilObjStudyProgrammeAdmin::SETTING_VISIBLE_ON_PD);
-	}
+    public function getDataSectionContent(): string
+    {
+        $content = "";
+        foreach ($this->users_assignments as $assignment) {
+            if (!$this->isReadable($assignment)) {
+                continue;
+            }
 
-	protected function hasPermission(ilStudyProgrammeUserAssignment $assignment, $permission) {
-		$prg = $assignment->getStudyProgramme();
-		return $this->il_access->checkAccess($permission, "", $prg->getRefId(), "prg", $prg->getId());
-	}
+            try {
+                $list_item = $this->new_ilStudyProgrammeAssignmentListGUI($assignment);
+                $list_item->setShowInfoMessage($this->show_info_message);
+                $list_item->setVisibleOnPDMode($this->visible_on_pd_mode);
+                $content .= $list_item->getHTML();
+            } catch (ilStudyProgrammeNoProgressForAssignmentException $e) {
+                $this->logger->alert((string) $e);
+            } catch (ilStudyProgrammeTreeException $e) {
+                $this->logger->alert((string) $e);
+            }
+        }
+        return $content;
+    }
 
-	protected function readToShowInfoMessage() {
-		$viewSettings = new ilPDSelectedItemsBlockViewSettings($GLOBALS['DIC']->user(), (int)$_GET['view']);
-		$this->show_info_message = $viewSettings->isStudyProgrammeViewActive();
-	}
+    /**
+     * @inheritdoc
+     */
+    public function getBlockType(): string
+    {
+        return self::BLOCK_TYPE;
+    }
 
-	protected function isVisible(ilStudyProgrammeUserAssignment $assignment) {
-		return $this->hasPermission($assignment,"visible");
-	}
+    /**
+     * @inheritdoc
+     */
+    protected function isRepositoryObject(): bool
+    {
+        return false;
+    }
 
-	protected function isReadable(ilStudyProgrammeUserAssignment $assignment) {
-		if($this->visible_on_pd_mode == ilObjStudyProgrammeAdmin::SETTING_VISIBLE_ON_PD_ALLWAYS){
-			return true;
-		}
+    public function fillDataSection(): void
+    {
+        assert($this->userHasReadableStudyProgrammes()); // We should not get here.
+        $this->tpl->setVariable("BLOCK_ROW", $this->getDataSectionContent());
+    }
 
-		return $this->hasPermission($assignment,"read");
-	}
-	
-	protected function shouldShowThisList() {
-		global $DIC;
-		$ctrl = $DIC->ctrl();
-		return ($_GET["cmd"] == "jumpToSelectedItems" ||
-				($ctrl->getCmdClass() == "ildashboardgui" && $ctrl->getCmd() == "show")
-			) && !$_GET["expand"];
-	}
-	
-	protected function readUsersAssignments() {
-		require_once("Modules/StudyProgramme/classes/class.ilStudyProgrammeUserAssignment.php");
-		$this->users_assignments = ilStudyProgrammeUserAssignment::getInstancesOfUser($this->il_user->getId());
-	}
-	
-	protected function new_ilStudyProgrammeAssignmentListGUI(ilStudyProgrammeUserAssignment $a_assignment) {
-		require_once("Modules/StudyProgramme/classes/class.ilStudyProgrammeProgressListGUI.php");
-		$progress = $a_assignment->getStudyProgramme()->getProgressForAssignment($a_assignment->getId());
-		$progress_gui = new ilStudyProgrammeProgressListGUI($progress);
-		$progress_gui->setOnlyRelevant(true);
-		return $progress_gui;
-	}
+    protected function userHasVisibleStudyProgrammes(): bool
+    {
+        if (count($this->users_assignments) === 0) {
+            return false;
+        }
+        foreach ($this->users_assignments as $assignment) {
+            if ($this->isVisible($assignment)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected function userHasReadableStudyProgrammes(): bool
+    {
+        if (count($this->users_assignments) === 0) {
+            return false;
+        }
+        foreach ($this->users_assignments as $assignment) {
+            if ($this->isReadable($assignment)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected function getVisibleOnPDMode(): void
+    {
+        $this->visible_on_pd_mode = $this->setting->get(ilObjStudyProgrammeAdmin::SETTING_VISIBLE_ON_PD);
+    }
+
+    protected function hasPermission(ilStudyProgrammeAssignment $assignment, string $permission): bool
+    {
+        $prg = ilObjStudyProgramme::getInstanceByObjId($assignment->getRootId());
+        return $this->access->checkAccess($permission, "", $prg->getRefId(), "prg", $prg->getId());
+    }
+
+    protected function isVisible(ilStudyProgrammeAssignment $assignment): bool
+    {
+        return $this->hasPermission($assignment, "visible");
+    }
+
+    protected function isReadable(ilStudyProgrammeAssignment $assignment): bool
+    {
+        if ($this->visible_on_pd_mode === ilObjStudyProgrammeAdmin::SETTING_VISIBLE_ON_PD_ALLWAYS) {
+            return true;
+        }
+
+        return $this->hasPermission($assignment, "read");
+    }
+
+    protected function shouldShowThisList(): bool
+    {
+        $cmd = $this->request_wrapper->retrieve("cmd", $this->refinery->kindlyTo()->string());
+        $expand = $this->request_wrapper->retrieve("expand", $this->refinery->kindlyTo()->bool());
+        $jump_to_selected_list = $cmd === "jumpToSelectedItems";
+        $is_ilDashboardGUI = $this->ctrl->getCmdClass() === "ildashboardgui";
+        $is_cmd_show = $this->ctrl->getCmd() === "show";
+
+        return ($jump_to_selected_list || ($is_ilDashboardGUI && $is_cmd_show)) && !$expand;
+    }
+
+    protected function getUsersAssignments(): void
+    {
+        $this->users_assignments = $this->sp_user_assignment_db->getInstancesOfUser($this->user->getId());
+    }
+
+    protected function new_ilStudyProgrammeAssignmentListGUI(
+        ilStudyProgrammeAssignment $assignment
+    ): ilStudyProgrammeProgressListGUI {
+        $progress = $assignment->getProgressTree();
+        $progress_gui = new ilStudyProgrammeProgressListGUI($progress);
+        $progress_gui->setOnlyRelevant(true);
+        return $progress_gui;
+    }
 }

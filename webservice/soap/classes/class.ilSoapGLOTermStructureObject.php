@@ -1,6 +1,5 @@
 <?php
 
-
 /*
    +-----------------------------------------------------------------------------+
    | ILIAS open source                                                           |
@@ -23,25 +22,19 @@
    +-----------------------------------------------------------------------------+
   */
 
-
- /**
-   * class representing a glossary term as structure object
-   *
-   * @author Roland Kuestermann (rku@aifb.uni-karlsruhe.de)
-   * @version $Id: class.ilSoapStructureReader.php,v 1.5 2006/05/23 23:09:06 hschottm Exp $
-   *
-   * @package ilias
-   */
+/**
+ * class representing a glossary term as structure object
+ * @author  Roland Kuestermann (rku@aifb.uni-karlsruhe.de)
+ * @version $Id: class.ilSoapStructureReader.php,v 1.5 2006/05/23 23:09:06 hschottm Exp $
+ * @package ilias
+ */
 
 include_once "./webservice/soap/classes/class.ilSoapStructureObject.php";
 
-
 class ilSoapGLOTermStructureObject extends ilSoapStructureObject
 {
-
-	function getInternalLink () {
-		return "[iln term=\"".$this->getObjId()."\"]".$this->getTitle()."[/iln]";
-	}
+    public function getInternalLink() : string
+    {
+        return "[iln term=\"" . $this->getObjId() . "\"]" . $this->getTitle() . "[/iln]";
+    }
 }
-
-?>

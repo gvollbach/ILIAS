@@ -1,373 +1,313 @@
 <?php
 
-/* Copyright (c) 1998-2014 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\News\StandardGUIRequest;
 
 /**
  * Single news timeline item
- *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- * @ingroup ServicesNews
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilNewsTimelineItemGUI implements ilTimelineItemInt
 {
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+    protected ilLanguage $lng;
+    protected ilNewsItem $news_item;
+    protected ilObjectDefinition $obj_def;
+    protected ilObjUser $user;
+    protected bool $user_edit_all;
+    protected int $news_item_ref_id;
+    protected int $ref_id;
+    protected ilCtrl $ctrl;
+    protected ilLikeGUI $like_gui;
+    protected StandardGUIRequest $std_request;
 
-	/**
-	 * @var ilNewsItem
-	 */
-	protected $news_item;
+    protected function __construct(
+        ilNewsItem $a_news_item,
+        int $a_news_ref_id,
+        ilLikeGUI $a_like_gui
+    ) {
+        global $DIC;
 
-	/**
-	 * @var ilObjectDefinition
-	 */
-	protected $obj_def;
+        $this->like_gui = $a_like_gui;
+        $this->lng = $DIC->language();
+        $this->ctrl = $DIC->ctrl();
+        $this->setNewsItem($a_news_item);
+        $this->user = $DIC->user();
+        $this->obj_def = $DIC["objDefinition"];
+        $this->news_item_ref_id = $a_news_ref_id;
 
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
+        $this->std_request = new StandardGUIRequest(
+            $DIC->http(),
+            $DIC->refinery()
+        );
+        $this->ref_id = $this->std_request->getRefId();
+    }
 
-	/**
-	 * @var bool
-	 */
-	protected $user_edit_all;
+    public static function getInstance(
+        ilNewsItem $a_news_item,
+        int $a_news_ref_id,
+        ilLikeGUI $a_like_gui
+    ): self {
+        return new self($a_news_item, $a_news_ref_id, $a_like_gui);
+    }
 
-	/**
-	 * Ref ID of news item
-	 *
-	 * @var int
-	 */
-	protected $news_item_ref_id;
+    public function setNewsItem(ilNewsItem $a_val): void
+    {
+        $this->news_item = $a_val;
+    }
 
-	/**
-	 * Ref id of timeline container
-	 * @var int
-	 */
-	protected $ref_id;
+    public function getNewsItem(): ilNewsItem
+    {
+        return $this->news_item;
+    }
 
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    /**
+     * Set user can edit other users postings
+     */
+    public function setUserEditAll(bool $a_val): void
+    {
+        $this->user_edit_all = $a_val;
+    }
 
-	/**
-	 * @var \ilLikeGUI
-	 */
-	protected $like_gui;
+    /**
+     * Get user can edit other users postings
+     */
+    public function getUserEditAll(): bool
+    {
+        return $this->user_edit_all;
+    }
 
-	/**
-	 * Constructor
-	 *
-	 * @param ilNewsItem $a_news_item
-	 * @param $a_news_ref_id
-	 * @param ilLikeGUI $a_like_gui
-	 */
-	protected function __construct(ilNewsItem $a_news_item, $a_news_ref_id, \ilLikeGUI $a_like_gui)
-	{
-		global $DIC;
+    public function getDateTime(): ilDateTime
+    {
+        $i = $this->getNewsItem();
+        return new ilDateTime($i->getCreationDate(), IL_CAL_DATETIME);
+    }
 
-		$this->like_gui = $a_like_gui;
+    public function render(): string
+    {
+        $i = $this->getNewsItem();
+        $tpl = new ilTemplate("tpl.timeline_item.html", true, true, "Services/News");
 
-		$this->lng = $DIC->language();
-		$this->ctrl = $DIC->ctrl();
-		$this->setNewsItem($a_news_item);
-		$this->user = $DIC->user();
-		$this->obj_def = $DIC["objDefinition"];
-		$this->news_item_ref_id = $a_news_ref_id;
+        $news_renderer = ilNewsRendererFactory::getRenderer($i->getContextObjType());
+        $news_renderer->setLanguage($this->lng->getLangKey());
+        $news_renderer->setNewsItem($i, $this->news_item_ref_id);
 
-		$this->ref_id = (int) $_GET["ref_id"];
-	}
+        $obj_id = $i->getContextObjId();
 
-	/**
-	 * Get instance
-	 *
-	 * @param ilNewsItem $a_news_item news item
-	 * @return ilNewsTimelineItemGUI
-	 */
-	static function getInstance(ilNewsItem $a_news_item, $a_news_ref_id, \ilLikeGUI $a_like_gui)
-	{
-		return new self($a_news_item, $a_news_ref_id, $a_like_gui);
-	}
+        // edited?
+        if ($i->getCreationDate() !== $i->getUpdateDate()) {
+            $tpl->setCurrentBlock("edited");
+            $update_date = new ilDateTime($i->getUpdateDate(), IL_CAL_DATETIME);
+            $tpl->setVariable("TXT_EDITED", $this->lng->txt("cont_news_edited"));
+            if ($i->getUpdateUserId() > 0 && ($i->getUpdateUserId() !== $i->getUserId())) {
+                $tpl->setVariable("TXT_USR_EDITED", ilUserUtil::getNamePresentation(
+                    $i->getUpdateUserId(),
+                    false,
+                    true,
+                    $this->ctrl->getLinkTargetByClass("ilnewstimelinegui")
+                ) . " - ");
+            }
+            $tpl->setVariable("TIME_EDITED", ilDatePresentation::formatDate($update_date));
+            $tpl->parseCurrentBlock();
+        }
 
+        // context object link
+        if ($this->news_item_ref_id > 0 && $this->ref_id !== $this->news_item_ref_id) {
+            $tpl->setCurrentBlock("object");
+            $tpl->setVariable("OBJ_TITLE", ilObject::_lookupTitle($obj_id));
+            $tpl->setVariable("OBJ_IMG", ilObject::_getIcon($obj_id));
+            $tpl->setVariable("OBJ_HREF", $news_renderer->getObjectLink());
+            $tpl->parseCurrentBlock();
+        }
 
-	/**
-	 * Set news item
-	 *
-	 * @param ilNewsItem $a_val news item
-	 */
-	function setNewsItem(ilNewsItem $a_val)
-	{
-		$this->news_item = $a_val;
-	}
+        // media
+        if ($i->getMobId() > 0 && ilObject::_exists($i->getMobId())) {
+            $media = $this->renderMedia($i);
+            $tpl->setCurrentBlock("player");
+            $tpl->setVariable("PLAYER", $media);
+            $tpl->parseCurrentBlock();
+        }
 
-	/**
-	 * Get news item
-	 *
-	 * @return ilNewsItem news item
-	 */
-	function getNewsItem()
-	{
-		return $this->news_item;
-	}
-	
-	/**
-	 * Set user can edit other users postings
-	 *
-	 * @param bool $a_val user can edit all postings	
-	 */
-	function setUserEditAll($a_val)
-	{
-		$this->user_edit_all = $a_val;
-	}
-	
-	/**
-	 * Get user can edit other users postings
-	 *
-	 * @return bool user can edit all postings
-	 */
-	function getUserEditAll()
-	{
-		return $this->user_edit_all;
-	}
+        $tpl->setVariable("USER_IMAGE", ilObjUser::_getPersonalPicturePath($i->getUserId(), "small"));
+        $tpl->setVariable(
+            "TITLE",
+            ilNewsItem::determineNewsTitle($i->getContextObjType(), $i->getTitle(), $i->getContentIsLangVar())
+        );
 
-	/**
-	 * @inheritdoc
-	 */
-	function getDateTime()
-	{
-		$i = $this->getNewsItem();
-		return new ilDateTime($i->getCreationDate(), IL_CAL_DATETIME);
-	}
+        // content
+        $tpl->setVariable("CONTENT", $news_renderer->getTimelineContent());
 
+        $tpl->setVariable("TXT_USR", ilUserUtil::getNamePresentation(
+            $i->getUserId(),
+            false,
+            true,
+            $this->ctrl->getLinkTargetByClass("ilnewstimelinegui")
+        ));
 
-	/**
-	 * @inheritdoc
-	 */
-	function render()
-	{
-		$i = $this->getNewsItem();
-		$tpl = new ilTemplate("tpl.timeline_item.html", true, true, "Services/News");
+        $tpl->setVariable("TIME", ilDatePresentation::formatDate($this->getDateTime()));
 
-		include_once("./Services/News/classes/class.ilNewsRendererFactory.php");
-		$news_renderer = ilNewsRendererFactory::getRenderer($i->getContextObjType());
-		$news_renderer->setLanguage($this->lng->getLangKey());
-		$news_renderer->setNewsItem($i, $this->news_item_ref_id);
+        // actions
+        $list = new ilAdvancedSelectionListGUI();
+        $list->setListTitle("");
+        $list->setId("news_tl_act_" . $i->getId());
+        $list->setHeaderIcon(ilAdvancedSelectionListGUI::DOWN_ARROW_DARK);
+        $list->setUseImages(false);
 
-		$obj_id = $i->getContextObjId();
+        if ($i->getPriority() === 1 && ($i->getUserId() === $this->user->getId() || $this->getUserEditAll())) {
+            if (!$news_renderer->preventEditing()) {
+                $list->addItem(
+                    $this->lng->txt("edit"),
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    false,
+                    "il.News.edit(" . $i->getId() . ");"
+                );
+                $list->addItem(
+                    $this->lng->txt("delete"),
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    false,
+                    "il.News.delete(" . $i->getId() . ");"
+                );
+            }
+        }
 
-		// edited?
-		if ($i->getCreationDate() != $i->getUpdateDate())
-		{
-			$tpl->setCurrentBlock("edited");
-			$update_date = new ilDateTime($i->getUpdateDate(), IL_CAL_DATETIME);
-			$tpl->setVariable("TXT_EDITED", $this->lng->txt("cont_news_edited"));
-			if ($i->getUpdateUserId() > 0 && ($i->getUpdateUserId() != $i->getUserId()))
-			{
-				include_once("./Services/User/classes/class.ilUserUtil.php");
-				$tpl->setVariable("TXT_USR_EDITED", ilUserUtil::getNamePresentation($i->getUpdateUserId(), false, true,
-						$this->ctrl->getLinkTargetByClass("ilnewstimelinegui")) . " - ");
-			}
-			include_once("./Services/Calendar/classes/class.ilDatePresentation.php");
-			$tpl->setVariable("TIME_EDITED", ilDatePresentation::formatDate($update_date));
-			$tpl->parseCurrentBlock();
-		}
+        $news_renderer->addTimelineActions($list);
 
+        $tpl->setVariable("ACTIONS", $list->getHTML());
 
-		// context object link
-		include_once("./Services/Link/classes/class.ilLink.php");
-		if ($this->news_item_ref_id > 0 && $this->ref_id != $this->news_item_ref_id)
-		{
-			$tpl->setCurrentBlock("object");
-			$tpl->setVariable("OBJ_TITLE", ilObject::_lookupTitle($obj_id));
-			$tpl->setVariable("OBJ_IMG", ilObject::_getIcon($obj_id));
-			$tpl->setVariable("OBJ_HREF", $news_renderer->getObjectLink());
-			$tpl->parseCurrentBlock();
-		}
+        return $tpl->get();
+    }
 
-		// media
-		if ($i->getMobId() > 0 && ilObject::_exists($i->getMobId()))
-		{
-			$media = $this->renderMedia($i);
-			$tpl->setCurrentBlock("player");
-			$tpl->setVariable("PLAYER", $media);
-			$tpl->parseCurrentBlock();
-		}
+    protected function renderMedia(ilNewsItem $i): string
+    {
+        global $DIC;
 
-		$tpl->setVariable("USER_IMAGE", ilObjUser::_getPersonalPicturePath($i->getUserId(), "xsmall"));
-		$tpl->setVariable("TITLE",
-			ilNewsItem::determineNewsTitle($i->getContextObjType(), $i->getTitle(), $i->getContentIsLangVar()));
+        $media_path = $this->getMediaPath($i);
+        $mime = ilObjMediaObject::getMimeType($media_path);
 
-		// content
-		$tpl->setVariable("CONTENT", $news_renderer->getTimelineContent());
+        $ui_factory = $DIC->ui()->factory();
+        $ui_renderer = $DIC->ui()->renderer();
 
-		include_once("./Services/User/classes/class.ilUserUtil.php");
-		$tpl->setVariable("TXT_USR", ilUserUtil::getNamePresentation($i->getUserId(), false, true,
-			$this->ctrl->getLinkTargetByClass("ilnewstimelinegui")));
+        if (in_array($mime, ["image/jpeg", "image/svg+xml", "image/gif", "image/png"])) {
+            $item_id = "il-news-modal-img-" . $i->getId();
+            $title = basename($media_path);
+            $image = $ui_renderer->render($ui_factory->image()->responsive($media_path, $title));
 
-		include_once("./Services/Calendar/classes/class.ilDatePresentation.php");
-		$tpl->setVariable("TIME", ilDatePresentation::formatDate($this->getDateTime()));
+            $img_tpl = new ilTemplate("tpl.news_timeline_image_file.html", true, true, "Services/News");
+            $img_tpl->setVariable("ITEM_ID", $item_id);
+            $img_tpl->setVariable("IMAGE", $image);
 
-		// actions
-		include_once("Services/UIComponent/AdvancedSelectionList/classes/class.ilAdvancedSelectionListGUI.php");
-		$list = new ilAdvancedSelectionListGUI();
-		$list->setListTitle("");
-		$list->setId("news_tl_act_".$i->getId());
-		//$list->setSelectionHeaderClass("small");
-		//$list->setItemLinkClass("xsmall");
-		//$list->setLinksMode("il_ContainerItemCommand2");
-		$list->setHeaderIcon(ilAdvancedSelectionListGUI::DOWN_ARROW_DARK);
-		$list->setUseImages(false);
+            $html = $img_tpl->get();
+        } elseif (in_array($mime, ["video/mp4"])) {
+            $video = $ui_factory->player()->video($media_path);
+            $html = $ui_renderer->render($video);
+        } elseif (in_array($mime, ["audio/mpeg"])) {
+            $audio = $ui_factory->player()->audio($media_path);
+            $html = $ui_renderer->render($audio);
+        } else {
+            // download?
+            $html = "";
+        }
+        return $html;
+    }
 
-		if ($i->getPriority() == 1 && ($i->getUserId() == $this->user->getId() || $this->getUserEditAll()))
-		{
-			$list->addItem($this->lng->txt("edit"), "", "", "", "", "",
-				"", false, "il.News.edit(" . $i->getId() . ");");
-			$list->addItem($this->lng->txt("delete"), "", "", "", "", "",
-				"", false, "il.News.delete(" . $i->getId() . ");");
-		}
+    protected function renderMediaModal(ilNewsItem $i): string
+    {
+        global $DIC;
 
-		$news_renderer->addTimelineActions($list);
+        $media_path = $this->getMediaPath($i);
+        $mime = ilObjMediaObject::getMimeType($media_path);
 
-		$tpl->setVariable("ACTIONS", $list->getHTML());
+        $ui_factory = $DIC->ui()->factory();
+        $ui_renderer = $DIC->ui()->renderer();
 
-		return $tpl->get();
-	}
+        $modal_html = "";
 
-	/**
-	 * Render media
-	 *
-	 * @param
-	 * @return
-	 */
-	protected function renderMedia(ilNewsItem $i)
-	{
-		global $DIC;
+        if (in_array($mime, ["image/jpeg", "image/svg+xml", "image/gif", "image/png"])) {
+            $title = basename($media_path);
+            $item_id = "il-news-modal-img-" . $i->getId();
+            $image = $ui_renderer->render($ui_factory->image()->responsive($media_path, $title));
+            $modal = ilModalGUI::getInstance();
+            $modal->setId($item_id);
+            $modal->setType(ilModalGUI::TYPE_LARGE);
+            $modal->setBody($image);
+            $modal->setHeading($title);
+            $modal_html = $modal->getHTML();
+        }
+        return $modal_html;
+    }
 
-		$media_path = $this->getMediaPath($i);
-		$mime = ilObjMediaObject::getMimeType($media_path);
+    public function renderFooter(): string
+    {
+        $i = $this->getNewsItem();
 
-		$ui_factory = $DIC->ui()->factory();
-		$ui_renderer = $DIC->ui()->renderer();
+        // like
+        $this->ctrl->setParameterByClass("ilnewstimelinegui", "news_id", $i->getId());
+        $this->like_gui->setObject(
+            $i->getContextObjId(),
+            $i->getContextObjType(),
+            $i->getContextSubObjId(),
+            (string) $i->getContextSubObjType(),
+            $i->getId()
+        );
+        $html = $this->ctrl->getHTML($this->like_gui);
 
-		if (in_array($mime, array("image/jpeg", "image/svg+xml", "image/gif", "image/png")))
-		{
-			$item_id = "il-news-modal-img-".$i->getId();
-			$title = basename($media_path);
-			$image = $ui_renderer->render($ui_factory->image()->responsive($media_path, $title));
+        // comments
+        $notes_obj_type = ($i->getContextSubObjType() == "")
+            ? $i->getContextObjType()
+            : $i->getContextSubObjType();
+        $note_gui = new ilNoteGUI(
+            $i->getContextObjId(),
+            $i->getContextSubObjId(),
+            $notes_obj_type,
+            false,
+            $i->getId()
+        );
+        $note_gui->setDefaultCommand("getWidget");
+        $note_gui->setShowEmptyListMessage(false);
+        $note_gui->setShowHeader(false);
+        $html .= $this->ctrl->getHTML($note_gui);
 
-			$img_tpl = new ilTemplate("tpl.news_timeline_image_file.html", true, true, "Services/News");
-			$img_tpl->setVariable("ITEM_ID", $item_id);
-			$img_tpl->setVariable("IMAGE", $image);
+        $this->ctrl->setParameterByClass("ilnewstimelinegui", "news_id", $this->std_request->getNewsId());
 
-			$html = $img_tpl->get();
-		}
-		else if (in_array($mime, array("audio/mpeg", "audio/ogg", "video/mp4", "video/x-flv", "video/webm")))
-		{
-			$mp = new ilMediaPlayerGUI();
-			$mp->setFile($media_path);
-			$mp->setDisplayHeight(200);
-			$html = $mp->getMediaPlayerHtml();
-		}
-		else
-		{
-			// download?
-			$html = "";
-		}
-		return $html;
-	}
+        return $html . $this->renderMediaModal($i);
+    }
 
-	/**
-	 * Render media
-	 *
-	 * @param ilNewsItem
-	 * @return string
-	 */
-	protected function renderMediaModal(ilNewsItem $i)
-	{
-		global $DIC;
-
-		$media_path = $this->getMediaPath($i);
-		$mime = ilObjMediaObject::getMimeType($media_path);
-
-		$ui_factory = $DIC->ui()->factory();
-		$ui_renderer = $DIC->ui()->renderer();
-
-		$modal_html = "";
-
-		if (in_array($mime, array("image/jpeg", "image/svg+xml", "image/gif", "image/png")))
-		{
-			$title = basename($media_path);
-			$item_id = "il-news-modal-img-".$i->getId();
-			$image = $ui_renderer->render($ui_factory->image()->responsive($media_path, $title));
-			$modal = ilModalGUI::getInstance();
-			$modal->setId($item_id);
-			$modal->setType(ilModalGUI::TYPE_LARGE);
-			$modal->setBody($image);
-			$modal->setHeading($title);
-			$modal_html = $modal->getHTML();
-		}
-		return $modal_html;
-	}
-
-
-	/**
-	 * Render footer
-	 * @throws ilCtrlException
-	 */
-	function renderFooter()
-	{
-		$i = $this->getNewsItem();
-
-		// like
-		$this->ctrl->setParameterByClass("ilnewstimelinegui", "news_id", $i->getId());
-		$this->like_gui->setObject($i->getContextObjId(), $i->getContextObjType(),
-			$i->getContextSubObjId(), $i->getContextSubObjType(), $i->getId());
-		$html = $this->ctrl->getHTML($this->like_gui);
-
-		// comments
-		$notes_obj_type = ($i->getContextSubObjType() == "")
-			? $i->getContextObjType()
-			: $i->getContextSubObjType();
-		$note_gui = new ilNoteGUI($i->getContextObjId(), $i->getContextSubObjId(),
-			$notes_obj_type, false,  $i->getId());
-		$note_gui->setDefaultCommand("getWidget");
-
-		//ilNoteGUI::getListCommentsJSCall($this->ajax_hash, $redraw_js)
-		$html.= $this->ctrl->getHTML($note_gui);
-
-		$this->ctrl->setParameterByClass("ilnewstimelinegui", "news_id", $_GET["news_id"]);
-
-		return $html.$this->renderMediaModal($i);
-	}
-
-	/**
-	 * @param ilNewsItem $i
-	 * @return string
-	 */
-	protected function getMediaPath(ilNewsItem $i)
-	{
-		$media_path = "";
-		if ($i->getMobId() > 0)
-		{
-			include_once("./Services/MediaObjects/classes/class.ilObjMediaObject.php");
-			include_once("./Services/MediaObjects/classes/class.ilMediaPlayerGUI.php");
-			$mob = new ilObjMediaObject($i->getMobId());
-			$med = $mob->getMediaItem("Standard");
-			if (strcasecmp("Reference", $med->getLocationType()) == 0)
-			{
-				$media_path = $med->getLocation();
-			} else
-			{
-				$media_path = ilObjMediaObject::_getURL($mob->getId()) . "/" . $med->getLocation();
-			}
-		}
-		return $media_path;
-	}
-
+    protected function getMediaPath(ilNewsItem $i): string
+    {
+        $media_path = "";
+        if ($i->getMobId() > 0) {
+            $mob = new ilObjMediaObject($i->getMobId());
+            $med = $mob->getMediaItem("Standard");
+            if (strcasecmp("Reference", $med->getLocationType()) === 0) {
+                $media_path = $med->getLocation();
+            } else {
+                $media_path = ilObjMediaObject::_getURL($mob->getId()) . "/" . $med->getLocation();
+            }
+        }
+        return $media_path;
+    }
 }
-
-?>

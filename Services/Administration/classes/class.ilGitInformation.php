@@ -1,7 +1,22 @@
 <?php
-/* Copyright (c) 1998-2015 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/Administration/interfaces/interface.ilVersionControlInformation.php';
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Class ilGitInformation
@@ -9,80 +24,84 @@ require_once 'Services/Administration/interfaces/interface.ilVersionControlInfor
  */
 class ilGitInformation implements ilVersionControlInformation
 {
-	/**
-	 * @var string
-	 */
-	private static $revision_information = null;
+    /**
+     * @var string[]|null
+     */
+    private static ?array $revision_information = null;
 
-	/**
-	 *
-	 */
-	private static function detect()
-	{
-		global $DIC;
+    private static function detect(): void
+    {
+        global $DIC;
 
-		$lng = $DIC->language();
+        $lng = $DIC->language();
 
-		if(null !== self::$revision_information)
-		{
-			return self::$revision_information;
-		}
+        if (null !== self::$revision_information) {
+            return;
+        }
 
-		$info = array();
+        $info = array();
 
-		if(!ilUtil::isWindows())
-		{
-			$version_mini_hash = ilUtil::execQuoted('git rev-parse --short HEAD');
-			$version_number    = ilUtil::execQuoted('git rev-list --count HEAD');
-			$line              = ilUtil::execQuoted('git log -1');
+        if (!ilUtil::isWindows()) {
+            $origin = ilShellUtil::execQuoted('git config --get remote.origin.url');
+            $branch = ilShellUtil::execQuoted('git rev-parse --abbrev-ref HEAD');
+            $version_mini_hash = ilShellUtil::execQuoted('git rev-parse --short HEAD');
+            $version_number = ilShellUtil::execQuoted('git rev-list --count HEAD');
+            $line = ilShellUtil::execQuoted('git log -1');
 
-			if($version_number[0])
-			{
-				$version_number = $version_number[0];
-			}
+            if (!empty($origin[0])) {
+                $origin = $origin[0];
+            }
 
-			if($version_mini_hash[0])
-			{
-				$version_mini_hash = $version_mini_hash[0];
-			}
+            if (!empty($branch[0])) {
+                $branch = $branch[0];
+            }
 
-			if($line && array_filter($line))
-			{
-				$line = implode(' | ', array_filter($line));
-			}
-		}
-		else
-		{
-			$version_mini_hash = trim(exec('git rev-parse --short HEAD'));
-			$version_number    = exec('git rev-list --count HEAD');
-			$line              = trim(exec('git log -1'));
-		}
+            if (!empty($version_number[0])) {
+                $version_number = $version_number[0];
+            }
 
-		if($version_number)
-		{
-			$info[] = sprintf($lng->txt('git_revision'), $version_number);
-		}
+            if (!empty($version_mini_hash[0])) {
+                $version_mini_hash = $version_mini_hash[0];
+            }
 
-		if($version_mini_hash)
-		{
-			$info[] = sprintf($lng->txt('git_hash_short'), $version_mini_hash);
-		}
+            if ($line && array_filter($line)) {
+                $line = implode(' | ', array_filter($line));
+            }
+        } else {
+            $origin = trim(exec('git config --get remote.origin.url'));
+            $branch = trim(exec('git rev-parse --abbrev-ref HEAD'));
+            $version_mini_hash = trim(exec('git rev-parse --short HEAD'));
+            $version_number = exec('git rev-list --count HEAD');
+            $line = trim(exec('git log -1'));
+        }
 
-		if($line)
-		{
-			$info[] = sprintf($lng->txt('git_last_commit'), $line);
-		}
+        if ($origin) {
+            $info[] = $origin;
+        }
 
-		self::$revision_information = $info;
-	}
+        if ($branch) {
+            $info[] = $branch;
+        }
 
-	/**
-	 * @return string
-	 */
-	public function getInformationAsHtml()
-	{
-		self::detect();
+        if ($version_number) {
+            $info[] = sprintf($lng->txt('git_revision'), $version_number);
+        }
 
-		return implode("<br />", self::$revision_information);
-	}
+        if ($version_mini_hash) {
+            $info[] = sprintf($lng->txt('git_hash_short'), $version_mini_hash);
+        }
+
+        if ($line) {
+            $info[] = sprintf($lng->txt('git_last_commit'), $line);
+        }
+
+        self::$revision_information = $info;
+    }
+
+    public function getInformationAsHtml(): string
+    {
+        self::detect();
+
+        return implode("<br />", self::$revision_information);
+    }
 }

@@ -1,10 +1,22 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/Taxonomy/classes/class.ilObjTaxonomy.php';
-require_once 'Services/Taxonomy/classes/class.ilTaxonomyTree.php';
-require_once 'Services/Taxonomy/classes/class.ilTaxNodeAssignment.php';
-require_once 'Modules/TestQuestionPool/classes/class.ilQuestionPoolDuplicatedTaxonomiesKeysMap.php';
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * @author		Björn Heyser <bheyser@databay.de>
@@ -14,138 +26,142 @@ require_once 'Modules/TestQuestionPool/classes/class.ilQuestionPoolDuplicatedTax
  */
 class ilQuestionPoolTaxonomiesDuplicator
 {
-	private $sourceObjId = null;
-	
-	private $sourceObjType = null;
+    private $sourceObjId = null;
 
-	private $targetObjId = null;
-	
-	private $targetObjType = null;
+    private $sourceObjType = null;
 
-	/**
-	 * @var null
-	 */
-	private $questionIdMapping = null;
+    private $targetObjId = null;
 
-	/**
-	 * @var ilQuestionPoolDuplicatedTaxonomiesKeysMap
-	 */
-	private $duplicatedTaxonomiesKeysMap = null;
+    private $targetObjType = null;
 
-	public function __construct()
-	{
-		$this->duplicatedTaxonomiesKeysMap = new ilQuestionPoolDuplicatedTaxonomiesKeysMap();
-	}
+    /**
+     * @var null
+     */
+    private $questionIdMapping = null;
 
-	public function setSourceObjId($sourceObjId)
-	{
-		$this->sourceObjId = $sourceObjId;
-	}
+    /**
+     * @var ilQuestionPoolDuplicatedTaxonomiesKeysMap
+     */
+    private $duplicatedTaxonomiesKeysMap = null;
 
-	public function getSourceObjId()
-	{
-		return $this->sourceObjId;
-	}
+    public function __construct()
+    {
+        $this->duplicatedTaxonomiesKeysMap = new ilQuestionPoolDuplicatedTaxonomiesKeysMap();
+    }
 
-	public function getSourceObjType()
-	{
-		return $this->sourceObjType;
-	}
+    public function setSourceObjId($sourceObjId): void
+    {
+        $this->sourceObjId = $sourceObjId;
+    }
 
-	public function setSourceObjType($sourceObjType)
-	{
-		$this->sourceObjType = $sourceObjType;
-	}
+    public function getSourceObjId()
+    {
+        return $this->sourceObjId;
+    }
 
-	public function getTargetObjId()
-	{
-		return $this->targetObjId;
-	}
+    public function getSourceObjType()
+    {
+        return $this->sourceObjType;
+    }
 
-	public function setTargetObjId($targetObjId)
-	{
-		$this->targetObjId = $targetObjId;
-	}
+    public function setSourceObjType($sourceObjType): void
+    {
+        $this->sourceObjType = $sourceObjType;
+    }
 
-	public function getTargetObjType()
-	{
-		return $this->targetObjType;
-	}
+    public function getTargetObjId()
+    {
+        return $this->targetObjId;
+    }
 
-	public function setTargetObjType($targetObjType)
-	{
-		$this->targetObjType = $targetObjType;
-	}
+    public function setTargetObjId($targetObjId): void
+    {
+        $this->targetObjId = $targetObjId;
+    }
 
-	public function setQuestionIdMapping($questionIdMapping)
-	{
-		$this->questionIdMapping = $questionIdMapping;
-	}
+    public function getTargetObjType()
+    {
+        return $this->targetObjType;
+    }
 
-	public function getQuestionIdMapping()
-	{
-		return $this->questionIdMapping;
-	}
+    public function setTargetObjType($targetObjType): void
+    {
+        $this->targetObjType = $targetObjType;
+    }
 
-	public function duplicate($poolTaxonomyIds)
-	{
-		foreach($poolTaxonomyIds as $poolTaxId)
-		{
-			$this->duplicateTaxonomyFromPoolToTest($poolTaxId);
+    public function setQuestionIdMapping($questionIdMapping): void
+    {
+        $this->questionIdMapping = $questionIdMapping;
+    }
 
-			$this->transferAssignmentsFromOriginalToDuplicatedTaxonomy(
-				$poolTaxId, $this->duplicatedTaxonomiesKeysMap->getMappedTaxonomyId($poolTaxId)
-			);
-		}
-	}
+    public function getQuestionIdMapping()
+    {
+        return $this->questionIdMapping;
+    }
 
-	private function duplicateTaxonomyFromPoolToTest($poolTaxonomyId)
-	{
-		$testTaxonomy = new ilObjTaxonomy();
-		$testTaxonomy->create();
+    public function duplicate($poolTaxonomyIds): void
+    {
+        foreach ($poolTaxonomyIds as $poolTaxId) {
+            $this->duplicateTaxonomyFromPoolToTest($poolTaxId);
 
-		$poolTaxonomy = new ilObjTaxonomy($poolTaxonomyId);
-		$poolTaxonomy->doCloneObject($testTaxonomy, null, null);
+            $this->transferAssignmentsFromOriginalToDuplicatedTaxonomy(
+                $poolTaxId,
+                $this->duplicatedTaxonomiesKeysMap->getMappedTaxonomyId($poolTaxId)
+            );
+        }
+    }
 
-		$poolTaxonomy->getTree()->readRootId();
-		$testTaxonomy->getTree()->readRootId();
+    private function duplicateTaxonomyFromPoolToTest($poolTaxonomyId): void
+    {
+        $poolTaxonomy = new ilObjTaxonomy($poolTaxonomyId);
+        $testTaxonomy = new ilObjTaxonomy();
+        $testTaxonomy->create();
+        $testTaxonomy->setTitle($poolTaxonomy->getTitle());
+        $testTaxonomy->setDescription($poolTaxonomy->getDescription());
+        $testTaxonomy->setSortingMode($poolTaxonomy->getSortingMode());
 
-		$testTaxonomy->update();
+        $this->node_mapping = array();
 
-		ilObjTaxonomy::saveUsage( $testTaxonomy->getId(), $this->getTargetObjId() );
+        $poolTaxonomy->cloneNodes(
+            $testTaxonomy,
+            $testTaxonomy->getTree()->readRootId(),
+            $poolTaxonomy->getTree()->readRootId()
+        );
 
-		$this->duplicatedTaxonomiesKeysMap->addDuplicatedTaxonomy($poolTaxonomy, $testTaxonomy);
-	}
+        $testTaxonomy->update();
 
-	private function transferAssignmentsFromOriginalToDuplicatedTaxonomy($originalTaxonomyId, $mappedTaxonomyId)
-	{
-		$originalTaxAssignment = new ilTaxNodeAssignment($this->getSourceObjType(), $this->getSourceObjId(), 'quest', $originalTaxonomyId);
+        ilObjTaxonomy::saveUsage($testTaxonomy->getId(), $this->getTargetObjId());
 
-		$duplicatedTaxAssignment = new ilTaxNodeAssignment($this->getTargetObjType(), $this->getTargetObjId(), 'quest', $mappedTaxonomyId);
+        $this->duplicatedTaxonomiesKeysMap->addDuplicatedTaxonomy($poolTaxonomy, $testTaxonomy);
+    }
 
-		foreach($this->getQuestionIdMapping() as $originalQuestionId => $duplicatedQuestionId)
-		{
-			$assignments = $originalTaxAssignment->getAssignmentsOfItem($originalQuestionId);
+    private function transferAssignmentsFromOriginalToDuplicatedTaxonomy($originalTaxonomyId, $mappedTaxonomyId): void
+    {
+        $originalTaxAssignment = new ilTaxNodeAssignment($this->getSourceObjType(), $this->getSourceObjId(), 'quest', $originalTaxonomyId);
 
-			foreach($assignments as $assData)
-			{
-				$mappedNodeId = $this->duplicatedTaxonomiesKeysMap->getMappedTaxNodeId($assData['node_id']);
+        $duplicatedTaxAssignment = new ilTaxNodeAssignment($this->getTargetObjType(), $this->getTargetObjId(), 'quest', $mappedTaxonomyId);
 
-				$duplicatedTaxAssignment->addAssignment($mappedNodeId, $duplicatedQuestionId);
-			}
-		}
-	}
+        foreach ($this->getQuestionIdMapping() as $originalQuestionId => $duplicatedQuestionId) {
+            $assignments = $originalTaxAssignment->getAssignmentsOfItem($originalQuestionId);
 
-	/**
-	 * @return ilQuestionPoolDuplicatedTaxonomiesKeysMap
-	 */
-	public function getDuplicatedTaxonomiesKeysMap()
-	{
-		return $this->duplicatedTaxonomiesKeysMap;
-	}
-	
-	public function getAllTaxonomiesForSourceObject()
-	{
-		return ilObjTaxonomy::getUsageOfObject($this->getSourceObjId());
-	}
+            foreach ($assignments as $assData) {
+                $mappedNodeId = $this->duplicatedTaxonomiesKeysMap->getMappedTaxNodeId($assData['node_id']);
+
+                $duplicatedTaxAssignment->addAssignment($mappedNodeId, $duplicatedQuestionId);
+            }
+        }
+    }
+
+    /**
+     * @return ilQuestionPoolDuplicatedTaxonomiesKeysMap
+     */
+    public function getDuplicatedTaxonomiesKeysMap(): ilQuestionPoolDuplicatedTaxonomiesKeysMap
+    {
+        return $this->duplicatedTaxonomiesKeysMap;
+    }
+
+    public function getAllTaxonomiesForSourceObject(): array
+    {
+        return ilObjTaxonomy::getUsageOfObject($this->getSourceObjId());
+    }
 }

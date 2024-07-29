@@ -1,65 +1,108 @@
-<?php declare(strict_types=1);
+<?php
 
-use ILIAS\Setup;
+declare(strict_types=1);
+
+/* Copyright (c) 2021 Thibeau Fuhrer <thf@studer-raimann.ch> Extended GPL, see docs/LICENSE */
+
 use ILIAS\Refinery\Transformation;
+use ILIAS\Setup\ObjectiveCollection;
+use ILIAS\Setup\Objective\NullObjective;
+use ILIAS\Setup\Metrics\Storage;
+use ILIAS\Setup\Objective;
+use ILIAS\Setup\Agent;
+use ILIAS\Setup\Config;
+use ILIAS\Setup\ObjectiveConstructor;
 
-class ilUICoreSetupAgent implements Setup\Agent
+/**
+ * Class ilUICoreSetupAgent
+ * @author Thibeau Fuhrer <thf@studer-raimann.ch>
+ * @author Fabian Schmid <fs@studer-raimann.ch>
+ */
+class ilUICoreSetupAgent implements Agent
 {
-	/**
-	 * @var ilCtrlStructureReader
-	 */
-	protected $ctrl_reader;
+    /**
+     * @inheritdoc
+     */
+    public function hasConfig(): bool
+    {
+        return false;
+    }
 
-	public function __construct(\ilCtrlStructureReader $ctrl_reader)
-	{
-		$this->ctrl_reader = $ctrl_reader;
-	}
+    /**
+     * @inheritdoc
+     */
+    public function getArrayToConfigTransformation(): Transformation
+    {
+        throw new LogicException(self::class . " has no Config.");
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function hasConfig() : bool
-	{
-		return false;
-	}
+    /**
+     * @inheritdoc
+     */
+    public function getInstallObjective(Config $config = null): Objective
+    {
+        return new NullObjective();
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getConfigInput(Setup\Config $config = null): ILIAS\UI\Component\Input\Field\Input
-	{
-		throw new \LogicException(self::class." has no Config.");
-	}
+    /**
+     * @inheritdoc
+     */
+    public function getUpdateObjective(Config $config = null): Objective
+    {
+        return new ilDatabaseUpdateStepsExecutedObjective(
+            new ilCtrlDatabaseUpdateSteps()
+        );
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getArrayToConfigTransformation(): Transformation
-	{
-		throw new \LogicException(self::class." has no Config.");
-	}
+    /**
+     * @inheritdoc
+     */
+    public function getBuildArtifactObjective(): Objective
+    {
+        return new ObjectiveCollection(
+            'buildIlCtrlArtifacts',
+            false,
+            new ilCtrlBaseClassArtifactObjective(),
+            new ilCtrlStructureArtifactObjective(),
+            new ilCtrlSecurityArtifactObjective(),
+        );
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getInstallObjective(Setup\Config $config = null): Setup\Objective
-	{
-		return new \ilCtrlStructureStoredObjective($this->ctrl_reader);
-	}
+    /**
+     * @inheritdoc
+     */
+    public function getStatusObjective(Storage $storage): Objective
+    {
+        return new NullObjective();
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getUpdateObjective(Setup\Config $config = null): Setup\Objective
-	{
-		return new \ilCtrlStructureStoredObjective($this->ctrl_reader);
-	}
+    /**
+     * @inheritDoc
+     */
+    public function getMigrations(): array
+    {
+        return [];
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getBuildArtifactObjective(): Setup\Objective
-	{
-		return new Setup\NullObjective();
-	}
+    /**
+     * @inheritDoc
+     */
+    public function getNamedObjectives(?Config $config = null): array
+    {
+        return [
+            'buildIlCtrlArtifacts' => new ObjectiveConstructor(
+                'builds all necessary ilCtrl artifacts.',
+                function () {
+                    return $this->getBuildArtifactObjective();
+                }
+            ),
+
+            'updateIlCtrlDatabase' => new ObjectiveConstructor(
+                'executes all ilCtrl database update steps.',
+                function () {
+                    return $this->getUpdateObjective();
+                }
+            ),
+        ];
+    }
 }

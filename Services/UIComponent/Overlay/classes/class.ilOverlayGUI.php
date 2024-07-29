@@ -1,238 +1,194 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
-* This is a utility class for the yui overlays.
-* this only works, if a parent has class="yui-skin-sam" attached.
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * This is a utility class for the yui overlays.
+ * this only works, if a parent has class="yui-skin-sam" attached.
+ */
 class ilOverlayGUI
 {
-	/**
-	 * @var ilTemplate
-	 */
-	protected $tpl;
+    protected ilGlobalTemplateInterface $tpl;
+    protected string $width = "";
+    protected string $height = "";
+    protected bool $fixed_center = false;
+    protected bool $visible = false;
+    protected string $anchor_el_id = "";
+    protected string $anchor_ov_corner = "";
+    protected string $anchor_anch_corner = "";
+    protected bool $auto_hide = false;
+    protected ?string $close_el = null;
+    protected string $trigger_el_id = '';
+    protected string $trigger_event = '';
+    protected ?string $trigger_anchor_el_id = null;
+    protected string $overlay_el_id = '';
 
-	protected $width = "";
-	protected $height = "";
-	protected $fixed_center = false;
-	protected $visible = false;
-	protected $anchor_el_id = "";
-	protected $anchor_ov_corner = "";
-	protected $anchor_anch_corner = "";
-	protected $auto_hide = false;
-	protected $close_el = null;
-	
-	/**
-	 * Constructor
-	 *
-	 * @param
-	 * @return
-	 */
-	function __construct($a_overlay_el_id)
-	{
-		global $DIC;
+    public function __construct(string $a_overlay_el_id)
+    {
+        global $DIC;
 
-		// please check learning modules (e.g. rating) before removing this globals
-		// use (they do not use standard template)
-		$this->tpl = $GLOBALS["tpl"];
-		$this->overlay_el_id = $a_overlay_el_id;
-	}
+        // please check learning modules (e.g. rating) before removing this globals
+        // use (they do not use standard template)
+        $this->tpl = $GLOBALS["tpl"];
+        $this->overlay_el_id = $a_overlay_el_id;
+    }
 
-	/**
-	 * Set anchor element
-	 *
-	 * @param	string		anchor element id
-	 * @param	string		overlay corner ("tl", "tr", "bl", "br") aligned to...
-	 * @param	string		anchor corner ("tl", "tr", "bl", "br")
-	 */
-	function setAnchor($a_anchor_el_id, $a_ov_corner = "tl", $a_anch_corner = "bl")
-	{
-		$this->anchor_el_id = $a_anchor_el_id;
-		$this->anchor_ov_corner = $a_ov_corner;
-		$this->anchor_anch_corner = $a_anch_corner;
-	}
+    /**
+     * @param string $a_anchor_el_id anchor element id
+     * @param string $a_ov_corner overlay corner ("tl", "tr", "bl", "br") aligned to...
+     * @param string $a_anch_corner anchor corner ("tl", "tr", "bl", "br")
+     */
+    public function setAnchor(
+        string $a_anchor_el_id,
+        string $a_ov_corner = "tl",
+        string $a_anch_corner = "bl"
+    ): void {
+        $this->anchor_el_id = $a_anchor_el_id;
+        $this->anchor_ov_corner = $a_ov_corner;
+        $this->anchor_anch_corner = $a_anch_corner;
+    }
 
-	/**
-	 * Set size
-	 *
-	 * @param	string		width, e.g. 300px
-	 * @param	string		height, e.g. 300px
-	 */
-	function setSize($a_width = "", $a_height = "")
-	{
-		$this->width = $a_width;
-		$this->height = $a_height;
-	}
-	
-	/**
-	 * Set fixed center
-	 *
-	 * @param	boolean		fixed center
-	 */
-	function setFixedCenter($a_fixed_center = true)
-	{
-		$this->fixed_center = $a_fixed_center;
-	}
+    public function setSize(
+        string $a_width = "",
+        string $a_height = ""
+    ): void {
+        $this->width = $a_width;
+        $this->height = $a_height;
+    }
 
-	/**
-	 * Set visible
-	 *
-	 * @param	boolean		visible
-	 */
-	function setVisible($a_visible = true)
-	{
-		$this->visible = $a_visible;	
-	}
-	
-	/**
-	 * Set trigger element
-	 *
-	 * @param	string		element id
-	 * @param	string		event ("click" or "mouseover")
-	 */
-	function setTrigger($a_el_id, $a_event = "click", $a_trigger_anchor_el_id = null)
-	{
-		$this->trigger_el_id = $a_el_id;
-		$this->trigger_event = $a_event;
-		$this->trigger_anchor_el_id = $a_trigger_anchor_el_id;
-	}
-	
-	/**
-	 * Set auto hiding
-	 *
-	 * @param	boolean	auto hide
-	 */
-	function setAutoHide($a_val)
-	{
-		$this->auto_hide = $a_val;
-	}
-	
-	/**
-	 * Get auto_hide
-	 *
-	 * @return	boolean	auto hide
-	 */
-	function getAutoHide()
-	{
-		return $this->auto_hide;
-	}
-	
-	/**
-	 * Set close element id
-	 *
-	 * @param	string	close element id
-	 */
-	function setCloseElementId($a_val)
-	{
-		$this->close_el = $a_val;
-	}
-	
-	/**
-	 * Get close element id
-	 *
-	 * @return	string	clos element id
-	 */
-	function getCloseElementId()
-	{
-		return $this->close_el;
-	}
-	
-	/**
-	 * Makes an existing HTML element an overlay 
-	 */
-	function getOnLoadCode()
-	{
-		// yui cfg string
-		$yuicfg["visible"] = $this->visible ? true : false;
-		
-		if ($this->width != "")
-		{
-			$yuicfg["width"] = $this->width;
-		}
-		
-		if ($this->height != "")
-		{
-			$yuicfg["height"] = $this->height;
-		}
-		$yuicfg["fixedcenter"] = $this->fixed_center ? true : false;
-		if ($this->anchor_el_id != "")
-		{
-			$yuicfg["context"] = array($this->anchor_el_id, $this->anchor_ov_corner,
-					$this->anchor_anch_corner, array("beforeShow", "windowResize"));
-		}
-		// general cfg string
-		$cfg["yuicfg"] = $yuicfg;
-		$cfg["trigger"] = $this->trigger_el_id;
-		$cfg["trigger_event"] = $this->trigger_event;
-		$cfg["anchor_id"] = $this->trigger_anchor_el_id;
-		$cfg["auto_hide"] = $this->auto_hide;
-		$cfg["close_el"] = $this->close_el;
+    public function setFixedCenter(bool $a_fixed_center = true): void
+    {
+        $this->fixed_center = $a_fixed_center;
+    }
 
-		include_once("./Services/JSON/classes/class.ilJsonUtil.php");
-//var_dump(ilJsonUtil::encode($cfg));
-		return 'il.Overlay.add("'.$this->overlay_el_id.'", '.
-			ilJsonUtil::encode($cfg).'); ';
-	}
-	
-	/**
-	 * Makes an existing HTML element an overlay
-	 */
-	function add()
-	{
-		$tpl = $this->tpl;
-		include_once("./Services/YUI/classes/class.ilYuiUtil.php");
-		
-		self::initJavascript();
-		$tpl->addOnLoadCode($this->getOnLoadCode()); 
-	}
-	
-	/**
-	 * Init javascript
-	 *
-	 * @param
-	 * @return
-	 */
-	static function initJavascript()
-	{
-		global $DIC;
+    public function setVisible(bool $a_visible = true): void
+    {
+        $this->visible = $a_visible;
+    }
 
-		$tpl = $GLOBALS["tpl"];
-		
-		include_once("./Services/YUI/classes/class.ilYuiUtil.php");
-		ilYuiUtil::initOverlay($tpl);
-		$tpl->addJavascript("./Services/UIComponent/Overlay/js/ilOverlay.js");
-	}
-	
-	
-	/**
-	 * Get trigger onload code
-	 *
-	 * @param
-	 * @return
-	 */
-	function getTriggerOnLoadCode($a_tr_id, $a_tr_event, $a_anchor_el_id, $a_center = false,
-								  $a_ov_corner = "tl", $a_anch_corner = "bl")
-	{
-		$center = ($a_center) ? "true" : "false";
-		return 'il.Overlay.addTrigger("'.$a_tr_id.'","'.$a_tr_event.'","'.$this->overlay_el_id.'","'.
-			$a_anchor_el_id.'", '.$center.',"'.$a_ov_corner.'","'.$a_anch_corner.'"); ';
-	}
-	
-	/**
-	 * Add trigger
-	 */
-	function addTrigger($a_tr_id, $a_tr_event, $a_anchor_el_id, $a_center = false,
-						$a_ov_corner = "tl", $a_anch_corner = "bl")
-	{
-		$tpl = $this->tpl;
-		include_once("./Services/YUI/classes/class.ilYuiUtil.php");
-//echo "-".$a_tr_id."-".$a_tr_event."-".$a_anchor_el_id."-";
-		self::initJavascript();
-		$tpl->addOnLoadCode($this->getTriggerOnLoadCode($a_tr_id, $a_tr_event, $a_anchor_el_id, $a_center,
-				$a_ov_corner, $a_anch_corner)); 
-	}
-	
-	
-	
+    public function setTrigger(
+        string $a_el_id,
+        string $a_event = "click",
+        ?string $a_trigger_anchor_el_id = null
+    ): void {
+        $this->trigger_el_id = $a_el_id;
+        $this->trigger_event = $a_event;
+        $this->trigger_anchor_el_id = $a_trigger_anchor_el_id;
+    }
+
+    public function setAutoHide(bool $a_val): void
+    {
+        $this->auto_hide = $a_val;
+    }
+
+    public function getAutoHide(): bool
+    {
+        return $this->auto_hide;
+    }
+
+    public function setCloseElementId(string $a_val): void
+    {
+        $this->close_el = $a_val;
+    }
+
+    public function getCloseElementId(): string
+    {
+        return $this->close_el;
+    }
+
+    public function getOnLoadCode(): string
+    {
+        // yui cfg string
+        $yuicfg["visible"] = $this->visible;
+
+        if ($this->width !== "") {
+            $yuicfg["width"] = $this->width;
+        }
+
+        if ($this->height !== "") {
+            $yuicfg["height"] = $this->height;
+        }
+        $yuicfg["fixedcenter"] = $this->fixed_center;
+        if ($this->anchor_el_id !== "") {
+            $yuicfg["context"] = array($this->anchor_el_id, $this->anchor_ov_corner,
+                    $this->anchor_anch_corner, array("beforeShow", "windowResize"));
+        }
+        // general cfg string
+        $cfg["yuicfg"] = $yuicfg;
+        $cfg["trigger"] = $this->trigger_el_id;
+        $cfg["trigger_event"] = $this->trigger_event;
+        $cfg["anchor_id"] = $this->trigger_anchor_el_id;
+        $cfg["auto_hide"] = $this->auto_hide;
+        $cfg["close_el"] = $this->close_el;
+
+        //var_dump(json_encode($cfg, JSON_THROW_ON_ERROR));
+        return 'il.Overlay.add("' . $this->overlay_el_id . '", ' .
+            json_encode($cfg, JSON_THROW_ON_ERROR) . '); ';
+    }
+
+    public function add(): void
+    {
+        $tpl = $this->tpl;
+        self::initJavascript();
+        $tpl->addOnLoadCode($this->getOnLoadCode());
+    }
+
+    public static function initJavascript(): void
+    {
+        /** @var \ILIAS\DI\Container $DIC */
+        global $DIC;
+
+        $tpl = $DIC->ui()->mainTemplate();
+
+        ilYuiUtil::initOverlay($tpl);
+        $tpl->addJavaScript("./Services/UIComponent/Overlay/js/ilOverlay.js");
+    }
+
+    public function getTriggerOnLoadCode(
+        string $a_tr_id,
+        string $a_tr_event,
+        string $a_anchor_el_id,
+        bool $a_center = false,
+        string $a_ov_corner = "tl",
+        string $a_anch_corner = "bl"
+    ): string {
+        $center = ($a_center) ? "true" : "false";
+        return 'il.Overlay.addTrigger("' . $a_tr_id . '","' . $a_tr_event . '","' . $this->overlay_el_id . '","' .
+            $a_anchor_el_id . '", ' . $center . ',"' . $a_ov_corner . '","' . $a_anch_corner . '"); ';
+    }
+
+    public function addTrigger(
+        string $a_tr_id,
+        string $a_tr_event,
+        string $a_anchor_el_id,
+        bool $a_center = false,
+        string $a_ov_corner = "tl",
+        string $a_anch_corner = "bl"
+    ): void {
+        $tpl = $this->tpl;
+
+        self::initJavascript();
+        $tpl->addOnLoadCode($this->getTriggerOnLoadCode(
+            $a_tr_id,
+            $a_tr_event,
+            $a_anchor_el_id,
+            $a_center,
+            $a_ov_corner,
+            $a_anch_corner
+        ));
+    }
 }
-?>

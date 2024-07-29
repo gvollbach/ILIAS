@@ -1,173 +1,112 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2009 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
-
-/** 
-* 
-* @author Fred Neumann <fred.neumann@fim.uni-erlangen.de>
-* @version $Id$
-* 
-* 
-* @ingroup ServicesFileSystemStorage 
-*/
-
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ *      https://www.ilias.de
+ *      https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
+/**
+ * @deprecated Will be removed in the next release
+ */
 class ilUploadFiles
 {
-	/**
-	* Get the directory with uploaded files
-	*
-	* The directory is configured as cont_upload_dir in the settings table.
-	* The directory must exist and have read permissions.
-	* Currently the user must have admin permissions in ILIAS.
-	* Later there may be different directories for different users/roles.
-	*
-	* @return   string      full path of upload directory on the server or empty
-	* @access   static
-	*/
-	static function _getUploadDirectory()
-	{
-		global $DIC;
-		$rbacsystem = $DIC['rbacsystem'];
-		
-		if(!$rbacsystem->checkAccess('write', SYSTEM_FOLDER_ID))
-		{
-			return '';
-		}
+    public static function _getUploadDirectory(): string
+    {
+        global $DIC;
+        $rbacsystem = $DIC['rbacsystem'];
 
-		$lm_set = new ilSetting("lm");
-		$upload_dir = $lm_set->get("cont_upload_dir");
-		
-		if (is_dir($upload_dir) and is_readable($upload_dir))
-		{
-			return $upload_dir;
-		}
-		else
-		{
-			return '';
-		}
-	}
-	
-	/**
-	* Get a list of readable files in the upload directory
-	*
-	* @return  array       list of file names (without path)
-	* @access 	static
-	*/
-	static function _getUploadFiles()
-	{
-		if (!$upload_dir = self::_getUploadDirectory())
-		{
-			return array();
-		}
+        if (!$rbacsystem->checkAccess('write', SYSTEM_FOLDER_ID)) {
+            return '';
+        }
 
-		// get the sorted content of the upload directory
-		$handle = opendir($upload_dir);
+        $lm_set = new ilSetting("lm");
+        $upload_dir = $lm_set->get("cont_upload_dir");
+
+        $import_file_factory = new ilImportDirectoryFactory();
+        try {
+            $scorm_import_directory = $import_file_factory->getInstanceForComponent(ilImportDirectoryFactory::TYPE_SAHS);
+        } catch (InvalidArgumentException $e) {
+            return '';
+        }
+        return $scorm_import_directory->getAbsolutePath();
+    }
+
+    /**
+     * @return string[]
+     */
+    public static function _getUploadFiles(): array
+    {
+        if (!$upload_dir = self::_getUploadDirectory()) {
+            return array();
+        }
+
+        // get the sorted content of the upload directory
+        $handle = opendir($upload_dir);
         $files = array();
-		while (false !== ($file = readdir($handle)))
-		{
-				$full_path = $upload_dir . "/". $file;
-			    if (is_file($full_path) and is_readable($full_path))
-			    {
-					$files[] = $file;
-				}
-		}
-		closedir($handle);
-		sort($files);
-		reset($files);
-		
-		return $files;
-	}
-	
-	/**
-	* Check if a file exists in the upload directory and is readable
-	*
-	* @param    string      file name
-	* @return  	boolean     true/false
-	* @access 	static
-	*/
-	static function _checkUploadFile($a_file)
-	{
-		$files = self::_getUploadFiles();
-		
-		return in_array($a_file, $files);
-	}
+        while (false !== ($file = readdir($handle))) {
+            $full_path = $upload_dir . "/" . $file;
+            if (is_file($full_path) and is_readable($full_path)) {
+                $files[] = $file;
+            }
+        }
+        closedir($handle);
+        sort($files);
 
-	/**
-	* copy an uploaded file to the target directory (including virus check)
-	*
-	* @param    string      file name
-	* @param    string      target path and name
-	* @return  	boolean     true/false
-	* @access 	static
-	*/
-	static function _copyUploadFile($a_file, $a_target, $a_raise_errors = true)
-	{
-		global $DIC;
-		$lng = $DIC['lng'];
-		$ilias = $DIC['ilias'];
+        return $files;
+    }
 
-		$file = self::_getUploadDirectory() . "/". $a_file;
+    public static function _checkUploadFile(string $a_file): bool
+    {
+        $files = self::_getUploadFiles();
 
-		// check if file exists
-		if (!is_file($file))
-		{
-			if ($a_raise_errors)
-			{
-				$ilias->raiseError($lng->txt("upload_error_file_not_found"), $ilias->error_obj->MESSAGE);
-			}
-			else
-			{
-				ilUtil::sendFailure($lng->txt("upload_error_file_not_found"), true);
-			}
-			return false;
-		}
+        return in_array($a_file, $files);
+    }
 
-		// virus handling
-		$vir = ilUtil::virusHandling($file, $a_file);
-		if (!$vir[0])
-		{
-			if ($a_raise_errors)
-			{
-				$ilias->raiseError($lng->txt("file_is_infected")."<br />".
-					$vir[1],
-					$ilias->error_obj->MESSAGE);
-			}
-			else
-			{
-				ilUtil::sendFailure($lng->txt("file_is_infected")."<br />".
-					$vir[1], true);
-			}
-			return false;
-		}
-		else
-		{
-			if ($vir[1] != "")
-			{
-				ilUtil::sendInfo($vir[1], true);
-			}
-			return copy($file, $a_target);
-		}
-	}
+    public static function _copyUploadFile(string $a_file, string $a_target, bool $a_raise_errors = true): bool
+    {
+        global $DIC;
+        $main_tpl = $DIC->ui()->mainTemplate();
+        $lng = $DIC['lng'];
+        $ilias = $DIC['ilias'];
 
+        $file = self::_getUploadDirectory() . "/" . $a_file;
+
+        // check if file exists
+        if (!is_file($file)) {
+            if ($a_raise_errors) {
+                $ilias->raiseError($lng->txt("upload_error_file_not_found"), $ilias->error_obj->MESSAGE);
+            } else {
+                $main_tpl->setOnScreenMessage('failure', $lng->txt("upload_error_file_not_found"), true);
+            }
+            return false;
+        }
+
+        // virus handling
+        $vir = ilVirusScanner::virusHandling($file, $a_file);
+        if (!$vir[0]) {
+            if ($a_raise_errors) {
+                $ilias->raiseError(
+                    $lng->txt("file_is_infected") . "<br />" .
+                    $vir[1],
+                    $ilias->error_obj->MESSAGE
+                );
+            } else {
+                $main_tpl->setOnScreenMessage('failure', $lng->txt("file_is_infected") . "<br />" .
+                    $vir[1], true);
+            }
+            return false;
+        } else {
+            if ($vir[1] != "") {
+                $main_tpl->setOnScreenMessage('info', $vir[1], true);
+            }
+            return copy($file, $a_target);
+        }
+    }
 }
-
-?>

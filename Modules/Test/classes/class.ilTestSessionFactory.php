@@ -1,5 +1,19 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Factory for test session
@@ -9,130 +23,115 @@
  */
 class ilTestSessionFactory
 {
-	/**
-	 * singleton instances of test sessions
-	 *
-	 * @var array[ilTestSession|ilTestSessionDynamicQuestionSet]
-	 */
-	private $testSession = array();
-	
-	/**
-	 * object instance of current test
-	 * @var ilObjTest
-	 */
-	private $testOBJ = null;
+    /**
+     * singleton instances of test sessions
+     *
+     * @var array[ilTestSession|ilTestSessionDynamicQuestionSet]
+     */
+    private $testSession = array();
 
-	/**
-	 * constructor
-	 * @param ilObjTest $testOBJ
-	 */
-	public function __construct(ilObjTest $testOBJ)
-	{
-		$this->testOBJ = $testOBJ;
-	}
+    /**
+     * object instance of current test
+     * @var ilObjTest
+     */
+    private $testOBJ = null;
 
-	/**
-	 * temporarily bugfix for resetting the state of this singleton
-	 * smeyer
-	 * --> BH: not required anymore
-	 */
-	public function reset()
-	{
-		$this->testSession = array();
-	}
+    /**
+     * constructor
+     * @param ilObjTest $testOBJ
+     */
+    public function __construct(ilObjTest $testOBJ)
+    {
+        $this->testOBJ = $testOBJ;
+    }
 
+    /**
+     * temporarily bugfix for resetting the state of this singleton
+     * smeyer
+     * --> BH: not required anymore
+     */
+    public function reset()
+    {
+        $this->testSession = array();
+    }
 
+    /**
+     * Creates and returns an instance of a test sequence
+     * that corresponds to the current test mode
+     *
+     * @param integer $activeId
+     * @return ilTestSession|ilTestSessionDynamicQuestionSet
+     */
+    public function getSession($activeId = null)
+    {
+        if ($activeId === null ||
+            $this->testSession === array() ||
+            !array_key_exists($activeId, $this->testSession) ||
+            $this->testSession[$activeId] === null
+        ) {
+            $testSession = $this->getNewTestSessionObject();
 
+            $testSession->setRefId($this->testOBJ->getRefId());
+            $testSession->setTestId($this->testOBJ->getTestId());
 
-	/**
-	 * Creates and returns an instance of a test sequence
-	 * that corresponds to the current test mode
-	 *
-	 * @param integer $activeId
-	 * @return ilTestSession|ilTestSessionDynamicQuestionSet
-	 */
-	public function getSession($activeId = null)
-	{
-		if( $activeId === null || $this->testSession[$activeId] === null)
-		{
-			$testSession = $this->getNewTestSessionObject();
+            if ($activeId) {
+                $testSession->loadFromDb($activeId);
+                $this->testSession[$activeId] = $testSession;
+            } else {
+                global $DIC;
+                $ilUser = $DIC['ilUser'];
 
-			$testSession->setRefId($this->testOBJ->getRefId());
-			$testSession->setTestId($this->testOBJ->getTestId());
+                $testSession->loadTestSession(
+                    $this->testOBJ->getTestId(),
+                    $ilUser->getId(),
+                    $testSession->getAccessCodeFromSession()
+                );
 
-			if($activeId)
-			{
-				$testSession->loadFromDb($activeId);
-				$this->testSession[$activeId] = $testSession;
-			}
-			else
-			{
-				global $DIC;
-				$ilUser = $DIC['ilUser'];
+                return $testSession;
+            }
+        }
 
-				$testSession->loadTestSession(
-					$this->testOBJ->getTestId(), $ilUser->getId(), $testSession->getAccessCodeFromSession()
-				);
+        return $this->testSession[$activeId];
+    }
 
-				return $testSession;
-			}
-		}
+    /**
+     * @todo: Björn, we also need to handle the anonymous user here
+     * @param integer $userId
+     * @return ilTestSession|ilTestSessionDynamicQuestionSet
+     */
+    public function getSessionByUserId($userId)
+    {
+        if (!isset($this->testSession[$this->buildCacheKey($userId)])) {
+            $testSession = $this->getNewTestSessionObject();
 
-		return $this->testSession[$activeId];
-	}
+            $testSession->setRefId($this->testOBJ->getRefId());
+            $testSession->setTestId($this->testOBJ->getTestId());
 
-	/**
-	 * @todo: Björn, we also need to handle the anonymous user here
-	 * @param integer $userId
-	 * @return ilTestSession|ilTestSessionDynamicQuestionSet
-	 */
-	public function getSessionByUserId($userId)
-	{
-		if( !isset($this->testSession[$this->buildCacheKey($userId)]) )
-		{
-			$testSession = $this->getNewTestSessionObject();
+            $testSession->loadTestSession($this->testOBJ->getTestId(), $userId);
 
-			$testSession->setRefId($this->testOBJ->getRefId());
-			$testSession->setTestId($this->testOBJ->getTestId());
+            $this->testSession[$this->buildCacheKey($userId)] = $testSession;
+        }
 
-			$testSession->loadTestSession($this->testOBJ->getTestId(), $userId);
-			
-			$this->testSession[$this->buildCacheKey($userId)] = $testSession;
-		}
+        return $this->testSession[$this->buildCacheKey($userId)];
+    }
 
-		return $this->testSession[$this->buildCacheKey($userId)];
-	}
+    /**
+     * @return ilTestSession|ilTestSessionDynamicQuestionSet
+     */
+    private function getNewTestSessionObject()
+    {
+        if ($this->testOBJ->isDynamicTest()) {
+            return new ilTestSessionDynamicQuestionSet();
+        }
+        return new ilTestSession();
+    }
 
-	/**
-	 * @return ilTestSession|ilTestSessionDynamicQuestionSet
-	 */
-	private function getNewTestSessionObject()
-	{
-		switch($this->testOBJ->getQuestionSetType())
-		{
-			case ilObjTest::QUESTION_SET_TYPE_FIXED:
-			case ilObjTest::QUESTION_SET_TYPE_RANDOM:
-
-				require_once 'Modules/Test/classes/class.ilTestSession.php';
-				$testSession = new ilTestSession();
-				break;
-
-			case ilObjTest::QUESTION_SET_TYPE_DYNAMIC:
-
-				require_once 'Modules/Test/classes/class.ilTestSessionDynamicQuestionSet.php';
-				$testSession = new ilTestSessionDynamicQuestionSet();
-				break;
-		}
-		
-		return $testSession;
-	}
-
-	/**
-	 * @param $userId
-	 * @return string
-	 */
-	private function buildCacheKey($userId)
-	{
-		return "{$this->testOBJ->getTestId()}::{$userId}";
-	}
+    /**
+     * @param $userId
+     * @return string
+     */
+    private function buildCacheKey($userId): string
+    {
+        return "{$this->testOBJ->getTestId()}::{$userId}";
+    }
 }

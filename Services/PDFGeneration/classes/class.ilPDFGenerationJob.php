@@ -1,95 +1,82 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
- * Class ilPDFGenerationJob
- * 
- * Data-object blueprint that holds all PDF-generation related settings.
- * If you add to the methods, see to it that they follow the fluent interface, meaning
- * that all setters return $this for developer convenience.
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
  *
- * @author Maximilian Becker <mbecker@databay.de>
- * @version $Id$
- * 
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+/**
+ * @deprecated
  */
-class ilPDFGenerationJob 
+class ilPDFGenerationJob
 {
-	private $pages;					/** @var $pages string[] HTML pages */
-	private $filename;				/** @var $filename string Filename */
-	private $output_mode;			/** @var $output_mode string Output mode, one D, F or I */
+    /** @var string[] */
+    private array $pages = [];
+    private ?string $filename;
+    private ?string $output_mode;
 
-	/**
-	 * @param string $filename
-	 * @return $this
-	 */
-	public function setFilename($filename)
-	{
-		$this->filename = $filename;
-		return $this;
-	}
+    public function setFilename(string $filename): self
+    {
+        $this->filename = $filename;
+        return $this;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getFilename()
-	{
-		return $this->filename;
-	}
+    public function getFilename(): ?string
+    {
+        return $this->filename;
+    }
 
-	/**
-	 * @param $pages string[] Array of html-strings.
-	 *
-	 * @return $this
-	 */
-	public function setPages($pages)
-	{
-		$this->pages = $pages;
-		return $this;
-	}
+    /**
+     * @param string[] $pages
+     * @return $this
+     */
+    public function setPages(array $pages): self
+    {
+        $this->pages = $pages;
+        return $this;
+    }
 
-	/**
-	 * @return string[] Array of html-strings.
-	 */
-	public function getPages()
-	{
-		return $this->pages;
-	}
+    /**
+     * @return string[]
+     */
+    public function getPages(): array
+    {
+        return $this->pages;
+    }
 
-	/**
-	 * @param $page
-	 * @return $this
-	 */
-	public function addPage($page)
-	{
-		$this->pages[] = $page;
-		return $this;
-	}
+    public function addPage(string $page): self
+    {
+        $this->pages[] = $page;
+        return $this;
+    }
 
-	/**
-	 * @return $this
-	 */
-	public function flushPages()
-	{
-		$this->pages = array();
-		return $this;
-	}
+    public function flushPages(): self
+    {
+        $this->pages = [];
+        return $this;
+    }
 
-	/**
-	 * @param string $output_mode
-	 * @return $this
-	 */
-	public function setOutputMode($output_mode)
-	{
-		$this->output_mode = $output_mode;
-		return $this;
-	}
+    public function setOutputMode(string $output_mode): self
+    {
+        $this->output_mode = $output_mode;
+        return $this;
+    }
 
-	/**
-	 * @return string
-	 */
-	public function getOutputMode()
-	{
-		return $this->output_mode;
-	}
-
+    public function getOutputMode(): ?string
+    {
+        return $this->output_mode;
+    }
 }

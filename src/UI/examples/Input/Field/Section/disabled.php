@@ -1,4 +1,9 @@
 <?php
+
+declare(strict_types=1);
+
+namespace ILIAS\UI\examples\Input\Field\Section;
+
 /**
  * Example showing how disabled sections can be used to attach transformation and constraints on
  * multiple fields at once.
@@ -21,7 +26,7 @@ function disabled()
         return $s;
     });
     $equal_ten = $refinery->custom()->constraint(function ($v) {
-        return $v==10;
+        return $v == 10;
     }, "The sum must equal ten");
 
     //Step 2: Define inputs

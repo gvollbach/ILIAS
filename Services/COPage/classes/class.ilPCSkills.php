@@ -1,168 +1,177 @@
 <?php
 
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-
-require_once("./Services/COPage/classes/class.ilPageContent.php");
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
-* Class ilPCSkills
-*
-* Skills content object (see ILIAS DTD)
-*
-* @author Jörg Lützenkirchen <luetzenkirchen@leifos.com>
-* @version $Id: class.ilPCListItem.php 22210 2009-10-26 09:46:06Z akill $
-*
-* @ingroup ServicesCOPage
-*/
+ * Class ilPCSkills
+ * Skills content object (see ILIAS DTD)
+ * @author Jörg Lützenkirchen <luetzenkirchen@leifos.com>
+ */
 class ilPCSkills extends ilPageContent
 {
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
+    protected php4DOMElement $skill_node;
+    protected ilObjUser $user;
 
-	var $dom;
+    public function init(): void
+    {
+        global $DIC;
 
-	/**
-	* Init page content component.
-	*/
-	function init()
-	{
-		global $DIC;
+        $this->user = $DIC->user();
+        $this->setType("skills");
+    }
 
-		$this->user = $DIC->user();
-		$this->setType("skills");
-	}
+    public function setNode(php4DOMElement $a_node): void
+    {
+        parent::setNode($a_node);		// this is the PageContent node
+        $this->skill_node = $a_node->first_child();		// this is the skill node
+    }
 
-	/**
-	* Set node
-	*/
-	function setNode($a_node)
-	{
-		parent::setNode($a_node);		// this is the PageContent node
-		$this->skill_node = $a_node->first_child();		// this is the skill node
-	}
+    public function create(
+        ilPageObject $a_pg_obj,
+        string $a_hier_id,
+        string $a_pc_id = ""
+    ): void {
+        $this->node = $this->createPageContentNode();
+        $a_pg_obj->insertContent($this, $a_hier_id, IL_INSERT_AFTER, $a_pc_id);
+        $this->skill_node = $this->dom->create_element("Skills");
+        $this->skill_node = $this->node->append_child($this->skill_node);
+    }
 
-	/**
-	* Create skill node in xml.
-	*
-	* @param	object	$a_pg_obj		Page Object
-	* @param	string	$a_hier_id		Hierarchical ID
-	*/
-	function create(&$a_pg_obj, $a_hier_id, $a_pc_id = "")
-	{
-		$this->node = $this->createPageContentNode();
-		$a_pg_obj->insertContent($this, $a_hier_id, IL_INSERT_AFTER, $a_pc_id);
-		$this->skill_node = $this->dom->create_element("Skills");
-		$this->skill_node = $this->node->append_child($this->skill_node);
-	}
+    public function setData(string $a_skill_id): void
+    {
+        $ilUser = $this->user;
 
-	/**
-	 * Set skill settings
-	 *
-	 * @param int $a_skill_id
-	 */
-	function setData($a_skill_id)
-	{
-		$ilUser = $this->user;
-		
-		$this->skill_node->set_attribute("Id", $a_skill_id);
-		$this->skill_node->set_attribute("User", $ilUser->getId());
-	}
+        $this->skill_node->set_attribute("Id", $a_skill_id);
+        $this->skill_node->set_attribute("User", $ilUser->getId());
+    }
 
-	/**
-	 * Get skill mode
-	 *
-	 * @return string
-	 */
-	function getSkillId()
-	{
-		if (is_object($this->skill_node))
-		{
-			return $this->skill_node->get_attribute("Id");
-		}
-	}
-	
-	/**
-	 * After page has been updated (or created)
-	 *
-	 * @param object $a_page page object
-	 * @param DOMDocument $a_domdoc dom document
-	 * @param string $a_xml xml
-	 * @param bool $a_creation true on creation, otherwise false
-	 */
-	static function afterPageUpdate($a_page, DOMDocument $a_domdoc, $a_xml, $a_creation)
-	{
-		// pc skill
-		self::saveSkillUsage($a_page, $a_domdoc);
-	}
-	
-	/**
-	 * Before page is being deleted
-	 *
-	 * @param object $a_page page object
-	 */
-	static function beforePageDelete($a_page)
-	{
-		require_once('Services/COPage/classes/class.ilPageContentUsage.php'); // Mantis #18636
-		ilPageContentUsage::deleteAllUsages("skmg", $a_page->getParentType().":pg", $a_page->getId(), false,
-			$a_page->getLanguage());
-	}
+    public function getSkillId(): string
+    {
+        if (is_object($this->skill_node)) {
+            return $this->skill_node->get_attribute("Id");
+        }
+        return "";
+    }
 
-	/**
-	 * After page history entry has been created
-	 *
-	 * @param object $a_page page object
-	 * @param DOMDocument $a_old_domdoc old dom document
-	 * @param string $a_old_xml old xml
-	 * @param integer $a_old_nr history number
-	 */
-	static function afterPageHistoryEntry($a_page, DOMDocument $a_old_domdoc, $a_old_xml, $a_old_nr)
-	{
-		self::saveSkillUsage($a_page, $a_old_domdoc, $a_old_nr);
-	}
-	
-	/**
-	 * save content include usages
-	 */
-	static function saveSkillUsage($a_page, $a_domdoc, $a_old_nr = 0)
-	{
-		include_once("./Services/COPage/classes/class.ilPageContentUsage.php");
-		$skl_ids = self::collectSkills($a_page, $a_domdoc);
-		ilPageContentUsage::deleteAllUsages("skmg", $a_page->getParentType().":pg", $a_page->getId(), $a_old_nr,
-			$a_page->getLanguage());
-		foreach($skl_ids as $skl_id)
-		{
-			if ((int) $skl_id["inst_id"] <= 0)
-			{
-				ilPageContentUsage::saveUsage("skmg", $skl_id["id"], $a_page->getParentType().":pg", $a_page->getId(), $a_old_nr,
-					$a_page->getLanguage());
-			}
-		}
-	}
+    /**
+     * After page has been updated (or created)
+     */
+    public static function afterPageUpdate(
+        ilPageObject $a_page,
+        DOMDocument $a_domdoc,
+        string $a_xml,
+        bool $a_creation
+    ): void {
+        // pc skill
+        self::saveSkillUsage($a_page, $a_domdoc);
+    }
 
-	/**
-	 * get all content includes that are used within the page
-	 */
-	static function collectSkills($a_page, $a_domdoc)
-	{
-		$xpath = new DOMXPath($a_domdoc);
-		$nodes = $xpath->query('//Skills');	
+    /**
+     * Before page is being deleted
+     */
+    public static function beforePageDelete(
+        ilPageObject $a_page
+    ): void {
+        ilPageContentUsage::deleteAllUsages(
+            "skmg",
+            $a_page->getParentType() . ":pg",
+            $a_page->getId(),
+            0,
+            $a_page->getLanguage()
+        );
+    }
 
-		$skl_ids = array();
-		foreach($nodes as $node)
-		{
-			$user = $node->getAttribute("User");
-			$id = $node->getAttribute("Id");
-			$inst_id = $node->getAttribute("InstId");
-			$skl_ids[$user.":".$id.":".$inst_id] = array(
-				"user" => $user, "id" => $id, "inst_id" => $inst_id);
-		}
+    /**
+     * After page history entry has been created
+     */
+    public static function afterPageHistoryEntry(
+        ilPageObject $a_page,
+        DOMDocument $a_old_domdoc,
+        string $a_old_xml,
+        int $a_old_nr
+    ): void {
+        self::saveSkillUsage($a_page, $a_old_domdoc, $a_old_nr);
+    }
 
-		return $skl_ids;
-	}
+    public static function saveSkillUsage(
+        ilPageObject $a_page,
+        DOMDocument $a_domdoc,
+        int $a_old_nr = 0
+    ): void {
+        $skl_ids = self::collectSkills($a_page, $a_domdoc);
+        ilPageContentUsage::deleteAllUsages(
+            "skmg",
+            $a_page->getParentType() . ":pg",
+            $a_page->getId(),
+            $a_old_nr,
+            $a_page->getLanguage()
+        );
+        foreach ($skl_ids as $skl_id) {
+            if ((int) $skl_id["inst_id"] <= 0) {
+                ilPageContentUsage::saveUsage(
+                    "skmg",
+                    $skl_id["id"],
+                    $a_page->getParentType() . ":pg",
+                    $a_page->getId(),
+                    $a_old_nr,
+                    $a_page->getLanguage()
+                );
+            }
+        }
+    }
 
+    public static function collectSkills(
+        ilPageObject $a_page,
+        DOMDocument $a_domdoc
+    ): array {
+        $xpath = new DOMXPath($a_domdoc);
+        $nodes = $xpath->query('//Skills');
 
+        $skl_ids = array();
+        foreach ($nodes as $node) {
+            $user = $node->getAttribute("User");
+            $id = $node->getAttribute("Id");
+            $inst_id = $node->getAttribute("InstId");
+            $skl_ids[$user . ":" . $id . ":" . $inst_id] = array(
+                "user" => $user, "id" => $id, "inst_id" => $inst_id);
+        }
+
+        return $skl_ids;
+    }
+
+    public static function deleteHistoryLowerEqualThan(
+        string $parent_type,
+        int $page_id,
+        string $lang,
+        int $delete_lower_than_nr
+    ): void {
+        global $DIC;
+
+        $usage_repo = $DIC->copage()
+                              ->internal()
+                              ->repo()
+                              ->usage();
+
+        $usage_repo->deleteHistoryUsagesLowerEqualThan(
+            "skmg",
+            $parent_type . ":pg",
+            $page_id,
+            $delete_lower_than_nr,
+            $lang
+        );
+    }
 }
-?>

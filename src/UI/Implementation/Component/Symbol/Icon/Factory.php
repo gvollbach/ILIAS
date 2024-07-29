@@ -1,5 +1,22 @@
 <?php
-/* Copyright (c) 2017 Nils Haagen <nils.haagen@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 namespace ILIAS\UI\Implementation\Component\Symbol\Icon;
 
@@ -10,16 +27,24 @@ class Factory implements I\Factory
     /**
      * @inheritdoc
      */
-    public function standard($name, $aria_label, $size='small', $is_disabled = false)
-    {
-        return new Standard($name, $aria_label, $size, $is_disabled);
+    public function standard(
+        string $name,
+        string $label,
+        string $size = 'small',
+        bool $is_disabled = false
+    ): I\Standard {
+        return new Standard($name, $label, $size, $is_disabled);
     }
 
     /**
      * @inheritdoc
      */
-    public function custom($icon_path, $aria_label, $size='small', $is_disabled = false)
-    {
-        return new Custom($icon_path, $aria_label, $size, $is_disabled);
+    public function custom(
+        string $icon_path,
+        string $label,
+        string $size = 'small',
+        bool $is_disabled = false
+    ): I\Custom {
+        return new Custom($icon_path, $label, $size, $is_disabled);
     }
 }

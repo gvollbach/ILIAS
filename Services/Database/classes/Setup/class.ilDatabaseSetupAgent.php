@@ -1,83 +1,124 @@
 <?php
 
-/* Copyright (c) 2019 Richard Klees <richard.klees@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 use ILIAS\Setup;
-use ILIAS\Data\Factory as DataFactory;
 use ILIAS\Refinery\Factory as Refinery;
 use ILIAS\Refinery\Transformation;
 
-class ilDatabaseSetupAgent implements Setup\Agent {
-	/**
-	 * @var Refinery
-	 */
-	protected $refinery;
+class ilDatabaseSetupAgent implements Setup\Agent
+{
+    use Setup\Agent\HasNoNamedObjective;
 
-	public function __construct(Refinery $refinery) {
-		$this->refinery = $refinery;
-	}
+    protected Refinery $refinery;
 
-	/**
-	 * @inheritdocs
-	 */
-	public function hasConfig() : bool {
-		return true;
-	}
+    public function __construct(Refinery $refinery)
+    {
+        $this->refinery = $refinery;
+    }
 
-	/**
-	 * @inheritdocs
-	 */
-	public function getConfigInput(Setup\Config $config = null) : ILIAS\UI\Component\Input\Field\Input {
-		throw new \LogicException("NYI!");
-	}
+    /**
+     * @inheritdocs
+     */
+    public function hasConfig(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * @inheritdocs
-	 *
-	 * TODO: Use \DatabaseSetupConfig as return type once variance is implemented
-	 * in PHP.
-	 */
-	public function getArrayToConfigTransformation() : Transformation {
-		// TODO: Migrate this to refinery-methods once possible.
-		return $this->refinery->custom()->transformation(function($data) {
-			$password = $this->refinery->to()->data("password");
-			return new \ilDatabaseSetupConfig(
-				$data["type"] ?? null,
-				$data["host"] ?? null,
-				$data["database"] ?? null,
-				$data["user"] ?? null,
-				$data["password"] ? $password->transform($data["password"]) : null,
-				$data["create_database"] ?? null,
-				$data["collation"] ?? null,
-				$data["port"] ?? null,
-				$data["path_to_db_dump"] ?? null
-			);
-		});
-	}
+    /**
+     * @inheritdocs
+     */
+    public function getArrayToConfigTransformation(): Transformation
+    {
+        // TODO: Migrate this to refinery-methods once possible.
+        return $this->refinery->custom()->transformation(function ($data): \ilDatabaseSetupConfig {
+            $data["password"] = $data["password"] ?? null; // password can be empty
+            $password = $this->refinery->to()->data("password");
+            return new \ilDatabaseSetupConfig(
+                $data["type"] ?? "innodb",
+                $data["host"] ?? "localhost",
+                $data["database"] ?? "ilias",
+                $data["user"] ?? null,
+                $data["password"] ? $password->transform($data["password"]) : null,
+                $data["create_database"] ?? true,
+                $data["collation"] ?? null,
+                (int) ($data["port"] ?? 3306),
+                $data["path_to_db_dump"] ?? null
+            );
+        });
+    }
 
-	/**
-	 * @inheritdocs
-	 */
-	public function getInstallObjective(Setup\Config $config = null) : Setup\Objective {
-		if (!($config instanceof \ilDatabaseSetupConfig)) {
-			throw new \InvalidArgumentException(
-				"Expected \\DatabaseSetupConfig, got '".get_class($config)."' instead."
-			);
-		}
-		return new \ilDatabasePopulatedObjective($config);
-	}
+    /**
+     * @inheritdocs
+     */
+    public function getInstallObjective(Setup\Config $config = null): Setup\Objective
+    {
+        if (!$config instanceof \ilDatabaseSetupConfig) {
+            return new Setup\Objective\NullObjective();
+        }
+        return new Setup\ObjectiveCollection(
+            "Complete objectives from Services\Database",
+            false,
+            new ilDatabaseConfigStoredObjective($config),
+            new ilDatabaseEnvironmentValidObjective(),
+            new \ilDatabaseUpdatedObjective()
+        );
+    }
 
-	/**
-	 * @inheritdocs
-	 */
-	public function getUpdateObjective(Setup\Config $config = null) : Setup\Objective {
-		throw new \LogicException("NYI!");
-	}
+    /**
+     * @inheritdocs
+     */
+    public function getUpdateObjective(Setup\Config $config = null): Setup\Objective
+    {
+        $p = [];
+        $p[] = new \ilDatabaseUpdatedObjective();
+        $p[] = new ilDatabaseEnvironmentValidObjective();
+        return new Setup\ObjectiveCollection(
+            "Complete objectives from Services\Database",
+            false,
+            ...$p
+        );
+    }
 
-	/**
-	 * @inheritdocs
-	 */
-	public function getBuildArtifactObjective() : Setup\Objective {
-		return new Setup\NullObjective();
-	}
+    /**
+     * @inheritdocs
+     */
+    public function getBuildArtifactObjective(): Setup\Objective
+    {
+        return new Setup\Objective\NullObjective();
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getStatusObjective(Setup\Metrics\Storage $storage): Setup\Objective
+    {
+        return new ilDatabaseMetricsCollectedObjective($storage);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getMigrations(): array
+    {
+        return [
+            new Setup\ilMysqlMyIsamToInnoDbMigration()
+        ];
+    }
 }

@@ -1,38 +1,48 @@
 <?php
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-use PHPUnit\Framework\TestCase;
+declare(strict_types=1);
 
 /**
- * Class ilMimeTypeTest
- */
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use PHPUnit\Framework\TestCase;
+use ILIAS\FileUpload\MimeType;
+
 class ilMimeTypeTest extends TestCase
 {
-	/**
-	 *
-	 */
-	public function testMimeTypeForYoutubeUrlCouldBeCorrectlyDetected()
-	{
-		$expected = 'video/youtube';
-		$actual   = \ilMimeTypeUtil::lookupMimeType(
-			'https://www.youtube.com/watch?v=WSgP85kr6eU',
-			\ilMimeTypeUtil::APPLICATION__OCTET_STREAM
-		);
+    public function testMimeTypeForYoutubeUrlCouldBeCorrectlyDetected(): void
+    {
+        $expected = 'video/youtube';
+        $actual = MimeType::lookupMimeType(
+            'https://www.youtube.com/watch?v=WSgP85kr6eU',
+            MimeType::APPLICATION__OCTET_STREAM
+        );
 
-		$this->assertEquals($expected,  $actual);
-	}
+        $this->assertEquals($expected, $actual);
+    }
 
-	/**
-	 *
-	 */
-	public function testMimeTypeForVimeoUrlCouldBeCorrectlyDetected()
-	{
-		$expected = 'video/vimeo';
-		$actual   = \ilMimeTypeUtil::lookupMimeType(
-			'https://vimeo.com/180157999',
-			\ilMimeTypeUtil::APPLICATION__OCTET_STREAM
-		);
 
-		$this->assertEquals($expected,  $actual);
-	}
+    public function testMimeTypeForVimeoUrlCouldBeCorrectlyDetected(): void
+    {
+        $expected = 'video/vimeo';
+        $actual = MimeType::lookupMimeType(
+            'https://vimeo.com/180157999',
+            MimeType::APPLICATION__OCTET_STREAM
+        );
+
+        $this->assertEquals($expected, $actual);
+    }
 }

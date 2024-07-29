@@ -12,37 +12,68 @@ are explained in [Usage](#usage).
 
 ## Short Term
 
-### Engaged Buttons (advanced, ~4h)
+### All UI-Elements Step 1
 
-The [Bulky Button](https://github.com/ILIAS-eLearning/ILIAS/blob/trunk/src/UI/Component/Button/Bulky.php)
-introduced the notion of an "engaged" button, i.e. a button that somehow indicates
-an active state. The general [Buttons](https://github.com/ILIAS-eLearning/ILIAS/blob/trunk/src/UI/Component/Button/Button.php)
-acquired a similar, but less explicit functionality via the `withAriaChecked` method
-due to the [observation that some users of button (i.e. view mode control) need to
-indicate which button is "checked"](https://github.com/ILIAS-eLearning/ILIAS/pull/567).
-These two functions should be deduplicated in favour of the "engaged"-naming. I.e. it
-should be possible to tag buttons `withEngagedState` in general, the aria label should then
-be set accordingly without an explicit `withAriaChecked`.
+The UI-Framework attempts to be the source for all visual elements in ILIAS and
+thus supersede the current templating. The challenge is two-fold: on the one hand
+the required elements need to be implemented in the UI-framework, on the other
+hand the Components need to use the UI-framework for their actual rendering. 
 
-### PHP 7 Typehints (beginner, ~2h)
+Not all Components have the same priority. Highest on our list are Components that 
+are needed on every screen to render ILIAS with an empty content section (such as Tabs). 
+Next are Components, that are needed in many use cases and therefore have a very high
+grade of re-use (such as the Toolbar). Due to major work done for ILIAS 6, such as the Standard Layout 
+Component, Meta Bar and Main Bar we are now able to promote further Components to our list of short 
+term tasks, see below. Note that the names given here, are only the names of the task and must not necessarily 
+reflect the names of the resulting Components. 
 
-ILIAS supported PHP 5.6 when the UI-Framework was first introduced. In the meantime
-the PHP 5.6 support was dropped and ILIAS now supports PHP 7.0 and 7.1. This means
-that we can take full advantage of PHP 7 typehints, i.e. hinting for internal types
-and return types. The types are already documented in the docstrings, these should
-be transformed to type hints where possible. Also the docstrings should be deleted
-if they do not convey additional information, like some description, besides the
-type.
+Further note that we desperately search developers and UX designers willing
+to work creating those missing Components. If you are interested, drop a mail to the
+coordinators, so they can get you geared up for the work. For all Components we highly
+recommend starting with a Workshop with the UI Components coordinators to align various visions
+and concepts of the given Component. The following items have the highest priority on 
+our list of short term tasks.
 
-### Smoke-Tests for Examples (advanced, ~4h)
+#### Outer Content (advanced, variable)
+This Component is basically what could be hooked into the [Standard Layout](Component/Layout/Page/Factory.php) as
+content (currently provided as array of Legacy Components). Most Probably it should be able to hold the title section 
+(not yet part of the UI Components, see below), the Tabs (not yet Part of the UI Components, see below) and the
+Inner Content holding the workspace for the current context (not yet Part of the UI Components, see below).
 
-While building the UI-framework, a good coverage by unit tests is an important
-requirement. This works well in the general implementation of the UI-framework,
-but the examples also delivered with the UI-framework currently do not have any
-test coverage at all. We need a mechanism that automatically provides a smoke
-test for all existing examples, i.e. checks if the example can be executed at
-all and delivers a string to be included in the documentation of the UI frame-
-work.
+Note; One important aspect here, will be to clarify at some point the relation to the [Global Screen](../GlobalScreen). 
+
+#### Title Section (advanced, variable)
+This Component will probably hold the Icon, title, description and the actions (maybe along with the used glyphs) of the 
+current context. Note that a major part of the work for this components will be to setup a comprehensive set of rules on 
+when to provide an Icon, restrictions of the Title (lengths, nouns vs verbs etc.), restrictions of the description 
+(lengths, when to use etc.) and nature, amount of the actions etc. Note that there is pre-existing work on those 
+subjects: [Feature Wiki](https://docu.ilias.de/goto_docu_wiki_wpage_6080_1357.html). 
+However, this has not been decided yet and is thus most certainly up for discussion.
+
+Note; One important aspect here, will be to clarify at some point the relation to the [Global Screen](../GlobalScreen). 
+
+#### Tabs and Sub Tabs (advanced, variable)
+Note that a major part of the work for this Components will be to setup a comprehensive set of rules on the naming of 
+Tabs and Sub Tabs (noun vs verbs, length, amount of words etc.) and rules for the usage of Tabs vs Sub Tabs vs Sections
+in Forms shown in Tabs. Also, one would have to look into the issue that currently "<-- Back" actions are mixed into 
+the Tabs. We will need to decide, whether we will still use this concept in the future.
+
+Note; One important aspect here, will be to clarify at some point the relation to the [Global Screen](../GlobalScreen). 
+
+#### Inner Content
+This will most probably mainly contain an array of Components used in the Content Section. An interesting 
+point here will be the question, whether this Component should also offer something like withToolbar, to make sure 
+only one or no Toolbar can be provided and whether there would be different types of Inner Content Components (such as 
+one with a Sidebar).
+
+#### Toolbar
+This Component will probably need to be designed as new Input Container. An important part of the work here will be to 
+devise a set of rules of what the toolbar should be used for and what not.
+
+### Simple usage of demo-page in examples  (beginner, ~4h)
+To show how a UI-Component looks like in the page context (esp. for 
+Components from the MainControls) a simple "framework" to use a Demo-Page
+in the examples would be helpful.
 
 ### Examples on Main Page (beginner, ~4h)
 
@@ -110,18 +141,6 @@ base class and removed on `Field\Select` and `Field\Text`.
 
 New inputs must already implement the methods.
 
-### Remove `MainControl\MainBar::withMoreButton` and `::getMoreButton` (beginner, ~2h)
-
-Currently these two methods offer the possibility for a customization where none
-is required. The more button might be styled via css or exchange of images, but
-we do not need to exchange it programmatically.
-
-### Add symbol for more and use it in the More-Button (beginner, ~2h)
-
-Currently the symbol for the more button is pulled from the examples directory of
-the UI-framework. The image-file should be moved to a proper location and possibly
-become part of the UI-framework as a proper glyph.
-
 ### Create a `Group`-family in `Input\Field` (beginner, ~2h)
 
 Currently `Input\Field` contains various group inputs, where the different inputs
@@ -129,8 +148,163 @@ are created with methods that share the "group"-suffix. This is a exemplary case
 for the introduction of a new 'Group` family within `Input\Field`, with its own
 description, factory, renderer, directory...
 
+### Improvement of Persistent Node States in `Tree` (advanced)
+
+Currently there is no centralized approach to enhance `TreeRecursion` instances or
+`Node` elements with persistence capabilities for the purpose of storing the state
+(collapsed/expanded) of a `Node`.
+With ILIAS 6 a first low-level approach was introduced in
+[`ilTreeExplorerGUI`](../../Services/UIComponent/Explorer2/classes/class.ilTreeExplorerGUI.php#L444),
+which enables derivatives to
+[specify a `ilCtrl` route](../../Services/Mail/classes/class.ilMailExplorer.php#L87) used
+as action for node state HTTP POST requests. This requests can be processed in the
+client/consumer and delegated to the `ilTreeExplorerGUI` by calling
+[`toggleExplorerNodeState`](../..Services/Mail/classes/class.ilMailGUI.php#L288)
+on the explore instance.
+This should be moved to a centralized position, e.g. Services/UI.
+
+### Remove Snake Cases Functions for Tests (beginner, ~2h)
+
+There are several tests still using snake cases as function names, remove it.
+See also: https://github.com/ILIAS-eLearning/ILIAS/pull/2299
+
+### Slates only accept string for titles (beginner, ~2h)
+
+In some cases (e.g. see Item Slate aggregates) it would be good for slate titles
+to also accept buttons. We should extend that.
+
+### Footer should not use an input (beginner)
+
+In the footer's template, an input-tag in cconunction with some inline-js is 
+used to display the perma-link. This should be substituted by a non-input 
+block-element, respectively an UI-Component on its own.
+
+### Turn View Controls into View Control Inputs (advanced)
+
+View Controls actually are more like Inputs and should be treated that way.
+They accordingly should be implemented as Input\ViewControl\ViewControl.
+Finally, when consumers are adapted, ViewControl can be removed from UI's root
+entirely.
+
+#### View Control Inputs to be created (moved):
+* Mode View Control Input
+* Pagination View Control Input
+* Section View Control Input
+* Sortation View Control Input
+
+### Enforce (Aria-)Labels for Icons and Glyphs (beginner)
+In src/GlobalScreen/Scope/MainMenu/Factory/hasSymbolTrait.php, e.g., as well as in
+other files in src/GlobalScreen/Scope, an exception is being thrown for icons/glyphs
+configured with an empty (Aria-)Label.
+The components themselves should take care of this.
+
+### Get rid of `<div>` under `<body>` element in Standard Page template (beginner)
+In the template of the Standard Page, one level under the < body > element,
+a < div > element is used. This level seems redundant and not giving any advantages
+over just starting with < body >. We should remove the < div > element, but must
+keep the functionalities, which are coupled to the "class"-attribute of the element.
+
+### Complete rendering-tests for Inputs (beginner):
+The UI Inputs do not all have a rendering test.
+Add, where missing, and refine existing.
+
+### Make date/time input accessible (advanced)
+Date/Time pickers are currently implemented using a third party library. The solution suffers from accessibility issues. Even native pickers seem not always to be easy accessible. See https://mantis.ilias.de/view.php?id=29816#bugnotes. We should evaluate different solutions to tackle this.
+
+### Remove wrapping DIVs in Mainbar
+Top items in the mainbar are wrapped in a `<div class="il-mainbar-triggers">`;
+We should get rid of this wrapper and have `<ol\>/<li>` only for "menu-items",
+directly under the `<nav>`-tag.
+
+### Renovate Lightbox Modal (advanced, ~8h)
+The Lightbox Modal is a rather old component that does not follow current standards of
+the UI framework and the web. It should be renovated:
+
+* There are various IDs used internally, they are superflous and are not created in
+the UI framework reliably. Only one id is generated per component, the other HTML
+elements should be located by other means, e.g. using relative selectors.
+* Internally, the Lightbox Modal uses the Bootstrap 3 Carousel. This can be replaced
+with modern CSS transformations.
+* The indicators do not work when clicked.
+* The sizes of the various lightboxes do not align, which looks odd when clicking
+through the various pages.
+* The template file of the lightbox contains a script tag, which is not allowed as
+of Dicto Rule `IliasTemplateFiles cannot contain text: "\<script"`.
+
+### Adjust FactoriesCrawler (beginner, 2h)
+
+At the moment the FactoriesCrawler class get there method infos only by the
+docstrings of the different factories.
+This should be done with information gathering by typehints where possible,
+so the docstrings then can be deleted.
+
+### Refactor return types on withXYZ methods in interfaces (beginner, 4h)
+
+If PHP7.4 is no longer supported by ILIAS we should hint the return type for mutator-methods
+like withXYZ in interfaces to static related to this documentation `https://wiki.php.net/rfc/static_return_type`.
+This should be already documented in most of the docstrings of these methods.
+
+### Use PSR-7 (or ILIAS-Wrapper thereof) (advanced, 4h)
+
+There are locations where the Request-Superglobals are accessed directly:
+
+* src/UI/Implementation/Component/Layout/Page/Renderer.php
+
+These should be replaced by PSR-7 (or the ILIAS-Wrapper thereof). For some locations this will
+require to inject the dependency in a proper way, which makes this a little more tedious than
+it might meet the eye.
+
+### Player: Improve Transcript Presentation
+
+ILIAS 8 introduces an Audio Player component presenting an optional transcript text in a Modal. There are several possible follow ups, see the open discussion at https://github.com/ILIAS-eLearning/ILIAS/pull/4033
+- Add a player instance within the Modal enabling to control the audio while reading the transcript.
+- Introduce a KS component for transcript presentation following the structure of the WebVTT format.
+- Add support for WebVTT files to the Audio Player component.
+
+### DateTime Input Field: use DateTimeImmutable for internal value (beginner, 2h)
+
+Currently the value of the DateTime Input Field is stored as a string internally.
+This will lead to problems when formatting or timezones are changed on the input
+field. Also, we already have a DateTimeImmutable on many occasions, why cast it
+down to string to later cast it up again? The change should be covered by a lot
+of tests, so little risk there only.
 
 ## Long Term
+
+### Make Constraint in Tag Input Field work again
+
+In the commit where this entry was added, a check in Tag Input Field was removed.
+Currently, the Tag Input Field won't check if the Tags supplied by a user are
+indeed allowed. For Tag Input Fields where user created tags are not allowed, we
+would need to check if the supplied tags are indeed contained in the available options.
+If user created tags are allowed, we would not need to do so. However, since we currently
+cannot remove transformations and the default is that user created tags are not allowed,
+we could not remove that check when a consumer allows user created tags. Fixing this would
+require some rework of the form processing internals, so this is a reminder to look into
+the tags again after such a rework.
+
+### All UI-Elements Step 2
+
+As mentioned above, the UI-Framework attempts to be the source for all visual elements in ILIAS and
+thus supersede the current templating. There is much work remaining, even if the components listed above are implemented. 
+
+### Glyphs as Toggle
+
+Currently, the Notification Glyph (and maybe others) is used to toggle the activation
+of the notification service at individual objects. The activity then is indicated
+by color only, which violates the general accessibility rule that ["Color MUST not be
+used as the only visual means of conveying information"](https://github.com/ILIAS-eLearning/ILIAS/blob/trunk/docs/development/accessibility.md).
+However, a quick fix seems not to be possible atm, because there also is no other
+means to convey the notion of (in-)activity for a general Glyph, or even only the
+specific Notification Glyph.
+
+### Tooltips and Tooltippable
+
+Tooltips are currently not yet implemented as UI components. Since 
+probably many UI components have or will have tooltips, the introduction
+ of a tooltippable interface should be discussed. This interface can
+  easily receive tooltips (either as a UI component or much simpler as
+   text) and can be implemented for all relevant UI components.
 
 ### Remove special case for UI-demo in `Implement\Layout\Page\Renderer::setHeaderVars`
 
@@ -171,14 +345,11 @@ elements Item and Card or unify them into a common concept. This will help
 developers to pick the right tool for their job as well as clarify the future
 development of the two concepts.
 
-
-### All UI-Elements
-
-The UI-Framework attempts to be the source for all visual elements in ILIAS and
-thus supersede the current templating. The challenge is two-fold: on the one hand
-the required elements need to be implemented in the UI-framework, on the other
-hand the components need to use the UI-framework for their actual rendering. 
-
+### Improve the properties in Items / Restrict the accepted types
+Currently, the values of the properties are not sanitized by htmlentities as, e.g. the values are.
+This is due to the need of passing Icons as rendered strings by legacy List GUIs. As soon as those are
+fully abandoned (or are not feeding any Items anymore), we should again sanitize the values, and pass
+Icons as proper Icon Components.
 
 ### Define JS-Patterns for the UI-Framework
 
@@ -206,20 +377,9 @@ We need patterns or even a framework for client-side code that gives clear
 guidelines how interactive components should be build for the UI-framework and
 that integrates with the mechanism we use on the server-side to compose GUIs.
 
-
-### Introduce Bootstrap 4 and Create a System for SASS-Variables
-
-Currently ILIAS (and hence the UI-Framework) uses Bootstrap 3 as CSS-framework.
-In the meantime, [Bootstrap 4](https://getbootstrap.com/docs/4.0/getting-started/introduction/)
-was published. It comes with a new language for writing stylesheets (SASS) and
-a new system for its SASS-variables.
-
-The UI-Framework should switch to using Bootstrap 4. In this process, a system
-to use Bootraps new set of variables together with a possible set of special
-variables should be designed, documented and implemented. The switch to Bootstrap 4
-needs to be coordinated with the components of ILIAS that currently do use features
-of Bootstrap but do not use the UI-Framework.
-
+### Introduce Redux-JS-Pattern from Mainbar into more UI Components
+We suspect the Redux-Pattern used in the mainbar to be of value for multiple UI Components. One such suspect
+is the keyboard navigation in the Tree Component. We aim to make a broader use of in upcoming developments.
 
 ### Page-Layout and ilTemplate, CSS/JS Header
 
@@ -240,6 +400,14 @@ the page and would turn the aforementioned transportation from ilTemplate obsole
 In ultimo, there would be exactly one occurence of a line like
 "echo $renderer->render($page);exit();" to output the complete UI.
 
+### Introduce proper Notification Center (Expert)
+
+The term "Notification Center" has not bee properly defined yet in the ILIAS context. 
+This leads to several issues. E.g. there is no notification center UI Component,
+laying (too much) work on the shoulders of Global Screen, Notification Slate and Items.
+However, just building such a UI Component, would not do the trick. This needs
+to go hand in hand with a proper discussion on what a Notification Center should be
+and do for us. Current state, see: [FR: Notification Center](https://docu.ilias.de/goto_docu_wiki_wpage_5118_1357.html).
 
 ## Ideas and Food for Thought
 

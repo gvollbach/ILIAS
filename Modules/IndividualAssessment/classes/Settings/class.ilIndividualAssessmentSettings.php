@@ -1,145 +1,144 @@
 <?php
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+use ILIAS\UI\Component\Input\Field;
+use ILIAS\Refinery\Factory as Refinery;
+
 /**
  * An object carrying settings of an Individual Assessment obj
- * beyond the standart information
- *
- * @author Denis Klöpfer <denis.kloepfer@concepts-and-training.de> 
- * @author Stefan Hecken <stefan.hecken@concepts-and-training.de> 
+ * beyond the standard information
  */
-class ilIndividualAssessmentSettings {
-	const DEF_CONTENT = "";
-	const DEF_RECORD_TEMPLATE = "";
+class ilIndividualAssessmentSettings
+{
+    protected int $obj_id;
+    protected string $title;
+    protected string $description;
+    protected string $content;
+    protected string $record_template;
+    protected bool $event_time_place_required;
+    protected bool $file_required;
 
-	/**
-	 * @var	string
-	 */
-	protected $content;
+    public function __construct(
+        int $obj_id,
+        string $title,
+        string $description,
+        string $content,
+        string $record_template,
+        bool $event_time_place_required,
+        bool $file_required
+    ) {
+        $this->obj_id = $obj_id;
+        $this->title = $title;
+        $this->description = $description;
+        $this->content = $content;
+        $this->record_template = $record_template;
+        $this->event_time_place_required = $event_time_place_required;
+        $this->file_required = $file_required;
+    }
 
-	/**
-	 * @var	string
-	 */
-	protected $record_template;
+    /**
+     * Get the id of corresponding iass-object
+     */
+    public function getObjId(): int
+    {
+        return $this->obj_id;
+    }
 
-	/**
-	 * @var bool
-	 */
-	protected $event_time_place_required;
+    /**
+     * Get the content of this assessment, e.g. corresponding topics...
+     */
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
 
-	/**
-	 * @var bool
-	 */
-	protected $file_required;
+    /**
+     * Get the content of this assessment, e.g. corresponding topics...
+     */
+    public function getDescription(): string
+    {
+        return $this->description;
+    }
 
-	public function __construct(ilObjIndividualAssessment $iass,
-		$content = null,
-		$record_template = null,
-		$event_time_place_required = false,
-		$file_required = false
-	) {
-		$this->id = $iass->getId();
-		$this->content = $content !== null ? $content : self::DEF_CONTENT;
-		$this->record_template = $record_template !== null ? $record_template : self::DEF_RECORD_TEMPLATE;
-		$this->event_time_place_required = $event_time_place_required;
-		$this->file_required = $file_required;
-	}
+    /**
+     * Get the content of this assessment, e.g. corresponding topics...
+     */
+    public function getContent(): string
+    {
+        return $this->content;
+    }
 
-	/**
-	 * Get the id of corrwsponding iass-object
-	 *
-	 * @return	int|string
-	 */
-	public function getId() {
-		return $this->id;
-	}
+    /**
+     * Get the record template to be used as default record with
+     * corresponding object
+     */
+    public function getRecordTemplate(): string
+    {
+        return $this->record_template;
+    }
 
-	/**
-	 * Get the content of this assessment, e.g. corresponding topics...
-	 *
-	 * @return	string
-	 */
-	public function content() {
-		return $this->content;
-	}
+    /**
+     * Get the value of the checkbox event_time_place_require
+     */
+    public function isEventTimePlaceRequired(): bool
+    {
+        return $this->event_time_place_required;
+    }
 
-	/**
-	 * Get the record template to be used as default record with
-	 * corresponding object
-	 *
-	 * @return	string
-	 */
-	public function recordTemplate() {
-		return $this->record_template;
-	}
+    /**
+     * Get the value of the checkbox file_required
+     */
+    public function isFileRequired(): bool
+    {
+        return $this->file_required;
+    }
 
-	/**
-	 * Get the value of the checkbox event_time_place_require
-	 *
-	 * @return	integer
-	 */
-	public function eventTimePlaceRequired()
-	{
-		return $this->event_time_place_required;
-	}
-
-	/**
-	 * Get the value of the checkbox file_required
-	 *
-	 * @return	integer
-	 */
-	public function fileRequired()
-	{
-		return $this->file_required;
-	}
-
-
-	/**
-	 * Set the content of this assessment, e.g. corresponding topics...
-	 *
-	 * @param	string	$content
-	 * @return	ilIndividualAssessment	$this
-	 */
-	public function setContent($content) {
-		assert(is_string($content));
-		$this->content = $content;
-		return $this;
-	}
-
-	/**
-	 * Get the record template to be used as default record with
-	 * corresponding object
-	 *
-	 * @param	string	$record_template
-	 * @return	ilIndividualAssessment	$this
-	 */
-	public function setRecordTemplate($record_template) {
-		assert(is_string($record_template));
-		$this->record_template = $record_template;
-		return $this;
-	}
-
-	/**
-	 * Set the value of the checkbox event_time_place_require
-	 *
-	 * @param	bool	$event_time_place_require
-	 * @return	ilManualAssessment	$this
-	 */
-	public function setEventTimePlaceRequired($event_time_place_required)
-	{
-		assert(is_bool($event_time_place_required));
-		$this->event_time_place_required = $event_time_place_required;
-		return $this;
-	}
-
-	/**
-	 * Set the value of the checkbox file_required
-	 *
-	 * @param	bool	$file_require
-	 * @return	ilManualAssessment	$this
-	 */
-	public function setFileRequired($file_required)
-	{
-		assert(is_bool($file_required));
-		$this->file_required = $file_required;
-		return $this;
-	}
+    public function toFormInput(
+        Field\Factory $input,
+        ilLanguage $lng,
+        Refinery $refinery
+    ): \ILIAS\UI\Component\Input\Container\Form\FormInput {
+        return $input->section(
+            [
+                $input->text($lng->txt("title"))
+                    ->withValue($this->getTitle())
+                    ->withRequired(true),
+                $input->textarea($lng->txt("description"))
+                    ->withValue($this->getDescription()),
+                $input->textarea($lng->txt("iass_content"), $lng->txt("iass_content_explanation"))
+                    ->withValue($this->getContent()),
+                $input->textarea($lng->txt("iass_record_template"), $lng->txt("iass_record_template_explanation"))
+                    ->withValue($this->getRecordTemplate()),
+                $input->checkbox($lng->txt("iass_event_time_place_required"), $lng->txt("iass_event_time_place_required_info"))
+                    ->withValue($this->isEventTimePlaceRequired()),
+                $input->checkbox($lng->txt("iass_file_required"), $lng->txt("iass_file_required_info"))
+                    ->withValue($this->isFileRequired())
+            ],
+            $lng->txt("settings")
+        )->withAdditionalTransformation(
+            $refinery->custom()->transformation(function ($value) {
+                return new ilIndividualAssessmentSettings(
+                    $this->getObjId(),
+                    ...$value
+                );
+            })
+        );
+    }
 }

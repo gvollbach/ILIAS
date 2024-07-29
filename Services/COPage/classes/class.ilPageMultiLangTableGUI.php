@@ -1,74 +1,72 @@
 <?php
 
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-include_once("./Services/Table/classes/class.ilTable2GUI.php");
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
- * TableGUI class for 
+ * TableGUI class for
  *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- *
- * @ingroup Services
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilPageMultiLangTableGUI extends ilTable2GUI
 {
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    public function __construct(
+        object $a_parent_obj,
+        string $a_parent_cmd
+    ) {
+        global $DIC;
 
-	/**
-	 * Constructor
-	 */
-	function __construct($a_parent_obj, $a_parent_cmd)
-	{
-		global $DIC;
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        $ilCtrl = $DIC->ctrl();
+        $lng = $DIC->language();
+        $lng = $DIC->language();
 
-		$this->ctrl = $DIC->ctrl();
-		$this->lng = $DIC->language();
-		$ilCtrl = $DIC->ctrl();
-		$lng = $DIC->language();
-		$lng = $DIC->language();
+        $lng->loadLanguageModule("meta");
 
-		$lng->loadLanguageModule("meta");
+        parent::__construct($a_parent_obj, $a_parent_cmd);
+        $this->setTitle($lng->txt("cont_languages"));
 
-		parent::__construct($a_parent_obj, $a_parent_cmd);
-		$this->setTitle($lng->txt("cont_languages"));
-		
-		$this->addColumn("", "", "1");
-		$this->addColumn($this->lng->txt("cont_language"));
-		
-		$this->setFormAction($ilCtrl->getFormAction($a_parent_obj));
-		$this->setRowTemplate("tpl.page_ml_row.html", "Services/COPage");
+        $this->addColumn("", "", "1");
+        $this->addColumn($this->lng->txt("cont_language"));
 
-		//if (count($this->getData()) > 1)
-		//{
-			$this->addMultiCommand("confirmRemoveLanguages", $lng->txt("remove"));
-		//}
-		//$this->addCommandButton("", $lng->txt(""));
-	}
-	
-	/**
-	 * Fill table row
-	 */
-	protected function fillRow($a_set)
-	{
-		$lng = $this->lng;
+        $this->setFormAction($ilCtrl->getFormAction($a_parent_obj));
+        $this->setRowTemplate("tpl.page_ml_row.html", "Services/COPage");
 
-		if (!$a_set["master"])
-		{
-			$this->tpl->setCurrentBlock("cb");
-			$this->tpl->setVariable("CB_LANG", $a_set["lang"]);
-			$this->tpl->parseCurrentBlock();
-		}
-		else
-		{
-			$this->tpl->setVariable("ML", "(".$lng->txt("cont_master_lang").")");
-		}
-		$this->tpl->setVariable("LANG", $lng->txt("meta_l_".$a_set["lang"]));
-	}
+        //if (count($this->getData()) > 1)
+        //{
+        $this->addMultiCommand("confirmRemoveLanguages", $lng->txt("remove"));
+        //}
+        //$this->addCommandButton("", $lng->txt(""));
+    }
 
+    /**
+     * Fill table row
+     */
+    protected function fillRow(array $a_set): void
+    {
+        $lng = $this->lng;
+
+        if (!$a_set["master"]) {
+            $this->tpl->setCurrentBlock("cb");
+            $this->tpl->setVariable("CB_LANG", $a_set["lang"]);
+            $this->tpl->parseCurrentBlock();
+        } else {
+            $this->tpl->setVariable("ML", "(" . $lng->txt("cont_master_lang") . ")");
+        }
+        $this->tpl->setVariable("LANG", $lng->txt("meta_l_" . $a_set["lang"]));
+    }
 }
-?>

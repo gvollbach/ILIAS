@@ -1,36 +1,46 @@
 <?php
+
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 /**
  * Basic method collection should be implemented by a notificator
  * used by Individual assessment.
- * @author Denis Klöpfer <denis.kloepfer@concepts-and-training.de>
  */
-require_once 'Services/User/classes/class.ilObjUser.php';
-interface ilIndividualAssessmentNotificator {
+interface ilIndividualAssessmentNotificator
+{
+    /**
+     * Define the member, that should receive the message.
+     */
+    public function withReceiver(ilIndividualAssessmentMember $member): ilIndividualAssessmentNotificator;
 
-	/**
-	 * Define the member, that should recieve the message.
-	 *
-	 * @param	ilIndividualAssessmentMember	$member
-	 * @return	ilIndividualAssessmentNotificator	$this
-	 */
-	public function withReciever(ilIndividualAssessmentMember $member);
+    /**
+     * Set message mode to failed.
+     */
+    public function withOccasionFailed(): ilIndividualAssessmentNotificator;
 
-	/**
-	 * Set message mode to failed.
-	 *
-	 * @return	ilIndividualAssessmentNotificator	$this
-	 */
-	public function withOccasionFailed();
+    /**
+     * Set message mode to complete.
+     */
+    public function withOccasionCompleted(): ilIndividualAssessmentNotificator;
 
-	/**
-	 * Set message mode to completed.
-	 *
-	 * @return	ilIndividualAssessmentNotificator	$this
-	 */
-	public function withOccasionCompleted();
-
-	/**
-	 * Send message.
-	 */
-	public function send();
+    /**
+     * Send message.
+     */
+    public function send(): void;
 }

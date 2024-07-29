@@ -2,98 +2,95 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 use PHPUnit\Framework\TestCase;
-use ILIAS\KioskMode\State;
 
 class LSLearnerItemTest extends TestCase
 {
-	const TYPE = "type";
-	const TITLE = "tile";
-	const DESC = "description";
-	const ICON_PATH = "icon_path";
-	const IS_ONLINE = true;
-	const ORDER_NUMBER = 10;
-	const REF_ID = 30;
-	const USER_ID = 6;
-	const LP_STATUS = 2;
-	const AVAILABILITY_STATUS = 3;
+    public const TYPE = "type";
+    public const TITLE = "tile";
+    public const DESC = "description";
+    public const ICON_PATH = "icon_path";
+    public const IS_ONLINE = true;
+    public const ORDER_NUMBER = 10;
+    public const REF_ID = 30;
+    public const USER_ID = 6;
+    public const LP_STATUS = 2;
+    public const AVAILABILITY_STATUS = 3;
 
-	/**
-	 * @var ilLSPostCondition
-	 */
-	protected $post_condition;
+    protected ilLSPostCondition $post_condition;
 
-	public function setUp(): void
-	{
-		$this->post_condition = new ilLSPostCondition(666, 'always');
-	}
+    protected function setUp(): void
+    {
+        $this->post_condition = new ilLSPostCondition(666, 'always');
+    }
 
-	public function testCreate(): LSLearnerItem
-	{
-		$ui_reflection = new ReflectionClass(State::class);
-		$methods = array_map(
-			function($m) {
-				return $m->getName();
-			},
-			$ui_reflection->getMethods()
-		);
+    public function testCreate(): LSLearnerItem
+    {
+        $ls_item = new LSItem(
+            self::TYPE,
+            self::TITLE,
+            self::DESC,
+            self::ICON_PATH,
+            self::IS_ONLINE,
+            self::ORDER_NUMBER,
+            $this->post_condition,
+            self::REF_ID
+        );
 
-		$kiosk_state = $this->getMockBuilder(State::class)
-			->setMethods($methods)
-			->getMock()
-		;
+        $object = new LSLearnerItem(
+            self::USER_ID,
+            self::LP_STATUS,
+            self::AVAILABILITY_STATUS,
+            $ls_item
+        );
 
-		$ls_item = new LSItem(
-			self::TYPE,
-			self::TITLE,
-			self::DESC,
-			self::ICON_PATH,
-			self::IS_ONLINE,
-			self::ORDER_NUMBER,
-			$this->post_condition,
-			self::REF_ID
-		);
+        $this->assertEquals(self::USER_ID, $object->getUserId());
+        $this->assertEquals(self::LP_STATUS, $object->getLearningProgressStatus());
+        $this->assertEquals(self::AVAILABILITY_STATUS, $object->getAvailability());
 
-		$object = new LSLearnerItem(
-			self::USER_ID,
-			self::LP_STATUS,
-			self::AVAILABILITY_STATUS,
-			$kiosk_state,
-			$ls_item
-		);
+        return $object;
+    }
 
-		$this->assertEquals($object->getUserId(), self::USER_ID);
-		$this->assertEquals($object->getLearningProgressStatus(), self::LP_STATUS);
-		$this->assertEquals($object->getAvailability(), self::AVAILABILITY_STATUS);
-		$this->assertEquals($object->getState(), $kiosk_state);
+    /**
+     * @depends testCreate
+     */
+    public function testTurnedOffWithPostCondition(LSItem $object): void
+    {
+        $this->expectException(LogicException::class);
+        $object->withPostCondition($this->post_condition);
+    }
 
-		return $object;
-	}
+    /**
+     * @depends testCreate
+     */
+    public function testTurnedOffWithOrderNumber(LSItem $object): void
+    {
+        $this->expectException(LogicException::class);
+        $object->withOrderNumber(self::ORDER_NUMBER);
+    }
 
-	/**
-	 * @depends testCreate
-	 */
-	public function testTurnedOffWithPostCondition(LSItem $object)
-	{
-		$this->expectException(LogicException::class);
-		$object->withPostCondition($this->post_condition);
-	}
-
-	/**
-	 * @depends testCreate
-	 */
-	public function testTurnedOffWithOrderNumber(LSItem $object)
-	{
-		$this->expectException(LogicException::class);
-		$object->withOrderNumber(self::ORDER_NUMBER);
-	}
-
-	/**
-	 * @depends testCreate
-	 */
-	public function testTurnedOffWithOnline(LSItem $object)
-	{
-		$this->expectException(LogicException::class);
-		$object->withOnline(self::IS_ONLINE);
-	}
+    /**
+     * @depends testCreate
+     */
+    public function testTurnedOffWithOnline(LSItem $object): void
+    {
+        $this->expectException(LogicException::class);
+        $object->withOnline(self::IS_ONLINE);
+    }
 }

@@ -12,8 +12,11 @@
 	RewriteCond %{HTTP_USER_AGENT} ^(DavClnt)$
 	RewriteCond %{REQUEST_METHOD} ^(OPTIONS)$
 	RewriteRule .* "-" [R=401,L]
-
+</IfModule>
+<IfModule mod_alias.c>
 	RedirectMatch 404 /\.git
+	RedirectMatch 404 /patches
+	RedirectMatch 404 /\.github
 </IfModule>
 <IfModule mod_xsendfile.c>
 	XSendFile On
@@ -22,3 +25,4 @@
 AddType video/ogg .ogv
 AddType video/mp4 .mp4
 AddType video/webm .webm
+AddType audio/mp3 .mp3

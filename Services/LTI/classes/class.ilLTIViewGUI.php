@@ -1,450 +1,486 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2001 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
+
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\LTI\Screen\LtiViewLayoutProvider;
 
 /**
  * @classDescription class for ILIAS ViewLTI
- * 
+ *
  * @author Stefan Schneider <schneider@hrz.uni-marburg.de
  * @version $id$
  * @ingroup ServicesLTI
  * @ilCtrl_IsCalledBy ilLTIViewGUI: ilLTIRouterGUI
- * 
+ *
  */
 class ilLTIViewGUI
-{	
-	const LTI_DEBUG = false; // deprecated
-	
-	/**
-	 * messsage codes
-	 */ 
-	const MSG_ERROR = "failure";
-	const MSG_INFO = "info";
-	const MSG_QUESTION = "question";
-	const MSG_SUCCESS = "success";
-	
-	/**
-	 * private variables
-	 */ 
-	private $dic = null;
-	private $user = null;
-	private $log = null;
-	private $home_id = "";
-	private $home_obj_id = "";
-	private $home_type = "";
-	private $home_title = "";
-	private $home_url = "";
-	private $link_dir = "";
-	private $current_ref_id = "";
-	private $current_type = "";
-	
-	/**
-	 * public variables
-	 */
-	public $show_locator = true;
-	public $member_view = false;
-	public $member_view_url = "";
-	public $member_view_close_txt = "";
-	
-	
-	public function __construct() {
-		global $DIC;
-		$this->dic = $DIC;
-		$this->user = $this->dic->user();
-		$this->log = $this->dic->logger()->lti();
-	}
-	
-	/**
-	 * Init LTI mode for lit authenticated users
-	 */
-	public function init()
-	{
-		$this->link_dir = (defined("ILIAS_MODULE"))
-					? "../"
-					: "";
-		
-		if ($this->isLTIUser())
-		{
-			$context = $this->dic->globalScreen()->tool()->context();
-			$context->claim()->lti();
-			$this->activate();
-			$this->log->info("LTI ScreenContext claimed");
-		}
-		else
-		{
-			if ($this->isActive()) {
-				$this->deactivate();
-			}
-		}
-	}
-	
-	/**
-	 * for compatiblity with ilLTIRouterGUI
-	 */ 
-	public static function getInstance() {
-		global $DIC;
-		return $DIC["lti"];
-	}
-	
-	/**
-	 * get LTI Mode from Users->getAuthMode
-	 * @return boolean 
-	 */ 
-	private function isLTIUser() {
-		if(!$this->user instanceof ilObjUser)
-		{
-			return false;
-		}
-		return (strpos($this->user->getAuthMode(),'lti_') === 0);
-		/* for testing standalone faking a LTI session by special user with login name '*_lti' */
-		//$_SESSION['lti_launch_css_url'] = "https://ilias.example.com/lti.css";
-		//return (strpos($this->user->getLogin(),'lti_') === 0);
-	}
-	
-	/**
-	 * for ctrl commands
-	 */ 
-	public function executeCommand() {
-		global $ilCtrl;
-		$cmd = $ilCtrl->getCmd();
-		switch ($cmd) {
-			case 'exit' :
-				$this->exitLti();
-			break;
-		}
-	}
-	
-	/** 
-	 * activate LTI GUI
-	 * @return void
-	 * */
-	public function activate() 
-	{
-		if ($this->isActive()) {
-			return;
-		}
-		$this->findEffectiveRefId();
-		$_SESSION['il_lti_mode'] = "1";
-		$this->initGUI();
-	}
-	
-	/** 
-	 * deactivate LTI GUI
-	 * @return void
-	 * */
-	public function deactivate() 
-	{
-		unset($_SESSION['il_lti_mode']);
-		$this->log("lti view deactivated");
-	}
-	
-	/** 
-	 * LTI is active
-	 * @return boolean
-	 * */
-	public function isActive() 
-	{
-		return (isset($_SESSION['il_lti_mode']));
-	}
-	
-	/**
-	 * Set the environment backend for GUI (tree and locator behaviour, home link, ....)
-	 * it is also possible to hide locator and treeicon, but if activated elsewhere a clean root folder is defined
-	 * ToDo: conceptual discussion
-	 */ 
-	public function initGUI() 
-	{
-		global $lng;
-		$this->log("initGUI");
-		$lng->loadLanguageModule("lti");
-		$baseclass = strtolower($_GET['baseClass']);
-		$cmdclass = strtolower($_GET['cmdClass']);
-		
-		// init home_id, home_type, home_url and home_items if not already set
-		if ($this->home_id === '') 
-		{
-			$this->home_id = $_SESSION['lti_context_id'];
-		}
-		if ($this->home_obj_id === '') 
-		{
-			$this->home_obj_id = ilObject::_lookupObjectId($this->home_id);
-		}
-		if ($this->home_type === '') 
-		{
-			$this->home_type = ilObject::_lookupType($this->home_id,true);
-			$this->show_locator = $this->showLocator($this->home_type);
-		}
-		if ($this->home_url === '') 
-		{
-			$this->home_url = $this->getHomeLink();
-		}
-		if ($this->home_title === '') 
-		{
-			$this->home_title = $this->getHomeTitle();
-		}
-	
-		switch ($baseclass) 
-		{
-			case 'illtiroutergui' :
-				return;
-				break;
-		}
-	}
-	
-	public function render($tpl,$part) 
-	{
-		global $lng, $DIC;
-		$lng->loadLanguageModule("lti");
-		$f = $DIC->ui()->factory();
-		$renderer = $DIC->ui()->renderer();
-		switch ($part) 
-		{
-			case 'top_bar_header' :
-				if(!$this->member_view) 
-				{
-					if (!$tpl->blockExists("header_top_title"))
-					{
-						$tpl->addBlockFile("HEADER_TOP_TITLE","header_top_title","tpl.header_top_title.html","Services/LTI");
-					}
-					$tpl->setVariable("TXT_HEADER_TITLE", $lng->txt("lti_session"));					
-				}
-				else {
-					if (!$tpl->blockExists("header_back_bl")) 
-					{
-						$tpl->addBlockFile("HEADER_BACK_BL","header_back_bl","tpl.header_back_bl.html","Services/LTI");
-					}
-					$tpl->setVariable("URL_HEADER_BACK", $this->member_view_url);
-					//$tpl->setVariable("TXT_HEADER_BACK", $lng->txt("lti_back_to_home")); // ToDo: $lng variable
-					$tpl->setVariable("TXT_HEADER_BACK", $this->member_view_close_txt); // ToDo: $lng variable		
-				}
-				break;
-			case 'view_nav' :
-				$tpl->setVariable("TXT_VIEW_NAV", $lng->txt("lti_navigation")); // ToDo: language files
-				$nav_entries = $this->getNavEntries();
-				$tpl->setVariable("VIEW_NAV_EN", $nav_entries);
-				
-				break;
-			case 'user_logged_in' :
-				if (!$tpl->blockExists("userisloggedin"))
-				{
-					$tpl->addBlockFile("USERLOGGEDIN","userisloggedin","tpl.user_logged_in.html","Services/LTI");
-				}
-				$tpl->setVariable("LINK_LTI_EXIT", $this->getCmdLink('exit'));
-				$tpl->setVariable("TXT_LTI_EXIT",$lng->txt("lti_exit"));
-				$btn = $f->button()->close();
-				$btnHtml = $renderer->render($btn);
-				$tpl->setVariable("EXIT_BUTTON",$btnHtml);
-				break;
-		}
-	}
-	
-	private function getNavEntries() 
-	{
-		global $lng, $ilNavigationHistory, $ilSetting, $ilCtrl;
-		include_once("./Services/UIComponent/GroupedList/classes/class.ilGroupedListGUI.php");
-		$gl = new ilGroupedListGUI();
-		$gl->setAsDropDown(true);
-		
-		include_once("./Services/Link/classes/class.ilLink.php");
-		
-		$icon = ilUtil::img(ilObject::_getIcon((int)$this->home_obj_id, "tiny"));
-		
-		$gl->addEntry($icon." ". $this->getHomeTitle(), $this->getHomeLink(),
-			"_self");
-		
-		
-		$items = $ilNavigationHistory->getItems();
-		reset($items);
-		$cnt = 0;
-		$first = true;
+{
+    /**
+     * contstants
+     */
+    public const CHECK_HTTP_REFERER = true;
 
-		foreach($items as $k => $item)
-		{
-			if ($cnt >= 10) break;
-			
-			if (!isset($item["ref_id"]) || !isset($_GET["ref_id"]) ||
-				($item["ref_id"] != $_GET["ref_id"] || !$first) && $this->home_id != $item["ref_id"]) // do not list current item
-			{
-				if ($cnt == 0)
-				{
-					$gl->addGroupHeader($lng->txt("last_visited"), "ilLVNavEnt");
-				}
-				$obj_id = ilObject::_lookupObjId($item["ref_id"]);
-				$cnt ++;
-				$icon = ilUtil::img(ilObject::_getIcon($obj_id, "tiny"));
-				$ititle = ilUtil::shortenText(strip_tags($item["title"]), 50, true); // #11023
-				$gl->addEntry($icon." ".$ititle, $item["link"],	"_self", "", "ilLVNavEnt");
+    /**
+     * private variables
+     */
+    private ?ILIAS\DI\Container $dic = null;
+    private ?int $user = null;
+    private ?ilLogger $log = null;
+    private string $link_dir = "";
 
-			}
-			$first = false;
-		}
-		
-		if ($cnt > 0)
-		{
-			$gl->addEntry("» ".$lng->txt("remove_entries"), "#", "",
-				"return il.MainMenu.removeLastVisitedItems('".
-				$ilCtrl->getLinkTargetByClass("ilnavigationhistorygui", "removeEntries", "", true)."');",
-				"ilLVNavEnt");
-		}
-		
-		return $gl->getHTML();
-	}
-	
-	/**
-	 * add css files to the header
-	 */ 
-	public function addCss() 
-	{
-		$arr = array();
-		//$arr[] = "./Services/LTI/templates/default/hide.css";
-		return $arr;
-	}
-	
-	/**
-	 * append css styles just before </body>
-	 */ 
-	public function appendInlineCss() 
-	{
-		$arr = array();
-		$arr[] = "./Services/LTI/templates/default/lti.css";
-		
-		if (isset($_SESSION['lti_launch_css_url']) && $_SESSION['lti_launch_css_url'] != "") {
-			$arr[] = $_SESSION['lti_launch_css_url'];
-		} 
-		return $arr;
-	}
-	
-	/**
-	 * helper function for home link creation
-	 */ 
-	protected function getHomeLink() 
-	{
-		return $this->link_dir."goto.php?target=".$this->home_type."_".$this->home_id;
-	}
-	
-	public function getHomeTitle() 
-	{
-		return ilObject::_lookupTitle($this->home_obj_id);
-	}
-	
-	/**
-	 * exit LTI session and if defined redirecting to returnUrl
-	 * ToDo: Standard Template with delos ...
-	 */
-	public function exitLti() 
-	{
-		global $lng;
-		$lng->loadLanguageModule("lti");
-		$this->dic->logger()->lti()->info("exitLTI");
-		if ($this->getSessionValue('lti_launch_presentation_return_url') === '') { // ToDo
-			$tplExit = new ilTemplate("tpl.lti_exit.html", true, true, "Services/LTI");
-			$tplExit->setVariable('TXT_LTI_EXITED',$lng->txt('lti_exited'));
-			$tplExit->setVariable('LTI_EXITED_INFO',$lng->txt('lti_exited_info'));
-			$html = $tplExit->get();
-			$this->logout();
-			print $html;
-			exit;
-		}
-		else {
-			$this->logout();
-			header('Location: ' . $_SESSION['lti_launch_presentation_return_url']);
-			exit; 
-		}	
-	}
-	
-	/**
-	 * logout ILIAS and destroys Session and ilClientId cookie
-	 */
-	function logout() 
-	{
-		$this->dic->logger()->lti()->info("logout");
-		$this->deactivate();
-		ilSession::setClosingContext(ilSession::SESSION_CLOSE_USER);
-		//$this->dic['ilAuthSession']->logout();
-		$GLOBALS['DIC']['ilAuthSession']->logout();
-		// reset cookie
-		$client_id = $_COOKIE["ilClientId"];
-		ilUtil::setCookie("ilClientId","");
-	}
-	
-	/**
-	 * Find effective ref_id for request
-	 */
-	private function findEffectiveRefId()
-	{
-		if((int) $_GET['ref_id'])
-		{
-			$this->current_type = ilObject::_lookupType($_GET['ref_id'],true);
-			return $this->current_ref_id = (int) $_GET['ref_id'];
-		}
-		
-		$target_arr = explode('_',(string) $_GET['target']);
-		if(isset($target_arr[1]) and (int) $target_arr[1])
-		{
-			$this->current_type = ilObject::_lookupType($target_arr[1],true);
-			$this->home_title = ilObject::_lookupTitle(ilObject::_lookupObjectId($target_arr[1]));
-			return $this->current_ref_id = (int) $target_arr[1];
-		}
-	}
-	
-	/**
-	 * @return bool
-	 */
-	public function showLocator($obj_type) {
-		//return true;
-		return preg_match("/(crs|grp|cat|root|fold|lm)/",$obj_type);
-	}
-	
-	/**
-	 * helper function for cmd link creation
-	 */ 
-	public function getCmdLink($cmd) {
-		global $ilCtrl;
-		$targetScript = ($ilCtrl->getTargetScript() !== 'ilias.php') ? "ilias.php" : "";
-		return $this->link_dir.$targetScript.$ilCtrl->getLinkTargetByClass(array('illtiroutergui',strtolower(get_class($this))),$cmd)."&baseClass=illtiroutergui";
-	}
-	
-	/**
-	 * get session value != ''
-	 * 
-	 * @param $sess_key string 
-	 * @return string
-	 */ 
-	function getSessionValue($sess_key) 
-	{
-		if (isset($_SESSION[$sess_key]) && $_SESSION[$sess_key] != '') {
-			return $_SESSION[$sess_key];
-		}
-		else {
-			return '';
-		}
-	}
-	
-	private function log($txt) 
-	{
-		global $DIC;
-		if (self::LTI_DEBUG) {
-			 $DIC->logger()->lti()->write($txt);
-		}
-	}
+    private ?int $effectiveRefId = null;
+    private \ILIAS\HTTP\Wrapper\WrapperFactory $wrapper;
+    private \ILIAS\Refinery\KindlyTo\Group $kindlyTo;
+    private ilLocatorGUI $locator;
+
+    /**
+     * public variables
+     */
+    public ?ilLanguage $lng = null;
+
+    /**
+     *
+     */
+    public function __construct()
+    {
+        global $DIC;
+        $this->dic = $DIC;
+        $this->log = ilLoggerFactory::getLogger('ltis');
+        $this->lng = $this->dic->language();
+        $this->lng->loadLanguageModule('lti');
+        $this->wrapper = $DIC->http()->wrapper();
+        $this->kindlyTo = $DIC->refinery()->kindlyTo();
+        $this->locator = $DIC['ilLocator'];
+    }
+
+    /**
+     * Init LTI mode for lti authenticated users
+     */
+    public function init(): void
+    {
+        $this->link_dir = (defined("ILIAS_MODULE")) ? "../" : "";
+        if ($this->isLTIUser()) {
+            $context = $this->dic->globalScreen()->tool()->context();
+            $context->claim()->lti();
+            $this->initGUI();
+        }
+    }
+
+    /**
+     * for compatiblity with ilLTIRouterGUI
+     * @return mixed
+     */
+    public static function getInstance()
+    {
+        global $DIC;
+        return $DIC["lti"];
+    }
+
+    /**
+     * get LTI Mode from Users->getAuthMode
+     * @return bool
+     */
+    private function isLTIUser(): bool
+    {
+        if (!$this->dic->user() instanceof ilObjUser) {
+            return false;
+        }
+        if ($this->dic->user()->getAuthMode() == null) {
+            return false;
+        }
+        return (strpos($this->dic->user()->getAuthMode(), 'lti_') === 0);
+    }
+
+    /**
+     * @return void
+     */
+    public function executeCommand(): void
+    {
+        global $ilCtrl;
+        $cmd = $ilCtrl->getCmd();
+        switch ($cmd) {
+            case 'exit':
+                $this->exitLti();
+                break;
+        }
+    }
+
+    /**
+     * @return bool
+     */
+    public function isActive(): bool
+    {
+        return $this->isLTIUser();
+    }
+
+    /**
+     * @return void
+     */
+    public function initGUI(): void
+    {
+        $this->log->debug("initGUI");
+        $baseclass = '';
+        if ($this->wrapper->query()->has('baseClass')) {
+            $baseclass = strtolower($this->wrapper->query()->retrieve('baseClass', $this->kindlyTo->string()));
+        }
+        if ($this->wrapper->query()->has('cmdClass')) {
+            $cmdclass = strtolower($this->wrapper->query()->retrieve('cmdClass', $this->kindlyTo->string()));
+        }
+        if ($baseclass == 'illtiroutergui') {
+            return;
+        }
+    }
+
+    /**
+    * @return int|null
+    */
+    protected function getContextId(): ?int
+    {
+        global $DIC;
+
+        // forced lti_context_id for example request command in exitLTI
+        if ($this->wrapper->query()->has('lti_context_id') &&
+            $this->wrapper->query()->retrieve('lti_context_id', $this->kindlyTo->string()) !== '') {
+            $contextId = (int) $this->wrapper->query()->retrieve('lti_context_id', $this->kindlyTo->int());
+            $this->log->debug("find context_id by GET param: " . (string) $contextId);
+            return $contextId;
+        }
+
+        $this->findEffectiveRefId();
+
+        if (
+            (
+                $this->wrapper->query()->has('baseClass') &&
+                $this->wrapper->query()->retrieve('baseClass', $this->kindlyTo->string()) === 'ilDashboardGUI'
+            )
+            &&
+            (
+                $this->wrapper->query()->has('cmd') &&
+                $this->wrapper->query()->retrieve('cmd', $this->kindlyTo->string()) === 'jumpToSelectedItems'
+            )
+        ) {
+            $this->log->debug("jumpToSelectedItems");
+            if (ilSession::get('lti_ref_id_at_init') != "") {
+                $this->effectiveRefId = (int) ilSession::get('lti_ref_id_at_init');
+                ilSession::set('lti_ref_id_at_init', "");
+            }
+        }
+
+        $ref_id = $this->effectiveRefId;
+        if (empty($ref_id)) {
+            $this->log->debug("empty ref_id");
+            return 0;
+        }
+
+        $this->log->debug("Effective ref_id: " . $ref_id);
+        //check
+        ilSession::set('lti_ref_id_at_init', (string) $ref_id);
+
+
+        // context_id = ref_id in request
+        if (ilSession::has('lti_' . $ref_id . '_post_data')) {
+            $this->log->debug("lti context session exists for " . $ref_id);
+            //            return $ref_id;
+        }
+        // sub item request
+        $this->log->debug("ref_id not exists as context_id, walking tree backwards to find a valid context_id");
+        $locator_items = $this->locator->getItems();
+        if (is_array($locator_items) && count($locator_items) > 0) {
+            for ($i = count($locator_items) - 1;$i >= 0;$i--) {
+                if (ilSession::has('lti_' . $locator_items[$i]['ref_id'] . '_post_data')) {
+                    $this->log->debug("found valid ref_id in locator: " . $locator_items[$i]['ref_id']);
+                    return $locator_items[$i]['ref_id'];
+                }
+            }
+        }
+        $this->log->warning("no valid context_id found for ref_id request: " . $ref_id);
+
+        if (ilLTIViewGUI::CHECK_HTTP_REFERER) {
+            $ref_id = $this->effectiveRefId;
+            $obj_type = ilObject::_lookupType($ref_id, true);
+            $context_id = 0;
+            $referer = 0;
+
+            // first try to get real http referer
+            if (isset($_SERVER['HTTP_REFERER'])) {
+                $this->findEffectiveRefId($_SERVER['HTTP_REFERER']);
+            } else { // only fallback and not reliable on multiple browser LTi contexts
+                if (ilSession::has('referer_ref_id')) {
+                    $this->effectiveRefId = ilSession::get('referer_ref_id');
+                }
+            }
+
+            $referrer = (int) $this->effectiveRefId;
+
+            if ($referer > 0) {
+                if (ilSession::has('lti_' . $referer . '_post_data')) {
+                    $ref_id = $referer;
+                    $context_id = $referer;
+                    $obj_type = ilObject::_lookupType($ref_id, true);
+                    $this->log->debug("referer obj_type: " . $obj_type);
+                } else {
+                    $this->log->debug("search tree of referer...");
+                    if ($this->dic->repositoryTree()->isInTree($referer)) {
+                        $path = $this->dic->repositoryTree()->getPathId($referer);
+                        for ($i = count($path) - 1;$i >= 0;$i--) {
+                            if (ilSession::has('lti_' . $path[$i] . '_post_data')) {
+                                // redirect to referer, because it is valid
+                                $ref_id = $referer;
+                                $context_id = $path[$i];
+                                $obj_type = ilObject::_lookupType($ref_id, true);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if ($ref_id > 0 && $obj_type != '') {
+                if (
+                    (
+                        $this->wrapper->query()->has('baseClass') &&
+                        $this->wrapper->query()->retrieve('baseClass', $this->kindlyTo->string()) === 'ilDashboardGUI'
+                    )
+                    &&
+                    (
+                        $this->wrapper->query()->has('cmdClass') &&
+                        $this->wrapper->query()->retrieve('cmdClass', $this->kindlyTo->string()) === 'ilpersonalprofilegui'
+                    )
+                ) {
+                    return $context_id;
+                }
+                //                $this->dic->ui()->mainTemplate()->setOnScreenMessage('failure', $this->lng->txt('permission_denied'), true);
+                $redirect = $this->link_dir . "goto.php?target=" . $obj_type . "_" . $ref_id . "&lti_context_id=" . $context_id;
+                $this->log->debug("redirect: " . $redirect);
+                ilUtil::redirect($redirect);
+            }
+        }
+        $lti_context_ids = ilSession::get('lti_context_ids');
+        if (is_array($lti_context_ids) && count($lti_context_ids) > 0) {
+            if (count($lti_context_ids) == 1) {
+                $this->log->debug("using context_id from only LTI session");
+                return $lti_context_ids[0];
+            } else {
+                $this->log->warning("Multiple LTI sessions exists. The context_id can not be clearly detected");
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @return array|null
+     */
+    public function getPostData(): ?array
+    {
+        $context_id = $this->getContextId();
+        if ($context_id == 0) {
+            $this->log->warning("could not find any valid context_id!");
+            return null;
+        }
+        $post_data = ilSession::get('lti_' . $context_id . '_post_data');
+        if (!is_array($post_data)) {
+            $this->log->warning("no session post_data: " . "lti_" . $context_id . "_post_data");
+            return null;
+        }
+        return $post_data;
+    }
+
+    /**
+     * @return string
+     */
+    public function getExternalCss(): string
+    {
+        $post_data = $this->getPostData();
+        if ($post_data !== null) {
+            return (isset($post_data['launch_presentation_css_url'])) ? $post_data['launch_presentation_css_url'] : '';
+        }
+        return '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getTitle(): string
+    {
+        $post_data = $this->getPostData();
+        if ($post_data !== null) {
+            return (isset($post_data['resource_link_title'])) ? "LTI - " . $post_data['resource_link_title'] : "LTI";
+        }
+        return "LTI";
+    }
+
+    /**
+     * @return string
+     */
+    public function getTitleForExitPage(): string
+    {
+        return $this->lng->txt('lti_exited');
+    }
+
+    /**
+     * @return string
+     */
+    public function getShortTitle(): string
+    {
+        return $this->lng->txt('lti_mode');
+    }
+
+    /**
+     * exit LTI session and if defined redirecting to returnUrl
+     * ToDo: Standard Template with delos ...
+     */
+    public function exitLti(): void
+    {
+        $this->log->info("exitLTI");
+        $force_ilias_logout = false;
+        $context_id = $this->getContextId();
+        if ($context_id == 0) {
+            $this->log->warning("could not find any valid context_id!");
+            $force_ilias_logout = true;
+        }
+        $post_data = $this->getPostData();
+
+        $return_url = '';
+        if (isset($post_data['launch_presentation_return_url'])) {
+            $return_url = $post_data['launch_presentation_return_url'];
+        }
+        $this->removeContextFromSession((string) $context_id);
+
+        if (ilSession::has('lti_' . $context_id . '_post_data')) {
+            ilSession::clear('lti_' . $context_id . '_post_data');
+            $this->log->debug('unset SESSION["' . 'lti_' . $context_id . '_post_data"]');
+        }
+
+        if (!isset($return_url) || $return_url === '') {
+            $cc = $this->dic->globalScreen()->tool()->context()->current();
+            $cc->addAdditionalData(LtiViewLayoutProvider::GS_EXIT_LTI, true);
+            $ui_factory = $this->dic->ui()->factory();
+            $renderer = $this->dic->ui()->renderer();
+            $content = [
+                $ui_factory->messageBox()->info($this->lng->txt('lti_exited_info'))
+            ];
+            $tpl = $this->dic["tpl"];
+            $tpl->setContent($renderer->render($content));
+            $this->logout($force_ilias_logout);
+            $tpl->printToStdout();
+        } else {
+            $this->logout($force_ilias_logout);
+            header('Location: ' . $return_url);
+        }
+    }
+
+    /**
+     * logout ILIAS and destroys Session and ilClientId cookie if no consumer is still open in the LTI User Session
+     */
+    public function logout(bool $force_ilias_logout = false): void
+    {
+        if ($force_ilias_logout) {
+            $this->log->warning("forcing logout ilias session, maybe a broken LTI context");
+        } else {
+            if (is_array(ilSession::get('lti_context_ids')) && count(ilSession::get('lti_context_ids')) > 0) {
+                $this->log->debug("there is another valid consumer session: ilias session logout refused.");
+                return;
+            }
+        }
+        $this->log->info("logout");
+        $this->dic->user()->setAuthMode((string) ilAuthUtils::AUTH_LOCAL);
+        //ilSession::setClosingContext(ilSession::SESSION_CLOSE_USER); // needed?
+        $auth = $this->dic['ilAuthSession'];
+        //$auth->logout(); // needed?
+        //        $auth->setExpired($auth::SESSION_AUTH_EXPIRED, ilAuthStatus::STATUS_UNDEFINED);
+        $auth->setExpired(true);
+        session_destroy();
+        ilUtil::setCookie("ilClientId", "");
+        ilUtil::setCookie("PHPSESSID", "");
+    }
+
+    /**
+     * @param String $cmd
+     * @return String
+     * @throws ilCtrlException
+     */
+    public function getCmdLink(String $cmd): String
+    {
+        global $ilCtrl;
+        $lti_context_id = $this->getContextId();
+        $lti_context_id_param = ($lti_context_id != '') ? "&lti_context_id=" . $lti_context_id : '';
+        $targetScript = "";
+        return $this->link_dir . $targetScript . $this->dic->ctrl()->getLinkTargetByClass(array('illtiroutergui',strtolower(get_class($this))), $cmd) . "&baseClass=illtiroutergui" . $lti_context_id_param;
+    }
+
+    private function getSessionValue(string $sess_key): string
+    {
+        if (ilSession::has($sess_key) && ilSession::get($sess_key) != '') {
+            return ilSession::get($sess_key);
+        } else {
+            return '';
+        }
+    }
+
+    private function getCookieValue(string $cookie_key): string
+    {
+        if ($this->dic->wrapper->cookie()->has($cookie_key) && $this->dic->wrapper->cookie()->retrieve($cookie_key, $this->dic->refinery()->kindlyTo()->string() != '')) {
+            return $this->dic->wrapper->cookie()->retrieve($cookie_key, $this->dic->refinery()->kindlyTo()->string());
+        } else {
+            return '';
+        }
+    }
+
+    private function removeContextFromSession(string $context_id): void
+    {
+        $lti_context_ids = ilSession::get('lti_context_ids');
+        if (is_array($lti_context_ids) && in_array($context_id, $lti_context_ids)) {
+            array_splice($lti_context_ids, array_search($context_id, $lti_context_ids), 1);
+            ilSession::set('lti_context_ids', $lti_context_ids);
+        }
+    }
+
+    /**
+     * Find effective ref_id for request
+     * @param string|null $url
+     */
+    private function findEffectiveRefId(?string $url = null): void
+    {
+        $query = [];
+        if ($url === null) {
+            if ($this->wrapper->query()->has('ref_id')) {
+                $query['ref_id'] = $this->wrapper->query()->retrieve('ref_id', $this->kindlyTo->string());
+            }
+            if ($this->wrapper->query()->has('target')) {
+                $query['target'] = $this->wrapper->query()->retrieve('target', $this->kindlyTo->string());
+            }
+        } else {
+            parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        }
+        if (isset($query['ref_id']) && (int) $query['ref_id']) {
+            $this->effectiveRefId = (int) $query['ref_id'];
+            return;
+        }
+        if (ilSession::has('lti_init_target') && ilSession::get('lti_init_target') != "") {
+            $target_arr = explode('_', ilSession::get('lti_init_target'));
+            ilSession::set('lti_init_target', "");
+        } else {
+            if (isset($query['target'])) {
+                $target_arr = explode('_', (string) $query['target']);
+            }
+        }
+        if (isset($target_arr[1]) and (int) $target_arr[1]) {
+            $this->effectiveRefId = (int) $target_arr[1];
+        }
+    }
 }
-?>

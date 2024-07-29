@@ -1,96 +1,85 @@
 <?php
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+declare(strict_types=1);
+
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ *      https://www.ilias.de
+ *      https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 
 /**
  * CAS user creation helper
  *
  * @author Stefan Meyer <smeyer.ilias@gmx.de>
- *
  */
 class ilCASAttributeToUser
 {
-	/**
-	 * @var \ilLogger
-	 */
-	private $logger = null;
+    private ilLogger $logger;
+    private ilXmlWriter $writer;
+    private ilCASSettings $settings;
 
-	/**
-	 * @var ilXmlWriter|null
-	 */
-	private $writer = null;
+    public function __construct(\ilCASSettings $settings)
+    {
+        global $DIC;
 
-	/**
-	 * @var \ilCASSettings|null
-	 */
-	private $settings = null;
+        $this->logger = $DIC->logger()->auth();
 
+        $this->writer = new ilXmlWriter();
 
-	/**
-	 * Constructor
-	 *
-	 * @access public
-	 *
-	 */
-	public function __construct(\ilCASSettings $settings)
-	{
-		global $DIC;
+        $this->settings = $settings;
+    }
 
-		$this->logger = $DIC->logger()->auth();
+    public function create(string $a_username): string
+    {
+        $this->writer->xmlStartTag('Users');
 
-		include_once('./Services/Xml/classes/class.ilXmlWriter.php');
-		$this->writer = new ilXmlWriter();
+        $this->writer->xmlStartTag('User', array('Action' => 'Insert'));
+        $new_name = ilAuthUtils::_generateLogin($a_username);
+        $this->writer->xmlElement('Login', array(), $new_name);
 
-		$this->settings = $settings;
-	}
+        // Assign to role only for new users
+        $this->writer->xmlElement(
+            'Role',
+            array(
+                'Id' => $this->settings->getDefaultRole(),
+                'Type' => 'Global',
+                'Action' => 'Assign'),
+            ''
+        );
 
-	/**
-	 * Create new ILIAS account
-	 *
-	 * @access public
-	 *
-	 * @param string external username
-	 */
-	public function create($a_username)
-	{
-		$this->writer->xmlStartTag('Users');
+        $this->writer->xmlElement('Active', array(), "true");
+        $this->writer->xmlElement('TimeLimitOwner', array(), 7);
+        $this->writer->xmlElement('TimeLimitUnlimited', array(), 1);
+        $this->writer->xmlElement('TimeLimitFrom', array(), time());
+        $this->writer->xmlElement('TimeLimitUntil', array(), time());
+        $this->writer->xmlElement('AuthMode', array('type' => 'cas'), 'cas');
+        $this->writer->xmlElement('ExternalAccount', array(), $a_username);
 
-		// Single users
-		// Required fields
-		// Create user
-		$this->writer->xmlStartTag('User', array('Action' => 'Insert'));
-		$this->writer->xmlElement('Login', array(), $new_name = ilAuthUtils::_generateLogin($a_username));
+        $this->writer->xmlEndTag('User');
+        $this->writer->xmlEndTag('Users');
 
-		// Assign to role only for new users
-		$this->writer->xmlElement(
-			'Role', array(
-				'Id' => $this->settings->getDefaultRole(),
-				'Type' => 'Global',
-				'Action' => 'Assign'), '');
+        $this->logger->info('CAS: Startet creation of user: ' . $new_name);
 
-		$this->writer->xmlElement('Active', array(), "true");
-		$this->writer->xmlElement('TimeLimitOwner', array(), 7);
-		$this->writer->xmlElement('TimeLimitUnlimited', array(), 1);
-		$this->writer->xmlElement('TimeLimitFrom', array(), time());
-		$this->writer->xmlElement('TimeLimitUntil', array(), time());
-		$this->writer->xmlElement('AuthMode', array('type' => 'cas'), 'cas');
-		$this->writer->xmlElement('ExternalAccount', array(), $a_username);
+        $importParser = new ilUserImportParser();
+        $importParser->setXMLContent($this->writer->xmlDumpMem(false));
+        $importParser->setRoleAssignment(
+            array(
+                $this->settings->getDefaultRole() => $this->settings->getDefaultRole()
+            )
+        );
+        //TODO check if there is a constant
+        $importParser->setFolderId(7);
+        $importParser->startParsing();
 
-		$this->writer->xmlEndTag('User');
-		$this->writer->xmlEndTag('Users');
-
-		$this->logger->info('CAS: Startet creation of user: ' . $new_name);
-
-		include_once './Services/User/classes/class.ilUserImportParser.php';
-		$importParser = new ilUserImportParser();
-		$importParser->setXMLContent($this->writer->xmlDumpMem(false));
-		$importParser->setRoleAssignment(
-			array(
-				$this->settings->getDefaultRole() => $this->settings->getDefaultRole()
-			)
-		);
-		$importParser->setFolderId(7);
-		$importParser->startParsing();
-
-		return $new_name;
-	}
+        return $new_name;
+    }
 }

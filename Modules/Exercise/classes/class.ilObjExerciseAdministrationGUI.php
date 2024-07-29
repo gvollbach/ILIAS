@@ -1,178 +1,144 @@
 <?php
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once("./Services/Object/classes/class.ilObjectGUI.php");
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Exercise Administration Settings
  *
  * @author Jörg Lützenkirchen <luetzenkirchen@leifos.com>
- * @version $Id:$
+ * @author Alexander Killing <killing@leifos.de>
  *
  * @ilCtrl_Calls ilObjExerciseAdministrationGUI: ilPermissionGUI
- *
- * @ingroup ModulesExercise
  */
 class ilObjExerciseAdministrationGUI extends ilObjectGUI
 {
-	/**
-	 * Contructor
-	 *
-	 * @access public
-	 */
-	public function __construct($a_data, $a_id, $a_call_by_reference = true, $a_prepare_output = true)
-	{
-		global $DIC;
+    public function __construct($a_data, int $a_id, bool $a_call_by_reference = true, bool $a_prepare_output = true)
+    {
+        global $DIC;
 
-		$this->lng = $DIC->language();
-		$this->settings = $DIC->settings();
-		$this->ctrl = $DIC->ctrl();
-		$this->access = $DIC->access();
-		$this->type = "excs";
-		parent::__construct($a_data, $a_id, $a_call_by_reference, $a_prepare_output);
+        $this->lng = $DIC->language();
+        $this->settings = $DIC->settings();
+        $this->ctrl = $DIC->ctrl();
+        $this->access = $DIC->access();
+        $this->type = "excs";
+        parent::__construct($a_data, $a_id, $a_call_by_reference, $a_prepare_output);
 
-		$this->lng->loadLanguageModule("exercise");
-	}
+        $this->lng->loadLanguageModule("exercise");
+    }
 
-	/**
-	 * Execute command
-	 *
-	 * @access public
-	 *
-	 */
-	public function executeCommand()
-	{		
-		$next_class = $this->ctrl->getNextClass($this);
-		$cmd = $this->ctrl->getCmd();
+    public function executeCommand(): void
+    {
+        $next_class = $this->ctrl->getNextClass($this);
+        $cmd = $this->ctrl->getCmd();
 
-		$this->prepareOutput();
+        $this->prepareOutput();
 
-		switch($next_class)
-		{
-			case 'ilpermissiongui':
-				$this->tabs_gui->setTabActive('perm_settings');
-				include_once("Services/AccessControl/classes/class.ilPermissionGUI.php");
-				$perm_gui = new ilPermissionGUI($this);
-				$this->ctrl->forwardCommand($perm_gui);
-				break;
+        switch ($next_class) {
+            case 'ilpermissiongui':
+                $this->tabs_gui->setTabActive('perm_settings');
+                $perm_gui = new ilPermissionGUI($this);
+                $this->ctrl->forwardCommand($perm_gui);
+                break;
 
-			default:
-				if(!$cmd || $cmd == 'view')
-				{
-					$cmd = "editSettings";
-				}
+            default:
+                if (!$cmd || $cmd == 'view') {
+                    $cmd = "editSettings";
+                }
+                $this->$cmd();
+                break;
+        }
+    }
 
-				$this->$cmd();
-				break;
-		}
-		return true;
-	}
+    public function getAdminTabs(): void
+    {
+        if ($this->checkPermissionBool("visible,read")) {
+            $this->tabs_gui->addTarget(
+                "settings",
+                $this->ctrl->getLinkTarget($this, "editSettings"),
+                array("editSettings", "view")
+            );
+        }
 
-	/**
-	 * Get tabs
-	 *
-	 * @access public
-	 *
-	 */
-	public function getAdminTabs()
-	{		
-		if ($this->checkPermissionBool("visible,read"))
-		{
-			$this->tabs_gui->addTarget("settings",
-				$this->ctrl->getLinkTarget($this, "editSettings"),
-				array("editSettings", "view"));
-		}
+        if ($this->checkPermissionBool('edit_permission')) {
+            $this->tabs_gui->addTarget(
+                "perm_settings",
+                $this->ctrl->getLinkTargetByClass('ilpermissiongui', "perm"),
+                array(),
+                'ilpermissiongui'
+            );
+        }
+    }
 
-		if ($this->checkPermissionBool('edit_permission'))
-		{
-			$this->tabs_gui->addTarget("perm_settings",
-				$this->ctrl->getLinkTargetByClass('ilpermissiongui',"perm"),
-				array(),'ilpermissiongui');
-		}
-	}
+    public function editSettings(ilPropertyFormGUI $a_form = null): void
+    {
+        $this->tabs_gui->setTabActive('settings');
 
-	
-	/**
-	* Edit settings.
-	*/
-	public function editSettings($a_form = null)
-	{
-		$lng = $this->lng;
-		$ilSetting = $this->settings;
-		
-		$this->tabs_gui->setTabActive('settings');	
-		
-		if(!$a_form)
-		{
-			$a_form = $this->initFormSettings();
-		}		
-		$this->tpl->setContent($a_form->getHTML());
-		return true;
-	}
+        if ($a_form === null) {
+            $a_form = $this->initFormSettings();
+        }
+        $this->tpl->setContent($a_form->getHTML());
+    }
 
-	/**
-	* Save settings
-	*/
-	public function saveSettings()
-	{
-		$ilCtrl = $this->ctrl;
-		
-		$this->checkPermission("write");
-		
-		$form = $this->initFormSettings();
-		if($form->checkInput())
-		{			
-			$exc_set = new ilSetting("excs");
-			$exc_set->set("add_to_pd", (bool)$form->getInput("pd"));
-			
-			ilUtil::sendSuccess($this->lng->txt("settings_saved"),true);
-			$ilCtrl->redirect($this, "editSettings");
-		}
-		
-		$form->setValuesByPost();
-		$this->editSettings($form);
-	}
+    public function saveSettings(): void
+    {
+        $ilCtrl = $this->ctrl;
 
-	/**
-	* Save settings
-	*/
-	public function cancel()
-	{
-		$ilCtrl = $this->ctrl;
-		
-		$ilCtrl->redirect($this, "view");
-	}
-		
-	/**
-	 * Init settings property form
-	 *
-	 * @access protected
-	 */
-	protected function initFormSettings()
-	{
-		$lng = $this->lng;
-		$ilAccess = $this->access;
-		
-		include_once('Services/Form/classes/class.ilPropertyFormGUI.php');
-		$form = new ilPropertyFormGUI();
-		$form->setFormAction($this->ctrl->getFormAction($this));
-		$form->setTitle($this->lng->txt('exc_admin_settings'));
-		
-		if ($this->checkPermissionBool("write"))
-		{
-			$form->addCommandButton('saveSettings',$this->lng->txt('save'));
-			$form->addCommandButton('cancel',$this->lng->txt('cancel'));
-		}
+        $this->checkPermission("write");
 
-		$exc_set = new ilSetting("excs");
-		
-		$pd = new ilCheckboxInputGUI($lng->txt("to_desktop"), "pd");
-		$pd->setInfo($lng->txt("exc_to_desktop_info"));
-		$pd->setChecked($exc_set->get("add_to_pd", true));
-		$form->addItem($pd);
+        $form = $this->initFormSettings();
+        if ($form->checkInput()) {
+            $exc_set = new ilSetting("excs");
+            $exc_set->set("add_to_pd", (bool) $form->getInput("pd"));
 
-		return $form;
-	}
+            $this->tpl->setOnScreenMessage('success', $this->lng->txt("settings_saved"), true);
+            $ilCtrl->redirect($this, "editSettings");
+        }
+
+        $form->setValuesByPost();
+        $this->editSettings($form);
+    }
+
+    public function cancel(): void
+    {
+        $ilCtrl = $this->ctrl;
+
+        $ilCtrl->redirect($this, "view");
+    }
+
+    protected function initFormSettings(): ilPropertyFormGUI
+    {
+        $lng = $this->lng;
+
+        $form = new ilPropertyFormGUI();
+        $form->setFormAction($this->ctrl->getFormAction($this));
+        $form->setTitle($this->lng->txt('exc_admin_settings'));
+
+        if ($this->checkPermissionBool("write")) {
+            $form->addCommandButton('saveSettings', $this->lng->txt('save'));
+            $form->addCommandButton('cancel', $this->lng->txt('cancel'));
+        }
+
+        $exc_set = new ilSetting("excs");
+
+        $pd = new ilCheckboxInputGUI($lng->txt("to_desktop"), "pd");
+        $pd->setInfo($lng->txt("exc_to_desktop_info"));
+        $pd->setChecked($exc_set->get("add_to_pd", true));
+        $form->addItem($pd);
+
+        return $form;
+    }
 }
-
-?>

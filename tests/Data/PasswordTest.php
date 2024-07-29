@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /* Copyright (c) 2018 Nils Haagen <nils.haagen@concepts-and-training.de> Extended GPL, see docs/LICENSE */
 
 require_once("libs/composer/vendor/autoload.php");
@@ -11,24 +14,23 @@ use PHPUnit\Framework\TestCase;
  *
  * @author Nils Haagen <nils.haagen@concepts-and-training.de>
  */
-class PasswordTest extends TestCase {
-	protected function setUp(): void {
-		$this->f = new Data\Factory();
-	}
+class PasswordTest extends TestCase
+{
+    protected function setUp(): void
+    {
+        $this->f = new Data\Factory();
+    }
 
-	public function testValue() {
-		$pass = 'secret';
-		$pwd = $this->f->password($pass);
-		$this->assertEquals($pass, $pwd->toString());
-	}
+    public function testValue(): void
+    {
+        $pass = 'secret';
+        $pwd = $this->f->password($pass);
+        $this->assertEquals($pass, $pwd->toString());
+    }
 
-	public function testWrongParam() {
-		try	{
-			$pwd = $this->f->password(123);
-			$this->assertFalse("This should not happen");
-		}
-		catch(\InvalidArgumentException $e){
-			$this->assertTrue(true);
-		}
-	}
+    public function testWrongParam(): void
+    {
+        $this->expectException(TypeError::class);
+        $pwd = $this->f->password(123);
+    }
 }

@@ -1,5 +1,22 @@
-<?php declare(strict_types=1);
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+<?php
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 use PHPUnit\Framework\MockObject\MockObject;
 
@@ -10,19 +27,17 @@ use PHPUnit\Framework\MockObject\MockObject;
 abstract class ilTermsOfServiceCriterionBaseTest extends ilTermsOfServiceBaseTest
 {
     /**
-     * @return MockObject|ilRbacReview
-     * @throws ReflectionException
+     * @return MockObject&ilRbacReview
      */
-    protected function getRbacReviewMock() : ilRbacReview
+    protected function getRbacReviewMock(): ilRbacReview
     {
         $rbacReview = $this
             ->getMockBuilder(ilRbacReview::class)
             ->disableOriginalConstructor()
-            ->setMethods(['isGlobalRole', 'isAssigned', 'getGlobalRoles'])
+            ->onlyMethods(['isGlobalRole', 'isAssigned', 'getGlobalRoles'])
             ->getMock();
 
         $rbacReview
-            ->expects($this->any())
             ->method('getGlobalRoles')
             ->willReturn([2, 4]);
 
@@ -30,10 +45,9 @@ abstract class ilTermsOfServiceCriterionBaseTest extends ilTermsOfServiceBaseTes
     }
 
     /**
-     * @return MockObject|ilObjectDataCache
-     * @throws ReflectionException
+     * @return MockObject&ilObjectDataCache
      */
-    protected function getObjectDataCacheMock() : ilObjectDataCache
+    protected function getObjectDataCacheMock(): ilObjectDataCache
     {
         $objectDataCache = $this
             ->getMockBuilder(ilObjectDataCache::class)
@@ -44,54 +58,49 @@ abstract class ilTermsOfServiceCriterionBaseTest extends ilTermsOfServiceBaseTes
     }
 
     /**
-     * @return MockObject|ilRadioGroupInputGUI
-     * @throws ReflectionException
+     * @return MockObject&ilRadioGroupInputGUI
      */
-    protected function getRadioGroupMock() : ilRadioGroupInputGUI
+    protected function getRadioGroupMock(): ilRadioGroupInputGUI
     {
         $radioGroup = $this
             ->getMockBuilder(ilRadioGroupInputGUI::class)
             ->disableOriginalConstructor()
-            ->setMethods(['getPostVar'])
+            ->onlyMethods(['getPostVar'])
             ->getMock();
 
         return $radioGroup;
     }
 
     /**
-     * @return MockObject|ilPropertyFormGUI
-     * @throws ReflectionException
+     * @return MockObject&ilPropertyFormGUI
      */
-    protected function getFormMock() : ilPropertyFormGUI
+    protected function getFormMock(): ilPropertyFormGUI
     {
         $form = $this
             ->getMockBuilder(ilPropertyFormGUI::class)
             ->disableOriginalConstructor()
-            ->setMethods(['getInput'])
+            ->onlyMethods(['getInput'])
             ->getMock();
 
         return $form;
     }
 
     /**
-     * @return MockObject|ilObjUser
-     * @throws ReflectionException
+     * @return MockObject&ilObjUser
      */
-    protected function getUserMock() : ilObjUser
+    protected function getUserMock(): ilObjUser
     {
         $user = $this
             ->getMockBuilder(ilObjUser::class)
             ->disableOriginalConstructor()
-            ->setMethods(['getLanguage', 'getId', 'getLogin'])
+            ->onlyMethods(['getLanguage', 'getId', 'getLogin', 'getSelectedCountry'])
             ->getMock();
 
         $user
-            ->expects($this->any())
             ->method('getId')
             ->willReturn(-1);
 
         $user
-            ->expects($this->any())
             ->method('getLogin')
             ->willReturn('phpunit');
 

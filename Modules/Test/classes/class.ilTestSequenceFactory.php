@@ -1,125 +1,107 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\Refinery\Factory as Refinery;
 
 /**
  * Factory for test sequence
- *
  * @author		Björn Heyser <bheyser@databay.de>
- * @version		$Id$
- * 
  * @package		Modules/Test
  */
 class ilTestSequenceFactory
 {
-	/**
-	 * singleton instances of test sequences
-	 *
-	 * @var array
-	 */
-	private $testSequences = array();
-	
-	/**
-	 * global ilDBInterface object instance
-	 *
-	 * @var ilDBInterface
-	 */
-	private $db = null;
-	
-	/**
-	 * global ilLanguage object instance
-	 *
-	 * @var ilLanguage
-	 */
-	private $lng = null;
-	
-	/**
-	 * global ilPluginAdmin object instance
-	 *
-	 * @var ilPluginAdmin
-	 */
-	private $pluginAdmin = null;
-	
-	/**
-	 * object instance of current test
-	 *
-	 * @var ilObjTest
-	 */
-	private $testOBJ = null;
-	
-	/**
-	 * constructor
-	 * 
-	 * @param ilObjTest $testOBJ
-	 */
-	public function __construct(ilDBInterface $db, ilLanguage $lng, ilPluginAdmin $pluginAdmin, ilObjTest $testOBJ)
-	{
-		$this->db = $db;
-		$this->lng = $lng;
-		$this->pluginAdmin = $pluginAdmin;
-		$this->testOBJ = $testOBJ;
-	}
-	
-	/**
-	 * creates and returns an instance of a test sequence
-	 * that corresponds to the current test mode and the pass stored in test session
-	 * 
-	 * @param ilTestSession|ilTestSessionDynamicQuestionSet $testSession
-	 * @return ilTestSequence|ilTestSequenceDynamicQuestionSet
-	 */
-	public function getSequenceByTestSession($testSession)
-	{
-		return $this->getSequenceByActiveIdAndPass($testSession->getActiveId(), $testSession->getPass());
-	}
-	
-	/**
-	 * creates and returns an instance of a test sequence
-	 * that corresponds to the current test mode and given active/pass
-	 * 
-	 * @param integer $activeId
-	 * @param integer $pass
-	 * @return ilTestSequenceFixedQuestionSet|ilTestSequenceRandomQuestionSet|ilTestSequenceDynamicQuestionSet
-	 */
-	public function getSequenceByActiveIdAndPass($activeId, $pass)
-	{
-		if($this->testSequences[$activeId][$pass] === null)
-		{
-			switch( $this->testOBJ->getQuestionSetType() )
-			{
-				case ilObjTest::QUESTION_SET_TYPE_FIXED:
+    /** @var array<int, array<int, ilTestSequenceFixedQuestionSet|ilTestSequenceRandomQuestionSet|ilTestSequenceDynamicQuestionSet|ilTestSequenceSummaryProvider>> */
+    private array $testSequences = [];
+    private ilDBInterface $db;
+    private ilLanguage $lng;
+    private Refinery $refinery;
+    private ilComponentRepository $component_repository;
+    private ilObjTest $testOBJ;
 
-					require_once 'Modules/Test/classes/class.ilTestSequenceFixedQuestionSet.php';
-					$this->testSequences[$activeId][$pass] = new ilTestSequenceFixedQuestionSet(
-						$activeId, $pass, $this->testOBJ->isRandomTest()
-					);
-					break;
+    public function __construct(
+        ilDBInterface $db,
+        ilLanguage $lng,
+        Refinery $refinery,
+        ilComponentRepository $component_repository,
+        ilObjTest $testOBJ
+    ) {
+        $this->db = $db;
+        $this->lng = $lng;
+        $this->refinery = $refinery;
+        $this->component_repository = $component_repository;
+        $this->testOBJ = $testOBJ;
+    }
 
-				case ilObjTest::QUESTION_SET_TYPE_RANDOM:
+    /**
+     * creates and returns an instance of a test sequence
+     * that corresponds to the current test mode and the pass stored in test session
+     *
+     * @param ilTestSession|ilTestSessionDynamicQuestionSet $testSession
+     * @return ilTestSequence|ilTestSequenceDynamicQuestionSet
+     */
+    public function getSequenceByTestSession($testSession)
+    {
+        return $this->getSequenceByActiveIdAndPass($testSession->getActiveId(), $testSession->getPass());
+    }
 
-					require_once 'Modules/Test/classes/class.ilTestSequenceRandomQuestionSet.php';
-					$this->testSequences[$activeId][$pass] = new ilTestSequenceRandomQuestionSet(
-						$activeId, $pass, $this->testOBJ->isRandomTest()
-					);
-					break;
+    /**
+     * creates and returns an instance of a test sequence
+     * that corresponds to the current test mode and given active/pass
+     *
+     * @param integer $activeId
+     * @param integer $pass
+     * @return ilTestSequenceFixedQuestionSet|ilTestSequenceRandomQuestionSet|ilTestSequenceDynamicQuestionSet|ilTestSequenceSummaryProvider
+     */
+    public function getSequenceByActiveIdAndPass($activeId, $pass)
+    {
+        if (!isset($this->testSequences[$activeId][$pass])) {
+            if ($this->testOBJ->isFixedTest()) {
+                $this->testSequences[$activeId][$pass] = new ilTestSequenceFixedQuestionSet(
+                    $activeId,
+                    $pass,
+                    $this->testOBJ->isRandomTest()
+                );
+            }
 
-				case ilObjTest::QUESTION_SET_TYPE_DYNAMIC:
+            if ($this->testOBJ->isRandomTest()) {
+                $this->testSequences[$activeId][$pass] = new ilTestSequenceRandomQuestionSet(
+                    $activeId,
+                    $pass,
+                    $this->testOBJ->isRandomTest()
+                );
+            }
 
-					require_once 'Modules/Test/classes/class.ilTestSequenceDynamicQuestionSet.php';
-					require_once 'Modules/Test/classes/class.ilTestDynamicQuestionSet.php';
-					$questionSet = new ilTestDynamicQuestionSet(
-							$this->db, $this->lng, $this->pluginAdmin, $this->testOBJ
-					);
-					$this->testSequences[$activeId][$pass] = new ilTestSequenceDynamicQuestionSet(
-							$this->db, $questionSet, $activeId
-					);
-					
-					#$this->testSequence->setPreventCheckedQuestionsFromComingUpEnabled(
-					#	$this->testOBJ->isInstantFeedbackAnswerFixationEnabled()
-					#); // checked questions now has to come up any time, so they can be set to unchecked right at this moment
-					
-					break;
-			}
-		}
+            if ($this->testOBJ->isDynamicTest()) {
+                $questionSet = new ilTestDynamicQuestionSet(
+                    $this->db,
+                    $this->lng,
+                    $this->refinery,
+                    $this->component_repository,
+                    $this->testOBJ
+                );
+                $this->testSequences[$activeId][$pass] = new ilTestSequenceDynamicQuestionSet(
+                    $this->db,
+                    $questionSet,
+                    $activeId
+                );
+            }
+        }
 
-		return $this->testSequences[$activeId][$pass];
-	}
+        return $this->testSequences[$activeId][$pass];
+    }
 }

@@ -12,12 +12,15 @@
 
 	<div class="il-table-presentation-row-contents">
 
+		<!-- has to be in one line so :empty selector can check if there is a button in this div -->
+		<div class="il-table-presentation-actions"><!-- BEGIN button -->{BUTTON}<br /><!-- END button --></div>
+
 		<div class="il-table-presentation-row-header">
 
 			<h4 class="il-table-presentation-row-header-headline" onClick="$(document).trigger('{TOGGLE_SIGNAL}');">
 				{HEADLINE}
 				<!-- BEGIN subheadline -->
-				<br>
+				<br />
 				<small>
 					{SUBHEADLINE}
 				</small>
@@ -37,14 +40,12 @@
 
 
 		<div class="il-table-presentation-row-expanded">
-			<div class="il-table-presentation-desclist inline">
+			<div class="il-table-presentation-desclist inline<!-- BEGIN has_further_fields --> desclist-column<!-- END has_further_fields -->">
 				{DESCLIST}
 			</div>
 
+			<!-- BEGIN further_fields_section -->
 			<div class="il-table-presentation-details inline">
-				<div class="il-table-presentation-actions">
-					<!-- BEGIN button -->{BUTTON}<br><!-- END button -->
-				</div>
 
 				<div class="il-table-presentation-fields">
 					<!-- BEGIN further_fields_headline -->
@@ -66,6 +67,7 @@
 				</div>
 
 			</div>
+			<!-- END further_fields_section -->
 		</div>
 
 	</div>

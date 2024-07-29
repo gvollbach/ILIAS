@@ -1,8 +1,22 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Modules/Chatroom/classes/class.ilChatroom.php';
-require_once 'Modules/Chatroom/classes/class.ilChatroomUser.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilChatroomInviteUsersToPrivateRoomGUI
@@ -12,82 +26,71 @@ require_once 'Modules/Chatroom/classes/class.ilChatroomUser.php';
  */
 class ilChatroomInviteUsersToPrivateRoomGUI extends ilChatroomGUIHandler
 {
+    public function executeDefault(string $requestedMethod): void
+    {
+        $this->byLogin();
+    }
 
-	/**
-	 * @param string $method
-	 * @return mixed
-	 */
-	public function executeDefault($method)
-	{
-		$this->byLogin();
-	}
+    public function byLogin(): void
+    {
+        $user = $this->getRequestValue('user', $this->refinery->kindlyTo()->string());
+        $this->inviteById((int) ilObjUser::_lookupId($user));
+    }
 
-	/**
-	 *
-	 */
-	public function byLogin()
-	{
-		$this->inviteById(ilObjUser::_lookupId($_REQUEST['user']));
-	}
+    private function inviteById(int $invited_id): void
+    {
+        $this->redirectIfNoPermission('read');
 
-	/**
-	 * @param int $invited_id
-	 */
-	private function inviteById($invited_id)
-	{
-		$this->redirectIfNoPermission('read');
+        $room = ilChatroom::byObjectId($this->gui->getObject()->getId());
+        $this->exitIfNoRoomExists($room);
 
-		$room      = ilChatroom::byObjectId($this->gui->object->getId());
-		$subRoomId = (int)$_REQUEST['sub'];
-		$chat_user = new ilChatroomUser($this->ilUser, $room);
+        $chat_user = new ilChatroomUser($this->ilUser, $room);
+        $subRoomId = $this->getRequestValue('sub', $this->refinery->kindlyTo()->int());
+        $this->exitIfNoRoomModeratePermission($room, $subRoomId, $chat_user);
 
-		$this->exitIfNoRoomExists($room);
-		$this->exitIfNoRoomPermission($room, $subRoomId, $chat_user);
+        if (!$this->isMainRoom($subRoomId)) {
+            $room->inviteUserToPrivateRoom($invited_id, $subRoomId);
+        }
 
-		if(!$this->isMainRoom($subRoomId))
-		{
-			$room->inviteUserToPrivateRoom($invited_id, $subRoomId);
-		}
+        $connector = $this->gui->getConnector();
+        $response = $connector->sendInviteToPrivateRoom(
+            $room->getRoomId(),
+            $subRoomId,
+            $chat_user->getUserId(),
+            $invited_id
+        );
 
-		$connector = $this->gui->getConnector();
-		$response  = $connector->sendInviteToPrivateRoom($room->getRoomId(), $subRoomId, $chat_user->getUserId(), $invited_id);
+        $room->sendInvitationNotification($this->gui, $chat_user, $invited_id, $subRoomId);
 
-		$room->sendInvitationNotification($this->gui, $chat_user, $invited_id, $subRoomId);
+        $this->sendResponse($response);
+    }
 
-		$this->sendResponse($response);
-	}
+    public function byId(): void
+    {
+        $this->inviteById($this->getRequestValue('user', $this->refinery->kindlyTo()->int()));
+    }
 
-	/**
-	 *
-	 */
-	public function byId()
-	{
-		$this->inviteById($_REQUEST['user']);
-	}
+    public function getUserList(): void
+    {
+        $auto = new ilUserAutoComplete();
+        $auto->setUser($this->ilUser);
+        $auto->setPrivacyMode(ilUserAutoComplete::PRIVACY_MODE_RESPECT_USER_SETTING);
+        if ($this->ilUser->isAnonymous()) {
+            $auto->setSearchType(ilUserAutoComplete::SEARCH_TYPE_EQUALS);
+        }
 
-	/**
-	 *
-	 */
-	public function getUserList()
-	{
-		require_once 'Services/User/classes/class.ilUserAutoComplete.php';
-		$auto = new ilUserAutoComplete();
-		$auto->setUser($this->ilUser);
-		$auto->setPrivacyMode(ilUserAutoComplete::PRIVACY_MODE_RESPECT_USER_SETTING);
-		if($this->ilUser->isAnonymous())
-		{
-			$auto->setSearchType(ilUserAutoComplete::SEARCH_TYPE_EQUALS);
-		}
+        $query = ilUtil::stripSlashes(
+            $this->getRequestValue('q', $this->refinery->kindlyTo()->string(), '')
+        );
 
-		if(($_REQUEST['fetchall']))
-		{
-			$auto->setLimit(ilUserAutoComplete::MAX_ENTRIES);
-		}
-		$auto->setMoreLinkAvailable(true);
-		$auto->setSearchFields(array('firstname', 'lastname'));
-		$auto->setResultField('login');
-		$auto->enableFieldSearchableCheck(true);
-		echo $auto->getList($_REQUEST['q']);
-		exit;
-	}
+        if ($this->http->wrapper()->query()->has('fetchall')) {
+            $auto->setLimit(ilUserAutoComplete::MAX_ENTRIES);
+        }
+        $auto->setMoreLinkAvailable(true);
+        $auto->setSearchFields(['firstname', 'lastname']);
+        $auto->setResultField('login');
+        $auto->enableFieldSearchableCheck(true);
+
+        $this->sendResponse($auto->getList($query), true);
+    }
 }

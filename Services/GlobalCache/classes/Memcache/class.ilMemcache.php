@@ -1,201 +1,167 @@
 <?php
 
-require_once('./Services/GlobalCache/classes/class.ilGlobalCacheService.php');
-require_once('class.ilMemcacheServer.php');
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Class ilMemcache
- *
  * @author  Fabian Schmid <fs@studer-raimann.ch>
  * @version 1.0.0
  */
-class ilMemcache extends ilGlobalCacheService {
+class ilMemcache extends ilGlobalCacheService
+{
+    protected static ?\Memcached $memcache_object = null;
 
-	/**
-	 * @var Memcached
-	 */
-	protected static $memcache_object;
+    /**
+     * ilMemcache constructor.
+     */
+    public function __construct(string $service_id, string $component)
+    {
+        if (!(self::$memcache_object instanceof Memcached) && $this->getInstallable()) {
+            /**
+             * @var $ilMemcacheServer ilMemcacheServer
+             */
+            $memcached = new Memcached();
 
+            if (ilMemcacheServer::count() > 0) {
+                $memcached->resetServerList();
+                $servers = [];
+                $list = ilMemcacheServer::where(array('status' => ilMemcacheServer::STATUS_ACTIVE))
+                                           ->get();
+                foreach ($list as $ilMemcacheServer) {
+                    $servers[] = array(
+                        $ilMemcacheServer->getHost(),
+                        $ilMemcacheServer->getPort(),
+                        $ilMemcacheServer->getWeight(),
+                    );
+                }
+                $memcached->addServers($servers);
+            }
 
-	/**
-	 * @param $service_id
-	 * @param $component
-	 */
-	public function __construct($service_id, $component) {
-		if (!(self::$memcache_object instanceof Memcached) AND $this->getInstallable()) {
-			/**
-			 * @var $ilMemcacheServer ilMemcacheServer
-			 */
-			$memcached = new Memcached();
+            self::$memcache_object = $memcached;
+        }
+        parent::__construct($service_id, $component);
+    }
 
-			if (ilMemcacheServer::count() > 0) {
-				$memcached->resetServerList();
-				$servers = array();
-				$list = ilMemcacheServer::where(array( 'status' => ilMemcacheServer::STATUS_ACTIVE ))
-				                        ->get();
-				foreach ($list as $ilMemcacheServer) {
-					$servers[] = array(
-						$ilMemcacheServer->getHost(),
-						$ilMemcacheServer->getPort(),
-						$ilMemcacheServer->getWeight(),
-					);
-				}
-				$memcached->addServers($servers);
-			}
+    protected function getMemcacheObject(): ?\Memcached
+    {
+        return self::$memcache_object;
+    }
 
-			self::$memcache_object = $memcached;
-		}
-		parent::__construct($service_id, $component);
-	}
+    public function exists(string $key): bool
+    {
+        return $this->getMemcacheObject()->get($this->returnKey($key)) !== null;
+    }
 
+    public function set(string $key, $serialized_value, int $ttl = null): bool
+    {
+        return $this->getMemcacheObject()
+                    ->set($this->returnKey($key), $serialized_value, (int) $ttl);
+    }
 
-	/**
-	 * @return Memcached
-	 */
-	protected function getMemcacheObject() {
-		return self::$memcache_object;
-	}
+    /**
+     * @return mixed
+     */
+    public function get(string $key)
+    {
+        return $this->getMemcacheObject()->get($this->returnKey($key));
+    }
 
+    public function delete(string $key): bool
+    {
+        return $this->getMemcacheObject()->delete($this->returnKey($key));
+    }
 
-	/**
-	 * @param $key
-	 *
-	 * @return bool
-	 */
-	public function exists($key) {
-		return $this->getMemcacheObject()->get($this->returnKey($key)) != null;
-	}
+    public function flush(bool $complete = false): bool
+    {
+        return $this->getMemcacheObject()->flush();
+    }
 
+    protected function getActive(): bool
+    {
+        if ($this->getInstallable()) {
+            $stats = $this->getMemcacheObject()->getStats();
 
-	/**
-	 * @param          $key
-	 * @param          $serialized_value
-	 * @param null|int $ttl
-	 *
-	 * @return bool
-	 */
-	public function set($key, $serialized_value, $ttl = null) {
-		return $this->getMemcacheObject()
-		            ->set($this->returnKey($key), $serialized_value, (int)$ttl);
-	}
+            if (!is_array($stats)) {
+                return false;
+            }
 
+            foreach ($stats as $server) {
+                if ((int) $server['pid'] > 1) {
+                    return true;
+                }
+            }
 
-	/**
-	 * @param      $key
-	 *
-	 * @return mixed
-	 */
-	public function get($key) {
-		return $this->getMemcacheObject()->get($this->returnKey($key));
-	}
+            return false;
+        }
 
+        return false;
+    }
 
-	/**
-	 * @param      $key
-	 *
-	 * @return bool
-	 */
-	public function delete($key) {
-		return $this->getMemcacheObject()->delete($this->returnKey($key));
-	}
+    protected function getInstallable(): bool
+    {
+        return class_exists('Memcached');
+    }
 
+    public function getInstallationFailureReason(): string
+    {
+        $stats = $this->getMemcacheObject()->getStats();
+        $server_available = false;
+        foreach ($stats as $server) {
+            if ($server['pid'] > 0) {
+                $server_available = true;
+            }
+        }
+        if (!$server_available) {
+            return 'No Memcached-Server available';
+        }
+        return parent::getInstallationFailureReason();
+    }
 
-	/**
-	 * @return bool
-	 */
-	public function flush() {
-		return $this->getMemcacheObject()->flush();
-	}
+    /**
+     * @param mixed $value
+     */
+    public function serialize($value): string
+    {
+        return serialize($value);
+    }
 
+    /**
+     * @param mixed $serialized_value
+     * @return mixed
+     */
+    public function unserialize($serialized_value)
+    {
+        return unserialize($serialized_value);
+    }
 
-	/**
-	 * @return bool
-	 */
-	protected function getActive() {
-		if ($this->getInstallable()) {
-			$stats = $this->getMemcacheObject()->getStats();
+    public function getInfo(): array
+    {
+        $return = [];
+        if ($this->isInstallable()) {
+            $return['__cache_info'] = $this->getMemcacheObject()->getStats();
+            foreach ($this->getMemcacheObject()->getAllKeys() as $key) {
+                $return[$key] = $this->getMemcacheObject()->get($key);
+            }
+        }
+        return $return;
+    }
 
-			if (!is_array($stats)) {
-				return false;
-			}
-
-			foreach ($stats as $server) {
-				if ($server['pid'] > 0) {
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		return false;
-	}
-
-
-	/**
-	 * @return bool
-	 */
-	protected function getInstallable() {
-		return class_exists('Memcached');
-	}
-
-
-	/**
-	 * @return string
-	 */
-	public function getInstallationFailureReason() {
-		if ($this->getMemcacheObject() instanceof Memcached) {
-			$stats = $this->getMemcacheObject()->getStats();
-
-			if (!$stats[self::STD_SERVER . ':' . self::STD_PORT]['pid'] > 0) {
-				return 'No Memcached-Server available';
-			}
-		}
-
-		return parent::getInstallationFailureReason();
-	}
-
-
-	/**
-	 * @param $value
-	 *
-	 * @return mixed
-	 */
-	public function serialize($value) {
-		return serialize($value);
-	}
-
-
-	/**
-	 * @param $serialized_value
-	 *
-	 * @return mixed
-	 */
-	public function unserialize($serialized_value) {
-		return unserialize($serialized_value);
-	}
-
-
-	/**
-	 * @return array
-	 */
-	public function getInfo() {
-		if (self::isInstallable()) {
-			$return = array();
-			$return['__cache_info'] = $this->getMemcacheObject()->getStats();
-			foreach ($this->getMemcacheObject()->getAllKeys() as $key) {
-				$return[$key] = $this->getMemcacheObject()->get($key);
-			}
-
-			return $return;
-		}
-	}
-
-
-	/**
-	 * @inheritdoc
-	 */
-	public function isValid($key) {
-		return true;
-	}
+    public function isValid(string $key): bool
+    {
+        return true;
+    }
 }

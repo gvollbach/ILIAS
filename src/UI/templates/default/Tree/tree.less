@@ -1,18 +1,27 @@
 .il-tree {
 	list-style-type: none;
+	padding: 0 @il-padding-small-vertical 0 calc(@il-padding-small-vertical + @il-tree-node-horizontal-spacing);
+	margin-left: 0;
 	ul {
+		padding-left: @il-tree-node-indentation;
 		list-style-type: none;
-		padding: 4px 0 4px @il-tree-node-indentation;
 	}
 	li.il-tree-node {
+		padding: 0;
+
 		.node-line {
+			padding: @il-tree-node-vertical-spacing 0 @il-tree-node-vertical-spacing @il-tree-node-indentation;
 			cursor: pointer;
 			display: flex;
 			flex-wrap: wrap;
-			> .node-label .icon{
-				vertical-align: text-bottom;
+			> .node-label {
+				padding-left: @il-tree-node-horizontal-spacing;
+				.icon {
+					vertical-align: text-bottom;
+				}
 			}
 			> .node-byline {
+				padding-left: @il-tree-node-horizontal-spacing;
 				width: 100%;
 			}
 		}
@@ -21,16 +30,16 @@
 		}
 		&.expandable {
 			> .node-line:before {
-				font-family: 'Glyphicons Halflings';
-				content: "\e250";
+				color: @il-neutral-light-color;
+				&:extend(.glyphicon-triangle-right:before);
 				position: absolute;
 				margin-left: -@il-tree-node-indentation;
 			}
-			&.expanded > .node-line:before {
-				content: "\e252";
+			&[aria-expanded="true"] > .node-line:before {
+				&:extend(.glyphicon-triangle-bottom:before);
 			}
 		}
-		&:not(.expanded) > ul{
+		&[aria-expanded="false"] > ul{
 			display: none;
 		}
 	}

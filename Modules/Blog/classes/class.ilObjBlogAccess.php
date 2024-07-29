@@ -1,138 +1,122 @@
 <?php
 
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
-
-include_once("./Services/Object/classes/class.ilObjectAccess.php");
-require_once('./Services/WebAccessChecker/interfaces/interface.ilWACCheckingClass.php');
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
-* Class ilObjBlogAccess
-*
-* @author Jörg Lützenkirchen <luetzenkirchen@leifos.com>
-* @version $Id: class.ilObjRootFolderAccess.php 15678 2008-01-06 20:40:55Z akill $
-*
-*/
-class ilObjBlogAccess extends ilObjectAccess implements ilWACCheckingClass
+ * Class ilObjBlogAccess
+ * @author Jörg Lützenkirchen <luetzenkirchen@leifos.com>
+ */
+class ilObjBlogAccess extends ilObjectAccess
 {
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
+    protected ilObjUser $user;
+    protected ilAccessHandler $access;
 
-	/**
-	 * @var ilAccessHandler
-	 */
-	protected $access;
+    public function __construct()
+    {
+        global $DIC;
 
+        $this->user = $DIC->user();
+        $this->access = $DIC->access();
+    }
 
-	/**
-	 * Constructor
-	 */
-	function __construct()
-	{
-		global $DIC;
+    public static function _getCommands(): array
+    {
+        return array(
+            array("permission" => "read", "cmd" => "preview", "lang_var" => "show", "default" => true),
+            array("permission" => "write", "cmd" => "render", "lang_var" => "edit"),
+            array("permission" => "contribute", "cmd" => "render", "lang_var" => "edit"),
+            array("permission" => "write", "cmd" => "edit", "lang_var" => "settings"),
+            array("permission" => "write", "cmd" => "export", "lang_var" => "export_html")
+        );
+    }
 
-		$this->user = $DIC->user();
-		$this->access = $DIC->access();
-	}
+    public static function _checkGoto(string $target): bool
+    {
+        global $DIC;
 
-	/**
-	 * get commands
-	 * 
-	 * this method returns an array of all possible commands/permission combinations
-	 * 
-	 * example:	
-	 * $commands = array
-	 *	(
-	 *		array("permission" => "read", "cmd" => "view", "lang_var" => "show"),
-	 *		array("permission" => "write", "cmd" => "edit", "lang_var" => "edit"),
-	 *	);
-	 */
-	static function _getCommands()
-	{
-		$commands = array
-		(
-			array("permission" => "read", "cmd" => "preview", "lang_var" => "show", "default" => true),
-			array("permission" => "write", "cmd" => "render", "lang_var" => "edit"),
-			array("permission" => "contribute", "cmd" => "render", "lang_var" => "edit"),
-			array("permission" => "write", "cmd" => "edit", "lang_var" => "settings"),
-			array("permission" => "write", "cmd" => "export", "lang_var" => "export_html")
-		);
-		
-		return $commands;
-	}
-	
-	/**
-	* check whether goto script will succeed
-	*/
-	static function _checkGoto($a_target)
-	{		
-		global $DIC;
+        $ilAccess = $DIC->access();
 
-		$ilAccess = $DIC->access();
-		
-		$t_arr = explode("_", $a_target);		
-		
-		if(substr($a_target, -3) == "wsp")
-		{									
-			include_once "Services/PersonalWorkspace/classes/class.ilSharedResourceGUI.php";
-			return ilSharedResourceGUI::hasAccess($t_arr[1]);
-		}
-		
-		if ($t_arr[0] != "blog" || ((int) $t_arr[1]) <= 0)
-		{
-			return false;
-		}
+        $t_arr = explode("_", $target);
 
-		// #12648
-		if ($ilAccess->checkAccess("read", "", $t_arr[1]))
-		{
-			return true;
-		}
-		return false;		
-	}
+        if (substr($target, -3) === "wsp") {
+            return ilSharedResourceGUI::hasAccess($t_arr[1]);
+        }
 
-	/**
-	 * @param ilWACPath $ilWACPath
-	 *
-	 * @return bool
-	 */
-	public function canBeDelivered(ilWACPath $ilWACPath) {		
-		$ilUser = $this->user;
-		$ilAccess = $this->access;
-		
-		if(preg_match("/\\/blog_([\\d]*)\\//uism", $ilWACPath->getPath(), $results))
-		{
-			$obj_id = $results[1];
-			
-			// personal workspace
-			include_once "Services/PersonalWorkspace/classes/class.ilWorkspaceTree.php";
-			$tree = new ilWorkspaceTree(0);
-			$node_id = $tree->lookupNodeId($obj_id);
-			if($node_id)
-			{					
-				include_once "Services/PersonalWorkspace/classes/class.ilWorkspaceAccessHandler.php";	
-				$access_handler = new ilWorkspaceAccessHandler($tree);
-				if ($access_handler->checkAccessOfUser($tree, $ilUser->getId(), "read", "view", $node_id, "blog")) {
-					return true;
-				}
-			}
-			// repository (RBAC)
-			else
-			{
-				$ref_ids  = ilObject::_getAllReferences($obj_id);
-				foreach($ref_ids as $ref_id)
-				{						
-					if ($ilAccess->checkAccessOfUser($ilUser->getId(), "read", "view", $ref_id, "blog", $obj_id))
-					{
-						return true;
-					}					
-				}
-			}
-		}
+        if ($t_arr[0] !== "blog" || ((int) $t_arr[1]) <= 0) {
+            return false;
+        }
 
-		return false;
-	}
+        // #12648
+        if ($ilAccess->checkAccess("read", "", $t_arr[1]) ||
+            $ilAccess->checkAccess("visible", "", $t_arr[1])) {
+            return true;
+        }
+        return false;
+    }
+
+    public function canBeDelivered(ilWACPath $ilWACPath): bool
+    {
+        $ilUser = $this->user;
+        $ilAccess = $this->access;
+        if (preg_match("/\\/blog_([\\d]*)\\//uim", $ilWACPath->getPath(), $results)) {
+            $obj_id = $results[1];
+            if ($obj_id == "") {
+                return false;
+            }
+
+            // personal workspace
+            $tree = new ilWorkspaceTree(0);
+            $node_id = $tree->lookupNodeId((int) $obj_id);
+            if ($node_id) {
+                $access_handler = new ilWorkspaceAccessHandler($tree);
+                if ($access_handler->checkAccessOfUser($tree, $ilUser->getId(), "read", "view", $node_id, "blog")) {
+                    return true;
+                }
+            }
+            // repository (RBAC)
+            else {
+                $ref_ids = ilObject::_getAllReferences((int) $obj_id);
+                foreach ($ref_ids as $ref_id) {
+                    if ($ilAccess->checkAccessOfUser($ilUser->getId(), "read", "view", $ref_id, "blog", (int) $obj_id)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public static function isCommentsExportPossible(int $blog_id): bool
+    {
+        global $DIC;
+
+        $setting = $DIC->settings();
+        $notes = $DIC->notes();
+        $privacy = ilPrivacySettings::getInstance();
+        if ($setting->get("disable_comments")) {
+            return false;
+        }
+        if (!$privacy->enabledCommentsExport()) {
+            return false;
+        }
+        if (!$notes->domain()->commentsActive($blog_id)) {
+            return false;
+        }
+        return true;
+    }
 }
-
-?>

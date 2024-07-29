@@ -1,155 +1,165 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/Export/classes/class.ilExportGUI.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Signature Plugin Class
  * @author       Maximilian Becker <mbecker@databay.de>
- *               
+ *
  * @version      $Id$
- *               
+ *
  * @ingroup      ModulesTest
  */
-class ilTestSignatureGUI 
+class ilTestSignatureGUI
 {
-	/** @var $lng \ilLanguage */
-	protected $lng;
+    /** @var $lng \ilLanguage */
+    protected $lng;
 
-	/** @var $ilCtrl ilCtrl */
-	protected $ilCtrl;
+    /** @var $ilCtrl ilCtrl */
+    protected $ilCtrl;
 
-	/** @var $tpl \ilTemplate  */
-	protected $tpl;
+    /** @var $tpl \ilTemplate  */
+    protected $tpl;
 
-	/** @var $testGUI \ilObjTestGUI */
-	protected $testGUI;
-	
-	/** @var $ilTestOutputGUI \ilTestOutputGUI */
-	protected $ilTestOutputGUI;
+    /** @var $testGUI \ilObjTestGUI */
+    protected $testGUI;
 
-	/** @var $test \ilObjTest */
-	protected $test;
+    /** @var $ilTestOutputGUI \ilTestOutputGUI */
+    protected $ilTestOutputGUI;
 
-	/** @var \ilTestSignaturePlugin */
-	protected $plugin;
+    /** @var $test \ilObjTest */
+    protected $test;
 
-	public function __construct(ilTestOutputGUI $testOutputGUI)
-	{
-		global $DIC;
-		$lng = $DIC['lng'];
-		$ilCtrl = $DIC['ilCtrl'];
-		$tpl = $DIC['tpl'];
-		$ilPluginAdmin = $DIC['ilPluginAdmin'];
-		
-		$this->lng = $lng;
-		$this->ilCtrl = $ilCtrl;
-		$this->tpl = $tpl;
+    /** @var \ilTestSignaturePlugin */
+    protected $plugin;
 
-		$this->ilTestOutputGUI = $testOutputGUI;
-		$this->test = $this->ilTestOutputGUI->object;
+    public function __construct(ilTestOutputGUI $testOutputGUI)
+    {
+        global $DIC;
+        $lng = $DIC['lng'];
+        $ilCtrl = $DIC['ilCtrl'];
+        $tpl = $DIC['tpl'];
+        $component_factory = $DIC["component.factory"];
 
-		$pl_names = $ilPluginAdmin->getActivePluginsForSlot(IL_COMP_MODULE, 'Test', 'tsig');
-		$pl = current($pl_names);
-		$this->plugin = ilPluginAdmin::getPluginObject(IL_COMP_MODULE, 'Test', 'tsig', $pl);
-		$this->plugin->setGUIObject($this);
-	}
+        $this->lng = $lng;
+        $this->ilCtrl = $ilCtrl;
+        $this->tpl = $tpl;
 
-	public function executeCommand()
-	{
-		$next_class = $this->ilCtrl->getNextClass($this);
+        $this->ilTestOutputGUI = $testOutputGUI;
+        $this->test = $this->ilTestOutputGUI->object;
 
-		switch($next_class)
-		{
-			default:
-				$ret = $this->dispatchCommand();
-				break;
-		}
-		return $ret;
-	}
+        $plugins = $component_factory->getActivePluginsInSlot("tsig");
+        $this->plugin = current($plugins);
+        $this->plugin->setGUIObject($this);
+    }
 
-	protected function dispatchCommand()
-	{
-		/** @var $ilUser ilObjUser */
-		global $DIC;
-		$ilUser = $DIC['ilUser'];
-		$active = $this->test->getActiveIdOfUser($ilUser->getId());
-		$pass = $this->test->_getMaxPass($active);
-		$key = 'signed_'. $active .'_'. $pass;
-		ilSession::set($key, null);
+    public function executeCommand()
+    {
+        $next_class = $this->ilCtrl->getNextClass($this);
 
-		$cmd = $this->ilCtrl->getCmd();
-		switch ($cmd)
-		{
-			default:
-				$ret = $this->plugin->invoke($cmd);
-		}
-		return $ret;
-	}
+        switch ($next_class) {
+            default:
+                $ret = $this->dispatchCommand();
+                break;
+        }
+        return $ret;
+    }
 
-	/**
-	 * @param \ilObjTest $test
-	 */
-	public function setTest($test)
-	{
-		$this->test = $test;
-	}
+    protected function dispatchCommand()
+    {
+        /** @var $ilUser ilObjUser */
+        global $DIC;
+        $ilUser = $DIC['ilUser'];
+        $active = $this->test->getActiveIdOfUser($ilUser->getId());
+        $pass = $this->test->_getMaxPass($active);
+        $key = 'signed_' . $active . '_' . $pass;
+        ilSession::set($key, null);
 
-	/**
-	 * @return \ilObjTest
-	 */
-	public function getTest()
-	{
-		return $this->test;
-	}
+        $cmd = $this->ilCtrl->getCmd();
+        switch ($cmd) {
+            default:
+                $ret = $this->plugin->invoke($cmd);
+        }
+        return $ret;
+    }
 
-	/**
-	 * @param \ilObjTestGUI $testGUI
-	 */
-	public function setTestGUI($testGUI)
-	{
-		$this->testGUI = $testGUI;
-	}
+    /**
+     * @param \ilObjTest $test
+     */
+    public function setTest($test)
+    {
+        $this->test = $test;
+    }
 
-	/**
-	 * @return \ilObjTestGUI
-	 */
-	public function getTestGUI()
-	{
-		return $this->testGUI;
-	}
+    /**
+     * @return \ilObjTest
+     */
+    public function getTest(): ilObjTest
+    {
+        return $this->test;
+    }
 
-	/**
-	 * @param \ilTestOutputGUI $testOutputGUI
-	 */
-	public function setTestOutputGUI($testOutputGUI)
-	{
-		$this->ilTestOutputGUI = $testOutputGUI;
-	}
+    /**
+     * @param \ilObjTestGUI $testGUI
+     */
+    public function setTestGUI($testGUI)
+    {
+        $this->testGUI = $testGUI;
+    }
 
-	/**
-	 * @return \ilTestOutputGUI
-	 */
-	public function getTestOutputGUI()
-	{
-		return $this->ilTestOutputGUI;
-	}
+    /**
+     * @return \ilObjTestGUI
+     */
+    public function getTestGUI(): ilObjTestGUI
+    {
+        return $this->testGUI;
+    }
 
-	/**
-	 * This is to be called by the plugin at the end of the signature process to redirect the user back to the test.
-	 */
-	public function redirectToTest($success)
-	{
-		/** @var $ilCtrl ilCtrl */
-		/** @var $ilUser ilObjUser */
-		global $DIC;
-		$ilCtrl = $DIC['ilCtrl'];
-		$ilUser = $DIC['ilUser'];
-		$active = $this->test->getActiveIdOfUser($ilUser->getId());
-		$pass = $this->test->_getMaxPass($active);
-		$key = 'signed_'. $active .'_'. $pass;
-		ilSession::set($key, $success);
-		$ilCtrl->redirect($this->ilTestOutputGUI,'afterTestPassFinished');
-		return;
-	}
+    /**
+     * @param \ilTestOutputGUI $testOutputGUI
+     */
+    public function setTestOutputGUI($testOutputGUI)
+    {
+        $this->ilTestOutputGUI = $testOutputGUI;
+    }
+
+    /**
+     * @return \ilTestOutputGUI
+     */
+    public function getTestOutputGUI(): ilTestOutputGUI
+    {
+        return $this->ilTestOutputGUI;
+    }
+
+    /**
+     * This is to be called by the plugin at the end of the signature process to redirect the user back to the test.
+     */
+    public function redirectToTest($success)
+    {
+        /** @var $ilCtrl ilCtrl */
+        /** @var $ilUser ilObjUser */
+        global $DIC;
+        $ilCtrl = $DIC['ilCtrl'];
+        $ilUser = $DIC['ilUser'];
+        $active = $this->test->getActiveIdOfUser($ilUser->getId());
+        $pass = $this->test->_getMaxPass($active);
+        $key = 'signed_' . $active . '_' . $pass;
+        ilSession::set($key, $success);
+        $ilCtrl->redirect($this->ilTestOutputGUI, 'afterTestPassFinished');
+        return;
+    }
 }

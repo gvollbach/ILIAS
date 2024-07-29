@@ -3,7 +3,7 @@
 div.ilBlogList {
 	padding: 10px;
 	margin-bottom: 20px;
-	background-color: @il-primary-container-bg;
+	background-color: @il-main-bg;
 }
 
 div.ilBlogListItem {
@@ -15,7 +15,7 @@ div.ilBlogListItem {
 }
 
 div.ilBlogListItemTitle {
-	border-bottom: 1px solid #e0e0e0;
+	border-bottom: 1px solid @il-main-border-color;
 }
 
 div.ilBlogListItemTitle h3 {
@@ -24,8 +24,8 @@ div.ilBlogListItemTitle h3 {
 
 div.ilBlogListItemSubTitle {
 	margin-top: 5px;
-	color: #909090;
-	font-size: 80%;
+	color: @il-text-light-color;
+	font-size: @il-font-size-small;
 	text-align: right;
 }
 
@@ -46,13 +46,9 @@ div.ilBlogListItemMore {
 
 div.ilBlogListItemCommtensPerma {
 	text-align: right;
-	font-size: 90%;
+	font-size: @il-font-size-small;
 	margin-top: 15px;
 	min-height: 15px;
-}
-
-div.ilBlogSideBlocks {
-	margin-left: 5px;
 }
 
 td.ilBlogSideBlockContent {
@@ -60,11 +56,11 @@ td.ilBlogSideBlockContent {
 }
 
 td.ilBlogSideBlockCommand {
-	font-size: 75%;
-	color: #909090;
-	border-bottom: 1px solid #e9e9e9;
+	font-size: @il-font-size-small;
+	color: @il-text-light-color;
+	border-bottom: 1px solid @il-main-border-color;
 	padding: 1px 3px;
-	background-color: #f9f9f9;
+	background-color: @il-main-dark-bg;
 	text-align: right;
 }
 
@@ -82,16 +78,16 @@ div.ilBlogSideBlockNavigationSelection {
 }
 
 .ilBlogListItemDraft {
-	border: 2px dotted @brand-warning;
+	border: 2px dotted @il-warning-color;
 }
 
 .ilBlogDraftText {
-	color: @brand-warning;
+	color: @il-warning-color;
 	position: absolute;
-	font-size: @font-size-small;
-	margin-top: -20px;
+	font-size: @il-font-size-small;
+	margin-top: -19px;
 	padding: 2px 5px;
-	background-color: @il-primary-container-bg;
+	background-color: @il-main-bg;
 }
 
 .ilBlogNavigationItemDraft {
@@ -113,4 +109,10 @@ div.ilBlogSideBlockNavigationSelection {
 .ilExportPage {
 	min-height: 468px;
 	padding-bottom: 20px;
+}
+
+@media only screen and (min-width: @screen-sm-min) {
+	.ilToolbar .form-control[data-blog-input='posting-title']:not(:placeholder-shown) {
+		width: 250px;
+	}
 }

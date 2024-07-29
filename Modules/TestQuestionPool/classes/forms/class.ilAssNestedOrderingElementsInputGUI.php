@@ -1,7 +1,22 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/Form/classes/class.ilMultipleNestedOrderingElementsInputGUI.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\DI\UIServices;
 
 /**
  * @author        Björn Heyser <bheyser@databay.de>
@@ -11,427 +26,371 @@ require_once 'Services/Form/classes/class.ilMultipleNestedOrderingElementsInputG
  */
 class ilAssNestedOrderingElementsInputGUI extends ilMultipleNestedOrderingElementsInputGUI
 {
-	const CONTEXT_QUESTION_PREVIEW = 'QuestionPreview';
-	const CONTEXT_CORRECT_SOLUTION_PRESENTATION = 'CorrectSolutionPresent';
-	const CONTEXT_USER_SOLUTION_PRESENTATION = 'UserSolutionPresent';
-	const CONTEXT_USER_SOLUTION_SUBMISSION = 'UserSolutionSubmit';
-	
-	const ILC_CSS_CLASS_LIST = 'ilc_qordul_OrderList';
-	const ILC_CSS_CLASS_ITEM = 'ilc_qordli_OrderListItem';
-	const ILC_CSS_CLASS_HANDLE = 'ilc_qanswer_Answer';
-	
-	/**
-	 * @var string
-	 */
-	protected $context = null;
-	
-	/**
-	 * @var integer
-	 */
-	protected $uniquePrefix = null;
-	
-	/**
-	 * @var mixed
-	 */
-	protected $orderingType = null;
-	
-	const DEFAULT_THUMBNAIL_PREFIX = 'thumb.';
-	
-	/**
-	 * @var string
-	 */
-	protected $thumbnailFilenamePrefix = self::DEFAULT_THUMBNAIL_PREFIX;
-	
-	/**
-	 * @var string
-	 */
-	protected $elementImagePath = null;
-	
-	const CORRECTNESS_ICON_TRUE = 'icon_ok.svg';
-	const CORRECTNESS_LNGVAR_TRUE = 'answer_is_right';
-	
-	const CORRECTNESS_ICON_FALSE = 'icon_not_ok.svg';
-	const CORRECTNESS_LNGVAR_FALSE = 'answer_is_wrong';
-	
-	/**
-	 * @var array
-	 */
-	protected $correctnessIcons = array(
-		true => self::CORRECTNESS_ICON_TRUE, false => self::CORRECTNESS_ICON_FALSE
-	);
-	
-	/**
-	 * @var array
-	 */
-	protected $correctnessLngVars = array(
-		true => self::CORRECTNESS_LNGVAR_TRUE, false => self::CORRECTNESS_LNGVAR_FALSE
-	);
-	
-	/**
-	 * @var bool
-	 */
-	protected $showCorrectnessIconsEnabled = false;
-	
-	/**
-	 * @var ilAssOrderingElementList
-	 */
-	protected $correctnessTrueElementList = null;
-	
-	/**
-	 * ilAssNestedOrderingElementsInputGUI constructor.
-	 *
-	 * @param ilAssOrderingFormValuesObjectsConverter $converter
-	 * @param string $postVar
-	 */
-	public function __construct(ilAssOrderingFormValuesObjectsConverter $converter, $postVar)
-	{		
-		require_once 'Modules/TestQuestionPool/classes/forms/class.ilAssOrderingDefaultElementFallback.php';
-		$manipulator = new ilAssOrderingDefaultElementFallback();
-		$this->addFormValuesManipulator($manipulator);
-		
-		parent::__construct('', $postVar);
-		
-		$this->addFormValuesManipulator($converter);
-		
-		$this->setHtmlListTag(parent::HTML_LIST_TAG_UL);
-		$this->setCssListClass($this->getCssListClass().' '.self::ILC_CSS_CLASS_LIST);
-		$this->setCssItemClass($this->getCssItemClass().' '.self::ILC_CSS_CLASS_ITEM);
-		$this->setCssHandleClass($this->getCssHandleClass().' '.self::ILC_CSS_CLASS_HANDLE);
-	}
-	
-	/**
-	 * @param ilAssOrderingElementList $elementList
-	 */
-	public function setElementList(ilAssOrderingElementList $elementList)
-	{
-		$this->setIdentifiedMultiValues( $elementList->getRandomIdentifierIndexedElements() );
-	}
-	
-	/**
-	 * @param $questionId
-	 * @return ilAssOrderingElementList
-	 */
-	public function getElementList($questionId)
-	{
-		require_once 'Modules/TestQuestionPool/classes/questions/class.ilAssOrderingElementList.php';
-		return ilAssOrderingElementList::buildInstance($questionId, $this->getIdentifiedMultiValues());
-	}
-	
-	/**
-	 * @param assOrderingQuestion $question
-	 */
-	public function prepareReprintable(assQuestion $question)
-	{
-		$elementList = $this->getElementList($question->getId());
-		
-		$elementList->completeContentsFromElementList(
-			$question->getOrderingElementList()
-		);
+    public const CONTEXT_QUESTION_PREVIEW = 'QuestionPreview';
+    public const CONTEXT_CORRECT_SOLUTION_PRESENTATION = 'CorrectSolutionPresent';
+    public const CONTEXT_USER_SOLUTION_PRESENTATION = 'UserSolutionPresent';
+    public const CONTEXT_USER_SOLUTION_SUBMISSION = 'UserSolutionSubmit';
 
-		$this->setElementList($elementList);
-	}
-	
-	public function getInstanceId()
-	{
-		if( !$this->getContext() || !$this->getUniquePrefix() )
-		{
-			return parent::getInstanceId();
-		}
-		
-		return $this->getContext() . '_' . $this->getUniquePrefix();
-	}
-	
-	/**
-	 * @return string
-	 */
-	public function getContext()
-	{
-		return $this->context;
-	}
-	
-	/**
-	 * @param string $context
-	 */
-	public function setContext($context)
-	{
-		$this->context = $context;
-	}
-	
-	/**
-	 * @return string
-	 */
-	public function getUniquePrefix()
-	{
-		return $this->uniquePrefix;
-	}
-	
-	/**
-	 * @param string $uniquePrefix
-	 */
-	public function setUniquePrefix($uniquePrefix)
-	{
-		$this->uniquePrefix = $uniquePrefix;
-	}
-	
-	/**
-	 * @param mixed $orderingType
-	 */
-	public function setOrderingType($orderingType)
-	{
-		$this->orderingType = $orderingType;
-	}
-	
-	/**
-	 * @return mixed
-	 */
-	public function getOrderingType()
-	{
-		return $this->orderingType;
-	}
-	
-	/**
-	 * @param string $elementImagePath
-	 */
-	public function setElementImagePath($elementImagePath)
-	{
-		$this->elementImagePath = $elementImagePath;
-	}
-	
-	/**
-	 * @return string
-	 */
-	public function getElementImagePath()
-	{
-		return $this->elementImagePath;
-	}
-	
-	/**
-	 * @param string $thumbnailFilenamePrefix
-	 */
-	public function setThumbPrefix($thumbnailFilenamePrefix)
-	{
-		$this->thumbnailFilenamePrefix = $thumbnailFilenamePrefix;
-	}
-	
-	/**
-	 * @return string
-	 */
-	public function getThumbPrefix()
-	{
-		return $this->thumbnailFilenamePrefix;
-	}
-	
-	/**
-	 * @param $showCorrectnessIconsEnabled
-	 */
-	public function setShowCorrectnessIconsEnabled($showCorrectnessIconsEnabled)
-	{
-		$this->showCorrectnessIconsEnabled = $showCorrectnessIconsEnabled;
-	}
-	
-	/**
-	 * @return bool
-	 */
-	public function isShowCorrectnessIconsEnabled()
-	{
-		return $this->showCorrectnessIconsEnabled;
-	}
-	
-	/**
-	 * @param bool $correctness
-	 * @return string
-	 */
-	public function getCorrectnessIconFilename($correctness)
-	{
-		return $this->correctnessIcons[(bool)$correctness];
-	}
-	
-	/**
-	 * @param bool $correctness
-	 * @param string $iconFilename
-	 */
-	public function setCorrectnessIconFilename($correctness, $iconFilename)
-	{
-		$this->correctnessIcons[(bool)$correctness] = $iconFilename;
-	}
-	
-	/**
-	 * @param bool $correctness
-	 * @return string
-	 */
-	public function getCorrectnessLangVar($correctness)
-	{
-		return $this->correctnessLngVars[(bool)$correctness];
-	}
-	
-	/**
-	 * @param bool $correctness
-	 * @param string $langVar
-	 */
-	public function setCorrectnessLangVar($correctness, $langVar)
-	{
-		$this->correctnessLngVars[(bool)$correctness] = $langVar;
-	}
-	
-	/**
-	 * @param bool $correctness
-	 * @return string
-	 */
-	public function getCorrectnessText($correctness)
-	{
-		global $DIC; /* @var ILIAS\DI\Container $DIC */
-		$lng = $DIC['lng'];
-		return $lng->txt( $this->correctnessLngVars[(bool)$correctness] );
-	}
-	
-	/**
-	 * @return ilAssOrderingElementList
-	 */
-	public function getCorrectnessTrueElementList()
-	{
-		return $this->correctnessTrueElementList;
-	}
-	
-	/**
-	 * @param ilAssOrderingElementList $correctnessTrueElementList
-	 */
-	public function setCorrectnessTrueElementList(ilAssOrderingElementList $correctnessTrueElementList)
-	{
-		$this->correctnessTrueElementList = $correctnessTrueElementList;
-	}
-	
-	/**
-	 * @param $identifier
-	 * @return bool
-	 */
-	protected function getCorrectness($identifier)
-	{
-		return $this->getCorrectnessTrueElementList()->elementExistByRandomIdentifier($identifier);
-	}
-	
-	/**
-	 * @return ilTemplate
-	 */
-	protected function getItemTemplate()
-	{
-		return new ilTemplate('tpl.prop_ass_nested_order_elem.html', true, true, 'Modules/TestQuestionPool');
-	}
-	
-	/**
-	 * @param array $element
-	 * @return string
-	 */
-	protected function getThumbnailFilename($element)
-	{
-		return $this->getThumbPrefix() . $element['content'];
-	}
-	
-	/**
-	 * @param array $element
-	 * @return string
-	 */
-	protected function getThumbnailSource($element)
-	{
-		return $this->getElementImagePath() . $this->getThumbnailFilename($element);
-	}
-	
-	/**
-	 * @param ilAssOrderingElement $element
-	 * @param string $identifier
-	 * @param iunteger $position
-	 * @param string $itemSubFieldPostVar
-	 * @param string $itemSubFieldId
-	 * @return string
-	 */
-	protected function getItemHtml($element, $identifier, $position, $itemSubFieldPostVar, $itemSubFieldId)
-	{
-		$tpl = $this->getItemTemplate();
-		
-		switch( $this->getOrderingType() )
-		{
-			case OQ_TERMS:
-			case OQ_NESTED_TERMS:
-			
-				$tpl->setCurrentBlock('item_text');
-				$tpl->setVariable("ITEM_CONTENT", ilUtil::prepareFormOutput($element['content']));
-				$tpl->parseCurrentBlock();
-				break;
-				
-			case OQ_PICTURES:
-			case OQ_NESTED_PICTURES:
-				
-				$tpl->setCurrentBlock('item_image');
-				$tpl->setVariable("ITEM_SOURCE", $this->getThumbnailSource($element));
-				$tpl->setVariable("ITEM_CONTENT", $this->getThumbnailFilename($element));
-				$tpl->parseCurrentBlock();
-				break;
-		}
-		
-		if( $this->isShowCorrectnessIconsEnabled() )
-		{
-			$tpl->setCurrentBlock('correctness_icon');
-			$tpl->setVariable("ICON_SRC", $this->getCorrectnessIconFilename( $this->getCorrectness($identifier) ));
-			$tpl->setVariable("ICON_TEXT", $this->getCorrectnessText( $this->getCorrectness($identifier) ));
-			$tpl->parseCurrentBlock();
-		}
-		
-		$tpl->setCurrentBlock('item');
-		$tpl->setVariable("ITEM_ID", $itemSubFieldId);
-		$tpl->setVariable("ITEM_POSTVAR", $itemSubFieldPostVar);
-		$tpl->setVariable("ITEM_CONTENT", ilUtil::prepareFormOutput($element['content']));
-		$tpl->parseCurrentBlock();
+    public const ILC_CSS_CLASS_LIST = 'ilc_qordul_OrderList';
+    public const ILC_CSS_CLASS_ITEM = 'ilc_qordli_OrderListItem';
 
-		return $tpl->get();
-	}
-	
-	/**
-	 * @param array $elementValues
-	 * @param integer $elementCounter
-	 * @return integer $currentDepth
-	 */
-	protected function getCurrentIndentation($elementValues, $elementCounter)
-	{
-		if( !isset($elementValues[$elementCounter]) )
-		{
-			return 0;
-		}
-		
-		return $elementValues[$elementCounter]['ordering_indentation'];
-	}
-	
-	/**
-	 * @param array $elementValues
-	 * @param integer $elementCounter
-	 * @return integer $nextDepth
-	 */
-	protected function getNextIndentation($elementValues, $elementCounter)
-	{
-		if( !isset($elementValues[$elementCounter + 1]) )
-		{
-			return 0;
-		}
-		
-		return $elementValues[$elementCounter + 1]['ordering_indentation'];
-	}
-	
-	public function isPostSubmit($data)
-	{
-		if( !is_array($data) )
-		{
-			return false;
-		}
-		
-		if( !isset($data[$this->getPostVar()]) )
-		{
-			return false;
-		}
-		
-		if( !count($data[$this->getPostVar()]) )
-		{
-			return false;
-		}
-		
-		return true;
-	}
+    public const DEFAULT_THUMBNAIL_PREFIX = 'thumb.';
 
+    /**
+     * @var string
+     */
+    protected $context = null;
+
+    /**
+     * @var integer
+     */
+    protected $uniquePrefix = null;
+
+    /**
+     * @var mixed
+     */
+    protected $orderingType = null;
+
+    /**
+     * @var string
+     */
+    protected $thumbnailFilenamePrefix = self::DEFAULT_THUMBNAIL_PREFIX;
+
+    /**
+     * @var string
+     */
+    protected $elementImagePath = null;
+
+    /**
+     * @var bool
+     */
+    protected $showCorrectnessIconsEnabled = false;
+
+    /**
+     * @var ilAssOrderingElementList
+     */
+    protected $correctnessTrueElementList = null;
+
+    private UIServices $ui;
+
+    /**
+     * ilAssNestedOrderingElementsInputGUI constructor.
+     *
+     * @param ilAssOrderingFormValuesObjectsConverter $converter
+     * @param string $postVar
+     */
+    public function __construct(ilAssOrderingFormValuesObjectsConverter $converter, $postVar)
+    {
+        global $DIC;
+        $this->ui = $DIC->ui();
+        $manipulator = new ilAssOrderingDefaultElementFallback();
+        $this->addFormValuesManipulator($manipulator);
+
+        parent::__construct('', $postVar);
+
+        $this->addFormValuesManipulator($converter);
+
+        $this->setHtmlListTag(parent::HTML_LIST_TAG_UL);
+        $this->setCssListClass($this->getCssListClass() . ' ' . self::ILC_CSS_CLASS_LIST);
+        $this->setCssItemClass($this->getCssItemClass() . ' ' . self::ILC_CSS_CLASS_ITEM);
+        $this->setCssHandleClass($this->getCssHandleClass());
+    }
+
+    /**
+     * @param ilAssOrderingElementList $elementList
+     */
+    public function setElementList(ilAssOrderingElementList $elementList): void
+    {
+        $this->setIdentifiedMultiValues($elementList->getRandomIdentifierIndexedElements());
+    }
+
+    /**
+     * @param $questionId
+     * @return ilAssOrderingElementList
+     */
+    public function getElementList($questionId): ilAssOrderingElementList
+    {
+        require_once 'Modules/TestQuestionPool/classes/questions/class.ilAssOrderingElementList.php';
+        return ilAssOrderingElementList::buildInstance($questionId, $this->getIdentifiedMultiValues());
+    }
+
+    /**
+     * @param assOrderingQuestion $question
+     */
+    public function prepareReprintable(assQuestion $question): void
+    {
+        $elementList = $this->getElementList($question->getId());
+
+        $elementList->completeContentsFromElementList(
+            $question->getOrderingElementList()
+        );
+
+        $this->setElementList($elementList);
+    }
+
+    public function getInstanceId(): string
+    {
+        if (!$this->getContext() || !$this->getUniquePrefix()) {
+            return parent::getInstanceId();
+        }
+
+        return $this->getContext() . '_' . $this->getUniquePrefix();
+    }
+
+    /**
+     * @return string
+     */
+    public function getContext(): ?string
+    {
+        return $this->context;
+    }
+
+    /**
+     * @param string $context
+     */
+    public function setContext($context): void
+    {
+        $this->context = $context;
+    }
+
+    /**
+     * @return string
+     */
+    public function getUniquePrefix()
+    {
+        return $this->uniquePrefix;
+    }
+
+    /**
+     * @param string $uniquePrefix
+     */
+    public function setUniquePrefix($uniquePrefix): void
+    {
+        $this->uniquePrefix = $uniquePrefix;
+    }
+
+    /**
+     * @param mixed $orderingType
+     */
+    public function setOrderingType($orderingType): void
+    {
+        $this->orderingType = $orderingType;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getOrderingType()
+    {
+        return $this->orderingType;
+    }
+
+    /**
+     * @param string $elementImagePath
+     */
+    public function setElementImagePath($elementImagePath): void
+    {
+        $this->elementImagePath = $elementImagePath;
+    }
+
+    /**
+     * @return string
+     */
+    public function getElementImagePath(): ?string
+    {
+        return $this->elementImagePath;
+    }
+
+    /**
+     * @param string $thumbnailFilenamePrefix
+     */
+    public function setThumbPrefix($thumbnailFilenamePrefix): void
+    {
+        $this->thumbnailFilenamePrefix = $thumbnailFilenamePrefix;
+    }
+
+    /**
+     * @return string
+     */
+    public function getThumbPrefix(): string
+    {
+        return $this->thumbnailFilenamePrefix;
+    }
+
+    /**
+     * @param $showCorrectnessIconsEnabled
+     */
+    public function setShowCorrectnessIconsEnabled($showCorrectnessIconsEnabled): void
+    {
+        $this->showCorrectnessIconsEnabled = $showCorrectnessIconsEnabled;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isShowCorrectnessIconsEnabled(): bool
+    {
+        return $this->showCorrectnessIconsEnabled;
+    }
+
+    /**
+     * @return ilAssOrderingElementList
+     */
+    public function getCorrectnessTrueElementList(): ?ilAssOrderingElementList
+    {
+        return $this->correctnessTrueElementList;
+    }
+
+    /**
+     * @param ilAssOrderingElementList $correctnessTrueElementList
+     */
+    public function setCorrectnessTrueElementList(ilAssOrderingElementList $correctnessTrueElementList): void
+    {
+        $this->correctnessTrueElementList = $correctnessTrueElementList;
+    }
+
+    /**
+     * @param $identifier
+     * @return bool
+     */
+    protected function getCorrectness($identifier): bool
+    {
+        return $this->getCorrectnessTrueElementList()->elementExistByRandomIdentifier($identifier);
+    }
+
+    private function getCorrectnessIcon($correctness): string
+    {
+        $icon_name = 'icon_not_ok.svg';
+        $label = $this->lng->txt("answer_is_wrong");
+        if ($correctness === 'correct') {
+            $icon_name = 'icon_ok.svg';
+            $label = $this->lng->txt("answer_is_right");
+        }
+        $path = ilUtil::getImagePath($icon_name);
+        $icon = $this->ui->factory()->symbol()->icon()->custom(
+            $path,
+            $label
+        );
+        return $this->ui->renderer()->render($icon);
+    }
+
+    /**
+     * @return ilTemplate
+     */
+    protected function getItemTemplate(): ilTemplate
+    {
+        return new ilTemplate('tpl.prop_ass_nested_order_elem.html', true, true, 'Modules/TestQuestionPool');
+    }
+
+    /**
+     * @return string
+     */
+    protected function getThumbnailFilename($element): string
+    {
+        return $this->getThumbPrefix() . $element['content'];
+    }
+
+    /**
+     * @return string
+     */
+    protected function getThumbnailSource($element): string
+    {
+        return $this->getElementImagePath() . $this->getThumbnailFilename($element);
+    }
+
+    /**
+     * @param ilAssOrderingElement $element
+     * @param string $identifier
+     * @param int $position
+     * @param string $itemSubFieldPostVar
+     * @param string $itemSubFieldId
+     * @return string
+     */
+    protected function getItemHtml($element, $identifier, $position, $itemSubFieldPostVar, $itemSubFieldId): string
+    {
+        $tpl = $this->getItemTemplate();
+
+        switch ($this->getOrderingType()) {
+            case assOrderingQuestion::OQ_TERMS:
+            case assOrderingQuestion::OQ_NESTED_TERMS:
+
+                $tpl->setCurrentBlock('item_text');
+                $tpl->setVariable("ITEM_CONTENT", ilLegacyFormElementsUtil::prepareFormOutput($element['content']));
+                $tpl->parseCurrentBlock();
+                break;
+
+            case assOrderingQuestion::OQ_PICTURES:
+            case assOrderingQuestion::OQ_NESTED_PICTURES:
+
+                $tpl->setCurrentBlock('item_image');
+                $tpl->setVariable("ITEM_SOURCE", $this->getThumbnailSource($element));
+                $tpl->setVariable("ITEM_CONTENT", $this->getThumbnailFilename($element));
+                $tpl->parseCurrentBlock();
+                break;
+        }
+
+        if ($this->isShowCorrectnessIconsEnabled()) {
+            $correctness = 'not_correct';
+            if ($this->getCorrectness($identifier)) {
+                $correctness = 'correct';
+            }
+            $tpl->setCurrentBlock('correctness_icon');
+
+            $tpl->setVariable("ICON_OK", $this->getCorrectnessIcon($correctness));
+            $tpl->parseCurrentBlock();
+        }
+
+        $tpl->setCurrentBlock('item');
+        $tpl->setVariable("ITEM_ID", $itemSubFieldId);
+        $tpl->setVariable("ITEM_POSTVAR", $itemSubFieldPostVar);
+        $tpl->setVariable("ITEM_CONTENT", ilLegacyFormElementsUtil::prepareFormOutput($element['content']));
+        $tpl->parseCurrentBlock();
+
+        return $tpl->get();
+    }
+
+    /**
+     * @param array $elementValues
+     * @param integer $elementCounter
+     * @return integer $currentDepth
+     */
+    protected function getCurrentIndentation($elementValues, $elementCounter): int
+    {
+        if (!isset($elementValues[$elementCounter])) {
+            return 0;
+        }
+
+        return $elementValues[$elementCounter]['ordering_indentation'];
+    }
+
+    /**
+     * @param array $elementValues
+     * @param integer $elementCounter
+     * @return integer $nextDepth
+     */
+    protected function getNextIndentation($elementValues, $elementCounter): int
+    {
+        if (!isset($elementValues[$elementCounter + 1])) {
+            return 0;
+        }
+
+        return $elementValues[$elementCounter + 1]['ordering_indentation'];
+    }
+
+    public function isPostSubmit($data): bool
+    {
+        if (!is_array($data)) {
+            return false;
+        }
+
+        if (!isset($data[$this->getPostVar()])) {
+            return false;
+        }
+
+        if (!count($data[$this->getPostVar()])) {
+            return false;
+        }
+
+        return true;
+    }
 }

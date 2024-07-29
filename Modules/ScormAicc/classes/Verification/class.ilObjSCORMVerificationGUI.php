@@ -1,192 +1,187 @@
 <?php
 
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
 
-include_once ('./Services/Object/classes/class.ilObject2GUI.php');
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * GUI class for scorm verification
- *
  * @author Jörg Lützenkirchen <luetzenkirchen@leifos.com>
- *
  * @ilCtrl_Calls ilObjSCORMVerificationGUI: ilWorkspaceAccessGUI
  */
 class ilObjSCORMVerificationGUI extends ilObject2GUI
 {
-	public function getType()
-	{
-		return "scov";
-	}
+    public function getType(): string
+    {
+        return "scov";
+    }
 
-	/**
-	 * List all tests in which current user participated
-	 */
-	public function create()
-	{
-		global $DIC;
-		$ilTabs = $DIC['ilTabs'];
+    /**
+     * @throws ilCtrlException
+     */
+    public function create(): void
+    {
+        global $DIC;
+        $ilTabs = $DIC->tabs();
 
-		if($this->id_type == self::WORKSPACE_NODE_ID)
-		{
-			include_once "Services/DiskQuota/classes/class.ilDiskQuotaHandler.php";
-			if(!ilDiskQuotaHandler::isUploadPossible())
-			{
-				$this->lng->loadLanguageModule("file");
-				ilUtil::sendFailure($this->lng->txt("personal_workspace_quota_exceeded_warning"), true);
-				$this->ctrl->redirect($this, "cancel");
-			}
-		}
+        $this->lng->loadLanguageModule("scov");
 
-		$this->lng->loadLanguageModule("scov");
+        $ilTabs->setBackTarget(
+            $this->lng->txt("back"),
+            $this->ctrl->getLinkTarget($this, "cancel")
+        );
 
-		$ilTabs->setBackTarget($this->lng->txt("back"),
-			$this->ctrl->getLinkTarget($this, "cancel"));
+        $table = new ilSCORMVerificationTableGUI($this, "create");
+        $this->tpl->setContent($table->getHTML());
+    }
 
-		include_once "Modules/ScormAicc/classes/Verification/class.ilSCORMVerificationTableGUI.php";
-		$table = new ilSCORMVerificationTableGUI($this, "create");
-		$this->tpl->setContent($table->getHTML());
-	}
+    /**
+     * @throws JsonException
+     * @throws ilCtrlException
+     * @throws ilException
+     */
+    public function save(): void
+    {
+        global $DIC;
 
-	/**
-	 * create new instance and save it
-	 */
-	public function save()
-	{
-		global $DIC;
+        $ilUser = $DIC->user();
 
-		$ilUser = $DIC->user();
+        $objectId = $this->getRequestValue("lm_id");
+        if ($objectId) {
+            $certificateVerificationFileService = new ilCertificateVerificationFileService(
+                $DIC->language(),
+                $DIC->database(),
+                $DIC->logger()->root(),
+                new ilCertificateVerificationClassMap()
+            );
 
-		$objectId = $_REQUEST["lm_id"];
-		if($objectId)
-		{
-			$certificateVerificationFileService = new ilCertificateVerificationFileService(
-				$DIC->language(),
-				$DIC->database(),
-				$DIC->logger()->root(),
-				new ilCertificateVerificationClassMap()
-			);
+            $userCertificateRepository = new ilUserCertificateRepository();
 
-			$userCertificateRepository = new ilUserCertificateRepository();
+            $userCertificatePresentation = $userCertificateRepository->fetchActiveCertificateForPresentation(
+                (int) $ilUser->getId(),
+                (int) $objectId
+            );
 
-			$userCertificatePresentation = $userCertificateRepository->fetchActiveCertificateForPresentation(
-				(int) $ilUser->getId(),
-				(int) $objectId
-			);
+            try {
+                $newObj = $certificateVerificationFileService->createFile($userCertificatePresentation);
+            } catch (\Exception $exception) {
+                $this->tpl->setOnScreenMessage('failure', $this->lng->txt('error_creating_certificate_pdf'));
+                $this->create();
+            }
 
-			try {
-				$newObj = $certificateVerificationFileService->createFile($userCertificatePresentation);
-			} catch (\Exception $exception) {
-				ilUtil::sendFailure($this->lng->txt('error_creating_certificate_pdf'));
-				return $this->create();
-			}
+            $newObj = null;
+            if ($newObj) {
+                $parent_id = $this->node_id;
+                $this->node_id = null;
+                $this->putObjectInTree($newObj, $parent_id);
 
-			if($newObj)
-			{
-				$parent_id = $this->node_id;
-				$this->node_id = null;
-				$this->putObjectInTree($newObj, $parent_id);
+                $this->afterSave($newObj);
+            } else {
+                $this->tpl->setOnScreenMessage('failure', $this->lng->txt("msg_failed"));
+            }
+        } else {
+            $this->tpl->setOnScreenMessage('failure', $this->lng->txt("select_one"));
+        }
+        $this->create();
+    }
 
-				$this->afterSave($newObj);
-			}
-			else
-			{
-				ilUtil::sendFailure($this->lng->txt("msg_failed"));
-			}
-		}
-		else
-		{
-			ilUtil::sendFailure($this->lng->txt("select_one"));
-		}
-		$this->create();
-	}
+    public function deliver(): void
+    {
+        $file = $this->object->getFilePath();
+        if ($file) {
+            ilFileDelivery::deliverFileLegacy($file, $this->object->getTitle() . ".pdf");
+        }
+    }
 
-	public function deliver()
-	{
-		$file = $this->object->getFilePath();
-		if($file)
-		{
-			ilUtil::deliverFile($file, $this->object->getTitle().".pdf");
-		}
-	}
+    public function render(bool $a_return = false, string $a_url = ''): string
+    {
+        global $DIC;
+        $ilUser = $DIC->user();
+        $lng = $DIC->language();
 
-	/**
-	 * Render content
-	 *
-	 * @param bool $a_return
-	 * @param string $a_url
-	 */
-	public function render($a_return = false, $a_url = false)
-	{
-		global $DIC;
-		$ilUser = $DIC['ilUser'];
-		$lng = $DIC['lng'];
+        if (!$a_return) {
+            $this->deliver();
+        } else {
+            $tree = new ilWorkspaceTree($ilUser->getId());
+            $wsp_id = $tree->lookupNodeId($this->object->getId());
 
-		if(!$a_return)
-		{
-			$this->deliver();
-		}
-		else
-		{
-			$tree = new ilWorkspaceTree($ilUser->getId());
-			$wsp_id = $tree->lookupNodeId($this->object->getId());
+            $caption = $lng->txt("wsp_type_scov") . ' "' . $this->object->getTitle() . '"';
 
-			$caption = $lng->txt("wsp_type_scov").' "'.$this->object->getTitle().'"';
+            $valid = true;
+            $message = '';
+            if (!file_exists($this->object->getFilePath())) {
+                $valid = false;
+                $message = $lng->txt("url_not_found");
+            } elseif (!$a_url) {
+                $access_handler = new ilWorkspaceAccessHandler($tree);
+                if (!$access_handler->checkAccess("read", "", $wsp_id)) {
+                    $valid = false;
+                    $message = $lng->txt("permission_denied");
+                }
+            }
 
-			$valid = true;
-			if(!file_exists($this->object->getFilePath()))
-			{
-				$valid = false;
-				$message = $lng->txt("url_not_found");
-			}
-			else if(!$a_url)
-			{
-				include_once "Services/PersonalWorkspace/classes/class.ilWorkspaceAccessHandler.php";
-				$access_handler = new ilWorkspaceAccessHandler($tree);
-				if(!$access_handler->checkAccess("read", "", $wsp_id))
-				{
-					$valid = false;
-					$message = $lng->txt("permission_denied");
-				}
-			}
+            if ($valid) {
+                if (!$a_url) {
+                    $a_url = $this->getAccessHandler()->getGotoLink($wsp_id, $this->object->getId());
+                }
+                return '<div><a href="' . $a_url . '">' . $caption . '</a></div>';
+            }
 
-			if($valid)
-			{
-				if(!$a_url)
-				{
-					$a_url = $this->getAccessHandler()->getGotoLink($wsp_id, $this->object->getId());
-				}
-				return '<div><a href="'.$a_url.'">'.$caption.'</a></div>';
-			}
-			else
-			{
-				return '<div>'.$caption.' ('.$message.')</div>';
-			}
-		}
-	}
+            return '<div>' . $caption . ' (' . $message . ')</div>';
+        }
 
-	function downloadFromPortfolioPage(ilPortfolioPage $a_page)
-	{
-		global $DIC;
-		$ilErr = $DIC['ilErr'];
+        return "";
+    }
 
-		include_once "Services/COPage/classes/class.ilPCVerification.php";
-		if(ilPCVerification::isInPortfolioPage($a_page, $this->object->getType(), $this->object->getId()))
-		{
-			$this->deliver();
-		}
+    public function downloadFromPortfolioPage(ilPortfolioPage $a_page): void
+    {
+        global $DIC;
+        $ilErr = $DIC['ilErr'];
 
-		$ilErr->raiseError($this->lng->txt('permission_denied'),$ilErr->MESSAGE);
-	}
+        if (ilPCVerification::isInPortfolioPage($a_page, $this->object->getType(), $this->object->getId())) {
+            $this->deliver();
+        }
 
-	public static function _goto($a_target)
-	{
-		$id = explode("_", $a_target);
+        $ilErr->raiseError($this->lng->txt('permission_denied'), $ilErr->MESSAGE);
+    }
 
-		$_GET["baseClass"] = "ilsharedresourceGUI";
-		$_GET["wsp_id"] = $id[0];
-		include("ilias.php");
-		exit;
-	}
+    public static function _goto(string $a_target): void
+    {
+        global $DIC;
+        $id = explode("_", $a_target);
+
+        $DIC->ctrl->setParameterByClass(
+            "ilsharedresourceGUI",
+            "wsp_id",
+            $id[0]
+        );
+        $DIC->ctrl->redirectByClass(ilSharedResourceGUI::class);
+    }
+
+    /**
+     * @param mixed $default
+     * @return mixed
+     */
+    protected function getRequestValue(string $key, $default = null)
+    {
+        if (isset($this->request->getQueryParams()[$key])) {
+            return $this->request->getQueryParams()[$key];
+        }
+
+        return $this->request->getParsedBody()[$key] ?? $default ?? null;
+    }
 }
-
-?>

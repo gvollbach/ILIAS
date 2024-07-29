@@ -1,9 +1,20 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/UIComponent/Toolbar/classes/class.ilToolbarGUI.php';
-require_once 'Services/UIComponent/Button/classes/class.ilLinkButton.php';
-require_once 'Services/Form/classes/class.ilSelectInputGUI.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * @author		Björn Heyser <bheyser@databay.de>
@@ -13,98 +24,90 @@ require_once 'Services/Form/classes/class.ilSelectInputGUI.php';
  */
 class ilTestSkillEvaluationToolbarGUI extends ilToolbarGUI
 {
-	const SKILL_PROFILE_PARAM = 'skill_profile';
+    public const SKILL_PROFILE_PARAM = 'skill_profile';
 
-	/**
-	 * @var ilCtrl
-	 */
-	private $ctrl;
+    private ilCtrl $ctrl;
 
-	private $parentGUI;
-	private $parentCMD;
+    private $parentGUI;
+    private $parentCMD;
+    private $availableSkillProfiles;
+    private $noSkillProfileOptionEnabled;
+    private $selectedEvaluationMode;
 
-	private $availableSkillProfiles;
+    public function __construct(ilCtrl $ctrl, ilLanguage $lng, $parentGUI, $parentCMD)
+    {
+        $this->ctrl = $ctrl;
 
-	private $noSkillProfileOptionEnabled;
+        $this->parentGUI = $parentGUI;
+        $this->parentCMD = $parentCMD;
 
-	private $selectedEvaluationMode;
+        parent::__construct();
+    }
 
-	public function __construct(ilCtrl $ctrl, ilLanguage $lng, $parentGUI, $parentCMD)
-	{
-		$this->ctrl = $ctrl;
+    public function setAvailableSkillProfiles($availableSkillProfiles): void
+    {
+        $this->availableSkillProfiles = $availableSkillProfiles;
+    }
 
-		$this->parentGUI = $parentGUI;
-		$this->parentCMD = $parentCMD;
+    public function getAvailableSkillProfiles()
+    {
+        return $this->availableSkillProfiles;
+    }
 
-		parent::__construct();
-	}
+    public function setNoSkillProfileOptionEnabled($noSkillProfileOptionEnabled): void
+    {
+        $this->noSkillProfileOptionEnabled = $noSkillProfileOptionEnabled;
+    }
 
-	public function setAvailableSkillProfiles($availableSkillProfiles)
-	{
-		$this->availableSkillProfiles = $availableSkillProfiles;
-	}
+    public function isNoSkillProfileOptionEnabled()
+    {
+        return $this->noSkillProfileOptionEnabled;
+    }
 
-	public function getAvailableSkillProfiles()
-	{
-		return $this->availableSkillProfiles;
-	}
+    public function setSelectedEvaluationMode($selectedEvaluationMode): void
+    {
+        $this->selectedEvaluationMode = $selectedEvaluationMode;
+    }
 
-	public function setNoSkillProfileOptionEnabled($noSkillProfileOptionEnabled)
-	{
-		$this->noSkillProfileOptionEnabled = $noSkillProfileOptionEnabled;
-	}
+    public function getSelectedEvaluationMode()
+    {
+        return $this->selectedEvaluationMode;
+    }
 
-	public function isNoSkillProfileOptionEnabled()
-	{
-		return $this->noSkillProfileOptionEnabled;
-	}
+    public function build(): void
+    {
+        $this->setFormAction($this->ctrl->getFormAction($this->parentGUI));
 
-	public function setSelectedEvaluationMode($selectedEvaluationMode)
-	{
-		$this->selectedEvaluationMode = $selectedEvaluationMode;
-	}
+        $select = new ilSelectInputGUI($this->lng->txt("tst_analysis"), self::SKILL_PROFILE_PARAM);
+        $select->setOptions($this->buildEvaluationModeOptionsArray());
+        $select->setValue($this->getSelectedEvaluationMode());
+        $this->addInputItem($select, true);
 
-	public function getSelectedEvaluationMode()
-	{
-		return $this->selectedEvaluationMode;
-	}
+        $this->addFormButton($this->lng->txt("select"), $this->parentCMD);
+    }
 
-	public function build()
-	{
-		$this->setFormAction($this->ctrl->getFormAction($this->parentGUI));
+    private function buildEvaluationModeOptionsArray(): array
+    {
+        $options = array();
 
-		$select = new ilSelectInputGUI($this->lng->txt("tst_analysis"), self::SKILL_PROFILE_PARAM);
-		$select->setOptions($this->buildEvaluationModeOptionsArray());
-		$select->setValue($this->getSelectedEvaluationMode());
-		$this->addInputItem($select, true);
+        if ($this->isNoSkillProfileOptionEnabled()) {
+            $options[0] = $this->lng->txt('tst_all_test_competences');
+            ;
+        }
 
-		$this->addFormButton($this->lng->txt("select"), $this->parentCMD);
-	}
+        foreach ($this->getAvailableSkillProfiles() as $skillProfileId => $skillProfileTitle) {
+            $options[$skillProfileId] = "{$this->lng->txt('tst_gap_analysis')}: {$skillProfileTitle}";
+        }
 
-	private function buildEvaluationModeOptionsArray()
-	{
-		$options = array();
+        return $options;
+    }
 
-		if( $this->isNoSkillProfileOptionEnabled() )
-		{
-			$options[0] =  $this->lng->txt('tst_all_test_competences');;
-		}
+    public static function fetchSkillProfileParam($postData): int
+    {
+        if (isset($postData[self::SKILL_PROFILE_PARAM])) {
+            return (int) $postData[self::SKILL_PROFILE_PARAM];
+        }
 
-		foreach($this->getAvailableSkillProfiles() as $skillProfileId => $skillProfileTitle)
-		{
-			$options[$skillProfileId] = "{$this->lng->txt('tst_gap_analysis')}: {$skillProfileTitle}";
-		}
-
-		return $options;
-	}
-
-	public static function fetchSkillProfileParam($postData)
-	{
-		if( isset($postData[self::SKILL_PROFILE_PARAM]) )
-		{
-			return (int)$postData[self::SKILL_PROFILE_PARAM];
-		}
-
-		return 0;
-	}
+        return 0;
+    }
 }

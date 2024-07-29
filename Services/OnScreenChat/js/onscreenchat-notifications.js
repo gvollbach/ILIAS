@@ -294,9 +294,10 @@
 			 */
 			gc() {
 				root.setInterval(function() {
-					let items = {...ls};
+					// https://caniuse.com/#feat=mdn-javascript_operators_destructuring_rest_in_objects
+					//let items = {...ls};
 
-					for (let key in items) {
+					for (let [key, value] of Object.entries(ls)) {
 						if (key.indexOf(lsScope) !== -1) {
 							let notification;
 
@@ -486,7 +487,7 @@
 		logger.debug("Started browser notification handling for incoming chat message with id: " + notification.uuid);
 
 		if (il.UICore.isPageVisible()) {
-			logger.debug("Current tab is visible, directly show message message. The user was able to notice the chat message: " + notification.uuid);
+			logger.debug("Current tab is visible, directly show message. The user was able to notice the chat message: " + notification.uuid);
 			delegateBrowserNotification(notification, true);
 			storage.markAsIgnored(notification);
 		} else {

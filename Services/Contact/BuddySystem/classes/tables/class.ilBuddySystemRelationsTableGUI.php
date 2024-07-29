@@ -1,5 +1,22 @@
-<?php declare(strict_types=1);
-/* Copyright (c) 1998-2015 ILIAS open source, Extended GPL, see docs/LICENSE */
+<?php
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilBuddyList
@@ -7,32 +24,22 @@
  */
 class ilBuddySystemRelationsTableGUI extends ilTable2GUI
 {
-    /** @var string */
-    const APPLY_FILTER_CMD = 'applyContactsTableFilter';
+    private const APPLY_FILTER_CMD = 'applyContactsTableFilter';
+    private const RESET_FILTER_CMD = 'resetContactsTableFilter';
+    public const STATE_FILTER_ELM_ID = 'relation_state_type';
 
-    /** @var string */
-    const RESET_FILTER_CMD = 'resetContactsTableFilter';
-
-    /** @var string */
-    const STATE_FILTER_ELM_ID = 'relation_state_type';
-
-    /** @var ilTemplate */
-    protected $containerTemplate;
-
-    /** @var bool */
-    protected $hasAccessToMailSystem = false;
-
-    /** @var bool */
-    protected $isChatEnabled = false;
-
-    /** @var ilObjUser */
-    protected $user;
+    protected ilGlobalTemplateInterface $containerTemplate;
+    protected bool $hasAccessToMailSystem = false;
+    protected bool $isChatEnabled = false;
+    protected ilObjUser $user;
+    /** @var array<string, mixed>  */
+    protected array $filter = [];
 
     /**
-     * @param        $a_parent_obj
+     * @param object $a_parent_obj
      * @param string $a_parent_cmd
      */
-    public function __construct($a_parent_obj, $a_parent_cmd)
+    public function __construct(object $a_parent_obj, string $a_parent_cmd)
     {
         global $DIC;
 
@@ -50,7 +57,7 @@ class ilBuddySystemRelationsTableGUI extends ilTable2GUI
         );
 
         $chatSettings = new ilSetting('chatroom');
-        $this->isChatEnabled = (bool) $chatSettings->get("chat_enabled", false);
+        $this->isChatEnabled = (bool) $chatSettings->get('chat_enabled', '0');
 
         $this->setDefaultOrderDirection('ASC');
         $this->setDefaultOrderField('public_name');
@@ -70,7 +77,7 @@ class ilBuddySystemRelationsTableGUI extends ilTable2GUI
 
         $this->addColumn($this->lng->txt('name'), 'public_name');
         $this->addColumn($this->lng->txt('login'), 'login');
-        $this->addColumn('', '');
+        $this->addColumn($this->lng->txt('buddy_tbl_state_actions_col_label'), '', '', false, 'ilRight');
 
         $this->setRowTemplate('tpl.buddy_system_relation_table_row.html', 'Services/Contact/BuddySystem');
         $this->setFormAction($this->ctrl->getFormAction($a_parent_obj, $a_parent_cmd));
@@ -84,7 +91,7 @@ class ilBuddySystemRelationsTableGUI extends ilTable2GUI
     /**
      * @inheritDoc
      */
-    public function initFilter()
+    public function initFilter(): void
     {
         $this->filters = [];
         $this->filter = [];
@@ -95,9 +102,14 @@ class ilBuddySystemRelationsTableGUI extends ilTable2GUI
         );
 
         $options = [];
-        $state = ilBuddySystemRelationStateFactory::getInstance()->getStatesAsOptionArray(false);
-        foreach ($state as $key => $option) {
-            $options[$key] = $option;
+        $state_factory = ilBuddySystemRelationStateFactory::getInstance();
+        foreach ($state_factory->getValidStates() as $state) {
+            if ($state->isInitial()) {
+                continue;
+            }
+
+            $state_filter_mapper = $state_factory->getTableFilterStateMapper($state);
+            $options += $state_filter_mapper->optionsForState();
         }
         $relations_state_selection->setOptions(['' => $this->lng->txt('please_choose')] + $options);
         $this->addFilterItem($relations_state_selection);
@@ -111,9 +123,25 @@ class ilBuddySystemRelationsTableGUI extends ilTable2GUI
     }
 
     /**
-     *
+     * @param string $filterKey
+     * @param mixed $value
+     * @return void
      */
-    public function populate() : void
+    public function applyFilterValue(string $filterKey, $value): void
+    {
+        foreach ([$this->getFilterItems(), $this->getFilterItems(true)] as $filterItems) {
+            foreach ($filterItems as $item) {
+                /** @var ilTableFilterItem|ilFormPropertyGUI $item */
+                if ($item->getPostVar() === $filterKey) {
+                    $item->setValueByArray([$filterKey => $value]);
+                    $item->writeToSession();
+                    break 2;
+                }
+            }
+        }
+    }
+
+    public function populate(): void
     {
         $this->setExternalSorting(false);
         $this->setExternalSegmentation(false);
@@ -123,14 +151,16 @@ class ilBuddySystemRelationsTableGUI extends ilTable2GUI
         $relations = ilBuddyList::getInstanceByGlobalUser()->getRelations();
 
         $state_filter = (string) $this->filter[self::STATE_FILTER_ELM_ID];
-        $relations = $relations->filter(function (ilBuddySystemRelation $relation) use ($state_filter) {
-            return !strlen($state_filter) || strtolower(get_class($relation->getState())) == strtolower($state_filter);
+        $state_factory = ilBuddySystemRelationStateFactory::getInstance();
+        $relations = $relations->filter(function (ilBuddySystemRelation $relation) use ($state_filter, $state_factory): bool {
+            $state_filter_mapper = $state_factory->getTableFilterStateMapper($relation->getState());
+            return $state_filter === '' || $state_filter_mapper->filterMatchesRelation($state_filter, $relation);
         });
 
         $public_names = ilUserUtil::getNamePresentation($relations->getKeys(), false, false, '', false, true, false);
         $logins = ilUserUtil::getNamePresentation($relations->getKeys(), false, false, '', false, false, false);
 
-        $logins = array_map(function ($value) {
+        $logins = array_map(static function (string $value): string {
             $matches = null;
             preg_match_all('/\[([^\[]+?)\]/', $value, $matches);
             return (
@@ -141,18 +171,29 @@ class ilBuddySystemRelationsTableGUI extends ilTable2GUI
             ) ? $matches[1][count($matches[1]) - 1] : '';
         }, $logins);
 
-        $public_name = (string) $this->filter['public_name'];
-        $relations = $relations->filter(function (ilBuddySystemRelation $relation) use (
-            $public_name,
+        $public_name_query = (string) ($this->filter['public_name'] ?? '');
+        $relations = $relations->filter(static function (ilBuddySystemRelation $relation) use (
+            $public_name_query,
             $relations,
             $public_names,
             $logins
-        ) {
-            return (
-                !strlen($public_name) ||
-                strpos(strtolower($public_names[$relations->getKey($relation)]), strtolower($public_name)) !== false ||
-                strpos(strtolower($logins[$relations->getKey($relation)]), strtolower($public_name)) !== false
+        ): bool {
+            $usrId = $relations->getKey($relation);
+
+            $hasMatchingName = (
+                0 === ilStr::strlen($public_name_query) ||
+                ilStr::strpos(
+                    ilStr::strtolower($public_names[$usrId]),
+                    ilStr::strtolower($public_name_query)
+                ) !== false ||
+                ilStr::strpos(ilStr::strtolower($logins[$usrId]), ilStr::strtolower($public_name_query)) !== false
             );
+
+            if (!$hasMatchingName) {
+                return false;
+            }
+
+            return ilObjUser::_lookupActive($usrId);
         });
 
         foreach ($relations->toArray() as $usr_id => $relation) {
@@ -169,16 +210,19 @@ class ilBuddySystemRelationsTableGUI extends ilTable2GUI
     /**
      * @inheritDoc
      */
-    protected function fillRow($a_set)
+    protected function fillRow(array $a_set): void
     {
         if ($this->hasAccessToMailSystem) {
-            $a_set['chb'] = ilUtil::formCheckbox(0, 'usr_id[]', $a_set['usr_id']);
+            $a_set['chb'] = ilLegacyFormElementsUtil::formCheckbox(false, 'usr_id[]', (string) $a_set['usr_id']);
         }
 
         $public_profile = ilObjUser::_lookupPref($a_set['usr_id'], 'public_profile');
-        if (!$this->user->isAnonymous() && $public_profile == 'y' || $public_profile == 'g') {
-            $this->ctrl->setParameterByClass('ilpublicuserprofilegui', 'user', $a_set['usr_id']);
-            $profile_target = $this->ctrl->getLinkTargetByClass('ilpublicuserprofilegui', 'getHTML');
+        if ((!$this->user->isAnonymous() && $public_profile === 'y') || $public_profile === 'g') {
+            $this->ctrl->setParameterByClass(ilPublicUserProfileGUI::class, 'user', $a_set['usr_id']);
+            $profile_target = $this->ctrl->getLinkTargetByClass(
+                ilPublicUserProfileGUI::class,
+                'getHTML'
+            );
             $a_set['profile_link'] = $profile_target;
             $a_set['linked_public_name'] = $a_set['public_name'];
 
@@ -196,17 +240,19 @@ class ilBuddySystemRelationsTableGUI extends ilTable2GUI
     /**
      * @inheritDoc
      */
-    public function render()
+    public function render(): string
     {
         $listener_tpl = new ilTemplate(
-            'tpl.buddy_system_relation_table_listener.html', true, true,
+            'tpl.buddy_system_relation_table_listener.html',
+            true,
+            true,
             'Services/Contact/BuddySystem'
         );
         $listener_tpl->setVariable('TABLE_ID', $this->getId());
         $listener_tpl->setVariable('FILTER_ELM_ID', self::STATE_FILTER_ELM_ID);
         $listener_tpl->setVariable(
             'NO_ENTRIES_TEXT',
-            $this->getNoEntriesText() ? $this->getNoEntriesText() : $this->lng->txt('no_items')
+            $this->getNoEntriesText() ?: $this->lng->txt('no_items')
         );
 
         return parent::render() . $listener_tpl->get();

@@ -1,74 +1,28 @@
 <?php
-// BEGIN WebDAV
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2001 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
-
 /**
- * Class ilObjFileAccessSettings*
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
  *
- * This class encapsulates accesses to settings which are relevant for file
- * accesses to ILIAS.
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
  *
- * @author  Werner Randelshofer, Hochschule Luzern, werner.randelshofer@hslu.ch
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
  *
- * @version $Id$
- *
- * @extends ilObject
- * @package WebDAV
- */
-
-include_once "./Services/Object/classes/class.ilObject.php";
+ *********************************************************************/
 
 class ilObjFileAccessSettings extends ilObject
 {
-
-    /**
-     * Boolean property. Set this to true, to enable WebDAV access to files.
-     */
-    private $webdavEnabled;
-    /**
-     * Boolean property. Set this to true, to enable versioning for existing files uploaded with WebDAV.
-     * Set this to false, to overwrite existing file version on file upload
-     */
-    private $webdavVersioningEnabled;
-    /**
-     * Boolean property. Set this to true, to make WebDAV item actions visible for repository items.
-     */
-    private $webdavActionsVisible;
-    /**
-     * Boolean property. Set this to true, to use customized mount instructions.
-     * If the value is false, the default mount instructions are used.
-     */
-    private $customWebfolderInstructionsEnabled;
-    /**
-     * String property. Customized mount instructions for WebDAV access to files.
-     */
-    private $customWebfolderInstructions;
     /**
      * String property. Contains a list of file extensions separated by space.
      * Files with a matching extension are displayed inline in the browser.
      * Non-matching files are offered for download to the user.
      */
-    private $inlineFileExtensions;
+    private string $inline_file_extensions = '';
     /** Boolean property.
      *
      * If this variable is true, the filename of downloaded
@@ -77,195 +31,58 @@ class ilObjFileAccessSettings extends ilObject
      * If this variable is false, the filename of downloaded
      * files is the title of the file object.
      */
-    private $downloadWithUploadedFilename;
-
+    private bool $download_with_uploaded_filename = false;
+    private ilIniFile $ini_file;
+    private ilSetting $settings;
 
     /**
      * Constructor
-     *
-     * @param integer    reference_id or object_id
-     * @param boolean    treat the id as reference_id (true) or object_id (false)
      */
-    public function __construct($a_id = 0, $a_call_by_reference = true)
+    public function __construct(int $a_id = 0, bool $a_call_by_reference = true)
     {
+        global $DIC;
+
         $this->type = "facs";
         parent::__construct($a_id, $a_call_by_reference);
-    }
-
-
-    /**
-     * Sets the webdavEnabled property.
-     *
-     * @param boolean    new value
-     *
-     * @return    void
-     */
-    public function setWebdavEnabled($newValue)
-    {
-        $this->webdavEnabled = $newValue;
-    }
-
-
-    /**
-     * Gets the webdavEnabled property.
-     *
-     * @return    boolean    value
-     */
-    public function isWebdavEnabled()
-    {
-        return $this->webdavEnabled;
-    }
-
-
-    public function setWebdavVersioningEnabled($newValue)
-    {
-        $this->webdavVersioningEnabled = $newValue;
-    }
-
-
-    public function isWebdavVersioningEnabled()
-    {
-        return $this->webdavVersioningEnabled;
-    }
-
-
-    /**
-     * Sets the webdavActionsVisible property.
-     *
-     * @param boolean    new value
-     *
-     * @return    void
-     */
-    public function setWebdavActionsVisible($newValue)
-    {
-        $this->webdavActionsVisible = $newValue;
-    }
-
-
-    /**
-     * Gets the webdavActionsVisible property.
-     *
-     * @return    boolean    value
-     */
-    public function isWebdavActionsVisible()
-    {
-        return $this->webdavActionsVisible;
-    }
-
-
-    /**
-     * Sets the customWebfolderInstructions property.
-     *
-     * The webfolder instructions consist of HTML text, with placeholders.
-     * See ilDAVServer::_getWebfolderInstructionsFor for a description of
-     * the supported placeholders.
-     *
-     * @param string    HTML text with placeholders.
-     *
-     * @return    void
-     */
-    public function setCustomWebfolderInstructions($newValue)
-    {
-        $this->customWebfolderInstructions = $newValue;
-    }
-
-
-    /**
-     * Gets the customWebfolderInstructions property.
-     *
-     * @return    boolean    value
-     */
-    public function getCustomWebfolderInstructions()
-    {
-        if (strlen($this->customWebfolderInstructions) == 0) {
-            $this->customWebfolderInstructions = self::_getDefaultWebfolderInstructions();
-        }
-
-        return $this->customWebfolderInstructions;
-    }
-
-
-    /**
-     * Gets the defaultWebfolderInstructions property.
-     * This is a read only property. The text is retrieved from $lng.
-     *
-     * @return    String    value
-     */
-    public function getDefaultWebfolderInstructions()
-    {
-        return self::_getDefaultWebfolderInstructions();
-    }
-
-
-    /**
-     * Gets the customWebfolderInstructionsEnabled property.
-     *
-     * @return    boolean    value
-     */
-    public function isCustomWebfolderInstructionsEnabled()
-    {
-        return $this->customWebfolderInstructionsEnabled;
-    }
-
-
-    /**
-     * Sets the customWebfolderInstructionsEnabled property.
-     *
-     * @param boolean new value.
-     *
-     * @return    void
-     */
-    public function setCustomWebfolderInstructionsEnabled($newValue)
-    {
-        $this->customWebfolderInstructionsEnabled = $newValue;
+        $this->ini_file = $DIC['ilClientIniFile'];
+        $this->settings = new ilSetting('file_access');
     }
 
 
     /**
      * Sets the inlineFileExtensions property.
      *
-     * @param string    new value, a space separated list of filename extensions.
-     *
-     * @return    void
+     * @param string $value a space separated list of filename extensions.
      */
-    public function setInlineFileExtensions($newValue)
+    public function setInlineFileExtensions(string $value): void
     {
-        $this->inlineFileExtensions = $newValue;
+        $this->inline_file_extensions = $value;
     }
 
 
     /**
      * Gets the inlineFileExtensions property.
-     *
-     * @return    boolean    value
      */
-    public function getInlineFileExtensions()
+    public function getInlineFileExtensions(): string
     {
-        return $this->inlineFileExtensions;
+        return $this->inline_file_extensions;
     }
 
 
     /**
      * Sets the downloadWithUploadedFilename property.
-     *
-     * @param boolean
-     *
-     * @return    void
      */
-    public function setDownloadWithUploadedFilename($newValue)
+    public function setDownloadWithUploadedFilename(bool $value): void
     {
-        $this->downloadWithUploadedFilename = $newValue;
+        $this->download_with_uploaded_filename = $value;
     }
-
 
     /**
      * Gets the downloadWithUploadedFilename property.
-     *
-     * @return    boolean    value
      */
-    public function isDownloadWithUploadedFilename()
+    public function isDownloadWithUploadedFilename(): bool
     {
-        return $this->downloadWithUploadedFilename;
+        return $this->download_with_uploaded_filename;
     }
 
 
@@ -276,130 +93,59 @@ class ilObjFileAccessSettings extends ilObject
      *
      * @return    integer        object id
      */
-    public function create()
+    public function create(): int
     {
-        parent::create();
+        $id = parent::create();
         $this->write();
+
+        return $id;
     }
 
 
     /**
      * update object in db
-     *
-     * @return    boolean    true on success
      */
-    public function update()
+    public function update(): bool
     {
         parent::update();
         $this->write();
+
+        return true;
     }
 
 
     /**
      * write object data into db
-     *
-     * @param boolean
      */
-    private function write()
+    private function write(): void
     {
-        global $DIC;
-        $ilClientIniFile = $DIC['ilClientIniFile'];
-        $settings = new ilSetting('file_access');
-
-        // Clear any old error messages
-        $ilClientIniFile->error(null);
-
-        if (!$ilClientIniFile->groupExists('file_access')) {
-            $ilClientIniFile->addGroup('file_access');
+        if (!$this->ini_file->groupExists('file_access')) {
+            $this->ini_file->addGroup('file_access');
         }
-        $ilClientIniFile->setVariable('file_access', 'webdav_enabled', $this->webdavEnabled ? '1' : '0');
-        $settings->set('webdav_versioning_enabled', $this->webdavVersioningEnabled ? '1' : '0');
-        $ilClientIniFile->setVariable('file_access', 'webdav_actions_visible', $this->webdavActionsVisible ? '1' : '0');
-        $ilClientIniFile->setVariable('file_access', 'download_with_uploaded_filename', $this->downloadWithUploadedFilename ? '1' : '0');
-        $ilClientIniFile->write();
-
-        if ($ilClientIniFile->getError()) {
-            global $DIC;
-            $ilErr = $DIC['ilErr'];
-            $ilErr->raiseError($ilClientIniFile->getError(), $ilErr->WARNING);
+        $this->ini_file->setVariable(
+            'file_access',
+            'download_with_uploaded_filename',
+            $this->download_with_uploaded_filename ? '1' : '0'
+        );
+        $this->ini_file->write();
+        if ($this->ini_file->getError()) {
         }
-
-        require_once 'Services/Administration/classes/class.ilSetting.php';
-        $settings->set('inline_file_extensions', $this->inlineFileExtensions);
-        $settings->set('custom_webfolder_instructions_enabled', $this->customWebfolderInstructionsEnabled ? '1' : '0');
-        $settings->set('custom_webfolder_instructions', $this->customWebfolderInstructions);
+        $this->settings->set('inline_file_extensions', $this->inline_file_extensions);
     }
 
 
     /**
      * read object data from db into object
      */
-    public function read()
+    public function read(): void
     {
         parent::read();
 
-        global $DIC;
-        $settings = new ilSetting('file_access');
-        $ilClientIniFile = $DIC['ilClientIniFile'];
-        $this->webdavEnabled = $ilClientIniFile->readVariable('file_access', 'webdav_enabled') == '1';
-        // default_value = 1 for versionigEnabled because it was already standard before ilias5.4
-        $this->webdavVersioningEnabled = $settings->get('webdav_versioning_enabled', '1') == '1';
-        $this->webdavActionsVisible = $ilClientIniFile->readVariable('file_access', 'webdav_actions_visible') == '1';
-        $this->downloadWithUploadedFilename = $ilClientIniFile->readVariable('file_access', 'download_with_uploaded_filename') == '1';
-        $ilClientIniFile->ERROR = false;
+        $this->download_with_uploaded_filename = $this->ini_file->readVariable(
+            'file_access',
+            'download_with_uploaded_filename'
+        ) === '1';
 
-        require_once 'Services/Administration/classes/class.ilSetting.php';
-        $this->inlineFileExtensions = $settings->get('inline_file_extensions', '');
-        $this->customWebfolderInstructionsEnabled = $settings->get('custom_webfolder_instructions_enabled', '0') == '1';
-        //$this->webdavSpecialCharsHandling = $settings->get('');
-        $this->customWebfolderInstructions = $settings->get('custom_webfolder_instructions', '');
+        $this->inline_file_extensions = $this->settings->get('inline_file_extensions', '');
     }
-
-
-    /**
-     * TODO: Check if needed and refactor
-     *
-     * Gets instructions for the usage of webfolders.
-     *
-     * The instructions consist of HTML text with placeholders.
-     * See _getWebfolderInstructionsFor for a description of the supported
-     * placeholders.
-     *
-     * @return String HTML text with placeholders.
-     */
-    public static function _getDefaultWebfolderInstructions()
-    {
-        global $lng;
-
-        return $lng->txt('webfolder_instructions_text');
-    }
-
-
-    /**
-     * TODO: Check if needed and refactor
-     *
-     * Gets the maximum permitted upload filesize from php.ini in bytes.
-     *
-     * @return int Upload Max Filesize in bytes.
-     */
-    private function getUploadMaxFilesize()
-    {
-        $val = ini_get('upload_max_filesize');
-
-        $val = trim($val);
-        $last = strtolower($val[strlen($val) - 1]);
-        switch ($last) {
-            // The 'G' modifier is available since PHP 5.1.0
-            case 'g':
-                $val *= 1024;
-            case 'm':
-                $val *= 1024;
-            case 'k':
-                $val *= 1024;
-        }
-
-        return $val;
-    }
-} // END class.ilObjFileAccessSettings
-// END WebDAV
-?>
+}

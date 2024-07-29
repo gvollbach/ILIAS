@@ -1,219 +1,190 @@
 <?php
-include_once('./Services/Table/classes/class.ilTable2GUI.php');
-include_once('./Services/History/classes/class.ilHistory.php');
-include_once('./Services/User/classes/class.ilUserUtil.php');
+
 /**
- * Copyright (c) 1998-2014 ILIAS open source, Extended GPL, see docs/LICENSE
- * Date: 24.10.14
- * Time: 10:35
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Lists History entrys in chronological order
+ *
+ * @author Fabian Wolf <wolf@leifos.com>
  */
-/**
-* Lists History entrys in chronological order
-*
-* @author Fabian Wolf <wolf@leifos.com>
-* @version $Id$
-*
-* @ingroup ModuleHistory
-*/
 class ilHistoryTableGUI extends ilTable2GUI
 {
-	protected  $obj_id;
-	protected  $obj_type;
-	protected $ref_id;
-	protected $ilCtrl;
+    protected int $obj_id;
+    protected string $obj_type;
+    protected int $ref_id;
+    protected ilCtrl $ilCtrl;
+    protected bool $comment_visibility = false;
 
-	protected  $comment_visibility = false;
 
-	
-	function __construct($a_parent_obj, $a_parent_cmd, $a_obj_id, $a_obj_type = null)
-	{
-		global $DIC;
+    public function __construct(
+        object $a_parent_obj,
+        string $a_parent_cmd,
+        int $a_obj_id,
+        string $a_obj_type = null
+    ) {
+        global $DIC;
 
-		$ilCtrl = $DIC->ctrl();
-		parent::__construct($a_parent_obj, $a_parent_cmd);
+        $ilCtrl = $DIC->ctrl();
+        parent::__construct($a_parent_obj, $a_parent_cmd);
 
-		$this->setObjId($a_obj_id);
-		$this->setObjType($a_obj_type);
-		$this->ilCtrl = $ilCtrl;
-	}
-	
-	/**
-	* Get data and put it into an array
-	*/
-	public function getDataFromDb()
-	{
-		$entries = ilHistory::_getEntriesForObject($this->getObjId(), $this->getObjType());
-		$this->setData($entries);
-	}
+        $this->setObjId($a_obj_id);
+        $this->setObjType($a_obj_type);
+        $this->ilCtrl = $ilCtrl;
+    }
 
-	/**
-	 * init table
-	 */
-	public function initTable()
-	{
-		$this->setRowTemplate("tpl.history_row.html", "Services/History");
-		$this->setFormAction($this->ilCtrl->getFormAction($this->getParentObject()));
+    public function getDataFromDb(): void
+    {
+        $entries = ilHistory::_getEntriesForObject($this->getObjId(), $this->getObjType());
+        $this->setData($entries);
+    }
 
-		$this->setTitle($this->lng->txt("history"));
-		$this->addColumn($this->lng->txt("user"), "", "25%");
-		$this->addColumn($this->lng->txt("date"), "", "25%");
-		$this->addColumn($this->lng->txt("action"), "", "50%");
+    public function initTable(): void
+    {
+        $this->setRowTemplate("tpl.history_row.html", "Services/History");
+        $this->setFormAction($this->ilCtrl->getFormAction($this->getParentObject()));
 
-		$this->getDataFromDb();
-	}
-	
-	/**
-	* Fill a single data row.
-	*/
-	protected function fillRow($a_set)
-	{
-		$this->tpl->setVariable("TXT_USER",ilUserUtil::getNamePresentation($a_set["user_id"], false,false));
-		$this->tpl->setVariable('TXT_DATE',
-			ilDatePresentation::formatDate(new ilDateTime($a_set["date"],IL_CAL_DATETIME)));
-		$this->tpl->setVariable("TXT_ACTION", $this->createInfoText($a_set));
+        $this->setTitle($this->lng->txt("history"));
+        $this->addColumn($this->lng->txt("user"), "", "25%");
+        $this->addColumn($this->lng->txt("date"), "", "25%");
+        $this->addColumn($this->lng->txt("action"), "", "50%");
 
-		if ($this->getObjType() == "lm")
-		{
-			$obj_arr = explode(":", $a_set["obj_type"]);
-			switch ($obj_arr[1])
-			{
-				case "st":
-					$img_type = "st";
-					$class = "ilstructureobjectgui";
-					$cmd = "view";
-					break;
+        $this->getDataFromDb();
+    }
 
-				case "pg":
-					$img_type = "pg";
-					$class = "illmpageobjectgui";
-					$cmd = "edit";
-					break;
+    protected function fillRow(array $a_set): void
+    {
+        $this->tpl->setVariable("TXT_USER", ilUserUtil::getNamePresentation($a_set["user_id"], false, false));
+        $this->tpl->setVariable(
+            'TXT_DATE',
+            ilDatePresentation::formatDate(new ilDateTime($a_set["date"], IL_CAL_DATETIME))
+        );
+        $this->tpl->setVariable("TXT_ACTION", $this->createInfoText($a_set));
 
-				default:
-					$img_type = $obj_arr[0];
-					$class = "";
-					$cmd = "view";
-					break;
-			}
+        if ($this->getObjType() == "lm") {
+            $obj_arr = explode(":", $a_set["obj_type"]);
+            switch ($obj_arr[1] ?? "") {
+                case "st":
+                    $img_type = "st";
+                    $class = "ilstructureobjectgui";
+                    $cmd = "view";
+                    break;
 
-			$this->tpl->setCurrentBlock("item_icon");
-			$this->tpl->setVariable("SRC_ICON", ilUtil::getImagePath("icon_".$img_type.".svg"));
-			$this->tpl->parseCurrentBlock();
+                case "pg":
+                    $img_type = "pg";
+                    $class = "illmpageobjectgui";
+                    $cmd = "edit";
+                    break;
 
-			if ($class != "")
-			{
-				$this->tpl->setCurrentBlock("item_link");
-				$this->ilCtrl->setParameterByClass($class, "obj_id", $a_set["obj_id"]);
-				$this->tpl->setVariable("HREF_LINK",
-					$this->ilCtrl->getLinkTargetByClass($class, $cmd));
-				$this->tpl->setVariable("TXT_LINK", $a_set["title"]);
-				$this->tpl->parseCurrentBlock();
-			}
-			else
-			{
-				$this->tpl->setCurrentBlock("item_title");
-				$this->tpl->setVariable("TXT_TITLE",
-					ilObject::_lookupTitle($a_set["obj_id"]));
-				$this->tpl->parseCurrentBlock();
-			}
-		}
+                default:
+                    $img_type = $obj_arr[0] ?? "";
+                    $class = "";
+                    $cmd = "view";
+                    break;
+            }
 
-		if ($this->isCommentVisible() && $a_set["user_comment"] != "")
-		{
-			$this->tpl->setCurrentBlock("user_comment");
-			$this->tpl->setVariable("TXT_COMMENT", $this->lng->txt("comment"));
-			$this->tpl->setVariable("TXT_USER_COMMENT", $a_set["user_comment"]);
-			$this->tpl->parseCurrentBlock();
-		}
-	}
+            $this->tpl->setCurrentBlock("item_icon");
+            $this->tpl->setVariable("SRC_ICON",
+                ilUtil::getImagePath("icon_" . $img_type . ".svg")
+            );
+            $this->tpl->parseCurrentBlock();
 
-	/**
-	 * format info parameters into info text
-	 * @param $a_set
-	 * @return mixed|string
-	 */
-	protected function createInfoText($a_set)
-	{
-		$info_params = explode(",", $a_set["info_params"]);
+            if ($class != "") {
+                $this->tpl->setCurrentBlock("item_link");
+                $this->ilCtrl->setParameterByClass($class, "obj_id", $a_set["obj_id"]);
+                $this->tpl->setVariable(
+                    "HREF_LINK",
+                    $this->ilCtrl->getLinkTargetByClass($class, $cmd)
+                );
+                $this->tpl->setVariable("TXT_LINK", $a_set["title"]);
+            } else {
+                $this->tpl->setCurrentBlock("item_title");
+                $this->tpl->setVariable(
+                    "TXT_TITLE",
+                    ilObject::_lookupTitle($a_set["obj_id"])
+                );
+            }
+            $this->tpl->parseCurrentBlock();
+        }
 
-		switch($this->getObjType())
-		{
-			case "lm":
-				$info_text = $this->lng->txt("hist_".str_replace(":", "_", $a_set["obj_type"]).
-			"_".$a_set["action"]);
-				break;
-			default:
-				$info_text = $this->lng->txt("hist_".str_replace(":", "_", $this->getObjType()).
-					"_".$a_set["action"]);
-				break;
-		}
+        if ($this->isCommentVisible() && $a_set["user_comment"] != "") {
+            $this->tpl->setCurrentBlock("user_comment");
+            $this->tpl->setVariable("TXT_COMMENT", $this->lng->txt("comment"));
+            $this->tpl->setVariable("TXT_USER_COMMENT", $a_set["user_comment"]);
+            $this->tpl->parseCurrentBlock();
+        }
+    }
 
-		$i=1;
-		foreach($info_params as $info_param)
-		{
-			$info_text = str_replace("%".$i, $info_param, $info_text);
-			$i++;
-		}
+    /**
+     * format info parameters into info text
+     */
+    protected function createInfoText(array $a_set): string
+    {
+        $info_params = explode(",", $a_set["info_params"]);
 
-		return $info_text;
-	}
+        switch ($this->getObjType()) {
+            case "lm":
+                $info_text = $this->lng->txt("hist_" . str_replace(":", "_", $a_set["obj_type"]) .
+            "_" . $a_set["action"]);
+                break;
+            default:
+                $info_text = $this->lng->txt("hist_" . str_replace(":", "_", $this->getObjType()) .
+                    "_" . $a_set["action"]);
+                break;
+        }
 
-	/**
-	 * set comments visible
-	 *
-	 * @param $a_visible
-	 */
-	public function setCommentVisibility($a_visible)
-	{
-		$this->comment_visibility = (bool)$a_visible;
-	}
+        $i = 1;
+        foreach ($info_params as $info_param) {
+            $info_text = str_replace("%" . $i, $info_param, $info_text);
+            $i++;
+        }
 
-	/**
-	 * comments visible?
-	 * @return bool
-	 */
-	public function isCommentVisible()
-	{
-		return $this->comment_visibility;
-	}
+        return $info_text;
+    }
 
-	/**
-	 * set object id
-	 * @param $a_obj_id
-	 */
-	public function setObjId($a_obj_id)
-	{
-		$this->obj_id = $a_obj_id;
-	}
+    public function setCommentVisibility(bool $a_visible): void
+    {
+        $this->comment_visibility = $a_visible;
+    }
 
-	/**
-	 * get object id
-	 * @return mixed
-	 */
-	public function getObjId()
-	{
-		return $this->obj_id;
-	}
+    public function isCommentVisible(): bool
+    {
+        return $this->comment_visibility;
+    }
 
-	/**
-	 * set object type (not required)
-	 * @param $a_obj_type
-	 */
-	public function setObjType($a_obj_type)
-	{
-		$this->obj_type = $a_obj_type;
-	}
+    public function setObjId(int $a_obj_id): void
+    {
+        $this->obj_id = $a_obj_id;
+    }
 
-	/**
-	 * get object type (if not set, it will be set via object id)
-	 * @return mixed
-	 */
-	public function getObjType()
-	{
-		if(!$this->obj_type)
-		{
-			$this->setObjType(ilObject::_lookupType($this->getObjId()));
-		}
-		return $this->obj_type;
-	}
+    public function getObjId(): int
+    {
+        return $this->obj_id;
+    }
+
+    public function setObjType(string $a_obj_type): void
+    {
+        $this->obj_type = $a_obj_type;
+    }
+
+    public function getObjType(): string
+    {
+        if (!$this->obj_type) {
+            $this->setObjType(ilObject::_lookupType($this->getObjId()));
+        }
+        return $this->obj_type;
+    }
 }

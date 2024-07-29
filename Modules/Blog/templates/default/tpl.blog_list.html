@@ -3,7 +3,7 @@
 <br class="ilClearFloat" />
 <!-- END prtf_edit_bl -->
 <!-- BEGIN month_bl -->
-<h3 class="ilHeader">{TXT_CURRENT_MONTH}</h3>
+<h2 class="ilHeader">{TXT_CURRENT_MONTH}</h2>
 <div class="ilBlogList">
 	<!-- BEGIN posting -->
 	<div class="ilBlogListItem{DRAFT_CLASS}">
@@ -18,6 +18,9 @@
 		<div class="ilBlogListItemTitle">
 			<h3><a href="{URL_TITLE}">{TITLE}</a></h3>
 		</div>
+		<!-- BEGIN reading_time -->
+		<div class="ilBlogListItemSubTitle" style="float:left">{READING_TIME}</div>
+		<!-- END reading_time -->
 		<div class="ilBlogListItemSubTitle">{DATETIME}</div>
 		<div class="ilBlogListItemSnippet">
 			{CONTENT}

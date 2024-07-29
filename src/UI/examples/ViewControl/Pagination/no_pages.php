@@ -1,5 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
+namespace ILIAS\UI\examples\ViewControl\Pagination;
+
 function no_pages()
 {
     global $DIC;
@@ -13,7 +17,6 @@ function no_pages()
 
     $pagination_onepage = $pagination->withTotalEntries(9);
     $pagination_limited = $pagination->withMaxPaginationButtons(5);
-
 
     return $renderer->render($pagination)
         . '<hr>'

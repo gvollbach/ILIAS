@@ -1,443 +1,343 @@
 <?php
+
+declare(strict_types=1);
 /* Copyright (c) 1998-2015 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once './Services/Object/classes/class.ilObjectGUI.php';
+use ILIAS\DI\Container;
+use ILIAS\Refinery\Factory as Refinery;
+use ILIAS\HTTP\Services as Services;
 
-/** 
+/**
 *
 * @author Stefan Meyer <meyer@leifos.com>
 * @version $Id$
-* 
-* 
+*
+*
 * @ilCtrl_Calls ilObjLoggingSettingsGUI: ilPermissionGUI
 */
 class ilObjLoggingSettingsGUI extends ilObjectGUI
 {
-	const SECTION_SETTINGS = 'settings';
-	const SUB_SECTION_MAIN = 'log_general_settings';
-	const SUB_SECTION_COMPONENTS = 'log_components';
-	const SUB_SECTION_ERROR = 'log_error_settings';
-	
-	
-	public $tpl;
-	public $lng;
-	public $ctrl;
-	/**
-	 * @var \ILIAS\DI\Container
-	 */
-	protected $dic;
-	protected $tabs_gui;
-	protected $form;
-	protected $settings;
-	
-	
-	protected $log;
-	
-	
+    protected const SECTION_SETTINGS = 'settings';
+    protected const SUB_SECTION_MAIN = 'log_general_settings';
+    protected const SUB_SECTION_COMPONENTS = 'log_components';
+    protected const SUB_SECTION_ERROR = 'log_error_settings';
 
-	/**
-	 * Constructor
-	 *
-	 * @access public
-	 */
-	public function __construct($a_data, $a_id, $a_call_by_reference, $a_prepare_output = true)
-	{
-		global $DIC;
-		
-		$this->type = 'logs';
-		parent::__construct($a_data, $a_id, $a_call_by_reference, $a_prepare_output);
+    protected ilLoggingDBSettings $log_settings;
+    protected ilLogger $log;
+    protected ilLoggingErrorSettings $error_settings;
+    protected Refinery $refinery;
+    protected Services $http;
 
-		$this->dic = $DIC;
-		$this->lng = $this->dic->language();
+    /**
+     *
+     * @param mixed $a_data
+     * @param boolean $a_prepare_output
+     */
+    public function __construct($a_data, int $a_id, bool $a_call_by_reference, bool $a_prepare_output = true)
+    {
+        global $DIC;
 
-		$this->tpl = $this->dic['tpl'];
-		$this->lng = $this->dic->language();
-		$this->ctrl = $this->dic->ctrl();
-		$this->tabs_gui = $this->dic->tabs();
+        $this->type = 'logs';
+        parent::__construct($a_data, $a_id, $a_call_by_reference, $a_prepare_output);
 
-		$this->initSettings();
-		$this->initErrorSettings();
-		$this->lng->loadLanguageModule('logging');
-		$this->lng->loadLanguageModule('log');
-		
-		include_once './Services/Logging/classes/public/class.ilLoggerFactory.php';
-		$this->log = ilLoggerFactory::getLogger('log');
-		
-	}
-	
-	/**
-	 * 
-	 * @return ilLogger
-	 */
-	public function getLogger()
-	{
-		return $this->log;
-	}
+        $this->lng = $DIC->language();
 
-	/**
-	 * Execute command
-	 *
-	 * @access public
-	 *
-	 */
-	public function executeCommand()
-	{
-		$next_class = $this->ctrl->getNextClass($this);
-		$cmd = $this->ctrl->getCmd();
-		$this->prepareOutput();
+        $this->initSettings();
+        $this->initErrorSettings();
+        $this->lng->loadLanguageModule('logging');
+        $this->lng->loadLanguageModule('log');
+        $this->log = ilLoggerFactory::getLogger('log');
 
-		switch($next_class)
-		{
-			case 'ilpermissiongui':
-				$this->tabs_gui->setTabActive('perm_settings');
-				include_once("Services/AccessControl/classes/class.ilPermissionGUI.php");
-				$perm_gui = new ilPermissionGUI($this);
-				$ret =& $this->ctrl->forwardCommand($perm_gui);
-				break;
+        $this->http = $DIC->http();
+        $this->refinery = $DIC->refinery();
+    }
 
-			default:
-				if($cmd == "" || $cmd == "view")
-				{
-					$cmd = "settings";
-				}
-				$this->$cmd();
+    public function getLogger(): ilLogger
+    {
+        return $this->log;
+    }
 
-				break;
-		}
-		return true;
-	}
-	
+    public function executeCommand(): void
+    {
+        $next_class = $this->ctrl->getNextClass($this);
+        $cmd = $this->ctrl->getCmd();
+        $this->prepareOutput();
 
-	/**
-	 * Get tabs
-	 *
-	 * @access public
-	 *
-	 */
-	public function getAdminTabs()
-	{
-		global $DIC;
+        switch ($next_class) {
+            case 'ilpermissiongui':
+                $this->tabs_gui->setTabActive('perm_settings');
+                $perm_gui = new ilPermissionGUI($this);
+                $this->ctrl->forwardCommand($perm_gui);
+                break;
 
-		$ilAccess = $DIC['ilAccess'];
-		
- 		if ($ilAccess->checkAccess("read",'',$this->object->getRefId()))
-		{
-			$this->tabs_gui->addTarget(
-				static::SECTION_SETTINGS,
-				$this->ctrl->getLinkTargetByClass('ilobjloggingsettingsgui', "settings")
-			);
-		}
-		if ($ilAccess->checkAccess('edit_permission','',$this->object->getRefId()))
-		{
-			$this->tabs_gui->addTarget(
-				"perm_settings",
-				$this->ctrl->getLinkTargetByClass('ilpermissiongui',"perm")
-			);
-		}
-	}
-	
-	public function setSubTabs($a_section)
-	{
-		$this->tabs_gui->addSubTab(
-				static::SUB_SECTION_MAIN,
-				$this->lng->txt(static::SUB_SECTION_MAIN),
-				$this->ctrl->getLinkTarget($this,'settings')
-		);
-		$this->tabs_gui->addSubTab(
-				static::SUB_SECTION_ERROR,
-				$this->lng->txt(static::SUB_SECTION_ERROR),
-				$this->ctrl->getLinkTarget($this,'errorSettings')
-		);
-		$this->tabs_gui->addSubTab(
-				static::SUB_SECTION_COMPONENTS,
-				$this->lng->txt(static::SUB_SECTION_COMPONENTS),
-				$this->ctrl->getLinkTarget($this,'components')
-		);
-		
-		$this->tabs_gui->activateSubTab($a_section);
-	}
+            default:
+                if ($cmd == "" || $cmd == "view") {
+                    $cmd = "settings";
+                }
+                $this->$cmd();
 
-	protected function initSettings()
-	{
-		include_once("Services/Logging/classes/class.ilLoggingDBSettings.php");
-		$this->settings = ilLoggingDBSettings::getInstance();
-	}
-	
-	/**
-	 * Get log settings
-	 * @return ilLogSettings
-	 */
-	public function getSettings()
-	{
-		return $this->settings;
-	}
+                break;
+        }
+    }
 
-	/**
-	 * Show settings
-	 * @access	public
-	 */
-	public function settings(ilPropertyFormGUI $form = null)
-	{
-		global $DIC;
 
-		if (!$this->rbacsystem->checkAccess("visible,read", $this->object->getRefId()))
-		{
-			$DIC['ilErr']->raiseError($this->lng->txt('permission_denied'),$DIC['ilErr']->MESSAGE);
-		}
-		
-		$this->tabs_gui->setTabActive(static::SECTION_SETTINGS);
-		$this->setSubTabs(static::SUB_SECTION_MAIN);
-		
-		if(!$form instanceof ilPropertyFormGUI)
-		{
-			$form = $this->initFormSettings();
-		}
-		$this->tpl->setContent($form->getHTML());
+    public function getAdminTabs(): void
+    {
+        if ($this->access->checkAccess("read", '', $this->object->getRefId())) {
+            $this->tabs_gui->addTarget(
+                static::SECTION_SETTINGS,
+                $this->ctrl->getLinkTargetByClass('ilobjloggingsettingsgui', "settings")
+            );
+        }
+        if ($this->access->checkAccess('edit_permission', '', $this->object->getRefId())) {
+            $this->tabs_gui->addTarget(
+                "perm_settings",
+                $this->ctrl->getLinkTargetByClass('ilpermissiongui', "perm")
+            );
+        }
+    }
 
-		$this->getLogger()->debug('Currrent level is '.$this->getSettings()->getLevel());
-		
-		return TRUE;
-	}
+    public function setSubTabs(string $a_section): void
+    {
+        $this->tabs_gui->addSubTab(
+            static::SUB_SECTION_MAIN,
+            $this->lng->txt(static::SUB_SECTION_MAIN),
+            $this->ctrl->getLinkTarget($this, 'settings')
+        );
+        $this->tabs_gui->addSubTab(
+            static::SUB_SECTION_ERROR,
+            $this->lng->txt(static::SUB_SECTION_ERROR),
+            $this->ctrl->getLinkTarget($this, 'errorSettings')
+        );
+        $this->tabs_gui->addSubTab(
+            static::SUB_SECTION_COMPONENTS,
+            $this->lng->txt(static::SUB_SECTION_COMPONENTS),
+            $this->ctrl->getLinkTarget($this, 'components')
+        );
+        $this->tabs_gui->activateSubTab($a_section);
+    }
 
-	/**
-	 * Save settings
-	 * @access	public
-	 */
-	public function updateSettings()
-	{
-		include_once 'Services/WebServices/RPC/classes/class.ilRPCServerSettings.php';
+    protected function initSettings()
+    {
+        $this->log_settings = ilLoggingDBSettings::getInstance();
+    }
 
-		global $DIC;
+    public function getSettings(): ilLoggingDBSettings
+    {
+        return $this->log_settings;
+    }
 
-		$rbacsystem = $DIC['rbacsystem'];
+    public function settings(ilPropertyFormGUI $form = null)
+    {
+        if (!$this->rbac_system->checkAccess("visible,read", $this->object->getRefId())) {
+            $this->error->raiseError($this->lng->txt('permission_denied'), $this->error->MESSAGE);
+        }
 
-		if(!$rbacsystem->checkAccess('write',$this->object->getRefId()))
-		{
-			$this->ilias->raiseError($this->lng->txt("permission_denied"),$this->ilias->error_obj->MESSAGE);
-		}
-		
+        $this->tabs_gui->setTabActive(static::SECTION_SETTINGS);
+        $this->setSubTabs(static::SUB_SECTION_MAIN);
 
-		$form = $this->initFormSettings();
-		if($form->checkInput())
-		{
-			$this->getSettings()->setLevel($form->getInput('level'));
-			$this->getSettings()->enableCaching($form->getInput('cache'));
-			$this->getSettings()->setCacheLevel($form->getInput('cache_level'));
-			$this->getSettings()->enableMemoryUsage($form->getInput('memory'));
-			$this->getSettings()->enableBrowserLog($form->getInput('browser'));
-			$this->getSettings()->setBrowserUsers($form->getInput('browser_users'));
-			
-			$this->getLogger()->info(print_r($form->getInput('browser_users'),TRUE));
-			
-			$this->getSettings()->update();
-			
-			ilUtil::sendSuccess($this->lng->txt('settings_saved'),TRUE);
-			$this->ctrl->redirect($this,'settings');
-			return TRUE;
-		}
-		
-		ilUtil::sendFailure($this->lng->txt('err_check_input'));
-		$form->setValuesByPost();
-		$this->settings($form);
+        if (!$form instanceof ilPropertyFormGUI) {
+            $form = $this->initFormSettings();
+        }
+        $this->tpl->setContent($form->getHTML());
+        $this->getLogger()->debug('Currrent level is ' . $this->getSettings()->getLevel());
+        return true;
+    }
 
-		return TRUE;
-	}
+    public function updateSettings(): void
+    {
+        if (!$this->rbac_system->checkAccess('write', $this->object->getRefId())) {
+            $this->ilias->raiseError($this->lng->txt("permission_denied"), $this->ilias->error_obj->MESSAGE);
+        }
+        $form = $this->initFormSettings();
+        if ($form->checkInput()) {
+            $this->getSettings()->setLevel((int) $form->getInput('level'));
+            $this->getSettings()->enableCaching((bool) $form->getInput('cache'));
+            $this->getSettings()->setCacheLevel((int) $form->getInput('cache_level'));
+            $this->getSettings()->enableMemoryUsage((bool) $form->getInput('memory'));
+            $this->getSettings()->enableBrowserLog((bool) $form->getInput('browser'));
+            $this->getSettings()->setBrowserUsers($form->getInput('browser_users'));
 
-	/**
-	 * Init settings form
-	 * 
-	 */
-	protected function initFormSettings()
-	{
-		global $DIC;
+            $this->getLogger()->info(print_r($form->getInput('browser_users'), true));
 
-		$lng = $DIC['lng'];
-		$ilDB = $DIC['ilDB'];
-		$ilAccess = $DIC['ilAccess'];
+            $this->getSettings()->update();
 
-		include_once './Services/Form/classes/class.ilPropertyFormGUI.php';
-		include_once './Services/Search/classes/class.ilSearchSettings.php';
-		
-		$form = new ilPropertyFormGUI();
-		$form->setTitle($this->lng->txt('logs_settings'));
-		$form->setFormAction($this->ctrl->getFormAction($this));
-		
-		if($ilAccess->checkAccess('write','',$this->object->getRefId()))
-		{
-			$form->addCommandButton('updateSettings', $this->lng->txt('save'));
-		}
+            $this->tpl->setOnScreenMessage('success', $this->lng->txt('settings_saved'), true);
+            $this->ctrl->redirect($this, 'settings');
+            return;
+        }
 
-		$level = new ilSelectInputGUI($this->lng->txt('log_log_level'),'level');
-		$level->setOptions(ilLogLevel::getLevelOptions());
-		$level->setValue($this->getSettings()->getLevel());
-		$form->addItem($level);
-		
-		$cache = new ilCheckboxInputGUI($this->lng->txt('log_cache_'), 'cache');
-		$cache->setInfo($this->lng->txt('log_cache_info'));
-		$cache->setValue(1);
-		$cache->setChecked($this->getSettings()->isCacheEnabled());
-		$form->addItem($cache);
-		
-		$cache_level = new ilSelectInputGUI($this->lng->txt('log_cache_level'), 'cache_level');
-		$cache_level->setOptions(ilLogLevel::getLevelOptions());
-		$cache_level->setValue($this->getSettings()->getCacheLevel());
-		$cache->addSubItem($cache_level);
-		
-		$memory = new ilCheckboxInputGUI($this->lng->txt('log_memory'),'memory');
-		$memory->setValue(1);
-		$memory->setChecked($this->getSettings()->isMemoryUsageEnabled());
-		$form->addItem($memory);
-		
-		// Browser handler
-		$browser = new ilCheckboxInputGUI($this->lng->txt('log_browser'),'browser');
-		$browser->setValue(1);
-		$browser->setChecked($this->getSettings()->isBrowserLogEnabled());
-		$form->addItem($browser);
-		
-		// users
-		$users = new ilTextInputGUI($this->lng->txt('log_browser_users'), 'browser_users');
-		$users->setValue(current($this->getSettings()->getBrowserLogUsers()));
-		$users->setMulti(TRUE);
-		$users->setMultiValues($this->getSettings()->getBrowserLogUsers());
-		
-		$this->getLogger()->debug(print_r($this->getSettings()->getBrowserLogUsers(),TRUE));
-		
-		$browser->addSubItem($users);
-		
-		
-		return $form;
-	}
-	
-	
-	/**
-	 * Show components
-	 */
-	protected function components()
-	{
-		$this->tabs_gui->activateTab(static::SECTION_SETTINGS);
-		$this->setSubTabs(static::SUB_SECTION_COMPONENTS);
-		
-		include_once './Services/Logging/classes/class.ilLogComponentTableGUI.php';
-		$table = new ilLogComponentTableGUI($this, 'components');
-		$table->setEditable($this->checkPermissionBool('write'));
-		$table->init();
-		$table->parse();
-		
-		$GLOBALS['DIC']['tpl']->setContent($table->getHTML());
-		
-	}
-	
-	/**
-	 * Save form
-	 */
-	protected function saveComponentLevels()
-	{
-		$this->checkPermission('write');
-		
-		foreach($_POST['level'] as $component_id => $value)
-		{
-			ilLoggerFactory::getLogger('log')->debug($component_id);
-			ilLoggerFactory::getLogger('log')->debug($value);
-			include_once './Services/Logging/classes/class.ilLogComponentLevel.php';
-			$level = new ilLogComponentLevel($component_id, $value);
-			$level->update();
-		}
-		
-		ilUtil::sendSuccess($this->lng->txt('settings_saved'),TRUE);
-		$this->ctrl->redirect($this, 'components');
-	}
-	
-	protected function resetComponentLevels()
-	{
-		$this->checkPermission('write');
-		
-		foreach(ilLogComponentLevels::getInstance()->getLogComponents() as $component)
-		{
-			$component->setLevel(null);
-			$component->update();
-		}
-		ilUtil::sendSuccess($this->lng->txt('settings_saved'),TRUE);
-		$this->ctrl->redirect($this, 'components');
-		
-	}
+        $this->tpl->setOnScreenMessage('failure', $this->lng->txt('err_check_input'));
+        $form->setValuesByPost();
+        $this->settings($form);
+    }
 
-	protected function errorSettings() {
-		global $DIC;
+    protected function initFormSettings(): ilPropertyFormGUI
+    {
+        $form = new ilPropertyFormGUI();
+        $form->setTitle($this->lng->txt('logs_settings'));
+        $form->setFormAction($this->ctrl->getFormAction($this));
 
-		if (!$this->rbacsystem->checkAccess("visible,read", $this->object->getRefId())) {
-			$DIC['ilErr']->raiseError($this->lng->txt('permission_denied'),$DIC['ilErr']->MESSAGE);
-		}
+        if ($this->access->checkAccess('write', '', $this->object->getRefId())) {
+            $form->addCommandButton('updateSettings', $this->lng->txt('save'));
+        }
 
-		$this->tabs_gui->setTabActive(static::SECTION_SETTINGS);
-		$this->setSubTabs(static::SUB_SECTION_ERROR);
+        $level = new ilSelectInputGUI($this->lng->txt('log_log_level'), 'level');
+        $level->setOptions(ilLogLevel::getLevelOptions());
+        $level->setValue($this->getSettings()->getLevel());
+        $form->addItem($level);
 
-		if(!$form instanceof ilPropertyFormGUI) {
-			$form = $this->initFormErrorSettings();
-		}
-		$this->tpl->setContent($form->getHTML());
+        $cache = new ilCheckboxInputGUI($this->lng->txt('log_cache_'), 'cache');
+        $cache->setInfo($this->lng->txt('log_cache_info'));
+        $cache->setValue('1');
+        $cache->setChecked($this->getSettings()->isCacheEnabled());
+        $form->addItem($cache);
 
-		$this->getLogger()->debug('Currrent level is '.$this->getSettings()->getLevel());
-	}
+        $cache_level = new ilSelectInputGUI($this->lng->txt('log_cache_level'), 'cache_level');
+        $cache_level->setOptions(ilLogLevel::getLevelOptions());
+        $cache_level->setValue($this->getSettings()->getCacheLevel());
+        $cache->addSubItem($cache_level);
 
-	protected function updateErrorSettings() {
-		global $DIC;
+        $memory = new ilCheckboxInputGUI($this->lng->txt('log_memory'), 'memory');
+        $memory->setValue('1');
+        $memory->setChecked($this->getSettings()->isMemoryUsageEnabled());
+        $form->addItem($memory);
 
-		$rbacsystem = $DIC['rbacsystem'];
+        // Browser handler
+        $browser = new ilCheckboxInputGUI($this->lng->txt('log_browser'), 'browser');
+        $browser->setValue('1');
+        $browser->setChecked($this->getSettings()->isBrowserLogEnabled());
+        $form->addItem($browser);
 
-		if(!$rbacsystem->checkAccess('write',$this->object->getRefId())) {
-			$this->ilias->raiseError($this->lng->txt("permission_denied"),$this->ilias->error_obj->MESSAGE);
-		}
+        // users
+        $users = new ilTextInputGUI($this->lng->txt('log_browser_users'), 'browser_users');
+        $users->setValue(current($this->getSettings()->getBrowserLogUsers()));
+        $users->setMulti(true);
+        $users->setMultiValues($this->getSettings()->getBrowserLogUsers());
+        $this->getLogger()->debug(print_r($this->getSettings()->getBrowserLogUsers(), true));
+        $browser->addSubItem($users);
+        return $form;
+    }
 
-		$form = $this->initFormErrorSettings();
-		if($form->checkInput()) {
-			$this->getErrorSettings()->setMail($form->getInput('error_mail'));
-			$this->getErrorSettings()->update();
 
-			ilUtil::sendSuccess($this->lng->txt('error_settings_saved'),TRUE);
-			$this->ctrl->redirect($this,'errorSettings');
-		}
+    /**
+     * Show components
+     */
+    protected function components(): void
+    {
+        $this->tabs_gui->activateTab(static::SECTION_SETTINGS);
+        $this->setSubTabs(static::SUB_SECTION_COMPONENTS);
 
-		ilUtil::sendFailure($this->lng->txt('err_check_input'));
-		$form->setValuesByPost();
-		$this->errorSettings($form);
-	}
+        $table = new ilLogComponentTableGUI($this, 'components');
+        $table->setEditable($this->checkPermissionBool('write'));
+        $table->init();
+        $table->parse();
+        $this->tpl->setContent($table->getHTML());
+    }
 
-	protected function initFormErrorSettings() {
-		global $DIC;
+    /**
+     * Save form
+     */
+    protected function saveComponentLevels(): void
+    {
+        $this->checkPermission('write');
 
-		$lng = $DIC['lng'];
-		$ilDB = $DIC['ilDB'];
-		$ilAccess = $DIC['ilAccess'];
+        $levels = [];
+        if ($this->http->wrapper()->post()->has('level')) {
+            $levels = $this->http->wrapper()->post()->retrieve(
+                'level',
+                $this->refinery->custom()->transformation(
+                    function ($arr) {
+                        // keep keys(!), transform all values to int
+                        return array_column(
+                            array_map(
+                                static function ($k, $v): array {
+                                    return [$k, (int) $v];
+                                },
+                                array_keys($arr),
+                                $arr
+                            ),
+                            1,
+                            0
+                        );
+                    }
+                )
+            );
+        }
+        foreach ($levels as $component_id => $value) {
+            $level = new ilLogComponentLevel($component_id, $value);
+            $level->update();
+        }
+        $this->tpl->setOnScreenMessage('success', $this->lng->txt('settings_saved'), true);
+        $this->ctrl->redirect($this, 'components');
+    }
 
-		require_once './Services/Form/classes/class.ilPropertyFormGUI.php';
-		require_once './Services/Search/classes/class.ilSearchSettings.php';
+    protected function resetComponentLevels(): void
+    {
+        $this->checkPermission('write');
+        foreach (ilLogComponentLevels::getInstance()->getLogComponents() as $component) {
+            $component->setLevel(null);
+            $component->update();
+        }
+        $this->tpl->setOnScreenMessage('success', $this->lng->txt('settings_saved'), true);
+        $this->ctrl->redirect($this, 'components');
+    }
 
-		$form = new ilPropertyFormGUI();
-		$form->setTitle($this->lng->txt('logs_settings'));
-		$form->setFormAction($this->ctrl->getFormAction($this));
+    protected function errorSettings(?ilPropertyFormGUI $form = null): void
+    {
+        $this->checkPermission('read');
+        $this->tabs_gui->setTabActive(static::SECTION_SETTINGS);
+        $this->setSubTabs(static::SUB_SECTION_ERROR);
 
-		if($ilAccess->checkAccess('write','',$this->object->getRefId())) {
-			$form->addCommandButton('updateErrorSettings', $this->lng->txt('save'));
-		}
+        if (!$form instanceof ilPropertyFormGUI) {
+            $form = $this->initFormErrorSettings();
+        }
+        $this->tpl->setContent($form->getHTML());
+    }
 
-		$folder = new ilNonEditableValueGUI($this->lng->txt('log_error_folder'), 'error_folder');
-		$folder->setValue($this->getErrorSettings()->folder());
-		$form->addItem($folder);
+    protected function updateErrorSettings(): void
+    {
+        $this->checkPermission('write');
+        $form = $this->initFormErrorSettings();
+        if ($form->checkInput()) {
+            $this->getErrorSettings()->setMail($form->getInput('error_mail'));
+            $this->getErrorSettings()->update();
 
-		$mail = new ilTextInputGUI($this->lng->txt('log_error_mail'), 'error_mail');
-		$mail->setValue($this->getErrorSettings()->mail());
-		$form->addItem($mail);
+            $this->tpl->setOnScreenMessage('success', $this->lng->txt('error_settings_saved'), true);
+            $this->ctrl->redirect($this, 'errorSettings');
+        }
+        $this->tpl->setOnScreenMessage('failure', $this->lng->txt('err_check_input'));
+        $form->setValuesByPost();
+        $this->errorSettings($form);
+    }
 
-		return $form;
-	}
+    protected function initFormErrorSettings(): ilPropertyFormGUI
+    {
+        $form = new ilPropertyFormGUI();
+        $form->setTitle($this->lng->txt('logs_settings'));
+        $form->setFormAction($this->ctrl->getFormAction($this));
 
-	protected function initErrorSettings() {
-		require_once("Services/Logging/classes/error/class.ilLoggingErrorSettings.php");
-		$this->error_settings = ilLoggingErrorSettings::getInstance();
-	}
+        if ($this->access->checkAccess('write', '', $this->object->getRefId())) {
+            $form->addCommandButton('updateErrorSettings', $this->lng->txt('save'));
+        }
 
-	protected function getErrorSettings() {
-		return $this->error_settings;
-	}
+        $folder = new ilNonEditableValueGUI($this->lng->txt('log_error_folder'), 'error_folder');
+        $folder->setValue($this->getErrorSettings()->folder());
+        $form->addItem($folder);
+
+        $mail = new ilTextInputGUI($this->lng->txt('log_error_mail'), 'error_mail');
+        $mail->setValue($this->getErrorSettings()->mail());
+        $form->addItem($mail);
+        return $form;
+    }
+
+    protected function initErrorSettings(): void
+    {
+        $this->error_settings = ilLoggingErrorSettings::getInstance();
+    }
+
+    protected function getErrorSettings(): ilLoggingErrorSettings
+    {
+        return $this->error_settings;
+    }
 }
-?>

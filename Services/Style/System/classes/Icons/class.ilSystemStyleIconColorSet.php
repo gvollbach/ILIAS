@@ -1,119 +1,124 @@
 <?php
-include_once("Services/Style/System/classes/Icons/class.ilSystemStyleIconColor.php");
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /***
  * Bundles a set of colors into one unit to be handled in one object. Colorsets can be merged and transferred to array or strings.
- *
- * @author            Timon Amstutz <timon.amstutz@ilub.unibe.ch>
- * @version           $Id$
- *
  */
 class ilSystemStyleIconColorSet
 {
-	/**
-	 * Set of colors used in this set.
-	 *
-	 * @var ilSystemStyleIconColor[]
-	 */
-	protected $colors = [];
+    /**
+     * Set of colors used in this set.
+     *
+     * @var ilSystemStyleIconColor[]
+     */
+    protected array $colors = [];
 
-	/**
-	 * @param ilSystemStyleIconColor $color
-	 */
-	public function addColor(ilSystemStyleIconColor $color){
-		$this->colors[$color->getId()] = $color;
-	}
 
-	/**
-	 * @return ilSystemStyleIconColor[]
-	 */
-	public function getColors()
-	{
-		return $this->colors;
-	}
+    public function addColor(ilSystemStyleIconColor $color): void
+    {
+        $this->colors[$color->getId()] = $color;
+    }
 
-	/**
-	 * @param ilSystemStyleIconColor[] $colors
-	 */
-	public function setColors(array $colors)
-	{
-		$this->colors = $colors;
-	}
+    /**
+     * @return ilSystemStyleIconColor[]
+     */
+    public function getColors(): array
+    {
+        return $this->colors;
+    }
 
-	/**
-	 * @param string $id
-	 * @return ilSystemStyleIconColor
-	 * @throws ilSystemStyleException
-	 */
-	public function getColorById($id = ""){
-		if(!array_key_exists($id,$this->colors)){
-			throw new ilSystemStyleException(ilSystemStyleException::INVALID_ID,$id);
-		}
-		return $this->colors[$id];
-	}
+    /**
+     * @param ilSystemStyleIconColor[] $colors
+     */
+    public function setColors(array $colors): void
+    {
+        $this->colors = $colors;
+    }
 
-	/**
-	 * @param string $id
-	 * @return bool
-	 */
-	public function doesColorExist($id){
-		return array_key_exists($id,$this->colors);
-	}
+    /**
+     * @throws ilSystemStyleException
+     */
+    public function getColorById(string $id = ''): ilSystemStyleIconColor
+    {
+        if (!array_key_exists($id, $this->colors)) {
+            throw new ilSystemStyleException(ilSystemStyleException::INVALID_ID, $id);
+        }
+        return $this->colors[$id];
+    }
 
-	/**
-	 * Merges an other colorset into this one
-	 *
-	 * @param ilSystemStyleIconColorSet $color_set
-	 */
-	public function mergeColorSet(ilSystemStyleIconColorSet $color_set){
-		foreach($color_set->getColors() as $color){
-			if(!$this->doesColorExist($color->getId())){
-				$this->addColor($color);
-			}
-		}
-	}
+    public function doesColorExist(string $id): bool
+    {
+        return array_key_exists($id, $this->colors);
+    }
 
-	/**
-	 * Orders and sorts the colors to be displayed in GUI (form)
-	 * @return array [CategoryOfColor][color]
-	 */
-	public function getColorsSortedAsArray(){
-		$colors_categories = [];
-		foreach($this->getColors() as $color){
-			$colors_categories[$color->getDominatAspect()][] = $color;
-		}
-		ksort($colors_categories);
-		foreach($colors_categories as $category => $colors){
-			usort($colors_categories[$category],array("ilSystemStyleIconColor","compareColors"));
-		}
+    /**
+     * Merges an other colorset into this one
+     */
+    public function mergeColorSet(ilSystemStyleIconColorSet $color_set): void
+    {
+        foreach ($color_set->getColors() as $color) {
+            if (!$this->doesColorExist($color->getId())) {
+                $this->addColor($color);
+            }
+        }
+    }
 
-		return $colors_categories;
-	}
+    /**
+     * Orders and sorts the colors to be displayed in GUI (form)
+     * @return array [CategoryOfColor][color]
+     */
+    public function getColorsSortedAsArray(): array
+    {
+        $colors_categories = [];
+        foreach ($this->getColors() as $color) {
+            $colors_categories[$color->getDominatAspect()][] = $color;
+        }
+        ksort($colors_categories);
+        foreach ($colors_categories as $category => $colors) {
+            usort($colors_categories[$category], ['ilSystemStyleIconColor','compareColors']);
+        }
 
-	/**
-	 * Returns the ids of the colors of this color set as array
-	 *
-	 * @return array [color_id]
-	 */
-	public function asArray(){
-		$colors = [];
-		foreach($this->getColors() as $color){
-			$colors[] = $color->getId();
-		}
-		return $colors;
-	}
+        return $colors_categories;
+    }
 
-	/**
-	 * Returns the ids of the colors of this color set as string
-	 *
-	 * @return array
-	 */
-	public function asString(){
-		$colors = "";
-		foreach($this->getColors() as $color){
-			$colors .= $color->getId()."; ";
-		}
-		return $colors;
-	}
+    /**
+     * Returns the ids of the colors of this color set as array
+     */
+    public function asArray(): array
+    {
+        $colors = [];
+        foreach ($this->getColors() as $color) {
+            $colors[] = $color->getId();
+        }
+        return $colors;
+    }
+
+    /**
+     * Returns the ids of the colors of this color set as string
+     */
+    public function asString(): string
+    {
+        $colors = '';
+        foreach ($this->getColors() as $color) {
+            $colors .= $color->getId() . '; ';
+        }
+        return $colors;
+    }
 }

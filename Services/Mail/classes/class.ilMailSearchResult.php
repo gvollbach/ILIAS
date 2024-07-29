@@ -1,53 +1,59 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * @author  Michael Jansen <mjansen@databay.de>
- * @version $Id$
  * @ingroup ServicesMail
  */
 class ilMailSearchResult
 {
-	/**
-	 * @var array
-	 */
-	protected $result = array();
+    /** @var array[] */
+    protected array $result = [];
 
-	/**
-	 *
-	 */
-	public function __construct()
-	{
-	}
+    public function __construct()
+    {
+    }
 
-	/**
-	 * @param array $item
-	 */
-	public function addItem($id, array $fields)
-	{
-		$this->result[$id] = $fields;
-	}
+    public function addItem(int $id, array $fields): void
+    {
+        $this->result[$id] = $fields;
+    }
 
-	/**
-	 * @return array
-	 */
-	public function getIds()
-	{
-		return array_keys($this->result);
-	}
+    /**
+     * @return int[]
+     */
+    public function getIds(): array
+    {
+        return array_keys($this->result);
+    }
 
-	/**
-	 * @param integer $id
-	 * @return array
-	 * @throws OutOfBoundsException
-	 */
-	public function getFields($id)
-	{
-		if(!isset($this->result[$id]))
-		{
-			throw new OutOfBoundsException('mail_missing_result_fields');
-		}
-		
-		return $this->result[$id];
-	}
+    /**
+     * @param int $id
+     * @return array
+     */
+    public function getFields(int $id): array
+    {
+        if (!isset($this->result[$id])) {
+            throw new OutOfBoundsException('mail_missing_result_fields');
+        }
+
+        return $this->result[$id];
+    }
 }

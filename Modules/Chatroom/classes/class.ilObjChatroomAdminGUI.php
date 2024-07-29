@@ -1,10 +1,22 @@
 <?php
-/* Copyright (c) 1998-2016 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/Object/classes/class.ilObjectGUI.php';
-require_once 'Modules/Chatroom/classes/class.ilObjChatroom.php';
-require_once 'Modules/Chatroom/classes/class.ilObjChatroomAccess.php';
-require_once 'Modules/Chatroom/classes/class.ilChatroomObjectGUI.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilObjChatroomAdminGUI
@@ -12,119 +24,83 @@ require_once 'Modules/Chatroom/classes/class.ilChatroomObjectGUI.php';
  * @author            Jan Posselt <jposselt at databay.de>
  * @version           $Id$
  * @ilCtrl_Calls      ilObjChatroomAdminGUI: ilMDEditorGUI, ilInfoScreenGUI, ilPermissionGUI, ilObjectCopyGUI
- * @ilCtrl_Calls      ilObjChatroomAdminGUI: ilExportGUI
+ * @ilCtrl_Calls      ilObjChatroomAdminGUI: ilExportGUI, ilObjChatroomGUI
  * @ilCtrl_IsCalledBy ilObjChatroomAdminGUI: ilRepositoryGUI, ilAdministrationGUI
  * @ingroup           ModulesChatroom
  */
 class ilObjChatroomAdminGUI extends ilChatroomObjectGUI
 {
-	/**
-	 * {@inheritdoc}
-	 */
-	public function __construct($a_data = null, $a_id = null, $a_call_by_reference = true)
-	{
-		global $DIC;
+    public function __construct($data = null, ?int $id = 0, bool $call_by_reference = true, bool $prepare_output = true)
+    {
+        $this->type = 'chta';
+        parent::__construct($data, $id, $call_by_reference, false);
+        $this->lng->loadLanguageModule('chatroom_adm');
+    }
 
-		$DIC->language()->loadLanguageModule('chatroom_adm');
+    /**
+     * @param int|string $ref_id
+     */
+    public static function _goto($ref_id): void
+    {
+        ilObjectGUI::_gotoRepositoryNode((int) $ref_id, 'view');
+    }
 
-		if($a_data == null)
-		{
-			if($_GET['serverInquiry'])
-			{
-				require_once dirname(__FILE__) . '/class.ilChatroomServerHandler.php';
-				new ilChatroomServerHandler();
-				return;
-			}
-		}
+    protected function getObjectDefinition(): ilChatroomObjectDefinition
+    {
+        return ilChatroomObjectDefinition::getDefaultDefinitionWithCustomGUIPath(
+            'Chatroom',
+            'admin'
+        );
+    }
 
-		$this->type = 'chta';
-		parent::__construct($a_data, $a_id, $a_call_by_reference, false);
-	}
+    public function executeCommand(): void
+    {
+        $next_class = strtolower($this->ctrl->getNextClass());
 
-	/**
-	 * Overwrites $_GET['ref_id'] with given $ref_id.
-	 * @param int $ref_id
-	 */
-	public static function _goto($ref_id)
-	{
-		include_once 'Services/Object/classes/class.ilObjectGUI.php';
-		ilObjectGUI::_gotoRepositoryNode($ref_id, 'view');
-	}
+        $tabFactory = new ilChatroomTabGUIFactory($this);
 
-	/**
-	 * Returns object definition by calling getDefaultDefinitionWithCustomGUIPath
-	 * method in ilChatroomObjectDefinition.
-	 * @return ilChatroomObjectDefinition
-	 */
-	protected function getObjectDefinition()
-	{
-		return ilChatroomObjectDefinition::getDefaultDefinitionWithCustomGUIPath(
-			'Chatroom', 'admin'
-		);
-	}
+        switch ($next_class) {
+            case strtolower(ilPermissionGUI::class):
+                $tabFactory->getAdminTabsForCommand($this->ctrl->getCmd());
+                $this->prepareOutput();
+                $perm_gui = new ilPermissionGUI($this);
+                $this->ctrl->forwardCommand($perm_gui);
+                break;
 
-	/**
-	 * Returns empty array.
-	 * @return array
-	 */
-	public function _forwards()
-	{
-		return array();
-	}
+            case strtolower(ilObjChatroomGUI::class):
+                $this->prepareOutput();
+                $perm_gui = new ilObjChatroomGUI(
+                    null,
+                    $this->getRefId(),
+                    true,
+                    false
+                );
+                $this->ctrl->forwardCommand($perm_gui);
+                break;
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function executeCommand()
-	{
-		global $DIC;
+            default:
+                $tabFactory->getAdminTabsForCommand($this->ctrl->getCmd());
+                $res = explode('-', $this->ctrl->getCmd(), 2);
+                if (!array_key_exists(1, $res)) {
+                    $res[1] = '';
+                }
 
-		$next_class = $DIC->ctrl()->getNextClass();
+                $this->dispatchCall($res[0], $res[1]);
+        }
 
-		require_once 'Modules/Chatroom/classes/class.ilChatroomTabGUIFactory.php';
+        if ($tabFactory->getActivatedTab() !== null &&
+            $this->tabs_gui->getActiveTab() !== $tabFactory->getActivatedTab()) {
+            $this->tabs_gui->activateTab($tabFactory->getActivatedTab());
+        }
+    }
 
-		$tabFactory = new ilChatroomTabGUIFactory($this);
-		$tabFactory->getAdminTabsForCommand($DIC->ctrl()->getCmd());
+    public function getConnector(): ilChatroomServerConnector
+    {
+        return new ilChatroomServerConnector(ilChatroomServerSettings::loadDefault());
+    }
 
-		switch($next_class)
-		{
-			case 'ilpermissiongui':
-				include_once 'Services/AccessControl/classes/class.ilPermissionGUI.php';
-				$this->prepareOutput();
-				$perm_gui = new ilPermissionGUI($this);
-				$DIC->ctrl()->forwardCommand($perm_gui);
-				break;
-
-			default:
-				$res = explode('-', $DIC->ctrl()->getCmd(), 2);
-				if(!array_key_exists(1, $res))
-				{
-					$res[1] = '';
-				}
-				$this->dispatchCall($res[0], $res[1]);
-		}
-	}
-
-	/**
-	 * @return ilChatroomServerConnector
-	 */
-	public function getConnector()
-	{
-		require_once 'Modules/Chatroom/classes/class.ilChatroomServerConnector.php';
-		require_once 'Modules/Chatroom/classes/class.ilChatroomServerSettings.php';
-
-		$settings  = ilChatroomServerSettings::loadDefault();
-		$connector = new ilChatroomServerConnector($settings);
-
-		return $connector;
-	}
-
-	/**
-	 * Returns RefId.
-	 * @return int
-	 */
-	public function getRefId()
-	{
-		return $this->object->getRefId();
-	}
+    public function getRefId(): int
+    {
+        return $this->object->getRefId();
+    }
 }

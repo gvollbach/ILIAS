@@ -1,5 +1,22 @@
 <?php
-/* Copyright (c) 2017 Stefan Hecken <stefan.hecken@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 namespace ILIAS\Refinery\Custom;
 
@@ -8,30 +25,20 @@ use ILIAS\Refinery\DeriveTransformFromApplyTo;
 use ILIAS\Refinery\DeriveInvokeFromTransform;
 use ILIAS\Data;
 use ILIAS\Data\Result;
+use ILIAS\Refinery\ProblemBuilder;
+use ilLanguage;
 
 class Constraint implements ConstraintInterface
 {
     use DeriveTransformFromApplyTo;
     use DeriveInvokeFromTransform;
+    use ProblemBuilder;
 
-    /**
-     * @var ILIAS\Data\Factory
-     */
-    protected $data_factory;
-
-    /**
-     * @var \ilLanguage
-     */
-    protected $lng;
-
-    /**
-     * @var callable
-     */
+    protected Data\Factory $data_factory;
+    protected ilLanguage $lng;
+    /** @var callable */
     protected $is_ok;
-
-    /**
-     * @var callable
-     */
+    /** @var callable|string */
     protected $error;
 
     /**
@@ -41,26 +48,29 @@ class Constraint implements ConstraintInterface
      *        values are provide.
      *      - the $value for which the error message should be build.
      *
-     * @param string|callable	$error
+     * @param callable $is_ok
+     * @param string|callable $error
+     * @param Data\Factory $data_factory
+     * @param ilLanguage $lng
      */
-    public function __construct(callable $is_ok, $error, Data\Factory $data_factory, \ilLanguage $lng)
+    public function __construct(callable $is_ok, $error, Data\Factory $data_factory, ilLanguage $lng)
     {
         $this->is_ok = $is_ok;
-
-        if (!is_callable($error)) {
-            $this->error = function () use ($error) {
-                return $error;
-            };
-        } else {
-            $this->error = $error;
-        }
-
+        $this->error = $error;
         $this->data_factory = $data_factory;
         $this->lng = $lng;
     }
 
     /**
-     * @inheritdoc
+     * @inheritDoc
+     */
+    protected function getError()
+    {
+        return $this->error;
+    }
+
+    /**
+     * @inheritDoc
      */
     final public function check($value)
     {
@@ -72,17 +82,17 @@ class Constraint implements ConstraintInterface
     }
 
     /**
-     * @inheritdoc
+     * @inheritDoc
      */
-    final public function accepts($value)
+    final public function accepts($value): bool
     {
         return call_user_func($this->is_ok, $value);
     }
 
     /**
-     * @inheritdoc
+     * @inheritDoc
      */
-    final public function problemWith($value)
+    final public function problemWith($value): ?string
     {
         if (!$this->accepts($value)) {
             return $this->getErrorMessage($value);
@@ -92,9 +102,9 @@ class Constraint implements ConstraintInterface
     }
 
     /**
-     * @inheritdoc
+     * @inheritDoc
      */
-    final public function applyTo(Result $result) : Result
+    final public function applyTo(Result $result): Result
     {
         if ($result->isError()) {
             return $result;
@@ -107,63 +117,5 @@ class Constraint implements ConstraintInterface
         }
 
         return $result;
-    }
-
-    /**
-     * @inheritdoc
-     */
-    final public function withProblemBuilder(callable $builder)
-    {
-        $clone = clone $this;
-        $clone->error = $builder;
-        return $clone;
-    }
-
-    /**
-     * Get the problem message
-     *
-     * @return string
-     */
-    final public function getErrorMessage($value)
-    {
-        $lng_closure = $this->getLngClosure();
-        return call_user_func($this->error, $lng_closure, $value);
-    }
-
-    /**
-     * Get the closure to be passed to the error-function that does i18n and
-     * sprintf.
-     *
-     * @return	\Closure
-     */
-    final protected function getLngClosure()
-    {
-        return function () {
-            $args = func_get_args();
-            if (count($args) < 1) {
-                throw new \InvalidArgumentException(
-                    "Expected an id of a lang var as first parameter"
-                );
-            }
-            $error = $this->lng->txt($args[0]);
-            if (count($args) > 1) {
-                $args[0] = $error;
-                for ($i = 0; $i < count($args); $i++) {
-                    $v = $args[$i];
-                    if ((is_array($v) || is_object($v) || is_null($v))
-                    && !method_exists($v, "__toString")) {
-                        if (is_array($v)) {
-                            $args[$i] = "array";
-                        } elseif (is_null($v)) {
-                            $args[$i] = "null";
-                        } else {
-                            $args[$i] = get_class($v);
-                        }
-                    }
-                }
-                $error = call_user_func_array("sprintf", $args);
-            }
-            return $error;
-        };
     }
 }

@@ -1,5 +1,19 @@
 <?php
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Exporter class for Bibliographic class
@@ -12,18 +26,14 @@
  */
 class ilBibliographicExporter extends ilXmlExporter
 {
-
+    protected ?\ilBibliographicDataSet $ds = null;
     /**
-     * @var ilBibliographicDataSet
-     */
-    protected $ds;
-    /**
-     * @var ilDB
+     * @var mixed|null
      */
     protected $db;
 
 
-    public function init()
+    public function init(): void
     {
         global $DIC;
         $ilDB = $DIC['ilDB'];
@@ -33,33 +43,42 @@ class ilBibliographicExporter extends ilXmlExporter
     }
 
 
-    /**
-     * @param string $a_entity
-     *
-     * @return array
-     */
-    public function getValidSchemaVersions($a_entity)
+    public function getValidSchemaVersions(string $a_entity): array
     {
         return array(
             '4.5.0' => array(
-                'namespace'    => 'http://www.ilias.de/Modules/DataCollection/dcl/4_5',
+                'namespace' => 'http://www.ilias.de/Modules/DataCollection/dcl/4_5',
                 'xsd_file" => "ilias_dcl_4_5.xsd',
                 'uses_dataset' => true,
-                'min'          => '4.5.0',
-                'max'          => '',
+                'min' => '4.5.0',
+                'max' => '',
             ),
         );
     }
 
 
-    public function getXmlRepresentation($a_entity, $a_schema_version, $a_id)
+    public function getXmlRepresentation(string $a_entity, string $a_schema_version, string $a_id): string
     {
-        ilUtil::makeDirParents($this->getAbsoluteExportDirectory());
+        ilFileUtils::makeDirParents($this->getAbsoluteExportDirectory());
         $this->ds->setExportDirectories($this->dir_relative, $this->dir_absolute);
         $this->ds->exportLibraryFile($a_id);
 
-        return $this->ds->getXmlRepresentation($a_entity, $a_schema_version, $a_id, '', true, true);
+        return $this->ds->getXmlRepresentation($a_entity, $a_schema_version, [$a_id], '', true, true);
+    }
+    
+    public function getXmlExportTailDependencies(
+        string $a_entity,
+        string $a_target_release,
+        array $a_ids
+    ) : array {
+        $res = [];
+        if ($a_entity == "bibl") {
+            $res[] = [
+                "component" => "Services/Object",
+                "entity" => "common",
+                "ids" => $a_ids
+            ];
+        }
+        return $res;
     }
 }
-
-?>

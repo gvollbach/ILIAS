@@ -1,72 +1,51 @@
 <?php
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once "./Services/Repository/classes/class.ilObjectPluginListGUI.php";
-
+declare(strict_types=0);
 /**
- * Class ilObjCloudListGUI
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
  *
- * @author  Timon Amstutz <timon.amstutz@ilub.unibe.ch>
- * $Id:
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
  *
- * @extends ilObjectListGUI
- */
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 class ilObjCloudListGUI extends ilObjectListGUI
 {
-
-    /**
-     * initialisation
-     */
-    public function init()
+    public function init(): void
     {
-        global $DIC;
-        $lng = $DIC['lng'];
-
-        $this->copy_enabled = false;
+        // Only delete remains possible
         $this->delete_enabled = true;
-        $this->cut_enabled = false;
-        $this->subscribe_enabled = true;
-        $this->link_enabled = false;
-        $this->info_screen_enabled = true;
-        $this->timings_enabled = true;
-        $this->type = "cld";
-        $this->gui_class_name = "ilobjcloudgui";
 
-        // general commands array
-        include_once('./Modules/Cloud/classes/class.ilObjCloudAccess.php');
-        $this->commands = ilObjCloudAccess::_getCommands();
-        $lng->loadLanguageModule("cld");
+        $this->static_link_enabled = false;
+        $this->cut_enabled = false;
+        $this->subscribe_enabled = false;
+        $this->link_enabled = false;
+        $this->copy_enabled = false;
+        $this->progress_enabled = false;
+        $this->info_screen_enabled = false;
+        $this->tags_enabled = false;
+        $this->comments_enabled = false;
+        $this->notes_enabled = false;
+        $this->timings_enabled = false;
+        $this->notice_properties_enabled = false;
+        $this->type = 'cld';
+        $this->gui_class_name = 'ilObjCloudGUI';
     }
 
-
-    /**
-     * @return array
-     */
-    function getProperties()
+    public function getProperties(): array
     {
-        global $DIC;
-        $lng = $DIC['lng'];
-
-        $props = array();
-        include_once('./Modules/Cloud/classes/class.ilObjCloudAccess.php');
-        if (!ilObjCloudAccess::checkAuthStatus($this->obj_id)) {
-            $props[] = array(
-                "alert"    => true,
-                "property" => $lng->txt("status"),
-                "value"    => $lng->txt("cld_not_authenticated_offline"),
-            );
-        } else {
-            if (!ilObjCloudAccess::checkOnline($this->obj_id)) {
-                $props[] = array(
-                    "alert"    => true,
-                    "property" => $lng->txt("status"),
-                    "value"    => $lng->txt("offline"),
-                );
-            }
-        }
-
-        return $props;
+        return [[
+            'alert' => true,
+            'property' => $this->lng->txt('status'),
+            'value' => $this->lng->txt('cld_abandoned'),
+        ]];
     }
 }
-
-?>

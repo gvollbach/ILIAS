@@ -1,6 +1,22 @@
 <?php
 
-/* Copyright (c) 2015 Richard Klees <richard.klees@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * The interface a class has to fullfill if it should be used as leaf in a
@@ -13,33 +29,26 @@
  * @author : Richard Klees <richard.klees@concepts-and-training.de>
  */
 
-interface ilStudyProgrammeLeaf {
-	/**
-	 * Get the ILIAS object id of the leaf.
-	 *
-	 * @return int
-	 */
-	public function getId();
+interface ilStudyProgrammeLeaf
+{
+    /**
+     * Get the ILIAS object id of the leaf.
+     */
+    public function getId(): int;
 
-	/**
-	 * Get the ILIAS reference id of the leaf.
-	 *
-	 * @return int | null
-	 */
-	public function getRefId();
-	
-	/**
-	 * Create a reference id for this object.
-	 */
-	public function createReference();
-	
-	/**
-	 * Put the leaf object in the repository tree under object identified by
-	 * $a_ref_id.
-	 * 
-	 * @param int	$a_ref_id
-	 */
-	public function putInTree($a_ref_id);
+    /**
+     * Get the ILIAS reference id of the leaf.
+     */
+    public function getRefId(): ?int;
+
+    /**
+     * Create a reference id for this object.
+     */
+    public function createReference(): int;
+
+    /**
+     * Put the leaf object in the repository tree under object identified by
+     * $a_ref_id.
+     */
+    public function putInTree(int $a_ref_id);
 }
-
-?>

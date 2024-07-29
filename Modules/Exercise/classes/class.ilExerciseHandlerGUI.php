@@ -1,97 +1,82 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
-* Handles user interface for exercises
-*
-* @author Alex Killing <alex.killing@gmx.de>
-* @version $Id$
-*
-* @ilCtrl_Calls ilExerciseHandlerGUI: ilObjExerciseGUI
-*
-* @ingroup ModulesExercise
-*/
-class ilExerciseHandlerGUI
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Handles user interface for exercises
+ * @author Alexander Killing <killing@leifos.de>
+ * @ilCtrl_Calls ilExerciseHandlerGUI: ilObjExerciseGUI
+ */
+class ilExerciseHandlerGUI implements ilCtrlBaseClassInterface
 {
-	/**
-	 * @var ilCtrl
-	 */
-	protected $ctrl;
+    protected ilCtrl $ctrl;
+    protected ilLanguage $lng;
+    protected ilAccessHandler $access;
+    protected ilGlobalTemplateInterface $tpl;
+    protected ilNavigationHistory $nav_history;
+    protected int $requested_ref_id;
 
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+    public function __construct()
+    {
+        /** @var \ILIAS\DI\Container $DIC */
+        global $DIC;
 
-	/**
-	 * @var ilAccessHandler
-	 */
-	protected $access;
+        $request = $DIC->exercise()->internal()->gui()->request();
+        $this->requested_ref_id = $request->getRefId();
 
-	/**
-	 * @var ilTemplate
-	 */
-	protected $tpl;
+        $this->lng = $DIC->language();
+        $this->access = $DIC->access();
+        $this->tpl = $DIC["tpl"];
+        $this->nav_history = $DIC["ilNavigationHistory"];
+        $this->ctrl = $DIC->ctrl();
+    }
 
-	/**
-	 * @var ilNavigationHistory
-	 */
-	protected $nav_history;
+    /**
+     * @throws ilCtrlException
+     * @throws ilExerciseException
+     */
+    public function executeCommand(): void
+    {
+        $ilAccess = $this->access;
+        $tpl = $this->tpl;
+        $ilNavigationHistory = $this->nav_history;
 
-	function __construct()
-	{
-		global $DIC;
+        $next_class = $this->ctrl->getNextClass($this);
+        if ($next_class == "") {
+            $this->ctrl->setCmdClass("ilobjexercisegui");
+            $next_class = $this->ctrl->getNextClass($this);
+        }
 
-		$this->lng = $DIC->language();
-		$this->access = $DIC->access();
-		$this->tpl = $DIC["tpl"];
-		$this->nav_history = $DIC["ilNavigationHistory"];
-		$ilCtrl = $DIC->ctrl();
+        // add entry to navigation history
+        if ($ilAccess->checkAccess("read", "", $this->requested_ref_id)) {
+            $ilNavigationHistory->addItem(
+                $this->requested_ref_id,
+                "ilias.php?baseClass=ilExerciseHandlerGUI&cmd=showOverview&ref_id=" . $this->requested_ref_id,
+                "exc"
+            );
+        }
 
-		// initialisation stuff
-		$this->ctrl = $ilCtrl;
-		
-		//$ilNavigationHistory->addItem($_GET["ref_id"],
-		//	"ilias.php?baseClass=ilGlossaryEditorGUI&ref_id=".$_GET["ref_id"]);
+        switch ($next_class) {
+            case 'ilobjexercisegui':
+                $ex_gui = new ilObjExerciseGUI("", $this->requested_ref_id, true);
+                $this->ctrl->forwardCommand($ex_gui);
+                break;
+        }
 
-	}
-	
-	/**
-	* execute command
-	*/
-	function executeCommand()
-	{
-		$lng = $this->lng;
-		$ilAccess = $this->access;
-		$tpl = $this->tpl;
-		$ilNavigationHistory = $this->nav_history;
-		
-		$cmd = $this->ctrl->getCmd();
-		$next_class = $this->ctrl->getNextClass($this);
-		if ($next_class == "")
-		{
-			$this->ctrl->setCmdClass("ilobjexercisegui");
-			$next_class = $this->ctrl->getNextClass($this);
-		}
-
-		// add entry to navigation history
-		if ($ilAccess->checkAccess("read", "", $_GET["ref_id"]))
-		{
-			$ilNavigationHistory->addItem($_GET["ref_id"],
-				"ilias.php?baseClass=ilExerciseHandlerGUI&cmd=showOverview&ref_id=".$_GET["ref_id"], "exc");
-		}
-
-		switch ($next_class)
-		{
-			case 'ilobjexercisegui':
-				require_once "./Modules/Exercise/classes/class.ilObjExerciseGUI.php";
-				$ex_gui = new ilObjExerciseGUI("", (int) $_GET["ref_id"], true, false);
-				$this->ctrl->forwardCommand($ex_gui);
-				break;
-		}
-
-		$tpl->printToStdout();
-	}
-
+        $tpl->printToStdout();
+    }
 }
-?>

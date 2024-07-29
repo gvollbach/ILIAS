@@ -1,12 +1,29 @@
 <?php
-/* Copyright (c) 1998-2019 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * @author  Niels Theen <ntheen@databay.de>
  */
 class ilCertificatePathFactory
 {
-    public function create(ilObject $object)
+    public function create(ilObject $object): string
     {
         $type = $object->getType();
 
@@ -23,12 +40,20 @@ class ilCertificatePathFactory
             case 'exc':
                 $certificatePath = ilCertificatePathConstants::EXERCISE_PATH . $object->getId() . '/';
                 break;
+            case 'lti':
+                $certificatePath = ilCertificatePathConstants::LTICON_PATH . $object->getId() . '/';
+                break;
+            case 'cmix':
+                $certificatePath = ilCertificatePathConstants::CMIX_PATH . $object->getId() . '/';
+                break;
+            case 'prg':
+                $certificatePath = ilCertificatePathConstants::STUDY_PROGRAMME_PATH . $object->getId() . '/';
+                break;
             default:
                 throw new ilException(sprintf(
                     'The type "%s" is currently not supported for certificates',
                     $type
                 ));
-                break;
         }
 
         return $certificatePath;

@@ -1,288 +1,232 @@
 <?php
-/*
-	+-----------------------------------------------------------------------------+
-	| ILIAS open source                                                           |
-	+-----------------------------------------------------------------------------+
-	| Copyright (c) 1998-2007 ILIAS open source, University of Cologne            |
-	|                                                                             |
-	| This program is free software; you can redistribute it and/or               |
-	| modify it under the terms of the GNU General Public License                 |
-	| as published by the Free Software Foundation; either version 2              |
-	| of the License, or (at your option) any later version.                      |
-	|                                                                             |
-	| This program is distributed in the hope that it will be useful,             |
-	| but WITHOUT ANY WARRANTY; without even the implied warranty of              |
-	| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               |
-	| GNU General Public License for more details.                                |
-	|                                                                             |
-	| You should have received a copy of the GNU General Public License           |
-	| along with this program; if not, write to the Free Software                 |
-	| Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. |
-	+-----------------------------------------------------------------------------+
-*/
-
-include_once("./Services/Form/classes/class.ilRadioOption.php");
 
 /**
-* This class represents a property in a property form.
-*
-* @author Alex Killing <alex.killing@gmx.de> 
-* @version $Id$
-* @ingroup	ServicesForm
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+/**
+ * This class represents a property in a property form.
+ *
+ * @author Alexander Killing <killing@leifos.de>
+ */
 class ilRadioGroupInputGUI extends ilSubEnabledFormPropertyGUI implements ilTableFilterItem
 {
-	protected $options = array();
-	protected $value;
-	
-	/**
-	* Constructor
-	*
-	* @param	string	$a_title	Title
-	* @param	string	$a_postvar	Post Variable
-	*/
-	function __construct($a_title = "", $a_postvar = "")
-	{
-		global $DIC;
+    protected array $options = array();
+    protected string $value = "";
 
-		$this->lng = $DIC->language();
-		parent::__construct($a_title, $a_postvar);
-		$this->setType("radio");
-	}
-	
-	/**
-	* Add Option.
-	*
-	* @param	object		$a_option	RadioOption object
-	*/
-	function addOption($a_option)
-	{
-		$this->options[] = $a_option;
-	}
+    public function __construct(
+        string $a_title = "",
+        string $a_postvar = ""
+    ) {
+        global $DIC;
 
-	/**
-	* Get Options.
-	*
-	* @return	array	Array of RadioOption objects
-	*/
-	function getOptions()
-	{
-		return $this->options;
-	}
+        $this->lng = $DIC->language();
+        parent::__construct($a_title, $a_postvar);
+        $this->setType("radio");
+    }
 
-	/**
-	* Set Value.
-	*
-	* @param	string	$a_value	Value
-	*/
-	function setValue($a_value)
-	{
-		$this->value = $a_value;
-	}
+    public function addOption(ilRadioOption $a_option): void
+    {
+        $this->options[] = $a_option;
+    }
 
-	/**
-	* Get Value.
-	*
-	* @return	string	Value
-	*/
-	function getValue()
-	{
-		return $this->value;
-	}
-	
-	/**
-	* Set value by array
-	*
-	* @param	array	$a_values	value array
-	*/
-	function setValueByArray($a_values)
-	{
-		$this->setValue($a_values[$this->getPostVar()]);
-		foreach($this->getOptions() as $option)
-		{
-			foreach($option->getSubItems() as $item)
-			{
-				$item->setValueByArray($a_values);
-			}
-		}
-	}
+    public function getOptions(): array
+    {
+        return $this->options;
+    }
 
-	/**
-	* Check input, strip slashes etc. set alert, if input is not ok.
-	*
-	* @return	boolean		Input ok, true/false
-	*/	
-	function checkInput()
-	{
-		$lng = $this->lng;
-		
-		$_POST[$this->getPostVar()] = 
-			ilUtil::stripSlashes($_POST[$this->getPostVar()]);
-		if ($this->getRequired() && trim($_POST[$this->getPostVar()]) == "")
-		{
-			$this->setAlert($lng->txt("msg_input_is_required"));
+    public function setValue(string $a_value): void
+    {
+        $this->value = $a_value;
+    }
 
-			return false;
-		}
-		
-		$ok = true;
-		foreach($this->getOptions() as $option)
-		{
-			foreach($option->getSubItems() as $item)
-			{
-				if ($_POST[$this->getPostVar()] == $option->getValue())
-				{
-					if (!$item->checkInput()) {
-						$ok = false;
-					}
-				}
-			}
-		}
-		return $ok;
-	}
+    public function getValue(): string
+    {
+        return $this->value;
+    }
 
-	/**
-	* Insert property html
-	*
-	* @return	int	Size
-	*/
-	function insert($a_tpl)
-	{
-		$html = $this->render();
+    public function setValueByArray(array $a_values): void
+    {
+        $this->setValue((string) ($a_values[$this->getPostVar()] ?? ""));
+        foreach ($this->getOptions() as $option) {
+            foreach ($option->getSubItems() as $item) {
+                $item->setValueByArray($a_values);
+            }
+        }
+    }
 
-		$a_tpl->setCurrentBlock("prop_generic");
-		$a_tpl->setVariable("PROP_GENERIC", $html);
-		$a_tpl->parseCurrentBlock();
-	}
+    public function checkInput(): bool
+    {
+        $lng = $this->lng;
 
-	/**
-	* Insert property html
-	*/
-	function render()
-	{
-		$tpl = new ilTemplate("tpl.prop_radio.html", true, true, "Services/Form");
-		
-		foreach($this->getOptions() as $option)
-		{
-			// information text for option
-			if ($option->getInfo() != "")
-			{
-				$tpl->setCurrentBlock("radio_option_desc");
-				$tpl->setVariable("RADIO_OPTION_DESC", $option->getInfo());
-				$tpl->parseCurrentBlock();
-			}
-			
-			
-			if (count($option->getSubItems()) > 0)
-			{
-				if ($option->getValue() != $this->getValue())
-				{
-					// #10930
-					$tpl->setCurrentBlock("prop_radio_opt_hide");
-					$tpl->setVariable("HOP_ID", $this->getFieldId()."_".$option->getValue());
-					$tpl->parseCurrentBlock();
-				}
-				$tpl->setCurrentBlock("radio_option_subform");
-				$pf = new ilPropertyFormGUI();
-				$pf->setMode("subform");
-				$pf->setItems($option->getSubItems());
-				$tpl->setVariable("SUB_FORM", $pf->getContent());
-				$tpl->setVariable("SOP_ID", $this->getFieldId()."_".$option->getValue());
-				if ($pf->getMultipart())
-				{
-					$this->getParentForm()->setMultipart(true);
-				}
-				$tpl->parseCurrentBlock();
-				if ($pf->getMultipart())
-				{
-					$this->getParentForm()->setMultipart(true);
-				}
-			}
+        $val = $this->getInput();
+        if ($this->getRequired() && trim($val) == "") {
+            $this->setAlert($lng->txt("msg_input_is_required"));
+            return false;
+        }
 
-			$tpl->setCurrentBlock("prop_radio_option");
-			if (!$this->getDisabled())
-			{
-				$tpl->setVariable("POST_VAR", $this->getPostVar());
-			}
-			$tpl->setVariable("VAL_RADIO_OPTION", $option->getValue());
-			$tpl->setVariable("OP_ID", $this->getFieldId()."_".$option->getValue());
-			$tpl->setVariable("FID", $this->getFieldId());
-			if($this->getDisabled() or $option->getDisabled())
-			{
-				$tpl->setVariable('DISABLED','disabled="disabled" ');
-			}
-			if ($option->getValue() == $this->getValue())
-			{
-				$tpl->setVariable("CHK_RADIO_OPTION",
-					'checked="checked"');
-			}
-			$tpl->setVariable("TXT_RADIO_OPTION", $option->getTitle());
-			
-			
-			$tpl->parseCurrentBlock();
-		}
-		$tpl->setVariable("ID", $this->getFieldId());
-		
-		if ($this->getDisabled())
-		{
-			$tpl->setVariable("HIDDEN_INPUT",
-				$this->getHiddenTag($this->getPostVar(), $this->getValue()));
-		}
+        $ok = true;
+        $value = $this->getInput();
+        foreach ($this->getOptions() as $option) {
+            foreach ($option->getSubItems() as $item) {
+                if ($value == $option->getValue()) {
+                    if (!$item->checkInput()) {
+                        $ok = false;
+                    }
+                }
+            }
+        }
+        return $ok;
+    }
 
-		return $tpl->get();
-	}
+    public function getInput(): string
+    {
+        return $this->str($this->getPostVar());
+    }
 
-	/**
-	* Get item by post var
-	*
-	* @return	mixed	false or item object
-	*/
-	function getItemByPostVar($a_post_var)
-	{
-		if ($this->getPostVar() == $a_post_var)
-		{
-			return $this;
-		}
+    public function insert(ilTemplate $a_tpl): void
+    {
+        $html = $this->render();
 
-		foreach($this->getOptions() as $option)
-		{
-			foreach($option->getSubItems() as $item)
-			{
-				if ($item->getType() != "section_header")
-				{
-					$ret = $item->getItemByPostVar($a_post_var);
-					if (is_object($ret))
-					{
-						return $ret;
-					}
-				}
-			}
-		}
-		
-		return false;
-	}
+        $a_tpl->setCurrentBlock("prop_generic");
+        $a_tpl->setVariable("PROP_GENERIC", $html);
+        $a_tpl->parseCurrentBlock();
+    }
 
-	function getTableFilterHTML()
-	{
-       return $this->render();
-	}
+    public function render(): string
+    {
+        $tpl = new ilTemplate("tpl.prop_radio.html", true, true, "Services/Form");
 
-	/**
-	 * returns a flat array of possibly existing subitems recursively
-	 *
-	 * @return array
-	 */
-	public function getSubInputItemsRecursive()
-	{
-		$subInputItems = parent::getSubInputItemsRecursive();
-		foreach($this->getOptions() as $option)
-		{
-			/**
-			 * @var $option ilRadioOption
-			 */
-			$subInputItems = array_merge( $subInputItems, $option->getSubInputItemsRecursive() );
-		}
+        foreach ($this->getOptions() as $option) {
+            // information text for option
+            if ($option->getInfo() != "") {
+                $tpl->setCurrentBlock("radio_option_desc");
+                $tpl->setVariable("RADIO_OPTION_DESC", $option->getInfo());
+                if ($option->getInfo() !== '') {
+                    $tpl->setVariable('DESCRIPTION_FOR_ID', $this->getFieldId() . "_" . $option->getValue());
+                }
+                $tpl->parseCurrentBlock();
+            }
 
-		return $subInputItems;
-	}
+
+            if (count($option->getSubItems()) > 0) {
+                if ($option->getValue() != $this->getValue()) {
+                    // #10930
+                    if ($this->global_tpl) {
+                        $hop_id = $this->getFieldId() . "_" . $option->getValue();
+                        $this->global_tpl->addOnloadCode(
+                            "il.Form.hideSubForm('subform_$hop_id');"
+                        );
+                    }
+                    if ($this->getParentForm()) {
+                        $this->getParentForm()->addAsyncOnloadCode(
+                            "il.Form.hideSubForm('subform_$hop_id');"
+                        );
+                    }
+                }
+                $tpl->setCurrentBlock("radio_option_subform");
+                $pf = new ilPropertyFormGUI();
+                $pf->setMode("subform");
+                $pf->setItems($option->getSubItems());
+                $tpl->setVariable("SUB_FORM", $pf->getContent());
+                $tpl->setVariable("SOP_ID", $this->getFieldId() . "_" . $option->getValue());
+                if ($pf->getMultipart()) {
+                    $this->getParentForm()->setMultipart(true);
+                }
+                $tpl->parseCurrentBlock();
+                if ($pf->getMultipart()) {
+                    $this->getParentForm()->setMultipart(true);
+                }
+            }
+
+            $tpl->setCurrentBlock("prop_radio_option");
+            $tpl->setVariable("POST_VAR", $this->getPostVar());
+            $tpl->setVariable("VAL_RADIO_OPTION", $option->getValue());
+            $tpl->setVariable("OP_ID", $this->getFieldId() . "_" . $option->getValue());
+            if ($option->getInfo() !== '') {
+                $tpl->setVariable('DESCRIBED_BY_FIELD_ID', $this->getFieldId() . "_" . $option->getValue());
+            }
+            $tpl->setVariable("FID", $this->getFieldId());
+            if ($this->getDisabled() or $option->getDisabled()) {
+                $tpl->setVariable('DISABLED', 'disabled="disabled" ');
+            }
+            if ($option->getValue() == $this->getValue()) {
+                $tpl->setVariable(
+                    "CHK_RADIO_OPTION",
+                    'checked="checked"'
+                );
+            }
+            $tpl->setVariable("TXT_RADIO_OPTION", $option->getTitle());
+
+
+            $tpl->parseCurrentBlock();
+        }
+        $tpl->setVariable("ID", $this->getFieldId());
+
+        if ($this->getDisabled()) {
+            $tpl->setVariable(
+                "HIDDEN_INPUT",
+                $this->getHiddenTag($this->getPostVar(), $this->getValue())
+            );
+        }
+
+        return $tpl->get();
+    }
+
+    public function getItemByPostVar(string $a_post_var): ?ilFormPropertyGUI
+    {
+        if ($this->getPostVar() == $a_post_var) {
+            return $this;
+        }
+
+        foreach ($this->getOptions() as $option) {
+            foreach ($option->getSubItems() as $item) {
+                if ($item->getType() != "section_header") {
+                    $ret = $item->getItemByPostVar($a_post_var);
+                    if (is_object($ret)) {
+                        return $ret;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public function getTableFilterHTML(): string
+    {
+        return $this->render();
+    }
+
+    public function getSubInputItemsRecursive(): array
+    {
+        $subInputItems = parent::getSubInputItemsRecursive();
+        foreach ($this->getOptions() as $option) {
+            /**
+             * @var $option ilRadioOption
+             */
+            $subInputItems = array_merge($subInputItems, $option->getSubInputItemsRecursive());
+        }
+
+        return $subInputItems;
+    }
+
+    public function getFormLabelFor(): string
+    {
+        return "";
+    }
 }

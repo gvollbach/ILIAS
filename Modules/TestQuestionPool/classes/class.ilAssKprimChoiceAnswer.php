@@ -1,6 +1,20 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * @author		Björn Heyser <bheyser@databay.de>
@@ -10,113 +24,113 @@
  */
 class ilAssKprimChoiceAnswer
 {
-	private $position;
-	
-	private $answertext;
-	
-	private $imageFile;
+    private $position;
 
-	private $imageFsDir;
+    private $answertext;
 
-	private $imageWebDir;
-	
-	private $thumbPrefix;
-	
-	private $correctness;
+    private $imageFile;
 
-	public function setPosition($position)
-	{
-		$this->position = $position;
-	}
+    private $imageFsDir;
 
-	public function getPosition()
-	{
-		return $this->position;
-	}
+    private $imageWebDir;
 
-	public function setAnswertext($answertext)
-	{
-		$this->answertext = $answertext;
-	}
+    private $thumbPrefix;
 
-	public function getAnswertext()
-	{
-		return $this->answertext;
-	}
+    private $correctness;
 
-	public function setImageFile($imageFile)
-	{
-		$this->imageFile = $imageFile;
-	}
+    public function setPosition($position): void
+    {
+        $this->position = $position;
+    }
 
-	public function getImageFile()
-	{
-		return $this->imageFile;
-	}
+    public function getPosition()
+    {
+        return $this->position;
+    }
 
-	public function setImageFsDir($imageFsDir)
-	{
-		$this->imageFsDir = $imageFsDir;
-	}
+    public function setAnswertext($answertext): void
+    {
+        $this->answertext = $answertext;
+    }
 
-	public function getImageFsDir()
-	{
-		return $this->imageFsDir;
-	}
+    public function getAnswertext()
+    {
+        return $this->answertext;
+    }
 
-	public function setImageWebDir($imageWebDir)
-	{
-		$this->imageWebDir = $imageWebDir;
-	}
+    public function setImageFile($imageFile): void
+    {
+        $this->imageFile = $imageFile;
+    }
 
-	public function getImageWebDir()
-	{
-		return $this->imageWebDir;
-	}
+    public function getImageFile()
+    {
+        return $this->imageFile;
+    }
 
-	/**
-	 * @param mixed $thumbPrefix
-	 */
-	public function setThumbPrefix($thumbPrefix)
-	{
-		$this->thumbPrefix = $thumbPrefix;
-	}
+    public function setImageFsDir($imageFsDir): void
+    {
+        $this->imageFsDir = $imageFsDir;
+    }
 
-	/**
-	 * @return mixed
-	 */
-	public function getThumbPrefix()
-	{
-		return $this->thumbPrefix;
-	}
+    public function getImageFsDir()
+    {
+        return $this->imageFsDir;
+    }
 
-	public function setCorrectness($correctness)
-	{
-		$this->correctness = $correctness;
-	}
+    public function setImageWebDir($imageWebDir): void
+    {
+        $this->imageWebDir = $imageWebDir;
+    }
 
-	public function getCorrectness()
-	{
-		return $this->correctness;
-	}
+    public function getImageWebDir()
+    {
+        return $this->imageWebDir;
+    }
 
-	public function getImageFsPath()
-	{
-		return $this->getImageFsDir().$this->getImageFile();
-	}
+    /**
+     * @param mixed $thumbPrefix
+     */
+    public function setThumbPrefix($thumbPrefix): void
+    {
+        $this->thumbPrefix = $thumbPrefix;
+    }
 
-	public function getThumbFsPath()
-	{
-		return $this->getImageFsDir().$this->getThumbPrefix().$this->getImageFile();
-	}
+    /**
+     * @return mixed
+     */
+    public function getThumbPrefix()
+    {
+        return $this->thumbPrefix;
+    }
 
-	public function getImageWebPath()
-	{
-		return $this->getImageWebDir().$this->getImageFile();
-	}
+    public function setCorrectness($correctness): void
+    {
+        $this->correctness = $correctness;
+    }
 
-	public function getThumbWebPath()
-	{
-		return $this->getImageWebDir().$this->getThumbPrefix().$this->getImageFile();
-	}
-} 
+    public function getCorrectness()
+    {
+        return $this->correctness;
+    }
+
+    public function getImageFsPath(): string
+    {
+        return $this->getImageFsDir() . $this->getImageFile();
+    }
+
+    public function getThumbFsPath(): string
+    {
+        return $this->getImageFsDir() . $this->getThumbPrefix() . $this->getImageFile();
+    }
+
+    public function getImageWebPath(): string
+    {
+        return $this->getImageWebDir() . $this->getImageFile();
+    }
+
+    public function getThumbWebPath(): string
+    {
+        return $this->getImageWebDir() . $this->getThumbPrefix() . $this->getImageFile();
+    }
+}

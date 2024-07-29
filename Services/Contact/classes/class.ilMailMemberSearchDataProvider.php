@@ -1,157 +1,152 @@
 <?php
-/* Copyright (c) 1998-2015 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilMailMemberSearchDataProvider
- *
  * @author Nadia Matuschek <nmatuschek@databay.de>
- *
- **/
+ */
 class ilMailMemberSearchDataProvider
 {
-	/** @var \ilAccessHandler */
-	protected $access;
+    protected ilAccessHandler $access;
+    protected int $ref_id;
+    protected string $type = 'crs';
+    protected array $data = [];
+    protected ilParticipants $objParticipants;
+    protected ilObjectDataCache $dataCache;
+    /**
+     * @var array<string, int>
+     */
+    protected array $roleSortWeightMap = [
+        'il_crs_a' => 10,
+        'il_grp_a' => 10,
+        'il_crs_t' => 9,
+        'il_crs_m' => 8,
+        'il_grp_m' => 8,
+    ];
+    protected ilLanguage $lng;
 
-	/** @var int */
-	protected $ref_id;
 
-	/** @var string */
-	protected $type = 'crs';
+    public function __construct(ilParticipants $objParticipants, int $a_ref_id)
+    {
+        global $DIC;
 
-	/** @var array */
-	protected $data = array();
+        $this->dataCache = $DIC['ilObjDataCache'];
+        $this->access = $DIC->access();
+        $this->objParticipants = $objParticipants;
+        $this->type = $this->objParticipants->getType();
+        $this->lng = $DIC['lng'];
 
-	/** @var null */
-	protected $objParticipants = null;
+        $this->ref_id = $a_ref_id;
 
-	/** @var \ilObjectDataCache */
-	protected $dataCache;
+        $this->collectTableData();
+    }
 
-	/** @var array */
-	protected $roleSortWeightMap = [
-		'il_crs_a' => 10,
-		'il_grp_a' => 10,
-		'il_crs_t' => 9,
-		'il_crs_m' => 8,
-		'il_grp_m' => 8,
-	];
+    private function collectTableData(): void
+    {
+        $participants = $this->objParticipants->getParticipants();
+        if ($this->type === 'crs' || $this->type === 'grp') {
+            $participants = $this->access->filterUserIdsByRbacOrPositionOfCurrentUser(
+                'read',
+                'manage_members',
+                $this->ref_id,
+                $participants
+            );
+        }
 
-	/** @var \ilLanguage */
-	protected $lng;
+        $preloadedRoleIds = [];
+        foreach ($participants as $user_id) {
+            $user = ilObjectFactory::getInstanceByObjId($user_id, false);
+            if (!($user instanceof ilObjUser)) {
+                continue;
+            }
 
-	/**
-	 * @param \ilParticipants $objParticipants
-	 * @param int $a_ref_id
-	 */
-	public function __construct($objParticipants, $a_ref_id)
-	{
-		global $DIC;
+            if (!$user->getActive()) {
+                continue;
+            }
 
-		$this->dataCache = $DIC['ilObjDataCache'];
-		$this->access = $DIC->access();
-		$this->objParticipants = $objParticipants;
-		$this->type = $this->objParticipants->getType();
-		$this->lng = $DIC['lng'];
+            $login = $user->getLogin();
 
-		$this->ref_id = $a_ref_id;
+            $publicName = '';
+            if (in_array($user->getPref('public_profile'), ['g', 'y'])) {
+                $publicName = $user->getLastname() . ', ' . $user->getFirstname();
+            }
 
-		$this->collectTableData();
-	}
+            $this->data[$user_id]['user_id'] = $user_id;
+            $this->data[$user_id]['login'] = $login;
+            $this->data[$user_id]['name'] = $publicName;
 
-	/**
-	 * 
-	 */
-	private function collectTableData()
-	{
-		$participants = $this->objParticipants->getParticipants();
-		if ($this->type == 'crs' || $this->type == 'grp') {
-			$participants = $this->access->filterUserIdsByRbacOrPositionOfCurrentUser(
-				'read',
-				'manage_members',
-				$this->ref_id,
-				$participants
-			);
-		}
+            $assignedRoles = $this->objParticipants->getAssignedRoles($user_id);
+            $rolesToPreload = array_diff($assignedRoles, $preloadedRoleIds);
+            $this->dataCache->preloadObjectCache($rolesToPreload);
 
-		foreach ($participants as $user_id) {
-			$name = ilObjUser::_lookupName($user_id);
-			$login = ilObjUser::_lookupLogin($user_id);
+            $roleTitles = [];
+            foreach ($assignedRoles as $roleId) {
+                $preloadedRoleIds[$roleId] = $roleId;
+                $title = $this->dataCache->lookupTitle((int) $roleId);
+                $roleTitles[] = $title;
+            }
 
-			$publicName = '';
-			if (in_array(ilObjUser::_lookupPref($user_id, 'public_profile'), array('g', 'y'))) {
-				$publicName = $name['lastname'] . ', ' . $name['firstname'];
-			}
+            $roleTitles = $this->sortRoles($roleTitles);
 
-			$this->data[$user_id]['user_id'] = $user_id;
-			$this->data[$user_id]['login'] = $login;
-			$this->data[$user_id]['name'] = $publicName;
+            $roleTitles = array_map(function (string $roleTitle): string {
+                return $this->buildRoleTitle($roleTitle);
+            }, $roleTitles);
 
-			$assignedRoles = $this->objParticipants->getAssignedRoles($user_id);
-			$this->dataCache->preloadObjectCache($assignedRoles);
-			$roleTitles = [];
-			foreach ($assignedRoles as $roleId) {
-				$title = $this->dataCache->lookupTitle($roleId);
-				$roleTitles[] = $title;
-			}
+            $this->data[$user_id]['role'] = implode(', ', $roleTitles);
+        }
+    }
 
-			$roleTitles = $this->sortRoles($roleTitles);
+    /**
+     * @param string[] $roleTitles
+     * @return string[]
+     */
+    private function sortRoles(array $roleTitles): array
+    {
+        usort($roleTitles, function (string $a, string $b): int {
+            $leftPrefixTitle = substr($a, 0, 8);
+            $rightPrefixTitle = substr($b, 0, 8);
 
-			$roleTitles = array_map(function($roleTitle) {
-				return $this->buildRoleTitle($roleTitle);
-			}, $roleTitles);
+            $leftRating = $this->roleSortWeightMap[$leftPrefixTitle] ?? 0;
+            $rightRating = $this->roleSortWeightMap[$rightPrefixTitle] ?? 0;
 
-			$this->data[$user_id]['role'] = implode(', ', $roleTitles);
-		}
-	}
+            if ($leftRating > 0 || $rightRating > 0) {
+                if ($leftRating !== $rightRating) {
+                    return $rightRating - $leftRating > 0 ? 1 : -1;
+                }
 
-	/**
-	 * @param string[] $roleTitles
-	 * @return string[]
-	 */
-	private function sortRoles(array $roleTitles): array 
-	{
-		usort($roleTitles, function($a, $b) {
-			$leftPrefixTitle = substr($a, 0, 8);
-			$rightPrefixTitle = substr($b, 0, 8);
+                return 0;
+            }
 
-			$leftRating = 0;
-			if (isset($this->roleSortWeightMap[$leftPrefixTitle])) {
-				$leftRating = $this->roleSortWeightMap[$leftPrefixTitle];
-			}
+            return strcmp($a, $b);
+        });
 
-			$rightRating = 0;
-			if (isset($this->roleSortWeightMap[$rightPrefixTitle])) {
-				$rightRating = $this->roleSortWeightMap[$rightPrefixTitle];
-			}
+        return $roleTitles;
+    }
 
-			if ($leftRating > 0 || $rightRating > 0) {
-				if ($leftRating !== $rightRating) {
-					return $rightRating - $leftRating > 0 ? 1 : -1;
-				} else {
-					return 0;
-				}
-			}
+    private function buildRoleTitle(string $role): string
+    {
+        return ilObjRole::_getTranslation($role);
+    }
 
-			return strcmp($a, $b);
-		});
-
-		return $roleTitles;
-	}
-
-	/**
-	 * @param string $role
-	 * @return string
-	 */
-	private function buildRoleTitle(string $role): string 
-	{
-		return \ilObjRole::_getTranslation($role);
-	}
-
-	/**
-	 * @return array
-	 */
-	public function getData()
-	{
-		return $this->data;
-	}
+    public function getData(): array
+    {
+        return $this->data;
+    }
 }

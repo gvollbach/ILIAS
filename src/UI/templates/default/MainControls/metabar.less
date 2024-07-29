@@ -1,63 +1,62 @@
-.il-maincontrols-metabar {
+ .il-maincontrols-metabar {
 	display: flex;
     justify-content: space-between;
     align-items: center;
-	.il-metabar-entries {
-		align-items: center;
-		display: flex;
-		height: @il-standard-page-header-height;
-		.il-metabar-entry,
-		.il-logout {
-			padding-left: 10px;
-		}
+
+	list-style-type: none; /* Remove bullets */
+
+	// no display labels in metabar level 1, but make them readable by screenreaders
+	> li > .btn-bulky > .bulky-label, > li > .link-bulky > .bulky-label {
+		.sr-only();
 	}
+
+	.glyphicon {
+		filter: invert(50%);
+		font-family: 'il-icons';
+		font-size: @il-slate-bulky-glyph-size;
+		margin-right: @il-slate-bulky-glyph-margin-right;
+		position: relative;
+	}
+
 	.input-group {
 		display: block;
 	}
+
 	p {
 		padding: 0;
 	}
+
 	form#mm_search_form {
 		padding: 20px;
 	}
-}
 
-.il-metabar-entries {
-	.glyphicon {
-		font-family: 'il-icons';
+	.badge {
+		position: absolute;
 	}
-	.glyphicon-bell:before {
-		content: "\e027";
-	}
-	.glyphicon-comment:before {
-		content: "\e04a";
-	}
-	.glyphicon-envelope:before {
-		content: "\e086";
-	}
-	.glyphicon-question-sign:before {
-		content: "\e05d";
-	}
-	.glyphicon-search:before {
-		content: "\e090";
-	}
-	.glyphicon-user:before {
-		content: "\e005";
-	}
-	.btn {
+
+	.btn, .il-link {
 		position: relative;
-		.badge {
-	    	margin-top: -20px;
-		}
 	}
+
+	.il-counter-novelty {
+		margin-top: 0;
+		top: 17px;
+	}
+
 	.il-counter-status {
-		margin-top: -4px;
+		margin-top: 0;
+		top: 32px;
 	}
-	// no display labels in metabar level 1
-	> .btn-bulky > div > .bulky-label {
-		display: none;
-	}
-	.btn-bulky {
+
+	 > li > .il-link.link-bulky {
+		 display: block;
+		 text-align: center;
+		 padding: @il-padding-base-vertical @il-padding-base-horizontal;
+		 line-height: @il-metabar-entry-height;
+		 border: 1px solid transparent;
+	 }
+
+	 > li > .btn-bulky, > li > .link-bulky {
 		background-color: transparent;
 		height: @il-metabar-entry-height;
 		min-width: @il-metabar-entry-width;
@@ -66,9 +65,11 @@
 			height: @il-metabar-small-entry-height;
 			min-width: @il-metabar-small-entry-width;
 		}
-
-		&.engaged,
-		&.engaged:focus {
+		&:focus,
+		&:active {
+			box-shadow: none;
+		}
+		&.engaged {
 			.shadow-right;
 			background-color: @il-metabar-slates-bg-color;
 			border: none;
@@ -82,22 +83,28 @@
 	}
 
 	@media only screen and (max-width: @grid-float-breakpoint-max) {
+		.il-counter-novelty {
+			top: @il-margin-large-vertical;
+		}
+		.il-counter-status {
+			top: 22px;
+		}
 
 		.il-metabar-more-button {
-			padding-right: 20px;
+			padding-right: @il-padding-xxxlarge-horizontal;
 			.icon.custom {
 				position: relative;
 				img {
-					margin-right: 5px;
+					margin-right: @il-margin-small-horizontal;
 				}
 				.badge {
 					position: absolute;
-					margin-right: 3px;
+					margin-right: @il-margin-xs-horizontal;
 					&.il-counter-novelty {
-						margin-top: -5px;
+						margin-top: -@il-margin-large-vertical;
 					}
 					&.il-counter-status {
-						margin-top: 10px;
+						margin-top: @il-margin-xxlarge-vertical;
 					}
 				}
 			}
@@ -109,45 +116,35 @@
 	.shadow-right;
     background-color: @il-metabar-slates-bg-color;
 	position: absolute;
+
+	max-width: @il-metabar-slates-width;
+	.il-maincontrols-slate{
+		min-width: @il-metabar-slates-width;
+	}
+	max-height: 90vh;
+	overflow-y: auto;
 	right: 0;
+
 	top: @il-metabar-entry-height;
+
+	.bulky-label{
+		margin-top: auto;
+		margin-bottom: auto;
+	}
+
 	@media only screen and (max-width: @grid-float-breakpoint-max) {
 		width: 100%;
 		top: @il-metabar-small-entry-height;
 		right: 0;
-	}
-	/*TODO: remove hack*/
-	.il-maincontrols-slate {
-		min-width: 500px;
-		@media only screen and (max-width: @grid-float-breakpoint-max) {
-			min-width: 260px;
-		}
-	}
-	/*end of hack*/
 
-	.il-maincontrols-slate-content {
-		// padding: 10px;
-	}
-}
-
-
-.il-header-locator {
-	display: none;
-}
-
-@media only screen and (max-width: @grid-float-breakpoint-max) {
-	.il-header-locator {
-		display: block;
-	}
-
-	.il-metabar-slates {
 		.glyphicon {
 			color: @il-metabar-glyph-color;
 			font-size: @il-metabar-small-glyph-size;
 		}
 		.il-counter-status,
 		.il-counter-novelty {
-			margin-top: -20px;
+			margin-top: 0;
+			top: @il-margin-large-vertical
 		}
 		.bulky-label {
 			margin-left: 10px;
@@ -155,6 +152,22 @@
 		.il-counter-spacer {
 			margin-left: -18px;
 		}
+
+		.il-metabar-more-slate{
+			.btn-bulky:after {
+				content: "\e606";
+
+				font-family: "il-icons";
+				position: absolute;
+				font-size: @il-slate-bulky-glyph-size;
+				right: @il-margin-large-horizontal;
+				top: @il-slate-bulky-padding-vertical;
+				line-height: @il-line-height-computed;
+			}
+		}
+
+		.il-maincontrols-slate {
+			min-width: 260px;
+		}
 	}
 }
-/*end of hack*/

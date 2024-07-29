@@ -1,33 +1,48 @@
-<?php namespace ILIAS\GlobalScreen\Scope\MetaBar\Collector;
+<?php
 
-use Closure;
-use ILIAS\GlobalScreen\Collector\Collector;
-use ILIAS\GlobalScreen\Collector\LogicException;
+declare(strict_types=1);
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+namespace ILIAS\GlobalScreen\Scope\MetaBar\Collector;
+
+use ILIAS\GlobalScreen\Collector\AbstractBaseCollector;
+use ILIAS\GlobalScreen\Collector\ItemCollector;
 use ILIAS\GlobalScreen\Scope\MetaBar\Factory\isItem;
 use ILIAS\GlobalScreen\Scope\MetaBar\Factory\isParent;
 use ILIAS\GlobalScreen\Scope\MetaBar\Provider\StaticMetaBarProvider;
+use Generator;
 
 /**
  * Class MetaBarMainCollector
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
-class MetaBarMainCollector implements Collector
+class MetaBarMainCollector extends AbstractBaseCollector implements ItemCollector
 {
-
     /**
      * @var StaticMetaBarProvider[]
      */
-    private $providers = [];
+    private array $providers;
     /**
      * @var isItem[]
      */
-    private $items = [];
-
+    private array $items = [];
 
     /**
      * MetaBarMainCollector constructor.
-     *
      * @param array $providers
      */
     public function __construct(array $providers)
@@ -35,69 +50,69 @@ class MetaBarMainCollector implements Collector
         $this->providers = $providers;
     }
 
-
-    /**
-     * @inheritDoc
-     */
-    public function collect() : void
+    public function collectStructure(): void
     {
-        $items = [];
+        $items_to_merge = [];
         foreach ($this->providers as $provider) {
-            $items = array_merge($items, $provider->getMetaBarItems());
+            $items_to_merge[] = $provider->getMetaBarItems();
         }
-
-        $this->sortItems($items);
-
-        array_walk($items, $this->getChildSorter());
-
-        $this->items = array_filter($items, $this->getVisibleFilter());
+        $this->items = array_merge([], ...$items_to_merge);
     }
 
-
-    /**
-     * @return isItem[]
-     */
-    public function getItems() : array
+    public function filterItemsByVisibilty(bool $async_only = false): void
     {
-        return $this->items;
+        $this->items = array_filter($this->items, $this->getVisibleFilter());
     }
 
+    public function prepareItemsForUIRepresentation(): void
+    {
+        // noting to do here
+    }
+
+    public function cleanupItemsForUIRepresentation(): void
+    {
+        // noting to do here
+    }
+
+    public function sortItemsForUIRepresentation(): void
+    {
+        $this->sortItems($this->items);
+        array_walk($this->items, $this->getChildSorter());
+    }
 
     /**
-     * @inheritDoc
+     * @return Generator
      */
-    public function hasItems() : bool
+    public function getItemsForUIRepresentation(): Generator
+    {
+        yield from $this->items;
+    }
+
+    public function hasItems(): bool
     {
         return count($this->items) > 0;
     }
 
+    public function hasVisibleItems(): bool
+    {
+        return $this->hasItems();
+    }
 
-    /**
-     * @param $items
-     */
     private function sortItems(&$items)
     {
         usort($items, $this->getItemSorter());
     }
 
-
-    /**
-     * @return Closure
-     */
-    private function getItemSorter() : Closure
+    private function getItemSorter(): callable
     {
-        return function (isItem &$a, isItem &$b) {
-            return $a->getPosition() > $b->getPosition();
+        return static function (isItem $a, isItem $b): int {
+            return $a->getPosition() - $b->getPosition();
         };
     }
 
-
-    /**
-     * @return Closure
-     */
-    private function getChildSorter() : Closure
+    private function getChildSorter(): callable
     {
-        return function (isItem &$item) {
+        return function (isItem &$item): void {
             if ($item instanceof isParent) {
                 $children = $item->getChildren();
                 $this->sortItems($children);
@@ -106,16 +121,10 @@ class MetaBarMainCollector implements Collector
         };
     }
 
-
-    /**
-     * @return Closure
-     */
-    protected function getVisibleFilter() : Closure
+    protected function getVisibleFilter(): callable
     {
-        return function (isItem $item) {
-            $b = ($item->isAvailable() && $item->isVisible());
-
-            return $b;
+        return static function (isItem $item): bool {
+            return ($item->isAvailable() && $item->isVisible());
         };
     }
 }

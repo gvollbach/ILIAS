@@ -1,90 +1,169 @@
 <?php
-/* Copyright (c) 2016 Richard Klees <richard.klees@concepts-and-training.de> Extended GPL, see docs/LICENSE */
+
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 namespace ILIAS\Setup\CLI;
 
-use ILIAS\Setup\UnachievableException;
-use ILIAS\Setup\Agent;
-use ILIAS\Setup\AgentCollection;
-use ILIAS\Setup\AchievementTracker;
-use ILIAS\Setup\Objective;
+use ILIAS\Setup\AgentFinder;
 use ILIAS\Setup\ArrayEnvironment;
 use ILIAS\Setup\Environment;
-use ILIAS\Setup\ObjectiveIterator;
+use ILIAS\Setup\Objective;
+use ILIAS\Setup\ObjectiveCollection;
+use ILIAS\Setup\Objective\ObjectiveWithPreconditions;
+use ILIAS\Setup\NoConfirmationException;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputOption;
 
 /**
  * Installation command.
  */
-class InstallCommand extends Command {
-	protected static $defaultName = "install";
+class InstallCommand extends Command
+{
+    use HasAgent;
+    use HasConfigReader;
+    use ObjectiveHelper;
 
-	/**
-	 * @var Agent
-	 */
-	protected $agent;
+    protected static $defaultName = "install";
 
-	/**
-	 * @var ConfigReader
-	 */
-	protected $config_reader;
+    /**
+     * var Objective[]
+     */
+    protected array $preconditions = [];
 
-	public function __construct(Agent $agent, ConfigReader $config_reader) {
-		parent::__construct();
-		$this->agent = $agent;
-		$this->config_reader = $config_reader;
-	}
+    /**
+     * @var Objective[] $preconditions will be achieved before command invocation
+     */
+    public function __construct(AgentFinder $agent_finder, ConfigReader $config_reader, array $preconditions)
+    {
+        parent::__construct();
+        $this->agent_finder = $agent_finder;
+        $this->config_reader = $config_reader;
+        $this->preconditions = $preconditions;
+    }
 
-	public function configure() {
-		$this
-			->addArgument("config", InputArgument::REQUIRED, "Configuration for the Setup.");
-	}
+    protected function configure(): void
+    {
+        $this->setDescription("Creates a fresh ILIAS installation based on the config");
+        $this->addArgument("config", InputArgument::OPTIONAL, "Configuration file for the installation");
+        $this->addOption("config", null, InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, "Define fields in the configuration file that should be overwritten, e.g. \"a.b.c=foo\"", []);
+        $this->addOption("yes", "y", InputOption::VALUE_NONE, "Confirm every message of the installation.");
+        $this->configureCommandForPlugins();
+    }
 
-	public function execute(InputInterface $input, OutputInterface $output) {
-		$io = new IOWrapper($input, $output);
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        // ATTENTION: This is a hack to get around the usage of the echo/exit pattern in
+        // the setup for the command line version of the setup. Do not use this.
+        if (!defined("ILIAS_SETUP_IGNORE_DB_UPDATE_STEP_MESSAGES")) {
+            define("ILIAS_SETUP_IGNORE_DB_UPDATE_STEP_MESSAGES", true);
+        }
 
-		if ($this->agent->hasConfig()) {
-			$config_file = $input->getArgument("config");
-			$config_content = $this->config_reader->readConfigFile($config_file);
-			$trafo = $this->agent->getArrayToConfigTransformation();
-			$config = $trafo->transform($config_content);
-		}
-		else {
-			$config = null;
-		}
+        if ($input->hasOption('plugin') && $input->getOption('plugin') != "") {
+            list($objective, $environment, $io) = $this->preparePluginInstallation($input, $output);
+        } else {
+            list($objective, $environment, $io) = $this->prepareILIASInstallation($input, $output);
+        }
 
-		$goal = $this->agent->getInstallObjective($config);
-		$environment = new ArrayEnvironment([
-			Environment::RESOURCE_ADMIN_INTERACTION => $io,
-			// TODO: This needs to be implemented correctly...
-			Environment::RESOURCE_ACHIEVEMENT_TRACKER => new class implements AchievementTracker {
-				public function trackAchievementOf(Objective $objective) : void {}
-				public function isAchieved(Objective $objective) : bool { return false; }
-			}
-		]);
+        try {
+            $this->achieveObjective($objective, $environment, $io);
+            $io->success("Installation complete. Thanks and have fun!");
+        } catch (NoConfirmationException $e) {
+            $io->error("Aborting Installation, a necessary confirmation is missing:\n\n" . $e->getRequestedConfirmation());
+        }
 
-		if ($this->agent instanceof AgentCollection && $config) {
-			foreach ($config->getKeys() as $k) {
-				$environment = $environment->withConfigFor($k, $config->getConfig($k));
-			}
-		}
+        return 0;
+    }
 
-		$goals = new ObjectiveIterator($environment, $goal);
-		while($goals->valid()) {
-			$current = $goals->current();
-			$io->startObjective($current->getLabel(), $current->isNotable());
-			try {
-				$environment = $current->achieve($environment);
-				$io->finishedLastObjective($current->getLabel(), $current->isNotable());
-				$goals->setEnvironment($environment);
-			}
-			catch (UnachievableException $e) {
-				$io->failedLastObjective($current->getLabel());
-			}
-			$goals->next();
-		}
-	}
+    protected function prepareILIASInstallation(InputInterface $input, OutputInterface $output): array
+    {
+        $io = new IOWrapper($input, $output);
+        $io->printLicenseMessage();
+        $io->title("Install ILIAS");
+
+        $agent = $this->getRelevantAgent($input);
+
+        $config = $this->readAgentConfig($agent, $input);
+
+        $objective = new ObjectiveCollection(
+            "Install and Update ILIAS",
+            false,
+            $agent->getInstallObjective($config),
+            $agent->getUpdateObjective($config)
+        );
+        if ($this->preconditions !== []) {
+            $objective = new ObjectiveWithPreconditions(
+                $objective,
+                ...$this->preconditions
+            );
+        }
+
+        $environment = new ArrayEnvironment([
+            Environment::RESOURCE_ADMIN_INTERACTION => $io
+        ]);
+        $environment = $this->addAgentConfigsToEnvironment($agent, $config, $environment);
+        // ATTENTION: This is bad because we strongly couple this generic command
+        // to something very specific here. This can go away once we have got rid of
+        // everything related to clients, since we do not need that client-id then.
+        // This will require some more work, though.
+        $common_config = $config->getConfig("common");
+        $environment = $environment->withResource(
+            Environment::RESOURCE_CLIENT_ID,
+            $common_config->getClientId()
+        );
+
+        return [$objective, $environment, $io];
+    }
+
+    protected function preparePluginInstallation(InputInterface $input, OutputInterface $output): array
+    {
+        $io = new IOWrapper($input, $output);
+        $io->printLicenseMessage();
+        $io->title("Install ILIAS Plugin");
+
+        $agent = $this->getRelevantAgent($input);
+
+        $config = $this->readAgentConfig($agent, $input, $input->getOption("plugin"));
+
+        $objective = new ObjectiveCollection(
+            "Install and Update ILIAS Plugin",
+            false,
+            $agent->getInstallObjective($config),
+            $agent->getUpdateObjective($config)
+        );
+        if ($this->preconditions !== []) {
+            $objective = new ObjectiveWithPreconditions(
+                $objective,
+                ...$this->preconditions
+            );
+        }
+
+        $environment = new ArrayEnvironment([
+            Environment::RESOURCE_ADMIN_INTERACTION => $io
+        ]);
+
+        if (!is_null($config)) {
+            $environment = $this->addAgentConfigsToEnvironment($agent, $config, $environment);
+        }
+
+        return [$objective, $environment, $io];
+    }
 }

@@ -1,35 +1,40 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once ('./Services/Verification/classes/class.ilVerificationObject.php');
+declare(strict_types=1);
 
 /**
-* Test Verification
-*
-* @author Jörg Lützenkirchen <luetzenkirchen@leifos.com>
-*
-* @version $Id$
-*
-* @ingroup ModulesTest
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
+ * Test Verification
+ * @author Jörg Lützenkirchen <luetzenkirchen@leifos.com>
+ * @ingroup ModulesTest
+ */
 class ilObjTestVerification extends ilVerificationObject
 {
-	protected function initType()
-	{
-		$this->type = "tstv";
-	}
+    protected function initType(): void
+    {
+        $this->type = 'tstv';
+    }
 
-	protected function getPropertyMap()
-	{
-		return array("issued_on" => self::TYPE_DATE,
-			"file" => self::TYPE_STRING
-			/*
-			"success" => self::TYPE_BOOL,
-			"result" => self::TYPE_STRING,
-			"mark" => self::TYPE_STRING
-			*/
-			);			
-	}
+    protected function getPropertyMap(): array
+    {
+        return [
+            'issued_on' => self::TYPE_DATE,
+            'file' => self::TYPE_STRING
+        ];
+    }
 }
-
-?>

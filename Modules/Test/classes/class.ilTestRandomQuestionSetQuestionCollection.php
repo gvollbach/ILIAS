@@ -1,7 +1,20 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Modules/Test/classes/class.ilTestRandomQuestionSetQuestion.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * @author		Björn Heyser <bheyser@databay.de>
@@ -10,192 +23,196 @@ require_once 'Modules/Test/classes/class.ilTestRandomQuestionSetQuestion.php';
  * @package     Modules/Test
  */
 // hey: fixRandomTestBuildable - iterator interface for collection
-class ilTestRandomQuestionSetQuestionCollection implements Iterator
+class ilTestRandomQuestionSetQuestionCollection implements
+    Iterator
 // hey.
 {
-	private $questions = array();
+    private $questions = array();
 
-	public function setQuestions($questions)
-	{
-		$this->questions = $questions;
-	}
+    public function setQuestions($questions)
+    {
+        $this->questions = $questions;
+    }
 
-	public function getQuestions()
-	{
-		return $this->questions;
-	}
+    public function getQuestions(): array
+    {
+        return $this->questions;
+    }
 
-	public function addQuestion(ilTestRandomQuestionSetQuestion $question)
-	{
-		$this->questions[] = $question;
-	}
+    public function addQuestion(ilTestRandomQuestionSetQuestion $question)
+    {
+        $this->questions[] = $question;
+    }
 
-	// hey: fixRandomTestBuildable - iterator interface for collection
-	/* @return ilTestRandomQuestionSetQuestion */
-	public function current() { return current($this->questions); }
-	/* @return ilTestRandomQuestionSetQuestion */
-	public function next() { return next($this->questions); }
-	/* @return string */
-	public function key() { return key($this->questions); }
-	/* @return bool */
-	public function valid() { return key($this->questions) !== null; }
-	/* @return ilTestRandomQuestionSetQuestion */
-	public function rewind() { return reset($this->questions); }
-	// hey.
-	
-	public function isGreaterThan($amount)
-	{
-		return count($this->questions) > $amount;
-	}
+    /**
+     * @return ilTestRandomQuestionSetQuestion|false
+     */
+    public function current()
+    {
+        return current($this->questions);
+    }
 
-	public function isSmallerThan($amount)
-	{
-		return count($this->questions) < $amount;
-	}
-	
-	/**
-	 * @param int $requiredAmount
-	 * @return int
-	 */
-	public function getMissingCount($requiredAmount)
-	{
-		// hey: fixRandomTestBuildable - fix returning missing count instead of difference (neg values!)
-		$difference = $requiredAmount - count($this->questions);
-		$missingCount = $difference < 0 ? 0 : $difference;
-		return $missingCount;
-		// hey.
-	}
+    /**
+     * @return ilTestRandomQuestionSetQuestion|false
+     */
+    public function next()
+    {
+        return next($this->questions);
+    }
 
-	public function shuffleQuestions()
-	{
-		shuffle($this->questions);
-	}
+    public function key(): string
+    {
+        return key($this->questions);
+    }
 
-	public function mergeQuestionCollection(self $questionCollection)
-	{
-		$this->questions = array_merge( $this->questions, $questionCollection->getQuestions() );
-	}
+    public function valid(): bool
+    {
+        return key($this->questions) !== null;
+    }
 
-	public function getUniqueQuestionCollection()
-	{
-		$uniqueQuestions = array();
+    /**
+     * @return ilTestRandomQuestionSetQuestion|false
+     */
+    public function rewind()
+    {
+        return reset($this->questions);
+    }
+    // hey.
 
-		foreach($this->getQuestions() as $question)
-		{
-			/* @var ilTestRandomQuestionSetQuestion $question */
+    public function isGreaterThan($amount): bool
+    {
+        return count($this->questions) > $amount;
+    }
 
-			if( !isset($uniqueQuestions[$question->getQuestionId()]) )
-			{
-				$uniqueQuestions[$question->getQuestionId()] = $question;
-			}
-		}
+    public function isSmallerThan($amount): bool
+    {
+        return count($this->questions) < $amount;
+    }
 
-		$uniqueQuestionCollection = new self();
-		$uniqueQuestionCollection->setQuestions($uniqueQuestions);
+    /**
+     * @param int $requiredAmount
+     */
+    public function getMissingCount($requiredAmount): int
+    {
+        // hey: fixRandomTestBuildable - fix returning missing count instead of difference (neg values!)
+        $difference = $requiredAmount - count($this->questions);
+        $missingCount = $difference < 0 ? 0 : $difference;
+        return $missingCount;
+        // hey.
+    }
 
-		return $uniqueQuestionCollection;
-	}
+    public function shuffleQuestions()
+    {
+        shuffle($this->questions);
+    }
 
-	public function getRelativeComplementCollection(self $questionCollection)
-	{
-		// hey: fixRandomTestBuildable - comment for refactoring
-		/**
-		 * actually i would like to consider $this as quantity A
-		 * passed $questionCollection is should be considered as quantity B
-		 * 
-		 * --> relative complement usually means all element from B missing in A
-		 * 
-		 * indeed we are considering $questionCollection as A and $this as B currently (!)
-		 * when changing, do not forget to switch caller and param for all usages (!)
-		 */
-		// hey.
-		
-		$questionIds = array_flip( $questionCollection->getInvolvedQuestionIds() );
+    public function mergeQuestionCollection(self $questionCollection)
+    {
+        $this->questions = array_merge($this->questions, $questionCollection->getQuestions());
+    }
 
-		$relativeComplementCollection = new self();
+    public function getUniqueQuestionCollection(): ilTestRandomQuestionSetQuestionCollection
+    {
+        $uniqueQuestions = array();
 
-		foreach($this->getQuestions() as $question)
-		{
-			if( !isset($questionIds[$question->getQuestionId()]) )
-			{
-				$relativeComplementCollection->addQuestion($question);
-			}
-		}
+        foreach ($this->getQuestions() as $question) {
+            /* @var ilTestRandomQuestionSetQuestion $question */
 
-		return $relativeComplementCollection;
-	}
-	
-	// hey: fixRandomTestBuildable - advanced need for quantity tools
-	/**
-	 * @param ilTestRandomQuestionSetQuestionCollection $questionCollection
-	 * @return ilTestRandomQuestionSetQuestionCollection
-	 */
-	public function getIntersectionCollection(self $questionCollection)
-	{
-		$questionIds = array_flip( $questionCollection->getInvolvedQuestionIds() );
-		
-		$intersectionCollection = new self();
-		
-		foreach($this->getQuestions() as $question)
-		{
-			if( !isset($questionIds[$question->getQuestionId()]) )
-			{
-				continue;
-			}
-			
-			$intersectionCollection->addQuestion($question);
-		}
-		
-		return $intersectionCollection;
-	}
-	
-	/**
-	 * @return int
-	 */
-	public function getQuestionAmount()
-	{
-		return count($this->getQuestions());
-	}
-	// hey.
+            if (!isset($uniqueQuestions[$question->getQuestionId()])) {
+                $uniqueQuestions[$question->getQuestionId()] = $question;
+            }
+        }
 
-	public function getInvolvedQuestionIds()
-	{
-		$questionIds = array();
+        $uniqueQuestionCollection = new self();
+        $uniqueQuestionCollection->setQuestions($uniqueQuestions);
 
-		foreach($this->getQuestions() as $question)
-		{
-			$questionIds[] = $question->getQuestionId();
-		}
+        return $uniqueQuestionCollection;
+    }
 
-		return $questionIds;
-	}
+    public function getRelativeComplementCollection(self $questionCollection): ilTestRandomQuestionSetQuestionCollection
+    {
+        // hey: fixRandomTestBuildable - comment for refactoring
+        /**
+         * actually i would like to consider $this as quantity A
+         * passed $questionCollection is should be considered as quantity B
+         *
+         * --> relative complement usually means all element from B missing in A
+         *
+         * indeed we are considering $questionCollection as A and $this as B currently (!)
+         * when changing, do not forget to switch caller and param for all usages (!)
+         */
+        // hey.
 
-	public function getRandomQuestionCollection($requiredAmount)
-	{
-		$randomKeys = $this->getRandomArrayKeys($this->questions, $requiredAmount);
+        $questionIds = array_flip($questionCollection->getInvolvedQuestionIds());
 
-		$randomQuestionCollection = new self();
+        $relativeComplementCollection = new self();
 
-		foreach($randomKeys as $randomKey)
-		{
-			$randomQuestionCollection->addQuestion( $this->questions[$randomKey] );
-		}
+        foreach ($this->getQuestions() as $question) {
+            if (!isset($questionIds[$question->getQuestionId()])) {
+                $relativeComplementCollection->addQuestion($question);
+            }
+        }
 
-		return $randomQuestionCollection;
-	}
+        return $relativeComplementCollection;
+    }
 
-	private function getRandomArrayKeys($array, $numKeys)
-	{
-		if( $numKeys < 1 )
-		{
-			return array();
-		}
+    public function getIntersectionCollection(self $questionCollection): ilTestRandomQuestionSetQuestionCollection
+    {
+        $questionIds = array_flip($questionCollection->getInvolvedQuestionIds());
 
-		if( $numKeys > 1 )
-		{
-			return array_rand($array, $numKeys);
-		}
+        $intersectionCollection = new self();
 
-		return array( array_rand($array, $numKeys) );
-	}
+        foreach ($this->getQuestions() as $question) {
+            if (!isset($questionIds[$question->getQuestionId()])) {
+                continue;
+            }
+
+            $intersectionCollection->addQuestion($question);
+        }
+
+        return $intersectionCollection;
+    }
+
+    public function getQuestionAmount(): int
+    {
+        return count($this->getQuestions());
+    }
+    // hey.
+
+    public function getInvolvedQuestionIds(): array
+    {
+        $questionIds = array();
+
+        foreach ($this->getQuestions() as $question) {
+            $questionIds[] = $question->getQuestionId();
+        }
+
+        return $questionIds;
+    }
+
+    public function getRandomQuestionCollection($requiredAmount): ilTestRandomQuestionSetQuestionCollection
+    {
+        $randomKeys = $this->getRandomArrayKeys($this->questions, $requiredAmount);
+
+        $randomQuestionCollection = new self();
+
+        foreach ($randomKeys as $randomKey) {
+            $randomQuestionCollection->addQuestion($this->questions[$randomKey]);
+        }
+
+        return $randomQuestionCollection;
+    }
+
+    private function getRandomArrayKeys($array, $numKeys)
+    {
+        if ($numKeys < 1) {
+            return array();
+        }
+
+        if ($numKeys > 1) {
+            return array_rand($array, $numKeys);
+        }
+
+        return array( array_rand($array, $numKeys) );
+    }
 }

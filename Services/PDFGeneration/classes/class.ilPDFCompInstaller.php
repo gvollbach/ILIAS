@@ -1,255 +1,221 @@
 <?php
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+/**
+ * @deprecated
+ */
 class ilPDFCompInstaller
 {
-	const PURPOSE_CONF_TABLE 		= "pdfgen_conf";
-	const PURPOSE_MAP_TABLE 		= "pdfgen_map";
-	const PURPOSE_PURPOSES_TABLE 	= "pdfgen_purposes";
-	const RENDERER_TABLE			= "pdfgen_renderer";
-	const RENDERER_AVAIL_TABLE 		= "pdfgen_renderer_avail";
+    private const PURPOSE_CONF_TABLE = "pdfgen_conf";
+    private const PURPOSE_MAP_TABLE = "pdfgen_map";
+    private const PURPOSE_PURPOSES_TABLE = "pdfgen_purposes";
+    private const RENDERER_TABLE = "pdfgen_renderer";
+    private const RENDERER_AVAIL_TABLE = "pdfgen_renderer_avail";
 
-	/**
-	 * @param string $service
-	 * @param string $purpose
-	 * @param string $preferred
-	 *
-	 * @return void
-	 */
-	public static function registerPurpose($service, $purpose, $preferred)
-	{
-		self::addPurpose($service, $purpose);
-		self::addPreferred($service, $purpose, $preferred);
-	}
+    public static function registerPurpose(string $service, string $purpose, string $preferred): void
+    {
+        self::addPurpose($service, $purpose);
+        self::addPreferred($service, $purpose, $preferred);
+    }
 
-	/**
-	 * @param $service
-	 * @param $purpose
-	 */
-	protected static function addPurpose($service, $purpose)
-	{
-		global $DIC;
-		/** @var ilDB $ilDB */
-		$ilDB = $DIC['ilDB'];
+    protected static function addPurpose(string $service, string $purpose): void
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
 
-		$ilDB->insert(self::PURPOSE_PURPOSES_TABLE, array(
-				'purpose_id'	=>	array('int',	$ilDB->nextId(self::PURPOSE_PURPOSES_TABLE)),
-				'service' 		=>	array('text', 	$service),
-				'purpose' 		=>	array('text', 	$purpose),
-			)
-		);
-	}
+        $ilDB->insert(
+            self::PURPOSE_PURPOSES_TABLE,
+            [
+                'purpose_id' => ['int', $ilDB->nextId(self::PURPOSE_PURPOSES_TABLE)],
+                'service' => ['text', $service],
+                'purpose' => ['text', $purpose],
+            ]
+        );
+    }
 
-	/**
-	 * @param $service
-	 * @param $purpose
-	 * @param $preferred
-	 */
-	protected static function addPreferred($service, $purpose, $preferred)
-	{
-		global $DIC;
-		/** @var ilDB $ilDB */
-		$ilDB = $DIC['ilDB'];
-		$ilDB->insert(self::PURPOSE_MAP_TABLE, array(
-				'map_id'    => array('int', $ilDB->nextId(self::PURPOSE_MAP_TABLE)),
-				'service'   => array('text', $service),
-				'purpose'   => array('text', $purpose),
-				'preferred' => array('text', $preferred),
-				'selected'  => array('text', $preferred)
-			)
-		);
-	}
+    protected static function addPreferred(string $service, string $purpose, string $preferred): void
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
+        $ilDB->insert(
+            self::PURPOSE_MAP_TABLE,
+            [
+                'map_id' => ['int', $ilDB->nextId(self::PURPOSE_MAP_TABLE)],
+                'service' => ['text', $service],
+                'purpose' => ['text', $purpose],
+                'preferred' => ['text', $preferred],
+                'selected' => ['text', $preferred]
+            ]
+        );
+    }
 
-	/**
-	 * @param $service
-	 * @param $purpose
-	 */
-	public static function unregisterPurpose($service, $purpose)
-	{
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
+    public static function unregisterPurpose(string $service, string $purpose): void
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
 
-		$ilDB->manipulate("DELETE FROM ". self::PURPOSE_PURPOSES_TABLE .
-			" WHERE service = ".$ilDB->quote($service, "txt").  " AND purpose = ".$ilDB->quote($purpose, "txt"));
-	}
+        $ilDB->manipulate("DELETE FROM " . self::PURPOSE_PURPOSES_TABLE .
+            " WHERE service = " . $ilDB->quote($service, "text") . " AND purpose = " . $ilDB->quote($purpose, "text"));
+    }
 
-	/**
-	 * @param $service
-	 * @param $purpose
-	 * @param $preferred
-	 */
-	public static function unregisterPreferred($service, $purpose, $preferred)
-	{
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
+    public static function unregisterPreferred(string $service, string $purpose, string $preferred): void
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
 
-		$ilDB->manipulate("DELETE FROM ". self::PURPOSE_MAP_TABLE .
-			" WHERE service = ".$ilDB->quote($service, "txt").  " AND purpose = ".$ilDB->quote($purpose, "txt") .
-			" AND preferred = ".$ilDB->quote($preferred, "txt"));
-	}
+        $ilDB->manipulate("DELETE FROM " . self::PURPOSE_MAP_TABLE .
+            " WHERE service = " . $ilDB->quote($service, "text") . " AND purpose = " . $ilDB->quote($purpose, "text") .
+            " AND preferred = " . $ilDB->quote($preferred, "text"));
+    }
 
-	/**
-	 * @param string $service
-	 *
-	 * @return void
-	 */
-	public static function flushPurposes($service)
-	{
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
+    public static function flushPurposes(string $service): void
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
 
-		$ilDB->manipulate("DELETE FROM ". self::PURPOSE_PURPOSES_TABLE ." WHERE service = ".$ilDB->quote($service, "txt"));
-	}
+        $ilDB->manipulate("DELETE FROM " . self::PURPOSE_PURPOSES_TABLE . " WHERE service = " . $ilDB->quote(
+            $service,
+            "text"
+        ));
+    }
 
-	/**
-	 * @param string $service
-	 * @param string $purpose
-	 *
-	 * @return boolean
-	 */
-	public static function isPurposeRegistered($service, $purpose)
-	{
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
+    public static function isPurposeRegistered(string $service, string $purpose): bool
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
 
-		$query = 'SELECT count(*) num FROM ' . self::PURPOSE_PURPOSES_TABLE . ' WHERE service = '
-			. $ilDB->quote($service, 'text') . ' AND purpose = ' . $ilDB->quote($purpose, 'text');
-		$result = $ilDB->query($query);
-		$row = $ilDB->fetchAssoc($result);
-		if($row['num'] != 0)
-		{
-			return true;
-		}
-		return false;
-	}
+        $query = 'SELECT count(*) num FROM ' . self::PURPOSE_PURPOSES_TABLE . ' WHERE service = '
+            . $ilDB->quote($service, 'text') . ' AND purpose = ' . $ilDB->quote($purpose, 'text');
+        $result = $ilDB->query($query);
+        $row = $ilDB->fetchAssoc($result);
 
-	/**
-	 * @param string $service
-	 *
-	 * @return string[]
-	 */
-	public static function getPurposesByService($service)
-	{
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
+        return is_array($row) && (int) $row['num'] !== 0;
+    }
 
-		$query = 'SELECT purpose FROM ' . self::PURPOSE_PURPOSES_TABLE . ' WHERE service = '. $ilDB->quote($service, 'text');
-		$result = $ilDB->query($query);
-		$purposes = array();
-		while($row = $ilDB->fetchAssoc($result))
-		{
-			$purposes[] = $row['purpose'];
-		}
-		return $purposes;
-	}
+    /**
+     * @param string $service
+     * @return string[]
+     */
+    public static function getPurposesByService(string $service): array
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
 
-	/**
-	 * @return string[]
-	 */
-	public static function getServices()
-	{
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
+        $query = 'SELECT purpose FROM ' . self::PURPOSE_PURPOSES_TABLE . ' WHERE service = ' . $ilDB->quote(
+            $service,
+            'text'
+        );
+        $result = $ilDB->query($query);
+        $purposes = [];
+        while ($row = $ilDB->fetchAssoc($result)) {
+            $purposes[] = $row['purpose'];
+        }
+        return $purposes;
+    }
 
-		$query = 'SELECT service FROM ' . self::PURPOSE_PURPOSES_TABLE . ' GROUP BY service';
-		$result = $ilDB->query($query);
-		$services = array();
-		while($row = $ilDB->fetchAssoc($result))
-		{
-			$services[] = $row['service'];
-		}
-		return $services;
-	}
+    /**
+     * @return string[]
+     */
+    public static function getServices(): array
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
 
-	/**
-	 * @return bool
-	 */
-	public static function checkForMultipleServiceAndPurposeCombination()
-	{
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
-		$query = 'SELECT service, purpose FROM ' . self::PURPOSE_PURPOSES_TABLE . ' GROUP BY service, purpose having count(*) > 1';
-		$result = $ilDB->query($query);
-		$row = $ilDB->fetchAssoc($result);
-		if(is_array($row) && count($row) > 0)
-		{
-			return true;
-		}
-		return false;
-	}
+        $query = 'SELECT service FROM ' . self::PURPOSE_PURPOSES_TABLE . ' GROUP BY service';
+        $result = $ilDB->query($query);
+        $services = [];
+        while ($row = $ilDB->fetchAssoc($result)) {
+            $services[] = $row['service'];
+        }
+        return $services;
+    }
 
-	public static function doCleanUp()
-	{
-		global $DIC;
-		$ilDB = $DIC['ilDB'];
-		$query = 'SELECT service, purpose FROM ' . self::PURPOSE_PURPOSES_TABLE . ' GROUP BY service, purpose having count(*) > 1';
-		$result = $ilDB->query($query);
-		while($row = $ilDB->fetchAssoc($result))
-		{
-			self::unregisterPurpose($row['service'], $row['purpose']);
-			self::addPurpose($row['service'], $row['purpose']);
-		}
+    public static function checkForMultipleServiceAndPurposeCombination(): bool
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
+        $query = 'SELECT service, purpose FROM ' . self::PURPOSE_PURPOSES_TABLE . ' GROUP BY service, purpose having count(*) > 1';
+        $result = $ilDB->query($query);
+        $row = $ilDB->fetchAssoc($result);
 
-		$query = 'SELECT service, purpose, preferred FROM ' . self::PURPOSE_MAP_TABLE . ' GROUP BY service, purpose, preferred having count(*) > 1';
+        return is_array($row) && !empty($row);
+    }
 
-		$result = $ilDB->query($query);
-		while($row = $ilDB->fetchAssoc($result))
-		{
-			self::unregisterPreferred($row['service'], $row['purpose'], $row['preferred']);
-			self::addPreferred($row['service'], $row['purpose'], $row['preferred']);
-		}
-	}
+    public static function doCleanUp(): void
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
+        $query = 'SELECT service, purpose FROM ' . self::PURPOSE_PURPOSES_TABLE . ' GROUP BY service, purpose having count(*) > 1';
+        $result = $ilDB->query($query);
+        while ($row = $ilDB->fetchAssoc($result)) {
+            self::unregisterPurpose($row['service'], $row['purpose']);
+            self::addPurpose($row['service'], $row['purpose']);
+        }
 
-	/**
-	 * @param $service
-	 * @param $purpose
-	 * @param $preferred
-	 */
-	public static function updateFromXML($service, $purpose, $preferred)
-	{
-		$parts = explode('/', $service);
-		$service = $parts[1];
+        $query = 'SELECT service, purpose, preferred FROM ' . self::PURPOSE_MAP_TABLE . ' GROUP BY service, purpose, preferred having count(*) > 1';
 
-		if(!self::isPurposeRegistered($service, $purpose))
-		{
-			self::registerPurpose($service, $purpose, $preferred);
-		}
-	}
+        $result = $ilDB->query($query);
+        while ($row = $ilDB->fetchAssoc($result)) {
+            self::unregisterPreferred($row['service'], $row['purpose'], $row['preferred']);
+            self::addPreferred($row['service'], $row['purpose'], $row['preferred']);
+        }
+    }
 
-	/**
-	 * @param $renderer
-	 * @param $path
-	 */
-	public static function registerRenderer($renderer, $path)
-	{
-		global $DIC;
-		/** @var ilDB $ilDB */
-		$ilDB = $DIC['ilDB'];
+    public static function updateFromXML(string $service, string $purpose, string $preferred): void
+    {
+        $parts = explode('/', $service);
+        $service = $parts[1];
 
-		$ilDB->insert(self::RENDERER_TABLE, array(
-					  'renderer_id'	=>	array('int',	$ilDB->nextId(self::RENDERER_TABLE)),
-					  'renderer' 	=>	array('text', 	$renderer),
-					  'path' 		=>	array('text', 	$path)
-				  )
-		);
-	}
+        if (!self::isPurposeRegistered($service, $purpose)) {
+            self::registerPurpose($service, $purpose, $preferred);
+        }
+    }
 
-	/**
-	 * @param $renderer
-	 * @param $service
-	 * @param $purpose
-	 */
-	public static function registerRendererAvailability($renderer, $service, $purpose)
-	{
-		global $DIC;
-		/** @var ilDB $ilDB */
-		$ilDB = $DIC['ilDB'];
+    public static function registerRenderer(string $renderer, string $path): void
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
 
-		$ilDB->insert(self::RENDERER_AVAIL_TABLE, array(
-					  'availability_id'	=>	array('int',	$ilDB->nextId(self::RENDERER_AVAIL_TABLE)),
-					  'service' 		=>	array('text', 	$service),
-					  'purpose' 		=>	array('text', 	$purpose),
-					  'renderer' 		=>	array('text', 	$renderer)
-				  )
-		);
-	}
+        $ilDB->insert(
+            self::RENDERER_TABLE,
+            [
+                'renderer_id' => ['int', $ilDB->nextId(self::RENDERER_TABLE)],
+                'renderer' => ['text', $renderer],
+                'path' => ['text', $path]
+            ]
+        );
+    }
+
+    public static function registerRendererAvailability(string $renderer, string $service, string $purpose): void
+    {
+        global $DIC;
+        $ilDB = $DIC->database();
+
+        $ilDB->insert(
+            self::RENDERER_AVAIL_TABLE,
+            [
+                'availability_id' => ['int', $ilDB->nextId(self::RENDERER_AVAIL_TABLE)],
+                'service' => ['text', $service],
+                'purpose' => ['text', $purpose],
+                'renderer' => ['text', $renderer]
+            ]
+        );
+    }
 }

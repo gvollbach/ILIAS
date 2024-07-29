@@ -1,189 +1,152 @@
 <?php
 
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
-* This class represents a width/height item in a property form.
-*
-* @author Alex Killing <alex.killing@gmx.de> 
-* @version $Id$
-* @ingroup	ServicesMediaObjects
-*/
+ * This class represents a width/height item in a property form.
+ *
+ * @author Alexander Killing <killing@leifos.de>
+ */
 class ilWidthHeightInputGUI extends ilFormPropertyGUI
 {
-	/**
-	 * @var ilObjUser
-	 */
-	protected $user;
+    protected $support_constraint_props = false;
+    protected bool $constrainproportions = false;
+    protected ?int $height = null;
+    protected ?int $width = null;
+    protected array $dirs = [];
+    protected ilObjUser $user;
+    protected \ilGlobalTemplateInterface $main_tpl;
 
-	protected $value;
-	
-	/**
-	* Constructor
-	*
-	* @param	string	$a_title	Title
-	* @param	string	$a_postvar	Post Variable
-	*/
-	function __construct($a_title = "", $a_postvar = "")
-	{
-		global $DIC;
+    public function __construct(
+        string $a_title = "",
+        string $a_postvar = ""
+    ) {
+        global $DIC;
 
-		$this->lng = $DIC->language();
-		$this->user = $DIC->user();
-		parent::__construct($a_title, $a_postvar);
-		$this->setType("width_height");
-		$this->dirs = array("width", "height");
-	}
+        $this->lng = $DIC->language();
+        $this->user = $DIC->user();
+        parent::__construct($a_title, $a_postvar);
+        $this->setType("width_height");
+        $this->main_tpl = $DIC->ui()->mainTemplate();
+    }
 
-	/**
-	* Set Width.
-	*
-	* @param	integer	$a_width	Width
-	*/
-	function setWidth($a_width)
-	{
-		$this->width = $a_width;
-	}
+    public function setSupportConstraintsProps(bool $a_val): void
+    {
+        $this->support_constraint_props = $a_val;
+    }
 
-	/**
-	* Get Width.
-	*
-	* @return	integer	Width
-	*/
-	function getWidth()
-	{
-		return $this->width;
-	}
+    public function getSupportConstraintsProps(): bool
+    {
+        return $this->support_constraint_props;
+    }
 
-	/**
-	* Set Height.
-	*
-	* @param	integer	$a_height	Height
-	*/
-	function setHeight($a_height)
-	{
-		$this->height = $a_height;
-	}
+    public function setWidth(?int $a_width): void
+    {
+        $this->width = $a_width;
+    }
 
-	/**
-	* Get Height.
-	*
-	* @return	integer	Height
-	*/
-	function getHeight()
-	{
-		return $this->height;
-	}
+    public function getWidth(): ?int
+    {
+        return $this->width;
+    }
 
-	/**
-	* Set Constrain Proportions.
-	*
-	* @param	boolean	$a_constrainproportions	Constrain Proportions
-	*/
-	function setConstrainProportions($a_constrainproportions)
-	{
-		$this->constrainproportions = $a_constrainproportions;
-	}
+    public function setHeight(?int $a_height): void
+    {
+        $this->height = $a_height;
+    }
 
-	/**
-	* Get Constrain Proportions.
-	*
-	* @return	boolean	Constrain Proportions
-	*/
-	function getConstrainProportions()
-	{
-		return $this->constrainproportions;
-	}
+    public function getHeight(): ?int
+    {
+        return $this->height;
+    }
 
-	/**
-	* Check input, strip slashes etc. set alert, if input is not ok.
-	*
-	* @return	boolean		Input ok, true/false
-	*/	
-	function checkInput()
-	{
-		$lng = $this->lng;
-		
-		foreach ($this->dirs as $dir)
-		{
-			$pre_value = $_POST[$this->getPostVar()][$dir] = 
-				ilUtil::stripSlashes($_POST[$this->getPostVar()][$dir]);
-				
-			/*
-			if ($this->getRequired() && trim($num_value) == "")
-			{
-				$this->setAlert($lng->txt("msg_input_is_required"));
-	
-				return false;
-			}*/
-						
-			$value = $pre_value;
-			
-			if (trim($value) != "")
-			{
-				switch ($dir)
-				{
-					case "width": $this->setWidth($value); break;
-					case "height": $this->setHeight($value); break;
-				}
-			}
-			
-		}
-		
-		return true;
-	}
+    public function setConstrainProportions(bool $a_constrainproportions): void
+    {
+        $this->constrainproportions = $a_constrainproportions;
+    }
 
-	/**
-	* Insert property html
-	*/
-	function insert($a_tpl)
-	{
-		$lng = $this->lng;
-		
-		$tpl = new ilTemplate("tpl.prop_width_height.html", true, true, "Services/MediaObjects");
+    public function getConstrainProportions(): bool
+    {
+        return $this->constrainproportions;
+    }
 
-		foreach ($this->dirs as $dir)
-		{
-			switch($dir)
-			{
-				case "width": $value = strtolower(trim($this->getWidth())); break;
-				case "height": $value = strtolower(trim($this->getHeight())); break;
-			}
-			$tpl->setVariable("VAL_".strtoupper($dir), $value);
-		}
-		if ($this->getConstrainProportions())
-		{
-			$tpl->setVariable("CHECKED", 'checked="checked"');
-		}
+    public function checkInput(): bool
+    {
+        $i = $this->getInput();
+        $this->setWidth($i["width"] ? (int) $i["width"] : null);
+        $this->setHeight($i["height"] ? (int) $i["height"] : null);
+        $this->setConstrainProportions((bool) $i["constr_prop"]);
 
-		$tpl->setVariable("POST_VAR", $this->getPostVar());
-		$tpl->setVariable("TXT_CONSTR_PROP", $lng->txt("cont_constrain_proportions"));
-		$wh_ratio = 0;
-		if ((int) $this->getHeight() > 0)
-		{
-			$wh_ratio = (int) $this->getWidth() / (int) $this->getHeight();
-		}
-		$tpl->setVariable("WH_RATIO", str_replace(",", ".", round($wh_ratio, 6)));
-		
-		$a_tpl->setCurrentBlock("prop_generic");
-		$a_tpl->setVariable("PROP_GENERIC", $tpl->get());
-		$a_tpl->parseCurrentBlock();
-		
-		$GLOBALS["tpl"]->addJavascript("./Services/MediaObjects/js/ServiceMediaObjectPropWidthHeight.js");
-	}
+        return true;
+    }
 
-	/**
-	* Set value by array
-	*
-	* @param	array	$a_values	value array
-	*/
-	function setValueByArray($a_values)
-	{
-		$ilUser = $this->user;
-//var_dump($a_values[$this->getPostVar()]);
-		$this->setWidth($a_values[$this->getPostVar()]["width"]);
-		$this->setHeight($a_values[$this->getPostVar()]["height"]);
-		$this->setConstrainProportions($a_values[$this->getPostVar()]["constr_prop"]);
-	}
+    public function getInput(): array
+    {
+        $val = $this->strArray($this->getPostVar());
+        return [
+            "width" => (string) ($val["width"] ?? ""),
+            "height" => (string) ($val["height"] ?? ""),
+            "constr_prop" => (bool) ($val["constr_prop"] ?? false)
+        ];
+    }
 
+    public function insert(ilTemplate $a_tpl): void
+    {
+        $lng = $this->lng;
+
+        $tpl = new ilTemplate("tpl.prop_width_height.html", true, true, "Services/MediaObjects");
+
+        $wh_ratio = 0;
+        if ((int) $this->getHeight() > 0) {
+            $wh_ratio = (int) $this->getWidth() / (int) $this->getHeight();
+        }
+        $ratio = str_replace(",", ".", round($wh_ratio, 6));
+        if ($this->getSupportConstraintsProps() && $wh_ratio > 0) {
+            $tpl->setCurrentBlock("cs_prop");
+            $tpl->setVariable("TXT_CONSTR_PROP", $lng->txt("cont_constrain_proportions"));
+            $tpl->setVariable("CS_POST_VAR", $this->getPostVar());
+            if ($this->getConstrainProportions()) {
+                $tpl->setVariable("CHECKED", 'checked="checked"');
+            }
+            $tpl->parseCurrentBlock();
+            $this->main_tpl->addOnLoadCode(
+                'prop_width_height["prop_' . $this->getPostVar() . '"] = ' . $ratio . ';'
+            );
+        }
+
+        $tpl->setVariable("VAL_WIDTH", strtolower(trim($this->getWidth())));
+        $tpl->setVariable("VAL_HEIGHT", strtolower(trim($this->getHeight())));
+
+        $tpl->setVariable("POST_VAR", $this->getPostVar());
+
+        $a_tpl->setCurrentBlock("prop_generic");
+        $a_tpl->setVariable("PROP_GENERIC", $tpl->get());
+        $a_tpl->parseCurrentBlock();
+
+        $this->main_tpl
+            ->addJavaScript("./Services/MediaObjects/js/ServiceMediaObjectPropWidthHeight.js");
+    }
+
+    public function setValueByArray(array $a_values): void
+    {
+        $w = $a_values[$this->getPostVar()]["width"] ?? false;
+        $h = $a_values[$this->getPostVar()]["height"] ?? false;
+        $this->setWidth($w ? (int) $w : null);
+        $this->setHeight($h ? (int) $h : null);
+        $this->setConstrainProportions($a_values[$this->getPostVar()]["constr_prop"] ?? false);
+    }
 }

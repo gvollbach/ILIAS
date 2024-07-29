@@ -1,222 +1,209 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateSetting.php';
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * GUI class for didactic template settings inside repository objects
- *
- * @author Stefan Meyer <meyer@leifos.com>
- * @ingroup ServicesDidacticTemplate
+ * @author            Stefan Meyer <meyer@leifos.com>
+ * @ingroup           ServicesDidacticTemplate
  * @ilCtrl_IsCalledBy ilDidacticTemplateGUI: ilPermissionGUI
  */
 class ilDidacticTemplateGUI
 {
-	private $parent_object;
-	private $lng;
+    private object $parent_object;
+    private ilLanguage $lng;
+    private ilCtrl $ctrl;
+    private ilTabsGUI $tabs;
+    private ilGlobalTemplateInterface $tpl;
+    private int $requested_template_id;
+    private \ILIAS\HTTP\GlobalHttpState $http;
+    private \ILIAS\Refinery\Factory $refinery;
+    private ilLogger $logger;
 
-	/**
-	 * Constructor
-	 */
-	public function __construct($a_parent_obj)
-	{
-		global $DIC;
+    public function __construct(object $a_parent_obj, int $requested_template_id = 0)
+    {
+        global $DIC;
 
-		$lng = $DIC['lng'];
-		
-		$this->parent_object = $a_parent_obj;
-		$this->lng = $lng;
-		$this->lng->loadLanguageModule('didactic');
-	}
+        $this->ctrl = $DIC->ctrl();
+        $this->tabs = $DIC->tabs();
+        $this->lng = $DIC->language();
+        $this->lng->loadLanguageModule('didactic');
+        $this->tpl = $DIC->ui()->mainTemplate();
+        $this->http = $DIC->http();
+        $this->refinery = $DIC->refinery();
+        $this->logger = $DIC->logger()->otpl();
 
-	public function getParentObject()
-	{
-		return $this->parent_object;
-	}
+        $this->parent_object = $a_parent_obj;
+        if ($requested_template_id === 0) {
+            $this->initTemplateIdFromPost();
+        } else {
+            $this->requested_template_id = $requested_template_id;
+        }
+    }
 
-	/**
-	 * Execute command
-	 * @return <type> 
-	 */
-	public function executeCommand()
-	{
-		global $DIC;
+    protected function initTemplateIdFromPost()
+    {
+        $this->requested_template_id = 0;
+        if ($this->http->wrapper()->post()->has('tplid')) {
+            $this->requested_template_id = $this->http->wrapper()->post()->retrieve(
+                'tplid',
+                $this->refinery->kindlyTo()->int()
+            );
+        }
+    }
 
-		$ilCtrl = $DIC['ilCtrl'];
+    public function getParentObject(): object
+    {
+        return $this->parent_object;
+    }
 
-		$next_class = $ilCtrl->getNextClass($this);
-		$cmd = $ilCtrl->getCmd();
+    public function executeCommand(): void
+    {
+        $next_class = $this->ctrl->getNextClass($this);
+        $cmd = $this->ctrl->getCmd();
 
-		switch($next_class)
-		{
-			default:
-				if(!$cmd)
-				{
-					$cmd = 'overview';
-				}
-				$this->$cmd();
+        switch ($next_class) {
+            default:
+                if (!$cmd) {
+                    $cmd = 'overview';
+                }
+                $this->$cmd();
 
-				break;
-		}
-		return true;
-	}
+                break;
+        }
+    }
 
-	public function appendToolbarSwitch(ilToolbarGUI $toolbar, $a_obj_type, $a_ref_id)
-	{
-		include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateSettings.php';
-		$tpls = ilDidacticTemplateSettings::getInstanceByObjectType($a_obj_type)->getTemplates();
+    public function appendToolbarSwitch(ilToolbarGUI $toolbar, string $a_obj_type, int $a_ref_id): bool
+    {
+        $tpls = ilDidacticTemplateSettings::getInstanceByObjectType($a_obj_type)->getTemplates();
+        $value = ilDidacticTemplateObjSettings::lookupTemplateId($this->getParentObject()->getObject()->getRefId());
 
-		include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateObjSettings.php';
-		$value = ilDidacticTemplateObjSettings::lookupTemplateId($this->getParentObject()->object->getRefId());
+        if (0 === $value && 0 === count($tpls)) {
+            return false;
+        }
 
-		if(!count($tpls) && !$value)
-		{
-			return false;
-		}
+        // Add template switch
+        $toolbar->addText($this->lng->txt('didactic_selected_tpl_option'));
 
-		// Add template switch
-		$toolbar->addText($this->lng->txt('didactic_selected_tpl_option'));
+        // Show template options
+        $options = array(0 => $this->lng->txt('didactic_default_type'));
+        $excl_tpl = false;
 
-		// Show template options
-		$options = array(0 => $this->lng->txt('didactic_default_type'));
-		$excl_tpl = false;
+        foreach ($tpls as $tpl) {
+            //just add if template is effective except template is already applied to this object
+            if ($tpl->isEffective($a_ref_id)) {
+                $options[$tpl->getId()] = $tpl->getPresentationTitle();
 
-		foreach($tpls as $tpl)
-		{
-			//just add if template is effective except template is already applied to this object
-			if($tpl->isEffective($_GET['ref_id']))
-			{
-				$options[$tpl->getId()] = $tpl->getPresentationTitle();
+                if ($tpl->isExclusive()) {
+                    $excl_tpl = true;
+                }
+            }
+        }
 
-				if($tpl->isExclusive())
-				{
-					$excl_tpl = true;
-				}
-			}
-		}
+        if ($excl_tpl && $value !== 0) {
+            //remove default entry if an exclusive template exists but only if the actual entry isn't the default
+            unset($options[0]);
+        }
 
-		if($excl_tpl && $value != 0)
-		{
-			//remove default entry if an exclusive template exists but only if the actual entry isn't the default
-			unset($options[0]);
-		}
+        if (($excl_tpl && $value === 0) || !array_key_exists($value, $options)) {
+            $options[$value] = $this->lng->txt('not_available');
+        }
 
-		if(!in_array($value, array_keys($options)) || ($excl_tpl && $value == 0))
-		{
-			$options[$value] = $this->lng->txt('not_available');
-		}
+        if (count($options) < 2) {
+            return false;
+        }
 
-		if(count($options) < 2)
-		{
-			return false;
-		}
+        $tpl_selection = new ilSelectInputGUI(
+            $this->lng->txt('didactic_selected_tpl_option'),
+            'tplid'
+        );
+        $tpl_selection->setOptions($options);
+        $tpl_selection->setValue((string) $value);
+        $toolbar->addInputItem($tpl_selection);
 
-		include_once './Services/Form/classes/class.ilSelectInputGUI.php';
-		$tpl_selection = new ilSelectInputGUI(
-			'',
-			'tplid'
-		);
-		$tpl_selection->setOptions($options);
-		$tpl_selection->setValue($value);
-		$toolbar->addInputItem($tpl_selection);
+        // Apply templates switch
+        $toolbar->addFormButton($this->lng->txt('change'), 'confirmTemplateSwitch');
+        return true;
+    }
 
-		// Apply templates switch
-		$toolbar->addFormButton($this->lng->txt('change'),'confirmTemplateSwitch');
-		return true;
-	}
+    /**
+     * Show didactic template switch confirmation screen
+     */
+    protected function confirmTemplateSwitch(): void
+    {
+        // Check if template is changed
+        $new_tpl_id = $this->requested_template_id;
+        if ($new_tpl_id === ilDidacticTemplateObjSettings::lookupTemplateId($this->getParentObject()->getObject()->getRefId())) {
+            $this->logger->debug('Template id: ' . $new_tpl_id);
+            $this->tpl->setOnScreenMessage('info', $this->lng->txt('didactic_not_changed'), true);
+            $this->ctrl->returnToParent($this);
+        }
 
-	/*
-	 * Show didactic template switch confirmation screen
-	 */
-	protected function confirmTemplateSwitch()
-	{
-		global $DIC;
+        $this->tabs->clearTargets();
+        $this->tabs->clearSubTabs();
 
-		$ilCtrl = $DIC['ilCtrl'];
-		$ilTabs = $DIC['ilTabs'];
-		$tpl = $DIC['tpl'];
+        $confirm = new ilConfirmationGUI();
+        $confirm->setFormAction($this->ctrl->getFormAction($this));
+        $confirm->setHeaderText($this->lng->txt('didactic_confirm_apply_new_template'));
+        $confirm->setConfirm($this->lng->txt('apply'), 'switchTemplate');
+        $confirm->setCancel($this->lng->txt('cancel'), 'cancel');
 
-		include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateObjSettings.php';
+        if ($new_tpl_id) {
+            $dtpl = new ilDidacticTemplateSetting($new_tpl_id);
 
-		// Check if template is changed
-		$new_tpl_id = (int) $_REQUEST['tplid'];
-		if($new_tpl_id == ilDidacticTemplateObjSettings::lookupTemplateId($this->getParentObject()->object->getRefId()))
-		{
-			ilLoggerFactory::getLogger('otpl')->debug('Template id: '.$new_tpl_id);
-			ilUtil::sendInfo($this->lng->txt('didactic_not_changed'),true);
-			$ilCtrl->returnToParent($this);
-		}
+            $confirm->addItem(
+                'tplid',
+                (string) $new_tpl_id,
+                $dtpl->getPresentationTitle() .
+                '<div class="il_Description">' .
+                $dtpl->getPresentationDescription() . ' ' .
+                '</div>'
+            );
+        } else {
+            $confirm->addItem(
+                'tplid',
+                (string) $new_tpl_id,
+                $this->lng->txt('default') . ' ' .
+                '<div class="il_Description">' .
+                sprintf(
+                    $this->lng->txt('didactic_default_type_info'),
+                    $this->lng->txt('objs_' . $this->getParentObject()->getObject()->getType())
+                ) .
+                '</div>'
+            );
+        }
+        $this->tpl->setContent($confirm->getHTML());
+    }
 
-		$ilTabs->clearTargets();
-		$ilTabs->clearSubTabs();
+    /**
+     * Return to parent gui
+     */
+    protected function cancel(): void
+    {
+        $this->ctrl->returnToParent($this);
+    }
 
-		include_once './Services/Utilities/classes/class.ilConfirmationGUI.php';
-		$confirm = new ilConfirmationGUI();
-		$confirm->setFormAction($ilCtrl->getFormAction($this));
-		$confirm->setHeaderText($this->lng->txt('didactic_confirm_apply_new_template'));
-		$confirm->setConfirm($this->lng->txt('apply'), 'switchTemplate');
-		$confirm->setCancel($this->lng->txt('cancel'), 'cancel');
-
-		if($new_tpl_id)
-		{
-			include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateSetting.php';
-			$dtpl = new ilDidacticTemplateSetting($new_tpl_id);
-
-			$confirm->addItem(
-				'tplid',
-				$new_tpl_id,
-				$dtpl->getPresentationTitle().
-				'<div class="il_Description">'.
-				$dtpl->getPresentationDescription().' '.
-				'</div>'
-			);
-		}
-		else
-		{
-			$confirm->addItem(
-				'tplid',
-				$new_tpl_id,
-				$this->lng->txt('default').' '.
-				'<div class="il_Description">'.
-				sprintf(
-					$this->lng->txt('didactic_default_type_info'),
-					$this->lng->txt('objs_'.$this->getParentObject()->object->getType())
-				).
-				'</div>'
-			);
-
-		}
-		$tpl->setContent($confirm->getHTML());
-	}
-
-	/**
-	 * Return to parent gui
-	 */
-	protected function cancel()
-	{
-		global $DIC;
-
-		$ilCtrl = $DIC['ilCtrl'];
-		
-		$ilCtrl->returnToParent($this);
-	}
-
-	/**
-	 * Switch Template
-	 */
-	protected function switchTemplate()
-	{
-		global $DIC;
-
-		$ilCtrl = $DIC['ilCtrl'];
-		
-		$new_tpl_id = (int) $_REQUEST['tplid'];
-
-		include_once './Services/DidacticTemplate/classes/class.ilDidacticTemplateUtils.php';
-		ilDidacticTemplateUtils::switchTemplate($this->getParentObject()->object->getRefId(), $new_tpl_id);
-
-		ilUtil::sendSuccess($this->lng->txt('didactic_template_applied'),true);
-		$ilCtrl->returnToParent($this);
-	}
+    protected function switchTemplate(): void
+    {
+        $new_tpl_id = $this->requested_template_id;
+        ilDidacticTemplateUtils::switchTemplate($this->getParentObject()->getObject()->getRefId(), $new_tpl_id);
+        $this->tpl->setOnScreenMessage('success', $this->lng->txt('didactic_template_applied'), true);
+        $this->ctrl->returnToParent($this);
+    }
 }
-?>

@@ -1,413 +1,359 @@
 <?php
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once "./Services/Object/classes/class.ilObjectGUI.php";
+declare(strict_types=0);
 
 /**
-* Class ilObjCourseGroupingGUI
-*
-* @author your name <your email> 
-* @version $Id$
-* 
-*/
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\HTTP\GlobalHttpState;
+use ILIAS\Refinery\Factory;
+
+/**
+ * Class ilObjCourseGroupingGUI
+ * @author your name <your email>
+ */
 class ilObjCourseGroupingGUI
 {
-	var $content_obj;
-	var $tpl;
-	var $ctrl;
-	var $lng;
-	
-	/**
-	 * Constructor
-	 * @access public
-	 */
-	public function __construct($content_obj,$a_obj_id = 0)
-	{
-		global $DIC;
+    private ilObjCourseGrouping $grp_obj;
+    private int $id;
+    private ilObject $content_obj;
+    private string $content_type = '';
 
-		$tpl = $DIC['tpl'];
-		$ilCtrl = $DIC['ilCtrl'];
-		$lng = $DIC['lng'];
-		$ilObjDataCache = $DIC['ilObjDataCache'];
+    protected ilGlobalTemplateInterface $tpl;
+    protected ilCtrlInterface $ctrl;
+    protected ilLanguage $lng;
+    protected ilErrorHandling $error;
+    protected ilAccessHandler $access;
+    protected ilTabsGUI $tabs;
+    protected ilToolbarGUI $toolbar;
+    protected GlobalHttpState $http;
+    protected Factory $refinery;
 
-		$this->tpl = $tpl;
-		$this->ctrl = $ilCtrl;
-		$this->lng = $lng;
+    public function __construct(ilObject $content_obj, int $a_obj_id = 0)
+    {
+        global $DIC;
 
-		$this->type = "crsg";
-		$this->content_obj = $content_obj;
-		$this->content_type = $ilObjDataCache->lookupType($this->content_obj->getId());
+        $this->tpl = $DIC->ui()->mainTemplate();
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        $this->access = $DIC->access();
+        $this->error = $DIC['ilErr'];
+        $this->tabs = $DIC->tabs();
+        $this->toolbar = $DIC->toolbar();
+        $this->http = $DIC->http();
+        $this->refinery = $DIC->refinery();
 
-		$this->id = $a_obj_id;
-		$this->ctrl->saveParameter($this,'obj_id');
+        $this->content_obj = $content_obj;
+        $this->content_type = ilObject::_lookupType($this->content_obj->getId());
 
-		$this->__initGroupingObject();
+        $this->id = $a_obj_id;
+        $this->ctrl->saveParameter($this, 'obj_id');
+        $this->__initGroupingObject();
+    }
 
-	}
-	
-	function executeCommand()
-	{
-		global $DIC;
+    public function executeCommand(): void
+    {
+        $this->tabs->setTabActive('crs_groupings');
+        $cmd = $this->ctrl->getCmd();
+        if (!$cmd = $this->ctrl->getCmd()) {
+            $cmd = "edit";
+        }
+        $this->$cmd();
+    }
 
-		$ilTabs = $DIC['ilTabs'];
+    public function __initGroupingObject(): void
+    {
+        $this->grp_obj = new ilObjCourseGrouping($this->id);
+    }
 
-		$ilTabs->setTabActive('crs_groupings');
+    public function getContentType(): string
+    {
+        return $this->content_type;
+    }
 
-		$cmd = $this->ctrl->getCmd();
-		if (!$cmd = $this->ctrl->getCmd())
-		{
-			$cmd = "edit";
-		}
-		$this->$cmd();
-	}
+    public function listGroupings(): void
+    {
+        if (!$this->access->checkAccess('write', '', $this->content_obj->getRefId())) {
+            $this->error->raiseError($this->lng->txt('permission_denied'), $this->error->MESSAGE);
+        }
 
-	// PRIVATE
-	function __initGroupingObject()
-	{
-		include_once './Modules/Course/classes/class.ilObjCourseGrouping.php';
+        $this->toolbar->addButton(
+            $this->lng->txt('crs_add_grouping'),
+            $this->ctrl->getLinkTarget($this, 'create')
+        );
 
-		$this->grp_obj = new ilObjCourseGrouping($this->id);
-	}
+        $table = new ilCourseGroupingTableGUI($this, 'listGroupings', $this->content_obj);
+        $this->tpl->setContent($table->getHTML());
+    }
 
-	function getContentType()
-	{
-		return $this->content_type;
-	}
+    public function askDeleteGrouping(): void
+    {
+        if (!$this->access->checkAccess('write', '', $this->content_obj->getRefId())) {
+            $this->error->raiseError($this->lng->txt('permission_denied'), $this->error->MESSAGE);
+        }
 
-	function listGroupings()
-	{
-		global $DIC;
+        $grouping = [];
+        if ($this->http->wrapper()->post()->has('grouping')) {
+            $grouping = $this->http->wrapper()->post()->retrieve(
+                'grouping',
+                $this->refinery->kindlyTo()->listOf(
+                    $this->refinery->kindlyTo()->int()
+                )
+            );
+        }
 
-		$ilErr = $DIC['ilErr'];
-		$ilAccess = $DIC['ilAccess'];
-		$ilToolbar = $DIC['ilToolbar'];
-		$tpl = $DIC['tpl'];
+        if (!count($grouping)) {
+            $this->tpl->setOnScreenMessage('failure', $this->lng->txt('crs_grouping_select_one'));
+            $this->listGroupings();
+            return;
+        }
 
-		if(!$ilAccess->checkAccess('write','',$this->content_obj->getRefId()))
-		{
-			$ilErr->raiseError($this->lng->txt('permission_denied'),$ilErr->MESSAGE);
-		}
-		
-		$ilToolbar->addButton($this->lng->txt('crs_add_grouping'),
-			$this->ctrl->getLinkTarget($this, 'create'));
+        // display confirmation message
+        $cgui = new ilConfirmationGUI();
+        $cgui->setFormAction($this->ctrl->getFormAction($this));
+        $cgui->setHeaderText($this->lng->txt("crs_grouping_delete_sure"));
+        $cgui->setCancel($this->lng->txt("cancel"), "listGroupings");
+        $cgui->setConfirm($this->lng->txt("delete"), "deleteGrouping");
 
-		include_once 'Modules/Course/classes/class.ilCourseGroupingTableGUI.php';
-		$table = new ilCourseGroupingTableGUI($this, 'listGroupings', $this->content_obj);
-		
-		$tpl->setContent($table->getHTML());
-	}
+        // list objects that should be deleted
+        foreach ($grouping as $grouping_id) {
+            $tmp_obj = new ilObjCourseGrouping($grouping_id);
+            $cgui->addItem("grouping[]", $grouping_id, $tmp_obj->getTitle());
+        }
+        $this->tpl->setContent($cgui->getHTML());
+    }
 
-	function askDeleteGrouping()
-	{
-		global $DIC;
+    public function deleteGrouping(): void
+    {
+        if (!$this->access->checkAccess('write', '', $this->content_obj->getRefId())) {
+            $this->error->raiseError($this->lng->txt('permission_denied'), $this->error->MESSAGE);
+        }
+        $grouping = [];
+        if ($this->http->wrapper()->post()->has('grouping')) {
+            $grouping = $this->http->wrapper()->post()->retrieve(
+                'grouping',
+                $this->refinery->kindlyTo()->listOf(
+                    $this->refinery->kindlyTo()->int()
+                )
+            );
+        }
 
-		$ilErr = $DIC['ilErr'];
-		$ilAccess = $DIC['ilAccess'];
-		$tpl = $DIC['tpl'];
+        foreach ($grouping as $grouping_id) {
+            $tmp_obj = new ilObjCourseGrouping((int) $grouping_id);
+            $tmp_obj->delete();
+        }
 
-		if(!$ilAccess->checkAccess('write','',$this->content_obj->getRefId()))
-		{
-			$ilErr->raiseError($this->lng->txt('permission_denied'),$ilErr->MESSAGE);
-		}
+        $this->tpl->setOnScreenMessage('success', $this->lng->txt('crs_grouping_deleted'), true);
+        $this->ctrl->redirect($this, 'listGroupings');
+    }
 
-		if(!count($_POST['grouping']))
-		{
-			ilUtil::sendFailure($this->lng->txt('crs_grouping_select_one'));
-			$this->listGroupings();
-			
-			return false;
-		}
+    public function create(?ilPropertyFormGUI $a_form = null): void
+    {
+        if (!$this->access->checkAccess('write', '', $this->content_obj->getRefId())) {
+            $this->error->raiseError($this->lng->txt('permission_denied'), $this->error->MESSAGE);
+        }
 
-		// display confirmation message
-		include_once("./Services/Utilities/classes/class.ilConfirmationGUI.php");
-		$cgui = new ilConfirmationGUI();
-		$cgui->setFormAction($this->ctrl->getFormAction($this));
-		$cgui->setHeaderText($this->lng->txt("crs_grouping_delete_sure"));
-		$cgui->setCancel($this->lng->txt("cancel"), "listGroupings");
-		$cgui->setConfirm($this->lng->txt("delete"), "deleteGrouping");
+        if (!$a_form) {
+            $a_form = $this->initForm(true);
+        }
 
-		// list objects that should be deleted
-		foreach($_POST['grouping'] as $grouping_id)
-		{
-			$tmp_obj = new ilObjCourseGrouping($grouping_id);
-			$cgui->addItem("grouping[]", $grouping_id, $tmp_obj->getTitle());
-		}
+        $this->tpl->setContent($a_form->getHTML());
+    }
 
-		$tpl->setContent($cgui->getHTML());
-	}
+    public function initForm(bool $a_create): ilPropertyFormGUI
+    {
+        $form = new ilPropertyFormGUI();
+        $form->setFormAction($this->ctrl->getFormAction($this));
 
-	function deleteGrouping()
-	{
-		global $DIC;
+        $title = new ilTextInputGUI($this->lng->txt('title'), 'title');
+        $title->setRequired(true);
+        $form->addItem($title);
 
-		$ilErr = $DIC['ilErr'];
-		$ilAccess = $DIC['ilAccess'];
+        $desc = new ilTextAreaInputGUI($this->lng->txt('description'), 'description');
+        $form->addItem($desc);
 
-		if(!$ilAccess->checkAccess('write','',$this->content_obj->getRefId()))
-		{
-			$ilErr->raiseError($this->lng->txt('permission_denied'),$ilErr->MESSAGE);
-		}
+        $options = array('login' => 'login',
+                         'email' => 'email',
+                         'matriculation' => 'matriculation'
+        );
 
-		foreach($_POST['grouping'] as $grouping_id)
-		{
-			$tmp_obj = new ilObjCourseGrouping((int)$grouping_id);
-			$tmp_obj->delete();
-		}
-		
-		ilUtil::sendSuccess($this->lng->txt('crs_grouping_deleted'), true);
-		$this->ctrl->redirect($this, 'listGroupings');
-	}
+        foreach ($options as $value => $caption) {
+            $options[$value] = $this->lng->txt($caption);
+        }
+        $uniq = new ilSelectInputGUI($this->lng->txt('unambiguousness'), 'unique');
+        $uniq->setRequired(true);
+        $uniq->setOptions($options);
+        $form->addItem($uniq);
 
-	function create($a_form = null)
-	{
-		global $DIC;	
+        if ($a_create) {
+            $form->setTitle($this->lng->txt('crs_add_grouping'));
+            $form->addCommandButton('add', $this->lng->txt('btn_add'));
+        } else {
+            $grouping = new ilObjCourseGrouping($this->id);
+            $title->setValue($grouping->getTitle());
+            $desc->setValue($grouping->getDescription());
+            $uniq->setValue($grouping->getUniqueField());
 
-		$ilErr = $DIC['ilErr'];
-		$ilAccess = $DIC['ilAccess'];
-		$tpl = $DIC['tpl'];
-		
-		if(!$ilAccess->checkAccess('write','',$this->content_obj->getRefId()))
-		{
-			$ilErr->raiseError($this->lng->txt('permission_denied'),$ilErr->MESSAGE);
-		}
-		
-		if(!$a_form)
-		{
-			$a_form = $this->initForm(true);
-		}
-		
-		$tpl->setContent($a_form->getHTML());
-	}
-	
-	function initForm($a_create)
-	{
-		include_once "Services/Form/classes/class.ilPropertyFormGUI.php";
-		$form = new ilPropertyFormGUI();
-		$form->setFormAction($this->ctrl->getFormAction($this));	
-		
-		$title = new ilTextInputGUI($this->lng->txt('title'), 'title');
-		$title->setRequired(true);
-		$form->addItem($title);
-		
-		$desc = new ilTextAreaInputGUI($this->lng->txt('description'), 'description');
-		$form->addItem($desc);
-		
-		$options = array('login' => 'login',
-						 'email' => 'email',
-						 'matriculation' => 'matriculation');
+            $ass = new ilCustomInputGUI($this->lng->txt('groupings_assigned_obj_' . $this->getContentType()));
+            $form->addItem($ass);
 
-		foreach($options as $value => $caption)
-		{
-			$options[$value] = $this->lng->txt($caption);
-		}		
-		$uniq = new ilSelectInputGUI($this->lng->txt('unambiguousness'), 'unique');
-		$uniq->setRequired(true);
-		$uniq->setOptions($options);
-		$form->addItem($uniq);
-				
-		if($a_create)
-		{
-			$form->setTitle($this->lng->txt('crs_add_grouping'));
-			$form->addCommandButton('add', $this->lng->txt('btn_add'));
-		}
-		else
-		{
-			$grouping = new ilObjCourseGrouping($_REQUEST['obj_id']);
-			$title->setValue($grouping->getTitle());
-			$desc->setValue($grouping->getDescription());
-			$uniq->setValue($grouping->getUniqueField());
-					
-			$ass = new ilCustomInputGUI($this->lng->txt('groupings_assigned_obj_'.$this->getContentType()));
-			$form->addItem($ass);
-			
-			// assignments
-			$items = array();
-			foreach($grouping->getAssignedItems() as $cond_data)
-			{				
-				$items[] = ilObject::_lookupTitle($cond_data['target_obj_id']);
-			}
-			if(count($items))
-			{
-				$ass->setHtml(implode("<br />", $items));
-			}
-			else
-			{
-				$ass->setHtml($this->lng->txt('crs_grp_no_courses_assigned'));
-			}		 
-			
-			$form->setTitle($this->lng->txt('edit_grouping'));
-			$form->addCommandButton('update', $this->lng->txt('save'));			
-			$form->addCommandButton('selectCourse', $this->lng->txt('grouping_change_assignment'));			
-		}
-		
-		$form->addCommandButton('listGroupings', $this->lng->txt('cancel'));
-		
-		return $form;
-	}
+            // assignments
+            $items = array();
+            foreach ($grouping->getAssignedItems() as $cond_data) {
+                $items[] = ilObject::_lookupTitle($cond_data['target_obj_id']);
+            }
+            if ($items !== []) {
+                $ass->setHtml(implode("<br />", $items));
+            } else {
+                $ass->setHtml($this->lng->txt('crs_grp_no_courses_assigned'));
+            }
 
-	function add()
-	{		
-		$form = $this->initForm(true);
-		if($form->checkInput())
-		{
-			$this->grp_obj->setTitle($form->getInput('title'));
-			$this->grp_obj->setDescription($form->getInput('description'));
-			$this->grp_obj->setUniqueField($form->getInput('unique'));
-			
-			if($this->grp_obj->create($this->content_obj->getRefId(),$this->content_obj->getId()))
-			{
-				ilUtil::sendSuccess($this->lng->txt('crs_grp_added_grouping'), true);
-			}
-			else
-			{
-				ilUtil::sendFailure($this->lng->txt('crs_grp_err_adding_grouping'), true);
-			}
-			
-			$this->ctrl->redirect($this, 'listGroupings');
-		}
+            $form->setTitle($this->lng->txt('edit_grouping'));
+            $form->addCommandButton('update', $this->lng->txt('save'));
+            $form->addCommandButton('selectCourse', $this->lng->txt('grouping_change_assignment'));
+        }
+        $form->addCommandButton('listGroupings', $this->lng->txt('cancel'));
+        return $form;
+    }
 
-		$form->setValuesByPost();
-		$this->create($form);		
-	}
-	
-	function edit($a_form = null)
-	{
-		global $DIC;
+    public function add(): void
+    {
+        $form = $this->initForm(true);
+        if ($form->checkInput()) {
+            $this->grp_obj->setTitle($form->getInput('title'));
+            $this->grp_obj->setDescription($form->getInput('description'));
+            $this->grp_obj->setUniqueField($form->getInput('unique'));
 
-		$ilErr = $DIC['ilErr'];
-		$ilAccess = $DIC['ilAccess'];
-		$tpl = $DIC['tpl'];
+            $this->grp_obj->create($this->content_obj->getRefId(), $this->content_obj->getId());
+            $this->tpl->setOnScreenMessage('success', $this->lng->txt('crs_grp_added_grouping'), true);
+            $this->ctrl->redirect($this, 'listGroupings');
+        }
+        $form->setValuesByPost();
+        $this->create($form);
+    }
 
-		if(!$ilAccess->checkAccess('write','',$this->content_obj->getRefId()))
-		{
-			$ilErr->raiseError($this->lng->txt('permission_denied'),$ilErr->MESSAGE);
-		}
-		
-		if(!$a_form)
-		{
-			$a_form = $this->initForm(false);
-		}
-		
-		$tpl->setContent($a_form->getHTML());
-	}
+    public function edit(?ilPropertyFormGUI $a_form = null): void
+    {
+        if (!$this->access->checkAccess('write', '', $this->content_obj->getRefId())) {
+            $this->error->raiseError($this->lng->txt('permission_denied'), $this->error->MESSAGE);
+        }
+        if (!$a_form) {
+            $a_form = $this->initForm(false);
+        }
+        $this->tpl->setContent($a_form->getHTML());
+    }
 
-	function update()
-	{
-		global $DIC;
+    public function update(): void
+    {
+        if (!$this->access->checkAccess('write', '', $this->content_obj->getRefId())) {
+            $this->error->raiseError($this->lng->txt('permission_denied'), $this->error->MESSAGE);
+        }
 
-		$ilErr = $DIC['ilErr'];
-		$ilAccess = $DIC['ilAccess'];
-		$ilObjDataCache = $DIC['ilObjDataCache'];
-		
-		if(!$ilAccess->checkAccess('write','',$this->content_obj->getRefId()))
-		{
-			$ilErr->raiseError($this->lng->txt('permission_denied'),$ilErr->MESSAGE);
-		}
+        $obj_id = 0;
+        if ($this->http->wrapper()->query()->has('obj_id')) {
+            $obj_id = $this->http->wrapper()->query()->retrieve(
+                'obj_id',
+                $this->refinery->kindlyTo()->int()
+            );
+        }
+        $form = $this->initForm(false);
+        if ($form->checkInput()) {
+            $tmp_grouping = new ilObjCourseGrouping($obj_id);
+            $tmp_grouping->setTitle($form->getInput('title'));
+            $tmp_grouping->setDescription($form->getInput('description'));
+            $tmp_grouping->setUniqueField($form->getInput('unique'));
+            $tmp_grouping->update();
 
-		$form = $this->initForm(false);
-		if($form->checkInput())
-		{				
-			$tmp_grouping = new ilObjCourseGrouping($_REQUEST['obj_id']);
-			$tmp_grouping->setTitle($form->getInput('title'));
-			$tmp_grouping->setDescription($form->getInput('description'));
-			$tmp_grouping->setUniqueField($form->getInput('unique'));
-			$tmp_grouping->update();
+            $this->tpl->setOnScreenMessage('success', $this->lng->txt('settings_saved'), true);
+            $this->ctrl->redirect($this, 'listGroupings');
+        }
 
-			ilUtil::sendSuccess($this->lng->txt('settings_saved'), true);
-			$this->ctrl->redirect($this, 'listGroupings');
-		}
-		
-		$form->setValuesByPost();
-		$this->edit($form);
-	}
+        $form->setValuesByPost();
+        $this->edit($form);
+    }
 
-	function selectCourse()
-	{
-		global $DIC;
+    public function selectCourse(): void
+    {
+        if (!$this->access->checkAccess('write', '', $this->content_obj->getRefId())) {
+            $this->error->raiseError($this->lng->txt('permission_denied'), $this->error->MESSAGE);
+        }
 
-		$ilErr = $DIC['ilErr'];
-		$ilAccess = $DIC['ilAccess'];
-		$tpl = $DIC['tpl'];
-		$ilTabs = $DIC['ilTabs'];
+        if (!$this->id) {
+            $this->tpl->setOnScreenMessage('failure', $this->lng->txt('crs_grp_no_grouping_id_given'));
+            $this->listGroupings();
+            return;
+        }
 
-		if(!$ilAccess->checkAccess('write','',$this->content_obj->getRefId()))
-		{
-			$ilErr->raiseError($this->lng->txt('permission_denied'),$ilErr->MESSAGE);
-		}
+        $this->tabs->clearTargets();
+        $this->tabs->setBackTarget(
+            $this->lng->txt('back'),
+            $this->ctrl->getLinkTarget($this, 'edit')
+        );
+        $tmp_grouping = new ilObjCourseGrouping($this->id);
+        $table = new ilCourseGroupingAssignmentTableGUI($this, 'selectCourse', $this->content_obj, $tmp_grouping);
+        $this->tpl->setContent($table->getHTML());
+    }
 
-		if(!$_GET['obj_id'])
-		{
-			ilUtil::sendFailure($this->lng->txt('crs_grp_no_grouping_id_given'));
-			$this->listGroupings();
-			return false;
-		}
-		
-		$ilTabs->clearTargets();
-		$ilTabs->setBackTarget($this->lng->txt('back'),
-			$this->ctrl->getLinkTarget($this, 'edit'));
+    public function assignCourse(): void
+    {
+        if (!$this->access->checkAccess('write', '', $this->content_obj->getRefId())) {
+            $this->error->raiseError($this->lng->txt('permission_denied'), $this->error->MESSAGE);
+        }
 
-		$tmp_grouping = new ilObjCourseGrouping((int) $_GET['obj_id']);
-		
-		include_once 'Modules/Course/classes/class.ilCourseGroupingAssignmentTableGUI.php';
-		$table = new ilCourseGroupingAssignmentTableGUI($this, 'selectCourse', $this->content_obj, $tmp_grouping);
-		
-		$tpl->setContent($table->getHTML());
-		
-		return true;
-	}
+        if (!$this->id) {
+            $this->listGroupings();
+            return;
+        }
 
-	function assignCourse()
-	{
-		global $DIC;
+        // delete all existing conditions
+        $condh = new ilConditionHandler();
+        $condh->deleteByObjId($this->id);
 
-		$ilErr = $DIC['ilErr'];
-		$ilAccess = $DIC['ilAccess'];
-		$ilObjDataCache = $DIC['ilObjDataCache'];
-		$tree = $DIC['tree'];
-		$ilUser = $DIC['ilUser'];
+        $added = 0;
+        $container_ids = [];
+        if ($this->http->wrapper()->post()->has('crs_ids')) {
+            $container_ids = $this->http->wrapper()->post()->retrieve(
+                'crs_ids',
+                $this->refinery->kindlyTo()->listOf(
+                    $this->refinery->kindlyTo()->int()
+                )
+            );
+        }
 
-		if(!$ilAccess->checkAccess('write','',$this->content_obj->getRefId()))
-		{
-			$ilErr->raiseError($this->lng->txt('permission_denied'),$ilErr->MESSAGE);
-		}
+        foreach ($container_ids as $course_ref_id) {
+            $tmp_crs = ilObjectFactory::getInstanceByRefId($course_ref_id);
+            $tmp_condh = new ilConditionHandler();
+            $tmp_condh->enableAutomaticValidation(false);
 
-		if(!$_GET['obj_id'])
-		{
-			$this->listGroupings();
-			return false;
-		}
-	
-		// delete all existing conditions
-		include_once './Services/Conditions/classes/class.ilConditionHandler.php';
-		$condh = new ilConditionHandler();
-		$condh->deleteByObjId((int)$_GET['obj_id']);
+            $tmp_condh->setTargetRefId($course_ref_id);
+            $tmp_condh->setTargetObjId($tmp_crs->getId());
+            $tmp_condh->setTargetType($this->getContentType());
+            $tmp_condh->setTriggerRefId(0);
+            $tmp_condh->setTriggerObjId($this->id);
+            $tmp_condh->setTriggerType('crsg');
+            $tmp_condh->setOperator('not_member');
+            $tmp_condh->setValue($this->grp_obj->getUniqueField());
 
-		$added = 0;		
-		$container_ids = is_array($_POST['crs_ids']) ? $_POST['crs_ids'] : array();
-		foreach($container_ids as $course_ref_id)
-		{
-			$tmp_crs = ilObjectFactory::getInstanceByRefId($course_ref_id);
-			$tmp_condh = new ilConditionHandler();
-			$tmp_condh->enableAutomaticValidation(false);
+            if (!$tmp_condh->checkExists()) {
+                $tmp_condh->storeCondition();
+                ++$added;
+            }
+        }
 
-			$tmp_condh->setTargetRefId($course_ref_id);
-			$tmp_condh->setTargetObjId($tmp_crs->getId());
-			$tmp_condh->setTargetType($this->getContentType());
-			$tmp_condh->setTriggerRefId(0);
-			$tmp_condh->setTriggerObjId($this->id);
-			$tmp_condh->setTriggerType('crsg');
-			$tmp_condh->setOperator('not_member');
-			$tmp_condh->setValue($this->grp_obj->getUniqueField());
-
-			if(!$tmp_condh->checkExists())
-			{
-				$tmp_condh->storeCondition();
-				++$added;
-			}
-		}
-		
-		ilUtil::sendSuccess($this->lng->txt('settings_saved'), true);		
-		$this->ctrl->redirect($this, 'edit');
-	}			
+        $this->tpl->setOnScreenMessage('success', $this->lng->txt('settings_saved'), true);
+        $this->ctrl->redirect($this, 'edit');
+    }
 } // END class.ilObjCourseGrouping
-?>

@@ -1,147 +1,111 @@
 <?php
 
-include_once './Services/Table/classes/class.ilTable2GUI.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+
+declare(strict_types=1);
 
 abstract class ilRepositoryObjectSearchResultTableGUI extends ilTable2GUI
 {
-	private $settings = null;
-	protected $ref_id = 0;
-	private $search_term = '';
-	
-	private $results = null;
-	
-	/**
-	 * Constructor
-	 * @param type $a_parent_obj
-	 * @param type $a_parent_cmd
-	 */
-	public function __construct($a_parent_obj, $a_parent_cmd, $a_ref_id)
-	{
-		$this->settings = ilSearchSettings::getInstance();
-		$this->ref_id = $a_ref_id;
-		$this->setId('repository_object_search_result_'.$this->ref_id);
-		parent::__construct($a_parent_obj, $a_parent_cmd);
-	}
-	
-	/**
-	 * Set search term
-	 * @param type $a_term
-	 */
-	public function setSearchTerm($a_term)
-	{
-		$this->search_term = $a_term;
-	}
-	
-	/**
-	 * Get search term
-	 * @return type
-	 */
-	public function getSearchTerm()
-	{
-		return $this->search_term;
-	}
-	
-	/**
-	 * Get search settings
-	 * @return ilSearchSettings
-	 */
-	public function getSettings()
-	{
-		return $this->settings;
-	}
-	
-	/**
-	 * Set result object
-	 * @param ilRepositoryObjectDetailSearchResult $a_result
-	 */
-	public function setResults(ilRepositoryObjectDetailSearchResult $a_result)
-	{
-		$this->results = $a_result;
-	}
-	
-	public function getResults()
-	{
-		return $this->results;
-	}
+    private ilSearchSettings $settings;
+    protected int $ref_id;
+    private string $search_term;
 
-	/**
-	 * init table
-	 */
-	public function init()
-	{
-		$this->initColumns();
-		$this->initRowTemplate();
-		
-		global $DIC;
+    private ?ilRepositoryObjectDetailSearchResult $results = null;
 
-		$ilCtrl = $DIC['ilCtrl'];
-		$lng = $DIC['lng'];
-		
-		$this->setEnableHeader(true);
-		$this->setShowRowsSelector(FALSE);
-		$this->setFormAction($ilCtrl->getFormAction($this->getParentObject()));
-		$this->setLimit(0);
-		
-		$this->setTitle($lng->txt('search_results').' "'.str_replace(array('"'), '', $this->getSearchTerm()).'"');
-	}
+    public function __construct(object $a_parent_obj, string $a_parent_cmd, int $a_ref_id)
+    {
+        $this->settings = ilSearchSettings::getInstance();
+        $this->ref_id = $a_ref_id;
+        $this->setId('rep_obj_search_res_' . $this->ref_id);
+        parent::__construct($a_parent_obj, $a_parent_cmd);
+    }
 
-	/**
-	 * Init columns
-	 */
-	protected function initColumns()
-	{
-		global $DIC;
+    public function setSearchTerm(string $a_term): void
+    {
+        $this->search_term = $a_term;
+    }
 
-		$lng = $DIC['lng'];
-		
-		
-		if($this->getSettings()->enabledLucene())
-		{
-			$lng->loadLanguageModule('search');
-			#$this->addColumn($lng->txt("title"), "title", "80%");
-			#$this->addColumn($lng->txt("lucene_relevance_short"), "relevance", "20%");
-			$this->addColumn($lng->txt("title"), "", "80%");
-			$this->addColumn($lng->txt("lucene_relevance_short"), "", "20%");
-		}
-		else
-		{
-			$this->addColumn($lng->txt("title"), "", "100%");
-		}
-	}
+    public function getSearchTerm(): string
+    {
+        return $this->search_term;
+    }
 
-	/**
-	 * init row template
-	 */
-	protected function initRowTemplate()
-	{
-		$this->setRowTemplate('tpl.repository_object_search_result_row.html','Services/Search');
-	}
-	
-	
-	/**
-	 * Parse search result set and call set data
-	 */
-	abstract public function parse();
-	
-	
-	/**
-	 * Get relevance html
-	 */
-	public function getRelevanceHTML($a_rel)
-	{
-		$tpl = new ilTemplate('tpl.lucene_relevance.html',true,true,'Services/Search');
-		
-		include_once "Services/UIComponent/ProgressBar/classes/class.ilProgressBar.php";
-		$pbar = ilProgressBar::getInstance();
-		$pbar->setCurrent($a_rel);
-		
-		$tpl->setCurrentBlock('relevance');
-		$tpl->setVariable('REL_PBAR', $pbar->render());		
-		$tpl->parseCurrentBlock();
-		
-		return $tpl->get();
-	}
-	
-	
+    public function getSettings(): ilSearchSettings
+    {
+        return $this->settings;
+    }
+
+    public function setResults(ilRepositoryObjectDetailSearchResult $a_result): void
+    {
+        $this->results = $a_result;
+    }
+
+    public function getResults(): ilRepositoryObjectDetailSearchResult
+    {
+        return $this->results;
+    }
+
+    public function init(): void
+    {
+        $this->initColumns();
+        $this->initRowTemplate();
+
+        $this->setEnableHeader(true);
+        $this->setShowRowsSelector(false);
+        $this->setFormAction($this->ctrl->getFormAction($this->getParentObject()));
+        $this->setLimit(0);
+
+        $this->setTitle(
+            $this->lng->txt('search_results') . ' "' . str_replace(['"'], '', ilLegacyFormElementsUtil::prepareFormOutput($this->getSearchTerm())) . '"'
+        );
+    }
+
+    protected function initColumns(): void
+    {
+        if ($this->getSettings()->enabledLucene()) {
+            $this->lng->loadLanguageModule('search');
+            $this->addColumn($this->lng->txt("title"), "", "80%");
+            $this->addColumn($this->lng->txt("lucene_relevance_short"), "", "20%");
+        } else {
+            $this->addColumn($this->lng->txt("title"), "", "100%");
+        }
+    }
+
+    protected function initRowTemplate(): void
+    {
+        $this->setRowTemplate('tpl.repository_object_search_result_row.html', 'Services/Search');
+    }
+
+
+    abstract public function parse();
+
+
+    public function getRelevanceHTML(float $a_rel): string
+    {
+        $tpl = new ilTemplate('tpl.lucene_relevance.html', true, true, 'Services/Search');
+
+        $pbar = ilProgressBar::getInstance();
+        $pbar->setCurrent($a_rel);
+
+        $tpl->setCurrentBlock('relevance');
+        $tpl->setVariable('REL_PBAR', $pbar->render());
+        $tpl->parseCurrentBlock();
+
+        return $tpl->get();
+    }
 }
-?>

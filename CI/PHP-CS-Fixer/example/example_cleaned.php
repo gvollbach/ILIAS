@@ -1,17 +1,36 @@
 <?php
-// PSR-2
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+// PSR-12
+
 namespace Vendor\Package;
 
-use FooInterface;
 use BarClass as Bar;
+use FooInterface;
 use OtherVendor\OtherPackage\BazClass;
+use ZPackage;
 
 class Foo extends Bar implements FooInterface
 {
     public function sampleMethod($a, $b = null)
     {
         if ($a === $b) {
-            bar();
+            \Vendor\Package\bar();
         } elseif ($a > $b) {
             $foo->bar($arg1);
         } else {
@@ -37,6 +56,9 @@ $a = 1 + $b ^ $d !== $e or $f;
 // unary_operator_spaces
 $sample = 0;
 $sample++;
+//Unused blank lines: begin
+
+//Unused blank lines: end
 --$sample;
 $sample = !!$a;
 $sample = ~$c;
@@ -48,8 +70,8 @@ function sample(array $a)
 {
 }
 // return_type_declaration
-function bar(int $a) : string
+function bar(int $a): string
 {
 };
 // whitespace_after_comma_in_array
-$sample = array(1, 'a', $b, );
+$sample = array(1,'a',$b,);

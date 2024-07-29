@@ -1,72 +1,68 @@
 <?php
 
-/* Copyright (c) 1998-2019 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Help mapping
  *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- *
- * @ingroup Services
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilHelpTooltipTableGUI extends ilTable2GUI
 {
-	/**
-	 * @var ilAccessHandler
-	 */
-	protected $access;
+    protected ilAccessHandler $access;
 
-	
-	/**
-	 * Constructor
-	 */
-	function __construct($a_parent_obj, $a_parent_cmd, $a_comp)
-	{
-		global $DIC;
+    public function __construct(
+        object $a_parent_obj,
+        string $a_parent_cmd,
+        string $a_comp
+    ) {
+        global $DIC;
 
-		$this->ctrl = $DIC->ctrl();
-		$this->lng = $DIC->language();
-		$this->access = $DIC->access();
-		$ilCtrl = $DIC->ctrl();
-		$lng = $DIC->language();
-		$ilAccess = $DIC->access();
-		$lng = $DIC->language();
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
+        $this->access = $DIC->access();
+        $ilCtrl = $DIC->ctrl();
+        $lng = $DIC->language();
 
-		$this->setId("lm_help_tooltips");
+        $this->setId("lm_help_tooltips");
 
-		parent::__construct($a_parent_obj, $a_parent_cmd);
-		
-		$this->setData(ilHelp::getAllTooltips($a_comp));
+        parent::__construct($a_parent_obj, $a_parent_cmd);
 
-		$this->setTitle($lng->txt("help_tooltips"));
+        $this->setData(ilHelp::getAllTooltips($a_comp));
 
-		$this->addColumn("", "", "1px", true);
-		$this->addColumn($this->lng->txt("help_tooltip_id"));
-		$this->addColumn($this->lng->txt("help_tt_text"));
+        $this->setTitle($lng->txt("help_tooltips"));
 
-		$this->setFormAction($ilCtrl->getFormAction($a_parent_obj));
-		$this->setRowTemplate("tpl.help_tooltip.html", "Modules/LearningModule");
-		$this->setDefaultOrderField("tt_id");
-		$this->setDefaultOrderDirection("asc");
+        $this->addColumn("", "", "1px", true);
+        $this->addColumn($this->lng->txt("help_tooltip_id"));
+        $this->addColumn($this->lng->txt("help_tt_text"));
 
-		$this->addCommandButton("saveTooltips", $lng->txt("save"));
-		$this->addMultiCommand("deleteTooltips", $lng->txt("delete"));
-	}
+        $this->setFormAction($ilCtrl->getFormAction($a_parent_obj));
+        $this->setRowTemplate("tpl.help_tooltip.html", "Modules/LearningModule");
+        $this->setDefaultOrderField("tt_id");
+        $this->setDefaultOrderDirection("asc");
 
-	/**
-	 * Fill table row
-	 */
-	protected function fillRow($a_set)
-	{
-		$lng = $this->lng;
+        $this->addCommandButton("saveTooltips", $lng->txt("save"));
+        $this->addMultiCommand("deleteTooltips", $lng->txt("delete"));
+    }
 
-		$this->tpl->setVariable("ID", $a_set["id"]);
-		$this->tpl->setVariable("TEXT", ilUtil::prepareFormOutput($a_set["text"]));
-		$this->tpl->setVariable("TT_ID", ilUtil::prepareFormOutput($a_set["tt_id"]));
-		
-	}
-
+    protected function fillRow(array $a_set): void
+    {
+        $this->tpl->setVariable("ID", $a_set["id"]);
+        $this->tpl->setVariable("TEXT", ilLegacyFormElementsUtil::prepareFormOutput($a_set["text"]));
+        $this->tpl->setVariable("TT_ID", ilLegacyFormElementsUtil::prepareFormOutput($a_set["tt_id"]));
+    }
 }
-
-?>

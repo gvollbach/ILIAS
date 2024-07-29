@@ -1,31 +1,44 @@
 <?php
-/* Copyright (c) 1998-2017 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/Table/classes/class.ilTable2GUI.php';
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilSamlIdpSelectionTableGUI
+ * @author Michael Jansen <mjansen@databay.de>
  */
-class ilSamlIdpSelectionTableGUI extends \ilTable2GUI
+class ilSamlIdpSelectionTableGUI extends ilTable2GUI
 {
-	/**
-	 * @inheritdoc
-	 */
-	public function __construct($a_parent_obj, $a_parent_cmd = '', $a_template_context = '')
-	{
-		$this->setId('saml_idp_selection');
-		parent::__construct($a_parent_obj, $a_parent_cmd, $a_template_context);
+    public function __construct(object $parent_gui, string $parent_cmd)
+    {
+        $this->setId('saml_idp_selection');
+        parent::__construct($parent_gui, $parent_cmd);
 
-		$this->disable('sort');
-		$this->disable('header');
-		$this->disable('linkbar');
-		$this->disable('numinfo');
-		$this->setLimit(PHP_INT_MAX);
-		$this->setShowRowsSelector(false);
-		
-		$this->setTitle($this->lng->txt('auth_saml_idp_selection_table_title'));
-		$this->setDescription($this->lng->txt('auth_saml_idp_selection_table_desc'));
+        $this->disable('sort');
+        $this->disable('header');
+        $this->disable('linkbar');
+        $this->disable('numinfo');
+        $this->setLimit(PHP_INT_MAX);
+        $this->setShowRowsSelector(false);
 
-		$this->setRowTemplate('tpl.saml_idp_selection_row.html', 'Services/Saml');
-	}
+        $this->setTitle($this->lng->txt('auth_saml_idp_selection_table_title'));
+        $this->setDescription($this->lng->txt('auth_saml_idp_selection_table_desc'));
+
+        $this->setRowTemplate('tpl.saml_idp_selection_row.html', 'Services/Saml');
+    }
 }

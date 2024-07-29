@@ -1,117 +1,60 @@
 <?php
 
-/* Copyright (c) 2016 Timon Amstutz <timon.amstutz@ilub.unibe.ch> Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 namespace ILIAS\UI\Implementation\Crawler\Entry;
+
+use JsonSerializable;
 
 /**
  * Stores Information of UI Components parsed from YAML, examples and less files
  *
- * @author			  Timon Amstutz <timon.amstutz@ilub.unibe.ch>
+ * @author Timon Amstutz <timon.amstutz@ilub.unibe.ch>
  */
-class ComponentEntry extends AbstractEntryPart implements \JsonSerializable
+class ComponentEntry extends AbstractEntryPart implements JsonSerializable
 {
-    /**
-     * @var string
-     */
-    protected $id = "";
-
-    /**
-     * @var string
-     */
-    protected $title = "";
-
-    /**
-     * @var bool
-     */
-    protected $is_abstract = false;
-
-    /**
-     * @var array
-     */
-    protected $status_list_entry = array("Accepted","Proposed","To be revised");
-
-    /**
-     * @var array
-     */
-    protected $status_list_implementation = array("Implemented","Partly implemented","To be implemented");
-
-    /**
-     * @var string
-     */
-    protected $status_entry = "";
-
-    /**
-     * @var string
-     */
-    protected $status_implementation = "";
-
-    /**
-     * @var ComponentEntryDescription
-     */
-    protected $description = null;
-
-    /**
-     * @var string
-     */
-    protected $background = "";
-
-    /**
-     * @var string
-     */
-    protected $context = [];
-
-    /**
-     * @var string
-     */
-    protected $selector = "";
-
-    /**
-     * @var array
-     */
-    protected $feature_wiki_references = array();
-
-    /**
-     * @var ComponentEntryRules
-     */
-    protected $rules = null;
-
-    /**
-     * @var string
-     */
-    protected $parent = false;
-
     /**
      * @var string[]
      */
-    protected $children = array();
+    protected array $children = array();
 
-    /**
-     * @var array
-     */
-    protected $less_variables = array();
+    protected string $id = "";
+    protected string $title = "";
+    protected bool $is_abstract = false;
+    protected array $status_list_entry = array("Accepted", "Proposed", "To be revised");
+    protected array $status_list_implementation = array("Implemented", "Partly implemented", "To be implemented");
+    protected string $status_entry = "";
+    protected string $status_implementation = "";
+    protected ?ComponentEntryDescription $description = null;
+    protected string $background = "";
+    protected array $context = [];
+    protected string $selector = "";
+    protected array $feature_wiki_references = array();
+    protected ?ComponentEntryRules $rules = null;
+    protected ?string $parent = null;
+    protected array $less_variables = array();
+    protected string $path = "";
+    protected ?array $examples = null;
+    protected string $examples_path = "";
+    protected string $examples_namespace = "";
+    protected string $namesapce = "";
 
-    /**
-     * @var string
-     */
-    protected $path = "";
-
-
-    /**
-     * @var array
-     */
-    protected $examples = null;
-
-    /**
-     * @var string
-     */
-    protected $examples_path = "";
-
-    /**
-     * ComponentEntry constructor.
-     *
-     * @param $entry_data
-     */
     public function __construct($entry_data)
     {
         parent::__construct();
@@ -119,14 +62,15 @@ class ComponentEntry extends AbstractEntryPart implements \JsonSerializable
         $this->setId($entry_data['id']);
         $this->assert()->isIndex('title', $entry_data);
         $this->setTitle($entry_data['title']);
-        $this->assert()->isIndex('abstract', $entry_data);
-        $this->setIsAbstract($entry_data['abstract']);
+        $this->assert()->isIndex('namespace', $entry_data);
+        $this->setNamespace($entry_data['namespace']);
+        $this->setIsAbstract((bool) $entry_data['abstract']);
         $this->setStatusEntry("Proposed");
         $this->setStatusImplementation("Partly implemented");
         if (array_key_exists('description', $entry_data)) {
             $this->setDescription(new ComponentEntryDescription($entry_data['description']));
         }
-        if (array_key_exists('rules', $entry_data)) {
+        if (array_key_exists('rules', $entry_data) && is_array($entry_data['rules'])) {
             $this->setRules(new ComponentEntryRules($entry_data['rules']));
         }
 
@@ -143,195 +87,128 @@ class ComponentEntry extends AbstractEntryPart implements \JsonSerializable
             $this->setFeatureWikiReferences($entry_data['featurewiki']);
         }
         if (array_key_exists('parent', $entry_data)) {
-            $this->setParent($entry_data['parent']);
+            $this->setParent((string) $entry_data['parent']);
         }
         if (array_key_exists('children', $entry_data)) {
             $this->setChildren($entry_data['children']);
         }
 
-        if (!$this->isAbstract()) {
-            $this->readExamples();
-        }
+        $this->readExamples();
     }
 
-    /**
-     * @return string
-     */
-    public function getId()
+    public function getId(): string
     {
         return $this->id;
     }
 
-    /**
-     * @param string $id
-     */
-    public function setId($id)
+    public function setId(string $id): void
     {
         $this->assert()->isString($id, false);
         $this->id = $id;
     }
 
-    /**
-     * @return string
-     */
-    public function getTitle()
+    public function getTitle(): string
     {
         return $this->title;
     }
 
-    /**
-     * @param string $title
-     */
-    public function setTitle($title)
+    public function setTitle(string $title): void
     {
         $this->assert()->isString($title, false);
         $this->title = $title;
     }
 
-    /**
-     * @return boolean
-     */
-    public function isAbstract()
+    public function isAbstract(): bool
     {
         return $this->is_abstract;
     }
 
-    /**
-     * @param boolean $is_abstract
-     */
-    public function setIsAbstract($is_abstract)
+    public function setIsAbstract(bool $is_abstract): void
     {
         $this->is_abstract = $is_abstract;
     }
 
-    /**
-     * @return string
-     */
-    public function getStatusEntry()
+    public function getStatusEntry(): string
     {
         return $this->status_entry;
     }
 
-    /**
-     * @param string $status_entry
-     */
-    public function setStatusEntry($status_entry)
+    public function setStatusEntry(string $status_entry): void
     {
         $this->assert()->isString($status_entry);
-        //$this->assert()->isIndex($status_entry,$this->status_list_entry);
-
         $this->status_entry = $status_entry;
     }
 
-    /**
-     * @return array
-     */
-    public function getStatusImplementation()
+    public function getStatusImplementation(): string
     {
         return $this->status_implementation;
     }
 
-    /**
-     * @param array $status_implementation
-     */
-    public function setStatusImplementation($status_implementation)
+    public function setStatusImplementation(string $status_implementation): void
     {
         $this->assert()->isString($status_implementation);
-        //$this->assert()->isIndex($status_implementation,$this->status_list_implementation);
 
         $this->status_implementation = $status_implementation;
     }
 
-    /**
-     * @return ComponentEntryDescription
-     */
-    public function getDescription()
+    public function getDescription(): ?ComponentEntryDescription
     {
         return $this->description;
     }
 
-    /**
-     * @return array
-     */
-    public function getDescriptionAsArray()
+    public function getDescriptionAsArray(): array
     {
         return $this->description->getDescription();
     }
 
     /**
-     * @param ComponentEntryDescription $description
      * @throws \ILIAS\UI\Implementation\Crawler\Exception\CrawlerException
      */
-    public function setDescription(ComponentEntryDescription $description)
+    public function setDescription(ComponentEntryDescription $description): void
     {
         $this->assert()->isTypeOf($description, ComponentEntryDescription::class);
         $this->description = $description;
     }
 
-    /**
-     * @return string
-     */
-    public function getBackground()
+    public function getBackground(): string
     {
         return $this->background;
     }
 
-    /**
-     * @param string $background
-     */
-    public function setBackground($background)
+    public function setBackground(string $background): void
     {
         $this->assert()->isString($background);
         $this->background = $background;
     }
 
-    /**
-     * @param array
-     */
-    public function getContext()
+    public function getContext(): array
     {
         return $this->context;
     }
 
-    /**
-     * @param array $context
-     */
-    public function setContext($context)
+    public function setContext(array $context): void
     {
         $this->assert()->isArray($context);
         $this->context = $context;
     }
 
-
-    /**
-     * @return array
-     */
-    public function getFeatureWikiReferences()
+    public function getFeatureWikiReferences(): array
     {
         return $this->feature_wiki_references;
     }
 
-    /**
-     * @param array $feature_wiki_references
-     */
-    public function setFeatureWikiReferences($feature_wiki_references)
+    public function setFeatureWikiReferences(array $feature_wiki_references): void
     {
         $this->assert()->isArray($feature_wiki_references);
         $this->feature_wiki_references = $feature_wiki_references;
     }
 
-    /**
-     * @return ComponentEntryRules
-     */
-    public function getRules()
+    public function getRules(): ?ComponentEntryRules
     {
         return $this->rules;
     }
 
-    /**
-     * @return array
-     */
-    public function getRulesAsArray()
+    public function getRulesAsArray(): array
     {
         if ($this->rules) {
             return $this->rules->getRules();
@@ -340,132 +217,97 @@ class ComponentEntry extends AbstractEntryPart implements \JsonSerializable
         }
     }
 
-    /**
-     * @param ComponentEntryRules $rules
-     */
-    public function setRules($rules)
+    public function setRules(ComponentEntryRules $rules): void
     {
         $this->assert()->isTypeOf($rules, ComponentEntryRules::class);
         $this->rules = $rules;
     }
 
-    /**
-     * @return string
-     */
-    public function getSelector()
+    public function getSelector(): string
     {
         return $this->selector;
     }
 
-    /**
-     * @param string $selector
-     */
-    public function setSelector($selector)
+    public function setSelector(string $selector): void
     {
         $this->assert()->isString($selector);
         $this->selector = $selector;
     }
 
-    /**
-     * @param array $less_variables
-     */
-    public function setLessVariables($less_variables)
+    public function setLessVariables(array $less_variables): void
     {
         $this->assert()->isArray($less_variables);
         $this->less_variables = $less_variables;
     }
 
-    /**
-     * @return array
-     */
-    public function getLessVariables()
+    public function getLessVariables(): array
     {
         return $this->less_variables;
     }
 
-    /**
-     * @return string
-     */
-    public function getPath()
+    public function getPath(): string
     {
         return $this->path;
     }
 
-    /**
-     * @param string $path
-     */
-    public function setPath($path)
+    public function setPath(string $path): void
     {
         $this->assert()->isString($path);
         $this->path = $path;
     }
 
-    /**
-     * @return string
-     */
-    public function getParent()
+    public function getParent(): ?string
     {
         return $this->parent;
     }
 
-    /**
-     * @param string $parent
-     */
-    public function setParent($parent)
+    public function setParent(string $parent): void
     {
         $this->parent = $parent;
     }
 
     /**
-     * @return \string[]
+     * @return string[]
      */
-    public function getChildren()
+    public function getChildren(): array
     {
         return $this->children;
     }
 
     /**
-     * @param \string[] $children
+     * @param string[] $children
      */
-    public function setChildren($children)
+    public function setChildren(array $children): void
     {
         $this->children = $children;
     }
 
-    /**
-     * @param string $child
-     */
-    public function addChild($child)
+    public function addChild(string $child): void
     {
         $this->children[] = $child;
     }
 
     /**
-     * @param \string[] $children
+     * @param string[] $children
      */
-    public function addChildren($children)
+    public function addChildren(array $children): void
     {
         $this->setChildren(array_merge($this->children, $children));
     }
 
-    /**
-     * @return array
-     */
-    public function getExamples()
+    public function getExamples(): ?array
     {
         return $this->examples;
     }
 
-    /**
-     *
-     */
-    protected function readExamples()
+    protected function readExamples(): void
     {
         $this->examples = array();
-        if (is_dir($this->getExamplesPath())) {
-            foreach (scandir($this->getExamplesPath()) as $file_name) {
+        $case_insensitive_path = $this->getCaseInsensitiveExampleFolder();
+        if (is_dir($case_insensitive_path)) {
+            foreach (scandir($case_insensitive_path) as $file_name) {
                 $example_path = $this->getExamplesPath() . "/" . $file_name;
-                if (is_file($example_path) && pathinfo($example_path)["extension"] =="php") {
+                if (is_file($example_path) && pathinfo($example_path)["extension"] == "php") {
                     $example_name = str_replace(".php", "", $file_name);
                     $this->examples[$example_name] = $example_path;
                 }
@@ -473,23 +315,64 @@ class ComponentEntry extends AbstractEntryPart implements \JsonSerializable
         }
     }
 
-    public function getExamplesPath()
+    /**
+     * Note case handling of is dir is different from OS to OS, therefore while
+     * reading the examples from the folders, we ignore the case of the folder.
+     * See also #26451
+     */
+    protected function getCaseInsensitiveExampleFolder(): string
+    {
+        $parent_folder = dirname($this->getExamplesPath());
+
+        if (is_dir($parent_folder)) {
+            foreach (scandir($parent_folder) as $folder_name) {
+                if (strtolower($folder_name) == strtolower(basename($this->getExamplesPath()))) {
+                    return $parent_folder . "/" . $folder_name;
+                }
+            }
+        }
+
+        return "";
+    }
+
+    public function getExamplesPath(): string
     {
         if (!$this->examples_path) {
-            $path_componants = str_replace("Component", "examples", $this->getPath())
-                    . "/" . str_replace(" ", "", $this->getTitle());
-            $path_array = self::array_iunique(explode("/", $path_componants));
+            $path_components = str_replace(
+                "/Factory",
+                "",
+                str_replace("Component", "examples", $this->getPath())
+            )
+                . "/" . str_replace(" ", "", $this->getTitle());
+            $path_array = self::array_iunique(explode("/", $path_components));
             $this->examples_path = implode("/", $path_array);
         }
         return $this->examples_path;
     }
 
+    public function getExamplesNamespace(): string
+    {
+        if (!$this->examples_namespace) {
+            $this->examples_namespace = str_replace(
+                "/",
+                "\\",
+                str_replace("src/UI", "\ILIAS\UI", $this->getExamplesPath())
+            );
+        }
+        return $this->examples_namespace;
+    }
 
-    /**
-     * @param array $array
-     * @return array
-     */
-    private static function array_iunique($array)
+    public function getNamespace(): string
+    {
+        return $this->namesapce;
+    }
+
+    public function setNamespace(string $namespace): void
+    {
+        $this->namesapce = $namespace;
+    }
+
+    private static function array_iunique(array $array): array
     {
         return array_intersect_key(
             $array,
@@ -497,23 +380,19 @@ class ComponentEntry extends AbstractEntryPart implements \JsonSerializable
         );
     }
 
-
-    /**
-     * @return array
-     */
-    public function jsonSerialize()
+    public function jsonSerialize(): array
     {
         $description = $this->getDescription();
-        if($description){
+        if ($description) {
             $description_serialized = $description->jsonSerialize();
-        }else{
+        } else {
             $description_serialized = "";
         }
 
         $rules = $this->getRules();
-        if($rules){
+        if ($rules) {
             $rules_serialized = $rules->jsonSerialize();
-        }else{
+        } else {
             $rules_serialized = "";
         }
         return array(
@@ -531,7 +410,8 @@ class ComponentEntry extends AbstractEntryPart implements \JsonSerializable
             'parent' => $this->getParent(),
             'children' => $this->getChildren(),
             'less_variables' => $this->getLessVariables(),
-            'path' => $this->getPath()
+            'path' => $this->getPath(),
+            'namespace' => $this->getNamespace()
         );
     }
 }

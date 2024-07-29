@@ -1,164 +1,159 @@
 <?php
 
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+declare(strict_types=1);
 
-include_once("Services/Block/classes/class.ilBlockGUI.php");
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Metadata block
  *
  * @author Jörg Lützenkirchen <luetzenkirchen@leifos.com>
- * @version $Id$
- *
  * @ilCtrl_IsCalledBy ilObjectMetaDataBlockGUI: ilColumnGUI
- *
- * @ingroup ServicesObject
  */
 class ilObjectMetaDataBlockGUI extends ilBlockGUI
 {
-	static $block_type = "advmd";
-	
-	protected $record; // [ilAdvancedMDRecord]
-	protected $values; // [ilAdvancedMDValues]
-	protected $callback; // [string]
-	
-	static protected $records = array(); // [array]
-	
-	/**
-	* Constructor
-	*/
-	function __construct(ilAdvancedMDRecord $a_record, $a_decorator_callback = null)
-	{		
-		global $DIC;
+    public static string $block_type = "advmd";
+    protected static array $records = [];
 
-		$this->ctrl = $DIC->ctrl();
-		$this->lng = $DIC->language();
-		parent::__construct();
-						
-		$this->record = $a_record;		
-		$this->callback = $a_decorator_callback;
-		
-		$this->setTitle($this->record->getTitle());		
-		$this->setBlockId("advmd_".$this->record->getRecordId());				
-		$this->setEnableNumInfo(false);
-		$this->allow_moving = false;
-	}
+    protected ilAdvancedMDRecord $record;
+    protected ilAdvancedMDValues $values;
+    protected ?array $callback;
 
-	/**
-	 * @inheritdoc
-	 */
-	public function getBlockType(): string 
-	{
-		return self::$block_type;
-	}
+    /**
+     * Takes as an optional second input an array consisting of the object
+     * that the method that should be called back to belongs to, and
+     * a string with the name of the method.
+     * @param ilAdvancedMDRecord                    $record
+     * @param null|array{0: ilObject, 1: string}    $decorator_callback
+     */
+    public function __construct(ilAdvancedMDRecord $record, ?array $decorator_callback = null)
+    {
+        global $DIC;
 
-	/**
-	 * @inheritdoc
-	 */
-	protected function isRepositoryObject(): bool 
-	{
-		return false;
-	}
-	
-	/**
-	* Get Screen Mode for current command.
-	*/
-	static function getScreenMode()
-	{
-		return IL_SCREEN_SIDE;
-	}
-	
-	public function setValues(ilAdvancedMDValues $a_values)
-	{
-		$this->values = $a_values;
-	}
-
-	/**
-	* execute command
-	*/
-	function executeCommand()
-	{
-		$ilCtrl = $this->ctrl;
-
-		$next_class = $ilCtrl->getNextClass();
-		$cmd = $ilCtrl->getCmd("getHTML");
-
-		switch ($next_class)
-		{
-			default:
-				return $this->$cmd();
-		}
-	}
-
-	/**
-	 * Fill data section
-	 */
-	function fillDataSection()
-	{
-		$this->setDataSection($this->getLegacyContent());
-	}
-
-	//
-	// New rendering
-	//
-
-	protected $new_rendering = true;
+        $this->ctrl = $DIC->ctrl();
+        $this->lng = $DIC->language();
 
 
-	/**
-	 * @inheritdoc
-	 */
-	protected function getLegacyContent(): string
-	{
+        parent::__construct();
 
-		$btpl = new ilTemplate("tpl.advmd_block.html", true, true, "Services/Object");		
-		
-		// see ilAdvancedMDRecordGUI::parseInfoPage()
-		
-		$old_dt = ilDatePresentation::useRelativeDates();		
-		ilDatePresentation::setUseRelativeDates(false);
-		
-		include_once('Services/AdvancedMetaData/classes/class.ilAdvancedMDValues.php');
-		include_once('Services/ADT/classes/class.ilADTFactory.php');	
-		
-		// this correctly binds group and definitions
-		$this->values->read();
+        $this->record = $record;
+        $this->callback = $decorator_callback;
 
-		$defs = $this->values->getDefinitions();									
-		foreach($this->values->getADTGroup()->getElements() as $element_id => $element)				
-		{																								
-			$btpl->setCurrentBlock("item");
-			$btpl->setVariable("CAPTION", $defs[$element_id]->getTitle());
-			if($element->isNull())
-			{	
-				$value = "-";
-			}
-			else
-			{
-				$value = ilADTFactory::getInstance()->getPresentationBridgeForInstance($element);
+        $translations = ilAdvancedMDRecordTranslations::getInstanceByRecordId($this->record->getRecordId());
+        $this->setTitle($translations->getTitleForLanguage($this->lng->getLangKey()));
+        $this->setBlockId("advmd_" . $this->record->getRecordId());
+        $this->setEnableNumInfo(false);
+        $this->allow_moving = false;
+    }
 
-				if($element instanceof ilADTLocation)
-				{
-					$value->setSize("100%", "200px");
-				}
-				
-				if(in_array($element->getType(), array("MultiEnum", "Enum", "Text")))
-				{
-					$value->setDecoratorCallBack($this->callback);
-				}
+    /**
+     * @inheritdoc
+     */
+    public function getBlockType(): string
+    {
+        return self::$block_type;
+    }
 
-				$value = $value->getHTML();
-			}
-			$btpl->setVariable("VALUE", $value);
-			$btpl->parseCurrentBlock();										
-		}
-					
-		$html = $btpl->get();
-		
-		ilDatePresentation::setUseRelativeDates($old_dt);
-		
-		return $html;
-	}			
+    /**
+     * @inheritdoc
+     */
+    protected function isRepositoryObject(): bool
+    {
+        return false;
+    }
+
+    /**
+    * Get Screen Mode for current command.
+    */
+    public static function getScreenMode(): string
+    {
+        return IL_SCREEN_SIDE;
+    }
+
+    public function setValues(ilAdvancedMDValues $a_values): void
+    {
+        $this->values = $a_values;
+    }
+
+    /**
+    * execute command
+    */
+    public function executeCommand(): void
+    {
+        $this->ctrl->getNextClass();
+        $cmd = $this->ctrl->getCmd("getHTML");
+        $this->$cmd();
+    }
+
+    /**
+     * Fill data section
+     */
+    public function fillDataSection(): void
+    {
+        $this->setDataSection($this->getLegacyContent());
+    }
+
+    //
+    // New rendering
+    //
+
+    protected bool $new_rendering = true;
+
+
+    /**
+     * @inheritdoc
+     */
+    protected function getLegacyContent(): string
+    {
+        $btpl = new ilTemplate("tpl.advmd_block.html", true, true, "Services/Object");
+
+        // see ilAdvancedMDRecordGUI::parseInfoPage()
+
+        $old_dt = ilDatePresentation::useRelativeDates();
+        ilDatePresentation::setUseRelativeDates(false);
+
+        // this correctly binds group and definitions
+        $this->values->read();
+
+        $defs = $this->values->getDefinitions();
+        foreach ($this->values->getADTGroup()->getElements() as $element_id => $element) {
+            $field_translations = ilAdvancedMDFieldTranslations::getInstanceByRecordId($defs[$element_id]->getRecordId());
+
+            $btpl->setCurrentBlock("item");
+            $btpl->setVariable("CAPTION", $field_translations->getTitleForLanguage($element_id, $this->lng->getLangKey()));
+            if ($element->isNull()) {
+                $value = "-";
+            } else {
+                $value = ilADTFactory::getInstance()->getPresentationBridgeForInstance($element);
+
+                if (in_array($element->getType(), array("MultiEnum", "Enum", "Text"))) {
+                    $value->setDecoratorCallBack($this->callback);
+                }
+
+                $value = $value->getHTML();
+            }
+            $btpl->setVariable("VALUE", $value);
+            $btpl->parseCurrentBlock();
+        }
+
+        $html = $btpl->get();
+
+        ilDatePresentation::setUseRelativeDates($old_dt);
+
+        return $html;
+    }
 }
-
-?>

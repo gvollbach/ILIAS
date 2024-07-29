@@ -1,130 +1,102 @@
 <?php
 
-/* Copyright (c) 1998-2018 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Profile prompt data gateway
- *
- * @author killing@leifos.de
- * @ingroup ServicesUser
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilUserProfilePromptDataGateway
 {
-	/**
-	 * @var ilLanguage
-	 */
-	protected $lng;
+    protected ilLanguage $lng;
+    protected ilSetting $user_settings;
+    protected ilDBInterface $db;
 
-	/**
-	 * @var ilSetting
-	 */
-	protected $user_settings;
+    public function __construct()
+    {
+        global $DIC;
 
-	/**
-	 * @var ilDBInterface
-	 */
-	protected $db;
+        $this->user_settings = new ilSetting("user");
+        $this->lng = $DIC->language();
+        $this->db = $DIC->database();
+    }
 
-	/**
-	 * Constructor
-	 */
-	public function __construct()
-	{
-		global $DIC;
+    public function saveSettings(ilProfilePromptSettings $settings): void
+    {
+        $user_settings = $this->user_settings;
 
-		$this->user_settings = new ilSetting("user");
-		$this->lng = $DIC->language();
-		$this->db = $DIC->database();
-	}
+        foreach ($settings->getInfoTexts() as $l => $text) {
+            $user_settings->set("user_profile_info_" . $l, $text);
+        }
+        foreach ($settings->getPromptTexts() as $l => $text) {
+            $user_settings->set("user_profile_prompt_" . $l, $text);
+        }
 
-	/**
-	 * Save settings
-	 *
-	 * @param ilProfilePromptSettings $settings
-	 */
-	public function saveSettings(ilProfilePromptSettings $settings)
-	{
-		$user_settings = $this->user_settings;
+        $user_settings->set("user_profile_prompt_mode", $settings->getMode());
+        $user_settings->set("user_profile_prompt_days", $settings->getDays());
+    }
 
-		foreach ($settings->getInfoTexts() as $l => $text)
-		{
-			$user_settings->set("user_profile_info_".$l, $text);
-		}
-		foreach ($settings->getPromptTexts() as $l => $text)
-		{
-			$user_settings->set("user_profile_prompt_".$l, $text);
-		}
+    public function getSettings(): ilProfilePromptSettings
+    {
+        $user_settings = $this->user_settings;
+        $lng = $this->lng;
 
-		$user_settings->set("user_profile_prompt_mode", (int) $settings->getMode());
-		$user_settings->set("user_profile_prompt_days", (int) $settings->getDays());
-	}
+        $info_texts = $prompt_texts = [];
+        foreach ($lng->getInstalledLanguages() as $l) {
+            $info_texts[$l] = $user_settings->get("user_profile_info_" . $l);
+            $prompt_texts[$l] = $user_settings->get("user_profile_prompt_" . $l);
+        }
 
-	/**
-	 * Get settings
-	 *
-	 * @return ilProfilePromptSettings
-	 */
-	public function getSettings(): ilProfilePromptSettings
-	{
-		$user_settings = $this->user_settings;
-		$lng = $this->lng;
+        return new ilProfilePromptSettings(
+            (int) $user_settings->get("user_profile_prompt_mode"),
+            (int) $user_settings->get("user_profile_prompt_days"),
+            $info_texts,
+            $prompt_texts
+        );
+    }
 
-		$info_texts = $prompt_texts = [];
-		foreach ($lng->getInstalledLanguages() as $l)
-		{
-			$info_texts[$l] = $user_settings->get("user_profile_info_".$l);
-			$prompt_texts[$l] = $user_settings->get("user_profile_prompt_".$l);
-		}
+    public function getUserPrompt(int $user_id): ilProfileUserPrompt
+    {
+        $db = $this->db;
 
-		return new ilProfilePromptSettings(
-			(int) $user_settings->get("user_profile_prompt_mode"),
-			(int) $user_settings->get("user_profile_prompt_days"),
-			$info_texts, $prompt_texts);
-	}
+        $set = $db->queryF(
+            "SELECT first_login, last_profile_prompt FROM usr_data " .
+            " WHERE usr_id = %s ",
+            array("integer"),
+            array($user_id)
+        );
+        if ($rec = $db->fetchAssoc($set)) {
+            return new ilProfileUserPrompt($user_id, $rec["last_profile_prompt"], $rec["first_login"]);
+        }
+        return new ilProfileUserPrompt($user_id, "", "");
+    }
 
-	/**
-	 * Get user prompt data
-	 *
-	 * @param $user_id
-	 * @return ilProfileUserPrompt
-	 */
-	public function getUserPrompt($user_id): ilProfileUserPrompt
-	{
-		$db = $this->db;
+    public function saveLastUserPrompt(int $user_id, string $last_profile_prompt = ""): void
+    {
+        $db = $this->db;
 
-		$set = $db->queryF("SELECT first_login, last_profile_prompt FROM usr_data ".
-			" WHERE usr_id = %s ",
-			array("integer"),
-			array($user_id)
-			);
-		if ($rec = $db->fetchAssoc($set))
-		{
-			return new ilProfileUserPrompt($user_id, $rec["last_profile_prompt"], $rec["first_login"]);
-		}
-		return new ilProfileUserPrompt($user_id, "", "");
-	}
+        if ($last_profile_prompt == "") {
+            $last_profile_prompt = ilUtil::now();
+        }
 
-	/**
-	 * Save user prompt
-	 *
-	 * @param int $user_id
-	 * @param string $last_profile_prompt
-	 */
-	public function saveLastUserPrompt(int $user_id, string $last_profile_prompt = "")
-	{
-		$db = $this->db;
-
-		if ($last_profile_prompt == "")
-		{
-			$last_profile_prompt = ilUtil::now();
-		}
-
-		$db->update("usr_data", array(
-				"last_profile_prompt" => array("timestamp", $last_profile_prompt)
-			), array(	// where
-				"usr_id" => array("integer", $user_id)
-			));
-	}
-	
-
+        $db->update("usr_data", array(
+                "last_profile_prompt" => array("timestamp", $last_profile_prompt)
+            ), array(	// where
+                "usr_id" => array("integer", $user_id)
+            ));
+    }
 }

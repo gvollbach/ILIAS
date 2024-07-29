@@ -1,317 +1,283 @@
 <?php
 
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 /**
  * Class ilMySQLQueryUtils
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
-class ilMySQLQueryUtils extends ilQueryUtils {
+class ilMySQLQueryUtils extends ilQueryUtils
+{
+    /**
+     * @param string[] $values
+     */
+    public function in(string $field, array $values, bool $negate = false, string $type = ""): string
+    {
+        if (!is_array($values) || count($values) === 0) {
+            // BEGIN fixed mantis #0014191:
+            //return " 1=2 ";		// return a false statement on empty array
+            return $negate ? ' 1=1 ' : ' 1=2 ';
+            // END fixed mantis #0014191:
+        }
+        if ($type == "") {        // untyped: used ? for prepare/execute
+            $str = $field . (($negate) ? " NOT" : "") . " IN (?" . str_repeat(",?", count($values) - 1) . ")";
+        } else {                    // typed, use values for query/manipulate
+            $str = $field . (($negate) ? " NOT" : "") . " IN (";
+            $sep = "";
+            foreach ($values as $v) {
+                $str .= $sep . $this->quote($v, $type);
+                $sep = ",";
+            }
+            $str .= ")";
+        }
 
-	/**
-	 * @param string $field
-	 * @param string[] $values
-	 * @param bool $negate
-	 * @param string $type
-	 * @return string
-	 */
-	public function in($field, $values, $negate = false, $type = "") {
-		if (!is_array($values) || count($values) == 0) {
-			// BEGIN fixed mantis #0014191:
-			//return " 1=2 ";		// return a false statement on empty array
-			return $negate ? ' 1=1 ' : ' 1=2 ';
-			// END fixed mantis #0014191:
-		}
-		if ($type == "")        // untyped: used ? for prepare/execute
-		{
-			$str = $field . (($negate) ? " NOT" : "") . " IN (?" . str_repeat(",?", count($values) - 1) . ")";
-		} else                    // typed, use values for query/manipulate
-		{
-			$str = $field . (($negate) ? " NOT" : "") . " IN (";
-			$sep = "";
-			foreach ($values as $v) {
-				$str .= $sep . $this->quote($v, $type);
-				$sep = ",";
-			}
-			$str .= ")";
-		}
+        return $str;
+    }
 
-		return $str;
-	}
+    /**
+     * @param mixed $value
+     */
+    public function quote($value, ?string $type = null): string
+    {
+        return $this->db_instance->quote($value, $type);
+    }
 
+    public function concat(array $values, bool $allow_null = true): string
+    {
+        if (count($values) === 0) {
+            return ' ';
+        }
 
-	/**
-	 * @param mixed $value
-	 * @param null $type
-	 * @return string
-	 */
-	public function quote($value, $type = null) {
-		return $this->db_instance->quote($value, $type);
-	}
+        $concat = ' CONCAT(';
+        $first = true;
+        foreach ($values as $field_info) {
+            $val = $field_info[0];
 
+            if (!$first) {
+                $concat .= ',';
+            }
 
-	/**
-	 * @param array $values
-	 * @param bool $allow_null
-	 * @return string
-	 */
-	public function concat(array $values, $allow_null = true) {
-		if (!count($values)) {
-			return ' ';
-		}
+            if ($allow_null) {
+                $concat .= 'COALESCE(';
+            }
+            $concat .= $val;
 
-		$concat = ' CONCAT(';
-		$first = true;
-		foreach ($values as $field_info) {
-			$val = $field_info[0];
+            if ($allow_null) {
+                $concat .= ",''";
+                $concat .= ')';
+            }
 
-			if (!$first) {
-				$concat .= ',';
-			}
+            $first = false;
+        }
 
-			if ($allow_null) {
-				$concat .= 'COALESCE(';
-			}
-			$concat .= $val;
+        return $concat . ') ';
+    }
 
-			if ($allow_null) {
-				$concat .= ",''";
-				$concat .= ')';
-			}
+    public function locate(string $a_needle, string $a_string, int $a_start_pos = 1): string
+    {
+        $locate = ' LOCATE( ';
+        $locate .= $a_needle;
+        $locate .= ',';
+        $locate .= $a_string;
+        $locate .= ',';
+        $locate .= $a_start_pos;
+        $locate .= ') ';
 
-			$first = false;
-		}
-		$concat .= ') ';
+        return $locate;
+    }
 
-		return $concat;
-	}
+    public function free(ilPDOStatement $statement): bool
+    {
+        $statement->closeCursor();
 
+        return true;
+    }
 
-	/**
-	 * @param $a_needle
-	 * @param $a_string
-	 * @param int $a_start_pos
-	 * @return string
-	 */
-	public function locate($a_needle, $a_string, $a_start_pos = 1) {
-		$locate = ' LOCATE( ';
-		$locate .= $a_needle;
-		$locate .= ',';
-		$locate .= $a_string;
-		$locate .= ',';
-		$locate .= $a_start_pos;
-		$locate .= ') ';
+    public function quoteIdentifier(string $identifier): string
+    {
+        return $this->db_instance->quoteIdentifier($identifier);
+    }
 
-		return $locate;
-	}
+    /**
+     * @throws \ilDatabaseException
+     */
+    public function createTable(string $name, array $fields, array $options = []): string
+    {
+        if ($name === '') {
+            throw new ilDatabaseException('no valid table name specified');
+        }
+        if (empty($fields)) {
+            throw new ilDatabaseException('no fields specified for table "' . $name . '"');
+        }
+        $query_fields_array = [];
+        $fd = $this->db_instance->getFieldDefinition();
+        if ($fd !== null) {
+            foreach ($fields as $field_name => $field) {
+                $query_fields_array[] = $fd->getDeclaration(
+                    $field['type'],
+                    $field_name,
+                    $field
+                );
+            }
+        }
 
+        $query_fields = implode(', ', $query_fields_array);
 
-	/**
-	 * @param \ilPDOStatement $statement
-	 * @return bool
-	 */
-	public function free(ilPDOStatement $statement) {
-		$statement->closeCursor();
+        if (!empty($options['primary'])) {
+            $query_fields .= ', PRIMARY KEY (' . implode(', ', array_keys($options['primary'])) . ')';
+        }
 
-		return true;
-	}
+        $query = "CREATE  TABLE $name ($query_fields)";
 
+        $options_strings = array();
 
-	/**
-	 * @param $identifier
-	 * @return string
-	 */
-	public function quoteIdentifier($identifier) {
-		return $this->db_instance->quoteIdentifier($identifier);
-	}
+        if (!empty($options['comment'])) {
+            $options_strings['comment'] = 'COMMENT = ' . $this->quote($options['comment'], 'text');
+        }
 
+        if (!empty($options['charset'])) {
+            $options_strings['charset'] = 'DEFAULT CHARACTER SET ' . $options['charset'];
+            if (!empty($options['collate'])) {
+                $options_strings['charset'] .= ' COLLATE ' . $options['collate'];
+            }
+        }
 
-	/**
-	 * @param $name
-	 * @param $fields
-	 * @param array $options
-	 * @return string
-	 * @throws \ilDatabaseException
-	 */
-	public function createTable($name, $fields, $options = array()) {
-		if (!$name) {
-			throw new ilDatabaseException('no valid table name specified');
-		}
-		if (empty($fields)) {
-			throw new ilDatabaseException('no fields specified for table "' . $name . '"');
-		}
-		$query_fields_array = array();
-		foreach ($fields as $field_name => $field) {
-			$query_fields_array[] = $this->db_instance->getFieldDefinition()->getDeclaration($field['type'], $field_name, $field);
-		}
+        $type = false;
+        if (!empty($options['type'])) {
+            $type = $options['type'];
+        }
+        if ($type) {
+            $options_strings[] = "ENGINE = $type";
+        }
 
-		$query_fields = implode(', ', $query_fields_array);
+        if (!empty($options_strings)) {
+            $query .= ' ' . implode(' ', $options_strings);
+        }
 
-		if (!empty($options['primary'])) {
-			$query_fields .= ', PRIMARY KEY (' . implode(', ', array_keys($options['primary'])) . ')';
-		}
+        return $query;
+    }
 
-		$query = "CREATE  TABLE $name ($query_fields)";
+    /**
+     * @throws \ilDatabaseException
+     */
+    public function like(string $column, string $type, string $value = "?", bool $case_insensitive = true): string
+    {
+        if (!in_array($type, array(
+            ilDBConstants::T_TEXT,
+            ilDBConstants::T_CLOB,
+            "blob",
+        ), true)
+        ) {
+            throw new ilDatabaseException("Like: Invalid column type '" . $type . "'.");
+        }
+        if ($value === "?") {
+            if ($case_insensitive) {
+                return "UPPER(" . $column . ") LIKE(UPPER(?))";
+            }
 
-		$options_strings = array();
+            return $column . " LIKE(?)";
+        }
 
-		if (!empty($options['comment'])) {
-			$options_strings['comment'] = 'COMMENT = ' . $this->quote($options['comment'], 'text');
-		}
+        if ($case_insensitive) {
+            // Always quote as text
+            return " UPPER(" . $column . ") LIKE(UPPER(" . $this->quote($value, 'text') . "))";
+        }
 
-		if (!empty($options['charset'])) {
-			$options_strings['charset'] = 'DEFAULT CHARACTER SET ' . $options['charset'];
-			if (!empty($options['collate'])) {
-				$options_strings['charset'] .= ' COLLATE ' . $options['collate'];
-			}
-		}
+        // Always quote as text
+        return " " . $column . " LIKE(" . $this->quote($value, 'text') . ")";
+    }
 
-		$type = false;
-		if (!empty($options['type'])) {
-			$type = $options['type'];
-		}
-		if ($type) {
-			$options_strings[] = "ENGINE = $type";
-		}
+    public function now(): string
+    {
+        return "NOW()";
+    }
 
-		if (!empty($options_strings)) {
-			$query .= ' ' . implode(' ', $options_strings);
-		}
+    public function lock(array $tables): string
+    {
+        $lock = 'LOCK TABLES ';
 
-		return $query;
-	}
+        $counter = 0;
+        foreach ($tables as $table) {
+            if ($counter++ !== 0) {
+                $lock .= ', ';
+            }
 
+            if (isset($table['sequence']) && $table['sequence']) {
+                $table_name = $this->db_instance->getSequenceName($table['name']);
+            } else {
+                $table_name = $table['name'];
+            }
 
-	/**
-	 * @param $column
-	 * @param $type
-	 * @param string $value
-	 * @param bool $case_insensitive
-	 * @return string
-	 * @throws \ilDatabaseException
-	 */
-	public function like($column, $type, $value = "?", $case_insensitive = true) {
-		if (!in_array($type, array(
-			ilDBConstants::T_TEXT,
-			ilDBConstants::T_CLOB,
-			"blob",
-		))
-		) {
-			throw new ilDatabaseException("Like: Invalid column type '" . $type . "'.");
-		}
-		if ($value == "?") {
-			if ($case_insensitive) {
-				return "UPPER(" . $column . ") LIKE(UPPER(?))";
-			} else {
-				return $column . " LIKE(?)";
-			}
-		} else {
-			if ($case_insensitive) {
-				// Always quote as text
-				return " UPPER(" . $column . ") LIKE(UPPER(" . $this->quote($value, 'text') . "))";
-			} else {
-				// Always quote as text
-				return " " . $column . " LIKE(" . $this->quote($value, 'text') . ")";
-			}
-		}
-	}
+            $lock .= ($table_name . ' ');
 
+            if ($table['alias'] ?? null) {
+                $lock .= ($table['alias'] . ' ');
+            }
 
-	/**
-	 * @return string
-	 */
-	public function now() {
-		return "NOW()";
-	}
+            switch ($table['type']) {
+                case ilDBConstants::LOCK_READ:
+                    $lock .= ' READ ';
+                    break;
 
+                case ilDBConstants::LOCK_WRITE:
+                    $lock .= ' WRITE ';
+                    break;
+            }
+        }
 
-	/**
-	 * @param array $tables
-	 * @return string
-	 */
-	public function lock(array $tables) {
-		$lock = 'LOCK TABLES ';
+        return $lock;
+    }
 
-		$counter = 0;
-		foreach ($tables as $table) {
-			if ($counter ++) {
-				$lock .= ', ';
-			}
+    public function unlock(): string
+    {
+        return 'UNLOCK TABLES';
+    }
 
-			if (isset($table['sequence']) && $table['sequence']) {
-				$table_name = $this->db_instance->getSequenceName($table['name']);
-			} else {
-				$table_name = $table['name'];
-			}
+    public function createDatabase(string $name, string $charset = "utf8", string $collation = ""): string
+    {
+        if ($collation !== "") {
+            $sql = "CREATE DATABASE `" . $name . "` CHARACTER SET " . $charset . " COLLATE " . $collation;
+        } else {
+            $sql = "CREATE DATABASE `" . $name . "` CHARACTER SET " . $charset;
+        }
 
-			$lock .= ($table_name . ' ');
+        return $sql;
+    }
 
-			if ($table['alias']) {
-				$lock .= ($table['alias'] . ' ');
-			}
+    public function groupConcat(string $field_name, string $seperator = ",", string $order = null): string
+    {
+        if ($order === null) {
+            $sql = "GROUP_CONCAT(" . $field_name . " SEPARATOR " . $this->quote($seperator, "text") . ")";
+        } else {
+            $sql = "GROUP_CONCAT(" . $field_name . " ORDER BY " . $order . " SEPARATOR " . $this->quote(
+                $seperator,
+                "text"
+            ) . ")";
+        }
+        return $sql;
+    }
 
-			switch ($table['type']) {
-				case ilDBConstants::LOCK_READ:
-					$lock .= ' READ ';
-					break;
-
-				case ilDBConstants::LOCK_WRITE:
-					$lock .= ' WRITE ';
-					break;
-			}
-		}
-
-		return $lock;
-	}
-
-
-	/**
-	 * @return string
-	 */
-	public function unlock() {
-		return 'UNLOCK TABLES';
-	}
-
-
-	/**
-	 * @param $a_name
-	 * @param string $a_charset
-	 * @param string $a_collation
-	 * @return mixed
-	 */
-	public function createDatabase($a_name, $a_charset = "utf8", $a_collation = "") {
-		if ($a_collation != "") {
-			$sql = "CREATE DATABASE `" . $a_name . "` CHARACTER SET " . $a_charset . " COLLATE " . $a_collation;
-		} else {
-			$sql = "CREATE DATABASE `" . $a_name . "` CHARACTER SET " . $a_charset;
-		}
-
-		return $sql;
-	}
-	
-
-	/**
-	 * 
-	 * @param string $a_field_name
-	 * @param string $a_seperator
-	 * @param string $a_order
-	 * @return string
-	 */
-	public function groupConcat($a_field_name, $a_seperator = ",", $a_order = NULL) {
-		if ($a_order === NULL) {
-			$sql = "GROUP_CONCAT(" . $a_field_name . " SEPARATOR " . $this->quote($a_seperator, "text") . ")";
-		} else {
-			$sql = "GROUP_CONCAT(" . $a_field_name . " ORDER BY " . $a_order . " SEPARATOR " . $this->quote($a_seperator, "text"). ")";
-			
-		}
-		return $sql;
-	}
-
-
-	/**
-	 * @inheritdoc
-	 */
-	public function cast($a_field_name, $a_dest_type) {
-		return $a_field_name;
-	}
-
+    /**
+     * @inheritdoc
+     */
+    public function cast(string $a_field_name, $a_dest_type): string
+    {
+        return $a_field_name;
+    }
 }

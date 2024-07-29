@@ -1,205 +1,212 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-/** 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
 * Unit tests
-* 
+*
 * @author Maximilian Becker <mbecker@databay.de>
 *
 * @ingroup ModulesTestQuestionPool
 */
 class assClozeTestTest extends assBaseTestCase
 {
-	protected $backupGlobals = FALSE;
+    protected $backupGlobals = false;
 
-	protected function setUp(): void
-	{
-		if (defined('ILIAS_PHPUNIT_CONTEXT'))
-		{
-			include_once("./Services/PHPUnit/classes/class.ilUnitUtil.php");
-			ilUnitUtil::performInitialisation();
-		}
-		else
-		{
-			chdir( dirname( __FILE__ ) );
-			chdir('../../../');
+    protected function setUp(): void
+    {
+        parent::setUp();
 
-			parent::setUp();
+        $ilCtrl_mock = $this->getMockBuilder(ilCtrl::class)
+                            ->disableOriginalConstructor()
+                            ->getMock();
+        $ilCtrl_mock->method('saveParameter');
+        $ilCtrl_mock->method('saveParameterByClass');
+        $this->setGlobalVariable('ilCtrl', $ilCtrl_mock);
 
-			require_once './Services/UICore/classes/class.ilCtrl.php';
-			$ilCtrl_mock = $this->createMock('ilCtrl');
-			$ilCtrl_mock->expects( $this->any() )->method( 'saveParameter' );
-			$ilCtrl_mock->expects( $this->any() )->method( 'saveParameterByClass' );
-			$this->setGlobalVariable('ilCtrl', $ilCtrl_mock);
+        $lng_mock = $this->getMockBuilder(ilLanguage::class)
+                         ->disableOriginalConstructor()
+                         ->onlyMethods(['txt'])
+                         ->getMock();
+        $lng_mock->method('txt')->will($this->returnValue('Test'));
+        $this->setGlobalVariable('lng', $lng_mock);
 
-			require_once './Services/Language/classes/class.ilLanguage.php';
-			$lng_mock = $this->createMock('ilLanguage', array('txt'), array(), '', false);
-			//$lng_mock->expects( $this->once() )->method( 'txt' )->will( $this->returnValue('Test') );
-			$this->setGlobalVariable('lng', $lng_mock);
+        $this->setGlobalVariable('ilias', $this->getIliasMock());
+        $this->setGlobalVariable('tpl', $this->getGlobalTemplateMock());
+        $this->setGlobalVariable('ilDB', $this->getDatabaseMock());
+    }
 
-			$this->setGlobalVariable('ilias', $this->getIliasMock());
-			$this->setGlobalVariable('tpl', $this->getGlobalTemplateMock());
-			$this->setGlobalVariable('ilDB', $this->getDatabaseMock());
-		}
-	}
+    public function test_instantiateObject_shouldReturnInstance(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
 
-	public function test_instantiateObject_shouldReturnInstance()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
+        // Act
+        $instance = new assClozeTest();
 
-		// Act
-		$instance = new assClozeTest();
+        $this->assertInstanceOf('assClozeTest', $instance);
+    }
 
-		$this->assertInstanceOf('assClozeTest', $instance);
-	}
+    public function test_cleanQuestionText_shouldReturnCleanedText(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
+        $instance = new assClozeTest();
+        $in_text = 'Ein <gap>Männlein</gap> steht <gap id="Walter">im</gap> <b>Walde</b> ganz <gap 2>still</gap> und [gap]stumm[/gap]<hr />';
+        $expected = 'Ein [gap]Männlein[/gap] steht [gap]im[/gap] <b>Walde</b> ganz [gap]still[/gap] und [gap]stumm[/gap]<hr />';
 
-	public function test_cleanQuestionText_shouldReturnCleanedText()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
-		$instance = new assClozeTest();
-		$in_text = 'Ein <gap>Männlein</gap> steht <gap id="Walter">im</gap> <b>Walde</b> ganz <gap 2>still</gap> und [gap]stumm[/gap]<hr />';
-		$expected = 'Ein [gap]Männlein[/gap] steht [gap]im[/gap] <b>Walde</b> ganz [gap]still[/gap] und [gap]stumm[/gap]<hr />';
+        $actual = $instance->cleanQuestiontext($in_text);
 
-		$actual = $instance->cleanQuestiontext($in_text);
+        $this->assertEquals($expected, $actual);
+    }
 
-		$this->assertEquals($expected, $actual);
-	}
+    public function test_isComplete_shouldReturnFalseIfIncomplete(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
+        $instance = new assClozeTest();
+        $expected = false;
 
-	public function test_isComplete_shouldReturnFalseIfIncomplete()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
-		$instance = new assClozeTest();
-		$expected = false;
+        $actual = $instance->isComplete();
 
-		$actual = $instance->isComplete();
+        $this->assertEquals($expected, $actual);
+    }
 
-		$this->assertEquals($expected, $actual);
-	}
+    public function test_setGetStartTag_shouldReturnValueUnchanged(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
+        $instance = new assClozeTest();
+        $expected = '<gappo_the_great>';
 
-	public function test_setGetStartTag_shouldReturnValueUnchanged()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
-		$instance = new assClozeTest();
-		$expected = '<gappo_the_great>';
-		
-		$instance->setStartTag($expected);
-		$actual = $instance->getStartTag();
+        $instance->setStartTag($expected);
+        $actual = $instance->getStartTag();
 
-		$this->assertEquals($expected, $actual);
-	}
+        $this->assertEquals($expected, $actual);
+    }
 
-	public function test_setGetStartTag_defaultShoulBeApplied()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
-		$instance = new assClozeTest();
-		$alternate_tag = '<gappo_the_great>';
-		$expected = '[gap]';
+    public function test_setGetStartTag_defaultShoulBeApplied(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
+        $instance = new assClozeTest();
+        $alternate_tag = '<gappo_the_great>';
+        $expected = '[gap]';
 
-		$instance->setStartTag($alternate_tag);
-		$intermediate = $instance->getStartTag();
-		$this->assertEquals($alternate_tag, $intermediate);
-		
-		$instance->setStartTag();
-		$actual = $instance->getStartTag();
+        $instance->setStartTag($alternate_tag);
+        $intermediate = $instance->getStartTag();
+        $this->assertEquals($alternate_tag, $intermediate);
 
-		$this->assertEquals($expected, $actual);
-	}
+        $instance->setStartTag();
+        $actual = $instance->getStartTag();
 
-	public function test_setGetEndTag_shouldReturnValueUnchanged()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
-		$instance = new assClozeTest();
-		$expected = '</gappo_the_great>';
+        $this->assertEquals($expected, $actual);
+    }
 
-		$instance->setEndTag($expected);
-		$actual = $instance->getEndTag();
+    public function test_setGetEndTag_shouldReturnValueUnchanged(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
+        $instance = new assClozeTest();
+        $expected = '</gappo_the_great>';
 
-		$this->assertEquals($expected, $actual);
-	}
+        $instance->setEndTag($expected);
+        $actual = $instance->getEndTag();
 
-	public function test_setGetEndTag_defaultShoulBeApplied()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
-		$instance = new assClozeTest();
-		$alternate_tag = '</gappo_the_great>';
-		$expected = '[/gap]';
+        $this->assertEquals($expected, $actual);
+    }
 
-		$instance->setEndTag($alternate_tag);
-		$intermediate = $instance->getEndTag();
-		$this->assertEquals($alternate_tag, $intermediate);
+    public function test_setGetEndTag_defaultShoulBeApplied(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
+        $instance = new assClozeTest();
+        $alternate_tag = '</gappo_the_great>';
+        $expected = '[/gap]';
 
-		$instance->setEndTag();
-		$actual = $instance->getEndTag();
+        $instance->setEndTag($alternate_tag);
+        $intermediate = $instance->getEndTag();
+        $this->assertEquals($alternate_tag, $intermediate);
 
-		$this->assertEquals($expected, $actual);
-	}
+        $instance->setEndTag();
+        $actual = $instance->getEndTag();
 
-	public function test_getQuestionType_shouldReturnQuestionType()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
-		$instance = new assClozeTest();
-		$expected = 'assClozeTest';
+        $this->assertEquals($expected, $actual);
+    }
 
-		$actual = $instance->getQuestionType();
+    public function test_getQuestionType_shouldReturnQuestionType(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
+        $instance = new assClozeTest();
+        $expected = 'assClozeTest';
 
-		$this->assertEquals($expected, $actual);
-	}
+        $actual = $instance->getQuestionType();
 
-	public function test_setGetIdenticalScoring_shouldReturnValueUnchanged()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
-		$instance = new assClozeTest();
-		$expected = 1;
+        $this->assertEquals($expected, $actual);
+    }
 
-		$instance->setIdenticalScoring(true);
-		$actual = $instance->getIdenticalScoring();
+    public function test_setGetIdenticalScoring_shouldReturnValueUnchanged(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
+        $instance = new assClozeTest();
+        $expected = 1;
 
-		$this->assertEquals($expected, $actual);
-	}
+        $instance->setIdenticalScoring(true);
+        $actual = $instance->getIdenticalScoring();
 
-	public function test_getAdditionalTableName_shouldReturnAdditionalTableName()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
-		$instance = new assClozeTest();
-		$expected = 'qpl_qst_cloze';
+        $this->assertEquals($expected, $actual);
+    }
 
-		$actual = $instance->getAdditionalTableName();
+    public function test_getAdditionalTableName_shouldReturnAdditionalTableName(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
+        $instance = new assClozeTest();
+        $expected = 'qpl_qst_cloze';
 
-		$this->assertEquals($expected, $actual);
-	}
+        $actual = $instance->getAdditionalTableName();
 
-	public function test_getAnswerTableName_shouldReturnAnswerTableName()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
-		$instance = new assClozeTest();
-		$expected = array("qpl_a_cloze",'qpl_a_cloze_combi_res');
+        $this->assertEquals($expected, $actual);
+    }
 
-		$actual = $instance->getAnswerTableName();
+    public function test_getAnswerTableName_shouldReturnAnswerTableName(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
+        $instance = new assClozeTest();
+        $expected = array("qpl_a_cloze",'qpl_a_cloze_combi_res');
 
-		$this->assertEquals($expected, $actual);
-	}
+        $actual = $instance->getAnswerTableName();
 
-	public function test_setGetFixedTextLength_shouldReturnValueUnchanged()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
-		$instance = new assClozeTest();
-		$expected = 123;
+        $this->assertEquals($expected, $actual);
+    }
 
-		$instance->setFixedTextLength($expected);
-		$actual = $instance->getFixedTextLength();
+    public function test_setGetFixedTextLength_shouldReturnValueUnchanged(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assClozeTest.php';
+        $instance = new assClozeTest();
+        $expected = 123;
 
-		$this->assertEquals($expected, $actual);
-	}
+        $instance->setFixedTextLength($expected);
+        $actual = $instance->getFixedTextLength();
+
+        $this->assertEquals($expected, $actual);
+    }
 }

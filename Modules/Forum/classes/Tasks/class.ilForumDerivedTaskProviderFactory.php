@@ -1,75 +1,72 @@
 <?php
-/* Copyright (c) 1998-2019 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
 
 /**
  * Class ilForumDerivedTaskProviderFactory
  * @author Michael Jansen <mjansen@databay.de>
  */
-class ilForumDerivedTaskProviderFactory implements \ilDerivedTaskProviderFactory
+class ilForumDerivedTaskProviderFactory implements ilDerivedTaskProviderFactory
 {
-	/** @var ilTaskService */
-	protected $taskService;
+    protected ilTaskService $taskService;
+    protected ilAccessHandler $accessHandler;
+    protected ilSetting $settings;
+    protected ilLanguage $lng;
+    protected ilCtrlInterface $ctrl;
 
-	/** @var \ilAccess */
-	protected $accessHandler;
+    public function __construct(
+        ilTaskService $taskService,
+        ilAccessHandler $accessHandler = null,
+        ilSetting $settings = null,
+        ilLanguage $lng = null,
+        ilCtrlInterface $ctrl = null
+    ) {
+        global $DIC;
 
-	/** @var \ilSetting */
-	protected $settings;
+        $this->taskService = $taskService;
+        $this->accessHandler = is_null($accessHandler)
+            ? $DIC->access()
+            : $accessHandler;
 
-	/** @var \ilLanguage */
-	protected $lng;
+        $this->settings = is_null($settings)
+            ? $DIC->settings()
+            : $settings;
 
-	/** @var \ilCtrl */
-	protected $ctrl;
+        $this->lng = is_null($lng)
+            ? $DIC->language()
+            : $lng;
 
-	/**
-	 * ilForumDerivedTaskProviderFactory constructor.
-	 * @param \ilTaskService $taskService
-	 * @param \ilAccess|null $accessHandler
-	 * @param \ilSetting|null $settings
-	 * @param \ilLanguage|null $lng
-	 * @param ilCtrl|null $ctrl
-	 */
-	public function __construct(
-		\ilTaskService $taskService,
-		\ilAccess $accessHandler = null,
-		\ilSetting $settings = null,
-		\ilLanguage $lng = null,
-		\ilCtrl $ctrl = null
-	) {
-		global $DIC;
+        $this->ctrl = is_null($ctrl)
+            ? $DIC->ctrl()
+            : $ctrl;
+    }
 
-		$this->taskService = $taskService;
-		$this->accessHandler = is_null($accessHandler)
-			? $DIC->access()
-			: $accessHandler;
-
-		$this->settings = is_null($settings)
-			? $DIC->settings()
-			: $settings;
-
-		$this->lng = is_null($lng)
-			? $DIC->language()
-			: $lng;
-
-		$this->ctrl = is_null($ctrl)
-			? $DIC->ctrl()
-			: $ctrl;
-	}
-
-	/**
-	 * @inheritdoc
-	 */
-	public function getProviders(): array
-	{
-		return [
-			new \ilForumDraftsDerivedTaskProvider(
-				$this->taskService,
-				$this->accessHandler,
-				$this->lng,
-				$this->settings,
-				$this->ctrl
-			)
-		];
-	}
+    public function getProviders(): array
+    {
+        return [
+            new ilForumDraftsDerivedTaskProvider(
+                $this->taskService,
+                $this->accessHandler,
+                $this->lng,
+                $this->settings,
+                $this->ctrl
+            )
+        ];
+    }
 }

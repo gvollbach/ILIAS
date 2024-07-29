@@ -1,5 +1,25 @@
 <?php
-/* Copyright (c) 1998-2012 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+declare(strict_types=1);
+
+use ILIAS\HTTP\GlobalHttpState;
+use ILIAS\Refinery\Factory as Refinery;
 
 /**
  * Class ilChatroomTabGUIFactory
@@ -10,379 +30,357 @@
  */
 class ilChatroomTabGUIFactory
 {
-	/**
-	 * @var ilObjectGUI
-	 */
-	private $gui;
+    private ilObjectGUI $gui;
+    private ilLanguage $lng;
+    private ilRbacSystem $rbacSystem;
+    private GlobalHttpState $http;
+    private Refinery $refinery;
+    private ?string $activated_tab = null;
+    private ?string $activated_sub_tab = null;
 
-	/**
-	 * @var ilLanguage
-	 */
-	private $lng;
+    public function __construct(ilObjectGUI $gui)
+    {
+        /** @var $DIC \ILIAS\DI\Container */
+        global $DIC;
 
-	/**
-	 * @param ilObjectGUI $gui
-	 */
-	public function __construct(ilObjectGUI $gui)
-	{
-		global $DIC;
+        $this->gui = $gui;
+        $this->lng = $DIC->language();
+        $this->rbacSystem = $DIC->rbac()->system();
+        $this->http = $DIC->http();
+        $this->refinery = $DIC->refinery();
+    }
 
-		$this->gui = $gui;
-		$this->lng = $DIC->language();
-	}
+    /**
+     * Builds $config and $commandparts arrays to assign them as parameters
+     * when calling $this->buildTabs and $this->activateTab.
+     * @param string $command
+     */
+    public function getAdminTabsForCommand(string $command): void
+    {
+        global $DIC;
 
-	/**
-	 * Convert a value given in underscore case conversion to lower camel case conversion (e.g. my_class to MyClass)
-	 * @param string  $value            Value in underscore case conversion
-	 * @param boolean $upper_case_first If TRUE first character in upper case, lower case if FALSE
-	 * @return string The value in lower camel case conversion
-	 */
-	public static function convertUnderscoreCaseToLowerCamelCaseConversion($value, $upper_case_first = FALSE)
-	{
-		$tokens = (array)explode('_', $value);
-		$value  = '';
+        $command = self::convertLowerCamelCaseToUnderscoreCaseConversion($command);
+        $stopCommands = ['create'];
 
-		foreach($tokens as $token)
-		{
-			$value .= ucfirst($token);
-		}
+        if (in_array($command, $stopCommands, true)) {
+            return;
+        }
 
-		if($upper_case_first === FALSE)
-		{
-			$value = strtolower(substr($value, 0, 1)) . substr($value, 1);
-		}
+        $settings = new ilSetting('chatroom');
+        $public_room_ref = (int) $settings->get('public_room_ref', '0');
 
-		return $value;
-	}
+        $objIds = ilObject::_getObjectsByType('chta');
+        $firstObjId = (int) current(array_keys($objIds));
+        $refIds = ilObject::_getAllReferences($firstObjId);
+        $admin_ref = (int) current($refIds);
 
-	/**
-	 * Builds $config and $commandparts arrays to assign them as parameters
-	 * when calling $this->buildTabs and $this->activateTab.
-	 * @param string $command
-	 */
-	public function getAdminTabsForCommand($command)
-	{
-		global $DIC;
+        $DIC->ctrl()->setParameterByClass(ilObjChatroomAdminGUI::class, 'ref_id', $admin_ref);
 
-		$command      = $this->convertLowerCamelCaseToUnderscoreCaseConversion($command);
-		$stopCommands = array('create');
+        $config = [
+            'view' => [
+                'lng' => 'settings',
+                'link' => $DIC->ctrl()->getLinkTargetByClass(ilObjChatroomAdminGUI::class, 'view-clientsettings'),
+                'permission' => 'read',
+                'subtabs' => [
+                    'clientsettings' => [
+                        'lng' => 'client_settings',
+                        'link' => $DIC->ctrl()->getLinkTargetByClass(
+                            ilObjChatroomAdminGUI::class,
+                            'view-clientsettings'
+                        ),
+                        'permission' => 'read'
+                    ]
+                ]
+            ],
+            'smiley' => [
+                'lng' => 'smiley',
+                'link' => $DIC->ctrl()->getLinkTargetByClass(ilObjChatroomAdminGUI::class, 'smiley'),
+                'permission' => 'read'
+            ]
+        ];
+        $DIC->ctrl()->setParameterByClass(ilObjChatroomGUI::class, 'ref_id', $public_room_ref);
 
-		if(in_array($command, $stopCommands))
-		{
-			return;
-		}
+        $config['settings'] = [
+            'lng' => 'public_chat_settings',
+            'link' => $DIC->ctrl()->getLinkTargetByClass(ilObjChatroomGUI::class, 'settings-general'),
+            'permission' => 'read',
+            'subtabs' => [
+                'settings' => [
+                    'lng' => 'settings',
+                    'link' => $DIC->ctrl()->getLinkTarget($this->gui, 'settings-general'),
+                    'permission' => 'read'
+                ],
+                'ban' => [
+                    'lng' => 'bans',
+                    'link' => $DIC->ctrl()->getLinkTargetByClass(ilObjChatroomGUI::class, 'ban-show'),
+                    'permission' => 'read'
+                ]
+            ]
+        ];
 
-		$settings        = new ilSetting('chatroom');
-		$public_room_ref = $settings->get('public_room_ref');
+        $DIC->ctrl()->setParameterByClass(ilPermissionGUI::class, 'ref_id', $public_room_ref);
+        $config['perm'] = [
+            'lng' => 'public_chat_permissions',
+            'link' => $DIC->ctrl()->getLinkTargetByClass(ilPermissionGUI::class, 'perm'),
+            'permission' => 'read',
+        ];
+        $DIC->ctrl()->clearParametersByClass(ilPermissionGUI::class);
 
-		$objIds     = ilObject::_getObjectsByType('chta');
-		$firstObjId = current(array_keys($objIds));
-		$refIds     = ilObject::_getAllReferences($firstObjId);
-		$admin_ref  = current($refIds);
+        $DIC->ctrl()->setParameterByClass(ilPermissionGUI::class, 'ref_id', $admin_ref);
+        $config['perm_settings'] = [
+            'lng' => 'perm_settings',
+            'link' => $DIC->ctrl()->getLinkTargetByClass(ilPermissionGUI::class, 'perm'),
+            'permission' => 'edit_permission',
+        ];
+        $DIC->ctrl()->clearParametersByClass(ilPermissionGUI::class);
 
-		$DIC->ctrl()->setParameterByClass('ilObjChatroomAdminGUI', 'ref_id', $admin_ref);
+        $is_in_permission_gui = (
+            strtolower($DIC->ctrl()->getCmdClass()) === strtolower(ilPermissionGUI::class) ||
+            strtolower($DIC->ctrl()->getCmdClass()) === strtolower(ilObjectPermissionStatusGUI::class)
+        );
 
-		$config = array(
-			'view'   => array(
-				'lng'        => 'settings',
-				'link'       => $DIC->ctrl()->getLinkTargetByClass('ilObjChatroomAdminGUI', 'view-clientsettings'),
-				'permission' => 'read',
-				'subtabs'    => array(
-					'clientsettings' => array(
-						'lng'        => 'client_settings',
-						'link'       => $DIC->ctrl()->getLinkTargetByClass('ilObjChatroomAdminGUI', 'view-clientsettings'),
-						'permission' => 'read'
-					),
-					'serversettings' => array(
-						'lng'        => 'server_settings',
-						'link'       => $DIC->ctrl()->getLinkTargetByClass('ilObjChatroomAdminGUI', 'view-serversettings'),
-						'permission' => 'read'
-					)
-				)
-			),
-			'smiley' => array(
-				'lng'        => 'smiley',
-				'link'       => $DIC->ctrl()->getLinkTargetByClass('ilObjChatroomAdminGUI', 'smiley'),
-				'permission' => 'read'
-			)
-		);
-		$DIC->ctrl()->setParameterByClass('ilObjChatroomGUI', 'ref_id', $public_room_ref);
+        $commandParts = explode('_', $command, 2);
+        if ($command === 'ban_show') {
+            $commandParts[0] = 'settings';
+            $commandParts[1] = 'ban';
+        } elseif ($command === 'settings_general') {
+            $commandParts[0] = 'settings';
+            $commandParts[1] = 'settings';
+        } elseif ($command === 'view_saveclientsettings') {
+            $commandParts[0] = 'view';
+            $commandParts[1] = 'clientsettings';
+        } elseif (
+            $is_in_permission_gui &&
+            $this->http->wrapper()->query()->has('ref_id') &&
+            $this->http->wrapper()->query()->retrieve('ref_id', $this->refinery->kindlyTo()->int()) === $public_room_ref
+        ) {
+            $commandParts[0] = 'perm';
+            $DIC->ctrl()->setParameterByClass(ilPermissionGUI::class, 'ref_id', $public_room_ref);
+        } elseif (
+            $is_in_permission_gui &&
+            $this->http->wrapper()->query()->has('ref_id') &&
+            $this->http->wrapper()->query()->retrieve('ref_id', $this->refinery->kindlyTo()->int()) === $admin_ref
+        ) {
+            $commandParts[0] = 'perm_settings';
+            $DIC->ctrl()->setParameterByClass(ilPermissionGUI::class, 'ref_id', $admin_ref);
+        }
 
-		$config['settings'] = array(
-			'lng'        => 'public_chat_settings',
-			'link'       => $DIC->ctrl()->getLinkTargetByClass('ilObjChatroomGUI', 'settings-general'),
-			'permission' => 'read',
-			'subtabs'    => array(
-				'settings' => array(
-					'lng'        => 'settings',
-					'link'       => $DIC->ctrl()->getLinkTarget($this->gui, 'settings-general'),
-					'permission' => 'read'
-				),
-				'ban'      => array(
-					'lng'        => 'bans',
-					'link'       => $DIC->ctrl()->getLinkTargetByClass('ilObjChatroomGUI', 'ban-show'),
-					'permission' => 'read'
-				)
-			)
-		);
+        $this->buildTabs($DIC->tabs(), $config, $commandParts, false);
+        $this->activateTab($commandParts, $config);
+    }
 
-		$DIC->ctrl()->setParameterByClass('ilPermissionGUI', 'ref_id', $public_room_ref);
-		$config['perm'] = array(
-			'lng'        => 'public_chat_permissions',
-			'link'       => $DIC->ctrl()->getLinkTargetByClass('ilPermissionGUI', 'perm'),
-			'permission' => 'read',
-		);
-		$DIC->ctrl()->clearParametersByClass('ilPermissionGUI');
+    /**
+     * Convert a value given in lower camel case conversion to underscore case conversion (e.g. MyClass to my_class)
+     * @param string $value Value in lower camel case conversion
+     * @return string The value in underscore case conversion
+     */
+    private static function convertLowerCamelCaseToUnderscoreCaseConversion(string $value): string
+    {
+        return strtolower(preg_replace('/(.*?)-(.*?)/', '$1_$2', $value));
+    }
 
-		$DIC->ctrl()->setParameterByClass('ilPermissionGUI', 'ref_id', $admin_ref);
-		$config['perm_settings'] = array(
-			'lng'        => 'perm_settings',
-			'link'       => $DIC->ctrl()->getLinkTargetByClass('ilpermissiongui', 'perm'),
-			'permission' => 'edit_permission',
-		);
-		$DIC->ctrl()->clearParametersByClass('ilPermissionGUI');
+    /**
+     * Builds tabs and subtabs using given $tabs, $config and $command
+     * parameters.
+     * @param ilTabsGUI $tabs
+     * @param array $config
+     * @param array $command
+     * @param bool $inRoom
+     */
+    private function buildTabs(ilTabsGUI $tabs, array $config, array $command, bool $inRoom = true): void
+    {
+        foreach ($config as $id => $tabDefinition) {
+            if (!$inRoom && !$this->rbacSystem->checkAccess($tabDefinition['permission'], $this->gui->getRefId())) {
+                continue;
+            }
 
-		$commandParts = explode('_', $command, 2);
-		if($command == 'ban_show')
-		{
-			$commandParts[0] = 'settings';
-			$commandParts[1] = 'ban';
-		}
-		else if($command == 'settings_general')
-		{
-			$commandParts[0] = 'settings';
-			$commandParts[1] = 'settings';
-		}
-		else if($command == 'view_savesettings')
-		{
-			$commandParts[0] = 'view';
-			$commandParts[1] = 'serversettings';
-		}
-		else if($command == 'view_saveclientsettings')
-		{
-			$commandParts[0] = 'view';
-			$commandParts[1] = 'clientsettings';
-		}
-		else if($DIC->ctrl()->getCmdClass() == 'ilpermissiongui' && $_REQUEST['ref_id'] == $public_room_ref)
-		{
-			$commandParts[0] = 'perm';
-			$DIC->ctrl()->setParameterByClass('ilPermissionGUI', 'ref_id', $public_room_ref);
-		}
-		else if($DIC->ctrl()->getCmdClass() == 'ilpermissiongui' && $_REQUEST['ref_id'] == $admin_ref)
-		{
-			$commandParts[0] = 'perm_settings';
-			$DIC->ctrl()->setParameterByClass('ilPermissionGUI', 'ref_id', $admin_ref);
-		}
+            if (
+                $inRoom &&
+                !ilChatroom::checkUserPermissions($tabDefinition['permission'], $this->gui->getRefId(), false)
+            ) {
+                continue;
+            }
 
-		$this->buildTabs($DIC->tabs(), $config, $commandParts, false);
-		$this->activateTab($commandParts, $config);
-	}
+            if (isset($tabDefinition['enabled']) && !$tabDefinition['enabled']) {
+                continue;
+            }
 
-	/**
-	 * Convert a value given in lower camel case conversion to underscore case conversion (e.g. MyClass to my_class)
-	 * @param string $value Value in lower camel case conversion
-	 * @return string The value in underscore case conversion
-	 */
-	public static function convertLowerCamelCaseToUnderscoreCaseConversion($value)
-	{
-		return strtolower(preg_replace('/(.*?)-(.*?)/', '$1_$2', $value));
-	}
+            $tabs->addTab($id, $this->getLabel($tabDefinition, $id), $tabDefinition['link']);
 
-	/**
-	 * Builds tabs and subtabs using given $tabs, $config and $command
-	 * parameters.
-	 * @param ilTabsGUI $tabs
-	 * @param array     $config
-	 * @param array     $command
-	 * @param bool      $inRoom
-	 */
-	private function buildTabs(ilTabsGUI $tabs, $config, $command, $inRoom = true)
-	{
-		global $DIC;
+            if (
+                $command[0] === $id && isset($tabDefinition['subtabs']) &&
+                is_array($tabDefinition['subtabs'])
+            ) {
+                foreach ($tabDefinition['subtabs'] as $subid => $subTabDefinition) {
+                    if (
+                        !$inRoom &&
+                        $this->rbacSystem->checkAccess($tabDefinition['permission'], $this->gui->getRefId())
+                    ) {
+                        continue;
+                    }
 
-		require_once 'Modules/Chatroom/classes/class.ilChatroom.php';
-		foreach($config as $id => $tabDefinition)
-		{
-			if(!$inRoom && !$DIC->rbac()->system()->checkAccess($tabDefinition['permission'], $this->gui->getRefId()))
-			{
-				continue;
-			}
-			else if($inRoom && !ilChatroom::checkUserPermissions($tabDefinition['permission'], $this->gui->getRefId(), false))
-			{
-				continue;
-			}
-			else if(isset($tabDefinition['enabled']) && !$tabDefinition['enabled'])
-			{
-				continue;
-			}
+                    if (
+                        $inRoom &&
+                        !ilChatroom::checkUserPermissions($subTabDefinition['permission'], $this->gui->getRefId())
+                    ) {
+                        continue;
+                    }
 
-			$tabs->addTab($id, $this->getLabel($tabDefinition, $id), $tabDefinition['link']);
+                    if (isset($subTabDefinition['enabled']) && !$subTabDefinition['enabled']) {
+                        continue;
+                    }
 
-			if($command[0] == $id && isset($tabDefinition['subtabs']) &&
-				is_array($tabDefinition['subtabs'])
-			)
-			{
-				foreach($tabDefinition['subtabs'] as $subid => $subTabDefinition)
-				{
-					if(!$inRoom && !$DIC->rbac()->system()->checkAccess($tabDefinition['permission'], $this->gui->getRefId()))
-					{
-						continue;
-					}
-					else if($inRoom && !ilChatroom::checkUserPermissions($subTabDefinition['permission'], $this->gui->getRefId()))
-					{
-						continue;
-					}
-					else if(isset($subTabDefinition['enabled']) && !$subTabDefinition['enabled'])
-					{
-						continue;
-					}
-					$tabs->addSubTab(
-						$subid, $this->getLabel($subTabDefinition, $subid),
-						$subTabDefinition['link']
-					);
-				}
-			}
-		}
-	}
+                    $tabs->addSubTab(
+                        $subid,
+                        $this->getLabel($subTabDefinition, $subid),
+                        $subTabDefinition['link']
+                    );
+                }
+            }
+        }
+    }
 
-	/**
-	 * Returns label for tab by $tabDefinition or $id
-	 * @param array  $tabDefinition
-	 * @param string $id
-	 * @return string
-	 * @todo: $tabDefinition sollte doch stets ein array und $id stets ein
-	 *      string sein, oder? Dann sollte man auch hier typehinten.
-	 *      (array $tabDefinition, string $id)
-	 */
-	private function getLabel($tabDefinition, $id)
-	{
-		if(isset($tabDefinition['lng']))
-			return $this->lng->txt($tabDefinition['lng']);
-		else
-			return $this->lng->txt($id);
-	}
+    /**
+     * Returns label for tab by $tabDefinition or $id
+     * @param array $tabDefinition
+     * @param string $id
+     * @return string
+     */
+    private function getLabel(array $tabDefinition, string $id): string
+    {
+        if (isset($tabDefinition['lng'])) {
+            return $this->lng->txt($tabDefinition['lng']);
+        }
 
-	/**
-	 * Activates tab or subtab if existing.
-	 * Calls $ilTabs->activateTab() or $ilTabs->activateSubTab() method
-	 * to set current tab active.
-	 * @param array $commandParts
-	 */
-	private function activateTab(array $commandParts, $config)
-	{
-		global $DIC;
+        return $this->lng->txt($id);
+    }
 
-		if(count($commandParts) > 1)
-		{
-			if(isset($config[$commandParts[0]]))
-			{
-				$DIC->tabs()->activateTab($commandParts[0]);
+    /**
+     * Activates tab or subtab if existing.
+     * Calls $ilTabs->activateTab() or $ilTabs->activateSubTab() method
+     * to set current tab active.
+     * @param array $commandParts
+     * @param array $config
+     */
+    private function activateTab(array $commandParts, array $config): void
+    {
+        global $DIC;
 
-				if(isset($config[$commandParts[0]]['subtabs'][$commandParts[1]]))
-				{
-					$DIC->tabs()->activateSubTab($commandParts[1]);
-				}
-			}
-		}
-		else if(count($commandParts) == 1)
-		{
-			$DIC->tabs()->activateTab($commandParts[0]);
-		}
-	}
+        if (count($commandParts) > 1) {
+            if (isset($config[$commandParts[0]])) {
+                $DIC->tabs()->activateTab($commandParts[0]);
+                $this->activated_tab = $commandParts[0];
 
-	/**
-	 * Builds $config and $commandparts arrays to assign them as parameters
-	 * when calling $this->buildTabs and $this->activateTab.
-	 * @param string $command
-	 */
-	public function getTabsForCommand($command)
-	{
-		global $DIC;
+                if (isset($config[$commandParts[0]]['subtabs'][$commandParts[1]])) {
+                    $DIC->tabs()->activateSubTab($commandParts[1]);
+                    $this->activated_sub_tab = $commandParts[1];
+                }
+            }
+        } elseif (count($commandParts) === 1) {
+            $DIC->tabs()->activateTab($commandParts[0]);
+            $this->activated_tab = $commandParts[0];
+        }
+    }
 
-		$command      = $this->convertLowerCamelCaseToUnderscoreCaseConversion($command);
-		$stopCommands = array('create');
+    public function getActivatedTab(): ?string
+    {
+        return $this->activated_tab;
+    }
 
-		if(in_array($command, $stopCommands))
-		{
-			return;
-		}
+    public function getActivatedSubTab(): ?string
+    {
+        return $this->activated_sub_tab;
+    }
 
-		require_once 'Modules/Chatroom/classes/class.ilChatroom.php';
-		$room = ilChatroom::byObjectId($this->gui->object->getId());
+    /**
+     * Builds $config and $commandparts arrays to assign them as parameters
+     * when calling $this->buildTabs and $this->activateTab.
+     * @param string $command
+     */
+    public function getTabsForCommand(string $command): void
+    {
+        global $DIC;
 
-		$config = array(
-			'view'     => array(
-				'lng'        => 'view',
-				'link'       => $DIC->ctrl()->getLinkTarget($this->gui, 'view'),
-				'permission' => 'read'
-			),
-			'history'  => array(
-				'lng'        => 'history',
-				'link'       => $DIC->ctrl()->getLinkTarget($this->gui, 'history-byday'),
-				'permission' => 'read',
-				'enabled'    => $room ? $room->getSetting('enable_history') : false,
-				'subtabs'    => array(
-					'byday'     => array(
-						'lng'        => 'history_by_day',
-						'link'       => $DIC->ctrl()->getLinkTarget($this->gui, 'history-byday'),
-						'permission' => 'read'
-					),
-					'bysession' => array(
-						'lng'        => 'history_by_session',
-						'link'       => $DIC->ctrl()->getLinkTarget($this->gui, 'history-bysession'),
-						'permission' => 'read'
-					)
-				)
-			),
-			'info'     => array(
-				'lng'        => 'info_short',
-				'link'       => $DIC->ctrl()->getLinkTargetByClass(array(get_class($this->gui), 'ilinfoscreengui'), 'info'),
-				'permission' => 'read'
-			),
-			'settings' => array(
-				'lng'        => 'settings',
-				'link'       => $DIC->ctrl()->getLinkTarget($this->gui, 'settings-general'),
-				'permission' => 'write',
-				'subtabs'    => array(
-					'general' => array(
-						'lng'        => 'settings_general',
-						'link'       => $DIC->ctrl()->getLinkTarget($this->gui, 'settings-general'),
-						'permission' => 'write'
-					)
-				)
-			),
-			'ban'      => array(
-				'lng'        => 'bans',
-				'link'       => $DIC->ctrl()->getLinkTarget($this->gui, 'ban-show'),
-				'permission' => 'moderate',
-				'subtabs'    => array(
-					'show' => array(
-						'lng'        => 'bans_table',
-						'link'       => $DIC->ctrl()->getLinkTarget($this->gui, 'ban-show'),
-						'permission' => 'moderate'
-					)
-				)
-			),
-			'export'  => array(
-				'lng'        => 'export',
-				'link'       =>  $DIC->ctrl()->getLinkTargetByClass('ilexportgui', ''),
-				'permission' => 'write'
-			),
-			'perm'     => array(
-				'lng'        => 'permissions',
-				'link'       => $DIC->ctrl()->getLinkTargetByClass('ilpermissiongui', 'perm'),
-				'permission' => 'edit_permission'
-			)
-		);
+        $command = self::convertLowerCamelCaseToUnderscoreCaseConversion($command);
+        $stopCommands = ['create'];
 
-		$commandParts = explode('_', $command, 2);
+        if (in_array($command, $stopCommands, true)) {
+            return;
+        }
 
-		if($DIC->ctrl()->getCmdClass() == 'ilpermissiongui')
-		{
-			$commandParts[0] = 'perm';
-		}
+        $room = ilChatroom::byObjectId($this->gui->getObject()->getId());
 
-		$this->buildTabs($DIC->tabs(), $config, $commandParts);
-		$this->activateTab($commandParts, $config);
-	}
+        $config = [
+            'view' => [
+                'lng' => 'view',
+                'link' => $DIC->ctrl()->getLinkTarget($this->gui, 'view'),
+                'permission' => 'read'
+            ],
+            'history' => [
+                'lng' => 'history',
+                'link' => $DIC->ctrl()->getLinkTarget($this->gui, 'history-byday'),
+                'permission' => 'read',
+                'enabled' => $room ? $room->getSetting('enable_history') : false,
+                'subtabs' => [
+                    'byday' => [
+                        'lng' => 'history_by_day',
+                        'link' => $DIC->ctrl()->getLinkTarget($this->gui, 'history-byday'),
+                        'permission' => 'read'
+                    ],
+                    'bysession' => [
+                        'lng' => 'history_by_session',
+                        'link' => $DIC->ctrl()->getLinkTarget($this->gui, 'history-bysession'),
+                        'permission' => 'read'
+                    ]
+                ]
+            ],
+            'info' => [
+                'lng' => 'info_short',
+                'link' => $DIC->ctrl()->getLinkTargetByClass([get_class($this->gui), ilInfoScreenGUI::class], 'info'),
+                'permission' => 'read'
+            ],
+            'settings' => [
+                'lng' => 'settings',
+                'link' => $DIC->ctrl()->getLinkTarget($this->gui, 'settings-general'),
+                'permission' => 'write',
+                'subtabs' => [
+                    'general' => [
+                        'lng' => 'settings_general',
+                        'link' => $DIC->ctrl()->getLinkTarget($this->gui, 'settings-general'),
+                        'permission' => 'write'
+                    ]
+                ]
+            ],
+            'ban' => [
+                'lng' => 'bans',
+                'link' => $DIC->ctrl()->getLinkTarget($this->gui, 'ban-show'),
+                'permission' => 'moderate',
+                'subtabs' => [
+                    'show' => [
+                        'lng' => 'bans_table',
+                        'link' => $DIC->ctrl()->getLinkTarget($this->gui, 'ban-show'),
+                        'permission' => 'moderate'
+                    ]
+                ]
+            ],
+            'export' => [
+                'lng' => 'export',
+                'link' => $DIC->ctrl()->getLinkTargetByClass(ilExportGUI::class, ''),
+                'permission' => 'write'
+            ],
+            'perm' => [
+                'lng' => 'permissions',
+                'link' => $DIC->ctrl()->getLinkTargetByClass(ilPermissionGUI::class, 'perm'),
+                'permission' => 'edit_permission'
+            ]
+        ];
+
+        $commandParts = explode('_', $command, 2);
+        if (strtolower($DIC->ctrl()->getCmdClass()) === strtolower(ilPermissionGUI::class)) {
+            $commandParts[0] = 'perm';
+        }
+
+        $this->buildTabs($DIC->tabs(), $config, $commandParts);
+        $this->activateTab($commandParts, $config);
+    }
 }

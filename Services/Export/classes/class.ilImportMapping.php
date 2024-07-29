@@ -1,159 +1,113 @@
 <?php
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+declare(strict_types=1);
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Import mapping
- *
- * @author Alex Killing <alex.killing>
- * @version $Id$
- * @ingroup ServicesExport
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilImportMapping
 {
-	var $mappings;
-	var $install_id;
-	var $install_url;
-	var $log;
-	
-	protected $target_id = 0;
+    public array $mappings;
+    public string $install_id;
+    public string $install_url;
+    public ilLogger $log;
 
-	/**
-	 * Constructor
-	 *
-	 * @param
-	 * @return
-	 */
-	function __construct()
-	{
-		$this->mappings = array();
-		$this->log = ilLoggerFactory::getLogger("exp");
-		$this->log->debug("ilImportMapping Construct this->mappings = array()");
-	}
+    protected int $target_id = 0;
 
-	/**
-	 * Set Installation ID
-	 *
-	 * @param	string	Installation ID
-	 */
-	final function setInstallId($a_val)
-	{
-		$this->install_id = $a_val;
-	}
+    public function __construct()
+    {
+        $this->mappings = array();
+        $this->log = ilLoggerFactory::getLogger("exp");
+        $this->log->debug("ilImportMapping Construct this->mappings = array()");
+    }
 
-	/**
-	 * Get Installation ID
-	 *
-	 * @return	string	Installation ID
-	 */
-	final function getInstallId()
-	{
-		return $this->install_id;
-	}
+    final public function setInstallId(string $a_val): void
+    {
+        $this->install_id = $a_val;
+    }
 
-	/**
-	 * Set Installation Url
-	 *
-	 * @param	string	Installation Url
-	 */
-	final function setInstallUrl($a_val)
-	{
-		$this->install_url = $a_val;
-	}
+    final public function getInstallId(): string
+    {
+        return $this->install_id;
+    }
 
-	/**
-	 * Get Installation Url
-	 *
-	 * @return	string	Installation Url
-	 */
-	final function getInstallUrl()
-	{
-		return $this->install_url;
-	}
-	
-	/**
-	 * set target id
-	 * @param object $a_target_id
-	 * @return 
-	 */
-	public final function setTargetId($a_target_id)
-	{
-		$this->target_id = $a_target_id;
-		$this->log->debug("a_target_id=".$a_target_id);
-	}
-	
-	/**
-	 * get target id
-	 * @return 
-	 */
-	public final function getTargetId()
-	{
-		return $this->target_id;
-	}
+    final public function setInstallUrl(string $a_val): void
+    {
+        $this->install_url = $a_val;
+    }
 
-	/**
-	 * Add mapping
-	 *
-	 * @param	string		component
-	 * @param	string		entity
-	 * @param	string		old id
-	 * @param	string		new id
-	 */
-	function addMapping($a_comp, $a_entity, $a_old_id, $a_new_id)
-	{
-		$this->mappings[$a_comp][$a_entity][$a_old_id] = $a_new_id;
-		$this->log->debug("ADD MAPPING this->mappings = ", $this->mappings);
-	}
+    final public function getInstallUrl(): string
+    {
+        return $this->install_url;
+    }
 
-	/**
-	 * Get a mapping
-	 *
-	 * @param	string		component
-	 * @param	string		entity
-	 * @param	string		old id
-	 *
-	 * @return	string		new id, or false if no mapping given
-	 */
-	function getMapping($a_comp, $a_entity, $a_old_id)
-	{
-		$this->log->debug("a_comp = $a_comp, a_entity = $a_entity , a_old_id = $a_old_id");
+    final public function setTargetId(int $a_target_id): void
+    {
+        $this->target_id = $a_target_id;
+        $this->log->debug("a_target_id=" . $a_target_id);
+    }
 
-		if(!isset ($this->mappings[$a_comp]) or !isset ($this->mappings[$a_comp][$a_entity]))
-		{
-			return false;
-		}
-		if (isset($this->mappings[$a_comp][$a_entity][$a_old_id]))
-		{
-			return $this->mappings[$a_comp][$a_entity][$a_old_id];
-		}
+    final public function getTargetId(): int
+    {
+        return $this->target_id;
+    }
 
-		return false;
-	}
+    public function addMapping(
+        string $a_comp,
+        string $a_entity,
+        string $a_old_id,
+        string $a_new_id
+    ): void {
+        $this->mappings[$a_comp][$a_entity][$a_old_id] = $a_new_id;
+        //$this->log->debug("ADD MAPPING this->mappings = ", $this->mappings);
+    }
 
-	/**
-	 * Get mapping
-	 *
-	 * @return	array	mapping
-	 */
-	function getAllMappings()
-	{
-		return $this->mappings;
-	}
+    public function getMapping(
+        string $a_comp,
+        string $a_entity,
+        string $a_old_id
+    ): ?string {
+        $this->log->debug("a_comp = $a_comp, a_entity = $a_entity , a_old_id = $a_old_id");
 
-	/**
-	 * Get mappings for entity
-	 *
-	 * @param	string	component
-	 * @param	string	entity
-	 * @return
-	 */
-	function getMappingsOfEntity($a_comp, $a_entity)
-	{
-		if (isset($this->mappings[$a_comp][$a_entity]))
-		{
-			return $this->mappings[$a_comp][$a_entity];
-		}
-		return array();
-	}
+        if (!isset($this->mappings[$a_comp]) or !isset($this->mappings[$a_comp][$a_entity])) {
+            return null;
+        }
+        if (isset($this->mappings[$a_comp][$a_entity][$a_old_id])) {
+            return $this->mappings[$a_comp][$a_entity][$a_old_id];
+        }
 
+        return null;
+    }
+
+    public function getAllMappings(): array
+    {
+        return $this->mappings;
+    }
+
+    public function getMappingsOfEntity(
+        string $a_comp,
+        string $a_entity
+    ): array {
+        if (isset($this->mappings[$a_comp][$a_entity])) {
+            return $this->mappings[$a_comp][$a_entity];
+        }
+        return array();
+    }
 }
-?>

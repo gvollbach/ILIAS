@@ -1,330 +1,253 @@
 <?php
-/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
+
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
 
 /**
  * Media Pool Item
- *
- * @author Alex Killing <alex.killing@gmx.de>
- * @version $Id$
- * @ingroup ModulesMediaPool
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilMediaPoolItem
 {
-	/**
-	 * @var ilDB
-	 */
-	protected $db;
+    protected string $title = "";
+    protected int $foreign_id = 0;
+    protected string $type = "";
+    protected int $id = 0;
+    protected ilDBInterface $db;
+    protected string $import_id = "";
 
-	protected $import_id;
+    /**
+     * @param int $a_id media pool item id
+     */
+    public function __construct(
+        int $a_id = 0
+    ) {
+        global $DIC;
 
-	/**
-	 * Construtor
-	 *
-	 * @param	int		media pool item id
-	 */
-	function __construct($a_id = 0)
-	{
-		global $DIC;
+        $this->db = $DIC->database();
+        if ($a_id > 0) {
+            $this->setId($a_id);
+            $this->read();
+        }
+    }
 
-		$this->db = $DIC->database();
-		if ($a_id > 0)
-		{
-			$this->setId($a_id);
-			$this->read();
-		}
-	}
-	
-	/**
-	 * Set id
-	 *
-	 * @param	int	id
-	 */
-	function setId($a_val)
-	{
-		$this->id = $a_val;
-	}
-	
-	/**
-	 * Get id
-	 *
-	 * @return	int	id
-	 */
-	function getId()
-	{
-		return $this->id;
-	}
+    public function setId(int $a_val): void
+    {
+        $this->id = $a_val;
+    }
 
-	/**
-	 * Set type
-	 *
-	 * @param	string	type
-	 */
-	function setType($a_val)
-	{
-		$this->type = $a_val;
-	}
-	
-	/**
-	 * Get type
-	 *
-	 * @return	string	type
-	 */
-	function getType()
-	{
-		return $this->type;
-	}
-	
-	/**
-	 * Set foreign id
-	 *
-	 * @param	int	foreign id
-	 */
-	function setForeignId($a_val)
-	{
-		$this->foreign_id = $a_val;
-	}
-	
-	/**
-	 * Get foreign id
-	 *
-	 * @return	int	foreign id
-	 */
-	function getForeignId()
-	{
-		return $this->foreign_id;
-	}
+    public function getId(): int
+    {
+        return $this->id;
+    }
 
-	/**
-	 * Set import id
-	 *
-	 * @param string $a_val import id	
-	 */
-	function setImportId($a_val)
-	{
-		$this->import_id = $a_val;
-	}
-	
-	/**
-	 * Get import id
-	 *
-	 * @return string import id
-	 */
-	function getImportId()
-	{
-		return $this->import_id;
-	}
-	
-	/**
-	 * Set title
-	 *
-	 * @param	string	title
-	 */
-	function setTitle($a_val)
-	{
-		$this->title = $a_val;
-	}
-	
-	/**
-	 * Get title
-	 *
-	 * @return	string	title
-	 */
-	function getTitle()
-	{
-		return $this->title;
-	}
-	
-	/**
-	 * Create
-	 */
-	function create()
-	{
-		$ilDB = $this->db;
-		
-		$nid = $ilDB->nextId("mep_item");
-		$ilDB->manipulate("INSERT INTO mep_item ".
-			"(obj_id, type, foreign_id, title, import_id) VALUES (".
-			$ilDB->quote($nid, "integer").",".
-			$ilDB->quote($this->getType(), "text").",".
-			$ilDB->quote($this->getForeignId(), "integer").",".
-			$ilDB->quote($this->getTitle(), "text").",".
-			$ilDB->quote($this->getImportId(), "text").
-			")");
-		$this->setId($nid);
-	}
-	
-	/**
-	 * Read
-	 */
-	function read()
-	{
-		$ilDB = $this->db;
-		
-		$set = $ilDB->query("SELECT * FROM mep_item WHERE ".
-			"obj_id = ".$ilDB->quote($this->getId(), "integer")
-			);
-		if ($rec  = $ilDB->fetchAssoc($set))
-		{
-			$this->setType($rec["type"]);
-			$this->setForeignId($rec["foreign_id"]);
-			$this->setTitle($rec["title"]);
-			$this->setImportId($rec["import_id"]);
-		}
-	}
-	
-	/**
-	 * Update
-	 *
-	 * @param
-	 * @return
-	 */
-	function update()
-	{
-		$ilDB = $this->db;
-	
-		$ilDB->manipulate("UPDATE mep_item SET ".
-			" type = ".$ilDB->quote($this->getType(), "text").",".
-			" foreign_id = ".$ilDB->quote($this->getForeignId(), "integer").",".
-			" title = ".$ilDB->quote($this->getTitle(), "text").",".
-			" import_id = ".$ilDB->quote($this->getImportId(), "text").
-			" WHERE obj_id = ".$ilDB->quote($this->getId(), "integer")
-			);
-	}
-	
-	/**
-	 * Delete
-	 *
-	 * @param
-	 * @return
-	 */
-	function delete()
-	{
-		$ilDB = $this->db;
-	
-		$ilDB->manipulate("DELETE FROM mep_item WHERE "
-			." obj_id = ".$ilDB->quote($this->getId(), "integer")
-			);
-	}
-	
-	/**
-	 * Lookup
-	 *
-	 * @param
-	 * @return
-	 */
-	private static function lookup($a_id, $a_field)
-	{
-		global $DIC;
+    public function setType(string $a_val): void
+    {
+        $this->type = $a_val;
+    }
 
-		$ilDB = $DIC->database();
-		
-		$set = $ilDB->query("SELECT ".$a_field." FROM mep_item WHERE ".
-			" obj_id = ".$ilDB->quote($a_id, "integer"));
-		if ($rec = $ilDB->fetchAssoc($set))
-		{
-			return $rec[$a_field];
-		}
-		return false;
-	}
-	
-	/**
-	 * Lookup Foreign Id
-	 *
-	 * @param	int		mep item id
-	 */
-	static function lookupForeignId($a_id)
-	{
-		return self::lookup($a_id, "foreign_id");
-	}
+    public function getType(): string
+    {
+        return $this->type;
+    }
 
-	/**
-	 * Lookup type
-	 *
-	 * @param	int		mep item id
-	 */
-	static function lookupType($a_id)
-	{
-		return self::lookup($a_id, "type");
-	}
+    /**
+     * Set foreign id (mob id)
+     * @param int $a_val foreign id
+     */
+    public function setForeignId(int $a_val): void
+    {
+        $this->foreign_id = $a_val;
+    }
 
-	/**
-	 * Lookup title
-	 *
-	 * @param	int		mep item id
-	 */
-	static function lookupTitle($a_id)
-	{
-		return self::lookup($a_id, "title");
-	}
-	
-	/**
-	 * Update object title
-	 *
-	 * @param
-	 * @return
-	 */
-	static function updateObjectTitle($a_obj)
-	{
-		global $DIC;
+    public function getForeignId(): int
+    {
+        return $this->foreign_id;
+    }
 
-		$ilDB = $DIC->database();
+    public function setImportId(string $a_val): void
+    {
+        $this->import_id = $a_val;
+    }
 
-		if (ilObject::_lookupType($a_obj) == "mob")
-		{
-			$title = ilObject::_lookupTitle($a_obj);
-			$ilDB->manipulate("UPDATE mep_item SET ".
-				" title = ".$ilDB->quote($title, "text").
-				" WHERE foreign_id = ".$ilDB->quote($a_obj, "integer").
-				" AND type = ".$ilDB->quote("mob", "text")
-				);
-		}
-	}
-	
-	/**
-	 * Get media pools for item id
-	 */
-	static function getPoolForItemId($a_id)
-	{
-		global $DIC;
+    public function getImportId(): string
+    {
+        return $this->import_id;
+    }
 
-		$ilDB = $DIC->database();
-		
-		$set = $ilDB->query("SELECT * FROM mep_tree ".
-			" WHERE child = ".$ilDB->quote($a_id, "integer")
-			);
-		$pool_ids = array();
-		while ($rec  = $ilDB->fetchAssoc($set))
-		{
-			$pool_ids[] = $rec["mep_id"];
-		}
-		return $pool_ids;		// currently this array should contain only one id
-	}
+    public function setTitle(string $a_val): void
+    {
+        $this->title = $a_val;
+    }
 
-	/**
-	 * Get all ids for type
-	 *
-	 * @param
-	 * @return
-	 */
-	static function getIdsForType($a_id, $a_type)
-	{
-		global $DIC;
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
 
-		$ilDB = $DIC->database();
+    public function create(): void
+    {
+        $ilDB = $this->db;
 
-		$set = $ilDB->query("SELECT mep_tree.child as id".
-			" FROM mep_tree JOIN mep_item ON (mep_tree.child = mep_item.obj_id) WHERE ".
-			" mep_tree.mep_id = ".$ilDB->quote($a_id, "integer")." AND ".
-			" mep_item.type = ".$ilDB->quote($a_type, "text")
-		);
+        $nid = $ilDB->nextId("mep_item");
+        $ilDB->manipulate("INSERT INTO mep_item " .
+            "(obj_id, type, foreign_id, title, import_id) VALUES (" .
+            $ilDB->quote($nid, "integer") . "," .
+            $ilDB->quote($this->getType(), "text") . "," .
+            $ilDB->quote($this->getForeignId(), "integer") . "," .
+            $ilDB->quote($this->getTitle(), "text") . "," .
+            $ilDB->quote($this->getImportId(), "text") .
+            ")");
+        $this->setId($nid);
+    }
 
-		$ids = array();
-		while ($rec = $ilDB->fetchAssoc($set))
-		{
-			$ids[] = $rec["id"];
-		}
-		return $ids;
-	}
+    public function read(): void
+    {
+        $ilDB = $this->db;
 
+        $set = $ilDB->query(
+            "SELECT * FROM mep_item WHERE " .
+            "obj_id = " . $ilDB->quote($this->getId(), "integer")
+        );
+        if ($rec = $ilDB->fetchAssoc($set)) {
+            $this->setType($rec["type"]);
+            $this->setForeignId((int) $rec["foreign_id"]);
+            $this->setTitle($rec["title"]);
+            $this->setImportId((string) $rec["import_id"]);
+        }
+    }
+
+    public function update(): void
+    {
+        $ilDB = $this->db;
+
+        $ilDB->manipulate(
+            "UPDATE mep_item SET " .
+            " type = " . $ilDB->quote($this->getType(), "text") . "," .
+            " foreign_id = " . $ilDB->quote($this->getForeignId(), "integer") . "," .
+            " title = " . $ilDB->quote($this->getTitle(), "text") . "," .
+            " import_id = " . $ilDB->quote($this->getImportId(), "text") .
+            " WHERE obj_id = " . $ilDB->quote($this->getId(), "integer")
+        );
+    }
+
+    public function delete(): void
+    {
+        $ilDB = $this->db;
+
+        $ilDB->manipulate(
+            "DELETE FROM mep_item WHERE "
+            . " obj_id = " . $ilDB->quote($this->getId(), "integer")
+        );
+    }
+
+    private static function lookup(
+        int $a_id,
+        string $a_field
+    ): ?string {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+
+        $set = $ilDB->query("SELECT " . $a_field . " FROM mep_item WHERE " .
+            " obj_id = " . $ilDB->quote($a_id, "integer"));
+        if ($rec = $ilDB->fetchAssoc($set)) {
+            return $rec[$a_field];
+        }
+        return null;
+    }
+
+    public static function lookupForeignId(int $a_id): int
+    {
+        return (int) self::lookup($a_id, "foreign_id");
+    }
+
+    public static function lookupType(int $a_id): string
+    {
+        return (string) self::lookup($a_id, "type");
+    }
+
+    public static function lookupTitle(int $a_id): string
+    {
+        return (string) self::lookup($a_id, "title");
+    }
+
+    // synch media item title for media objects
+    public static function updateObjectTitle(int $a_obj): void
+    {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+
+        if (ilObject::_lookupType($a_obj) === "mob") {
+            $title = ilObject::_lookupTitle($a_obj);
+            $ilDB->manipulate(
+                "UPDATE mep_item SET " .
+                " title = " . $ilDB->quote($title, "text") .
+                " WHERE foreign_id = " . $ilDB->quote($a_obj, "integer") .
+                " AND type = " . $ilDB->quote("mob", "text")
+            );
+        }
+    }
+
+    /**
+     * @return int[]
+     */
+    public static function getPoolForItemId(int $a_id): array
+    {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+
+        $set = $ilDB->query(
+            "SELECT * FROM mep_tree " .
+            " WHERE child = " . $ilDB->quote($a_id, "integer")
+        );
+        $pool_ids = array();
+        while ($rec = $ilDB->fetchAssoc($set)) {
+            $pool_ids[] = (int) $rec["mep_id"];
+        }
+        return $pool_ids;
+    }
+
+    /**
+     * Get all ids for type
+     * @param int    $a_id media pool id
+     * @param string $a_type media item type
+     * @return int[]
+     */
+    public static function getIdsForType(
+        int $a_id,
+        string $a_type
+    ): array {
+        global $DIC;
+
+        $ilDB = $DIC->database();
+
+        $set = $ilDB->query(
+            "SELECT mep_tree.child as id" .
+            " FROM mep_tree JOIN mep_item ON (mep_tree.child = mep_item.obj_id) WHERE " .
+            " mep_tree.mep_id = " . $ilDB->quote($a_id, "integer") . " AND " .
+            " mep_item.type = " . $ilDB->quote($a_type, "text")
+        );
+
+        $ids = array();
+        while ($rec = $ilDB->fetchAssoc($set)) {
+            $ids[] = (int) $rec["id"];
+        }
+        return $ids;
+    }
 }
-?>

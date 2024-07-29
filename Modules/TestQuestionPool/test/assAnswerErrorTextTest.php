@@ -1,147 +1,115 @@
 <?php
-/* Copyright (c) 1998-2013 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-/** 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+/**
 * Unit tests for assAnswerErrorTextTest
-* 
+*
 * @author Maximilian Becker <mbecker@databay.de>
 *
 * @ingroup ModulesTestQuestionPool
 */
 class assAnswerErrorTextTest extends assBaseTestCase
 {
-	protected $backupGlobals = FALSE;
+    protected $backupGlobals = false;
 
-	protected function setUp(): void
-	{
-		if (defined('ILIAS_PHPUNIT_CONTEXT'))
-		{
-			include_once("./Services/PHPUnit/classes/class.ilUnitUtil.php");
-			ilUnitUtil::performInitialisation();
-		}
-		else
-		{
-			chdir( dirname( __FILE__ ) );
-			chdir('../../../');
-		}
-	}
+    protected function setUp(): void
+    {
+        chdir(dirname(__FILE__));
+        chdir('../../../');
+    }
 
-	public function test_instantiateObjectSimple()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assAnswerErrorText.php';
-		
-		// Act
-		$instance = new assAnswerErrorText('errortext');
-		
-		// Assert
-		$this->assertTrue(TRUE);
-	}
+    public function test_instantiateObjectSimple(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assAnswerErrorText.php';
 
-	
-	public function test_instantiateObjectFull()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assAnswerErrorText.php';
+        // Act
+        $instance = new assAnswerErrorText('errortext');
 
-		// Act
-		$instance = new assAnswerErrorText(
-			'errortext',
-			'correcttext',
-			1
-		);
+        // Assert
+        $this->assertInstanceOf(assAnswerErrorText::class, $instance);
+    }
 
-		// Assert
-		$this->assertTrue(TRUE);
-	}
-	
-	public function test_setGetPoints_valid()
-	{
-		//$this->markTestIncomplete('Testing an uncommitted feature.');
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assAnswerErrorText.php';
-		$instance = new assAnswerErrorText( 'errortext'	);
-		$expected = 0.01;
-		
-		// Act
-		$instance->points = $expected;
-		$actual = $instance->points;
-		
-		// Assert
-		$this->assertEquals($actual, $expected);		
-	}
-	
-	public function test_setPoints_invalid()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assAnswerErrorText.php';
-		$instance = new assAnswerErrorText( 'errortext'	);
-		$expected = 'hokum';
 
-		// Act
-		$instance->points = $expected;
-		$actual = $instance->points;
-		// Assert
-		$this->assertEquals($expected, $actual);
-	}
+    public function test_instantiateObjectFull(): void
+    {
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assAnswerErrorText.php';
 
-	public function test_setGetTextCorrect()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assAnswerErrorText.php';
-		$instance = new assAnswerErrorText( 'errortext'	);
-		$expected = 'Correct text';
+        // Act
+        $instance = new assAnswerErrorText(
+            'errortext',
+            'correcttext',
+            0.01,
+            21
+        );
 
-		// Act
-		$instance->text_correct = $expected;
-		$actual = $instance->text_correct;
+        // Assert
+        $this->assertInstanceOf(assAnswerErrorText::class, $instance);
+    }
 
-		// Assert
-		$this->assertEquals($actual, $expected);
-	}
+    public function test_instantiateObjectFullHasCorrectValues(): void
+    {
 
-	public function test_setGetTextWrong_valid()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assAnswerErrorText.php';
-		$instance = new assAnswerErrorText( 'errortext'	);
-		$expected = 'Errortext';
+        $instance = new assAnswerErrorText(
+            'errortext',
+            'correcttext',
+            0.01,
+            21
+        );
 
-		// Act
-		$instance->text_wrong = $expected;
-		$actual = $instance->text_wrong;
+        $this->assertInstanceOf(assAnswerErrorText::class, $instance);
+        $this->assertEquals('errortext', $instance->getTextWrong());
+        $this->assertEquals('correcttext', $instance->getTextCorrect());
+        $this->assertEquals(0.01, $instance->getPoints());
+        $this->assertEquals(21, $instance->getPosition());
+        $this->assertEquals(1, $instance->getLength());
+    }
 
-		// Assert
-		$this->assertEquals($actual, $expected);
-	}
+    public function test_withPoints_valid(): void
+    {
+        //$this->markTestIncomplete('Testing an uncommitted feature.');
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assAnswerErrorText.php';
+        $instance = new assAnswerErrorText('errortext');
+        $expected = 0.01;
 
-	public function test_setTextWrong_invalid()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assAnswerErrorText.php';
-		$instance = new assAnswerErrorText( 'errortext'	);
-		$expected = '';
+        // Act
+        $instance_with_points = $instance->withPoints($expected);
+        $actual = $instance_with_points->getPoints();
 
-		// Act
-		$instance->text_wrong = $expected;
-		$actual = $instance->text_wrong;
-		
-		// Assert
-		$this->assertEquals($expected, $actual);
-	}
-	
-	public function test_setGetUnknown()
-	{
-		// Arrange
-		require_once './Modules/TestQuestionPool/classes/class.assAnswerErrorText.php';
-		$instance = new assAnswerErrorText( 'errortext'	);
-		$expected = null;
+        // Assert
+        $this->assertEquals($actual, $expected);
+    }
 
-		// Act
-		$instance->undefined123 = 'No expectations';
-		$actual = $instance->undefined123;
+    public function test_withPosition_valid(): void
+    {
+        //$this->markTestIncomplete('Testing an uncommitted feature.');
+        // Arrange
+        require_once './Modules/TestQuestionPool/classes/class.assAnswerErrorText.php';
+        $instance = new assAnswerErrorText('errortext');
+        $expected = 21;
 
-		// Assert
-		$this->assertEquals($expected, $actual);	
-	}
+        // Act
+        $instance_with_position = $instance->withPosition($expected);
+        $actual = $instance_with_position->getPosition();
+
+        // Assert
+        $this->assertEquals($actual, $expected);
+    }
 }

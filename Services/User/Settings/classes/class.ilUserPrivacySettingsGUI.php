@@ -1,69 +1,51 @@
 <?php
 
-/* Copyright (c) 1998-2019 ILIAS open source, Extended GPL, see docs/LICENSE */
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
+use ILIAS\UI\Component\Input\Field\Section;
 
 /**
  * User privacy settings (currently located under "Profile and Privacy")
- *
- * @author killing@leifos.de
+ * @author Alexander Killing <killing@leifos.de>
  */
 class ilUserPrivacySettingsGUI
 {
+    private const PROP_ENABLE_OSC = 'chat_osc_accept_msg';
+    private const PROP_ENABLE_BROWSER_NOTIFICATIONS = 'chat_osc_browser_notifications';
+    private const PROP_ENABLE_SOUND = 'osd_play_sound';
+    private const PROP_ENABLE_BROADCAST_TYPING = 'chat_broadcast_typing';
 
-    /**
-     * @var ilLanguage
-     */
-    protected $lng;
+    protected ilLanguage $lng;
+    protected ilCtrl $ctrl;
+    protected ilGlobalTemplateInterface $main_tpl;
+    protected ilUserSettingsConfig $user_settings_config;
+    protected ilObjUser $user;
+    protected ilSetting $settings;
+    protected \Psr\Http\Message\RequestInterface $request;
+    protected ilProfileChecklistStatus $checklist_status;
+    protected ilPersonalProfileMode $profile_mode;
+    private \ILIAS\UI\Factory $uiFactory;
+    private \ILIAS\UI\Renderer $uiRenderer;
+    private \ILIAS\Refinery\Factory $refinery;
+    protected ilSetting $chatSettings;
+    protected ilSetting $notificationSettings;
+    protected ilAppEventHandler $event;
 
-    /**
-     * @var ilCtrl
-     */
-    protected $ctrl;
-
-    /**
-     * @var ilTemplate
-     */
-    protected $main_tpl;
-
-    /**
-     * @var ilUserSettingsConfig
-     */
-    protected $user_settings_config;
-
-    /**
-     * @var \ILIAS\DI\UIServices
-     */
-    protected $ui;
-
-    /**
-     * @var ilObjUser
-     */
-    protected $user;
-
-    /**
-     * @var ilSetting
-     */
-    protected $settings;
-
-    /**
-     * @var \Psr\Http\Message\RequestInterface
-     */
-    protected $request;
-
-    /**
-     * @var ilProfileChecklistStatus
-     */
-    protected $checklist_status;
-
-    /**
-     * @var ilPersonalProfileMode
-     */
-    protected $profile_mode;
-
-    /**
-     * constructor
-     */
-    function __construct()
+    public function __construct()
     {
         global $DIC;
 
@@ -71,8 +53,13 @@ class ilUserPrivacySettingsGUI
         $this->lng = $DIC->language();
         $this->ctrl = $DIC->ctrl();
         $this->lng->loadLanguageModule("user");
-        $this->ui = $DIC->ui();
         $this->user = $DIC->user();
+        $this->refinery = $DIC->refinery();
+        $this->uiFactory = $DIC->ui()->factory();
+        $this->uiRenderer = $DIC->ui()->renderer();
+        $this->chatSettings = new ilSetting('chatroom');
+        $this->notificationSettings = new ilSetting('notifications');
+        $this->event = $DIC->event();
 
         $this->request = $DIC->http()->request();
 
@@ -82,15 +69,11 @@ class ilUserPrivacySettingsGUI
         $this->profile_mode = new ilPersonalProfileMode($this->user, $this->settings);
     }
 
-    /**
-     * execute command
-     */
-    function executeCommand()
+    public function executeCommand(): void
     {
         $next_class = $this->ctrl->getNextClass();
 
-        switch($next_class)
-        {
+        switch ($next_class) {
             default:
                 $cmd = $this->ctrl->getCmd("showPrivacySettings");
                 $this->$cmd();
@@ -106,132 +89,299 @@ class ilUserPrivacySettingsGUI
     //
     //
 
-    /**
-     * @param string $setting
-     * @return bool
-     */
-    function workWithUserSetting(string $setting): bool
+    public function workWithUserSetting(string $setting): bool
     {
         return $this->user_settings_config->isVisibleAndChangeable($setting);
     }
 
-    /**
-     * @param string $setting
-     * @return bool
-     */
-    function userSettingVisible(string $setting): bool
+    public function userSettingVisible(string $setting): bool
     {
         return $this->user_settings_config->isVisible($setting);
     }
 
-    /**
-     * General settings form.
-     */
-    function showPrivacySettings($form = null)
-    {
+    public function showPrivacySettings(
+        \ILIAS\UI\Component\Input\Container\Form\Standard $form = null
+    ): void {
         $main_tpl = $this->main_tpl;
-        $ui = $this->ui;
         $user = $this->user;
         $lng = $this->lng;
 
         $html = "";
-        if ($this->checklist_status->anyVisibilitySettings()) {
+        if ($this->checklist_status->anyVisibilitySettings()
+            && ($this->isAwarnessSettingVisible()
+                || $this->isContactSettingVisible()
+                || $this->shouldDisplayChatSection())) {
             if (is_null($form)) {
                 $form = $this->initPrivacySettingsForm();
             }
-            $html = $ui->renderer()->render([$form]);
+            $html = $this->uiRenderer->render([$form]);
         }
 
         $pub_profile = new ilPublicUserProfileGUI($user->getId());
         if ($this->profile_mode->isEnabled()) {
-            $html.= $pub_profile->getEmbeddable();
-        } else {
-            if (!$this->checklist_status->anyVisibilitySettings()) {
-                $html .= $ui->renderer()->render([$ui->factory()->messageBox()->info($lng->txt("usr_public_profile_disabled"))]);
-            }
+            $pub_profile_legacy = $this->uiFactory->legacy($pub_profile->getEmbeddable());
+            $html .= $this->uiRenderer->render($this->uiFactory->panel()->standard(
+                $this->lng->txt('user_profile_preview'),
+                $pub_profile_legacy
+            ));
+        } elseif (!$this->checklist_status->anyVisibilitySettings()) {
+            $html .= $this->uiRenderer->render(
+                [$this->uiFactory->messageBox()->info($lng->txt("usr_public_profile_disabled"))]
+            );
         }
 
-        $main_tpl->setContent($html);
+
+        $chat_tpl = $this->appendChatJsToTemplate($main_tpl);
+
+        $main_tpl->setContent($html . $chat_tpl->get());
     }
 
     /**
      * Is awareness tool setting visible
-     *
-     * @return bool
      */
     protected function isAwarnessSettingVisible(): bool
     {
         $awrn_set = new ilSetting("awrn");
-        if ($awrn_set->get("awrn_enabled", false) && $this->userSettingVisible("hide_own_online_status")) {
-            return true;
-        }
-        return false;
+
+        return $awrn_set->get("awrn_enabled", '0') && $this->userSettingVisible("hide_own_online_status");
     }
 
     /**
      * Is contact setting visible
-     *
-     * @return bool
      */
     protected function isContactSettingVisible(): bool
     {
-        if(ilBuddySystem::getInstance()->isEnabled() && $this->userSettingVisible('bs_allow_to_contact_me'))
-        {
-            return true;
-        }
-        return false;
+        return ilBuddySystem::getInstance()->isEnabled() && $this->userSettingVisible('bs_allow_to_contact_me');
     }
-
 
     /**
      * Init  form.
-     * @return \ILIAS\UI\Component\Input\Container\Form\Standard
      */
-    public function initPrivacySettingsForm()
+    public function initPrivacySettingsForm(): \ILIAS\UI\Component\Input\Container\Form\Standard
     {
-        $ui = $this->ui;
-        $f = $ui->factory();
-        $ctrl = $this->ctrl;
-        $lng = $this->lng;
-        $user = $this->user;
-        $settings = $this->settings;
+        $sections = [];
 
-        $fields = [];
+        $this->populateWithAwarenessSettingsSection($sections);
+        $this->populateWithContactsSettingsSection($sections);
+        $this->populateWithChatSettingsSection($sections);
+        $this->populateWithNotificationSettingsSection($sections);
 
-        // hide_own_online_status
-        if ($this->isAwarnessSettingVisible())
-        {
-            $lng->loadLanguageModule("awrn");
+        $form_action = $this->ctrl->getLinkTarget($this, "savePrivacySettings");
 
-            $fields["hide_own_online_status"] = $f->input()->field()->checkbox(
-                $lng->txt("awrn_hide_from_awareness"),
-                $lng->txt("awrn_hide_from_awareness_info"))
-                ->withValue($user->prefs["hide_own_online_status"] == "y")
-                ->withDisabled($settings->get("usr_settings_disable_hide_own_online_status"));
+        return $this->uiFactory->input()
+            ->container()
+            ->form()
+            ->standard($form_action, $sections)
+            ->withAdditionalTransformation($this->refinery->custom()->transformation(static function (array $values): array {
+                return array_merge(...array_values($values));
+            }));
+    }
+
+    private function shouldShowOnScreenChatOptions(): bool
+    {
+        return (
+            $this->chatSettings->get('enable_osc', '0') &&
+            !$this->settings->get('usr_settings_hide_chat_osc_accept_msg', '0')
+        );
+    }
+
+    private function shouldShowChatTypingBroadcastOption(): bool
+    {
+        return (
+            !$this->settings->get('usr_settings_hide_chat_broadcast_typing', '0')
+        );
+    }
+
+    public function shouldDisplayChatSection(): bool
+    {
+        return (bool) $this->chatSettings->get('chat_enabled', '0');
+    }
+
+    private function shouldShowNotificationOptions(): bool
+    {
+        return (bool) $this->notificationSettings->get('osd_play_sound', '0');
+    }
+
+    public function shouldDisplayNotificationSection(): bool
+    {
+        return (bool) $this->notificationSettings->get('enable_osd', '0');
+    }
+
+    protected function populateWithAwarenessSettingsSection(
+        array &$formSections
+    ): void {
+        if (!$this->isAwarnessSettingVisible()) {
+            return;
         }
 
-        // allow to contact me
-        if ($this->isContactSettingVisible())
-        {
-            $lng->loadLanguageModule('buddysystem');
-            $fields["bs_allow_to_contact_me"] = $f->input()->field()->checkbox(
-                $lng->txt("buddy_allow_to_contact_me"),
-                $lng->txt("buddy_allow_to_contact_me_info"))
-                ->withValue($user->prefs['bs_allow_to_contact_me'] == 'y')
-                ->withDisabled($settings->get('usr_settings_disable_bs_allow_to_contact_me'));
+        $this->lng->loadLanguageModule("awrn");
+
+        $default = ($this->settings->get('hide_own_online_status') === "n")
+            ? $this->lng->txt("user_awrn_show")
+            : $this->lng->txt("user_awrn_hide");
+
+        $options = [
+            "x" => $this->lng->txt("user_awrn_default") . " (" . $default . ")",
+            "n" => $this->lng->txt("user_awrn_show"),
+            "y" => $this->lng->txt("user_awrn_hide")
+        ];
+        $val = $this->user->prefs["hide_own_online_status"] ?? "";
+        if ($val == "") {
+            $val = "x";
         }
 
-        // section
-        $section1 = $f->input()->field()->section($fields, $lng->txt("user_visibility_settings"));
+        $fields["hide_own_online_status"] = $this->uiFactory->input()
+            ->field()
+            ->select(
+                $this->lng->txt("awrn_user_show"),
+                $options,
+                $this->lng->txt("awrn_hide_from_awareness_info")
+            )
+            ->withValue($val)
+            ->withRequired(true)
+            ->withDisabled(
+                $this->settings->get('usr_settings_disable_hide_own_online_status', '0') === '1' ? true : false
+            );
 
-        $form_action = $ctrl->getLinkTarget($this, "savePrivacySettings");
-        return $f->input()->container()->form()->standard($form_action, ["sec" => $section1]);
+        $formSections['awrn_sec'] = $this->uiFactory->input()->field()->section($fields, $this->lng->txt('obj_awra'));
+    }
+
+    protected function populateWithContactsSettingsSection(
+        array &$formSections
+    ): void {
+        if (!$this->isContactSettingVisible()) {
+            return;
+        }
+
+        $this->lng->loadLanguageModule('buddysystem');
+        $bs_allow_contact_me = isset($this->user->prefs['bs_allow_to_contact_me']) ?
+            $this->user->prefs['bs_allow_to_contact_me'] === 'y' : false;
+        $fields["bs_allow_to_contact_me"] = $this->uiFactory->input()
+            ->field()
+            ->checkbox(
+                $this->lng->txt("buddy_allow_to_contact_me"),
+                $this->lng->txt("buddy_allow_to_contact_me_info")
+            )
+            ->withValue($bs_allow_contact_me)
+            ->withDisabled(
+                $this->settings->get('usr_settings_disable_bs_allow_to_contact_me', '0') === '1' ? true : false
+            );
+
+        $formSections['contacts_sec'] = $this->uiFactory->input()->field()->section($fields, $this->lng->txt('mm_contacts'));
     }
 
     /**
-     * Save privacy settings
+     * @param Section[] $formSections
      */
-    public function savePrivacySettings()
+    protected function populateWithNotificationSettingsSection(array &$formSections): void
+    {
+        if (!$this->shouldDisplayNotificationSection()) {
+            return;
+        }
+
+        $fields = [];
+
+        if ($this->shouldShowNotificationOptions()) {
+            $this->lng->loadLanguageModule('notifications_adm');
+            $fields[self::PROP_ENABLE_SOUND] = $this->uiFactory->input()->field()
+                                                               ->checkbox($this->lng->txt('osd_play_sound'), $this->lng->txt('osd_play_sound_desc'))
+                                                               ->withValue((bool) $this->user->getPref('osd_play_sound'));
+        }
+
+        if ($fields !== []) {
+            $formSections['notification_sec'] = $this->uiFactory->input()->field()->section(
+                $fields,
+                $this->lng->txt('notification_settings')
+            );
+        }
+    }
+
+    protected function populateWithChatSettingsSection(
+        array &$formSections
+    ): void {
+        if (!$this->shouldDisplayChatSection()) {
+            return;
+        }
+
+        $fieldFactory = $this->uiFactory->input()->field();
+        $fields = [];
+
+        $this->lng->loadLanguageModule('chatroom_adm');
+        $checkboxStateToBooleanTrafo = $this->refinery->custom()->transformation(static function ($v) {
+            if (is_array($v)) {
+                return $v;
+            }
+
+            if (is_bool($v)) {
+                return $v;
+            }
+
+            return $v === 'checked';
+        });
+
+        if ($this->shouldShowOnScreenChatOptions()) {
+            $oscAvailable = $this->settings->get('usr_settings_disable_chat_osc_accept_msg', '0') === '1' ? true : false;
+            $oscSubFormGroup = [];
+
+            if ($this->chatSettings->get('enable_browser_notifications', '0')) {
+                $enabledBrowserNotifications = $fieldFactory
+                    ->checkbox(
+                        $this->lng->txt('osc_enable_browser_notifications_label'),
+                        sprintf(
+                            $this->lng->txt('osc_enable_browser_notifications_info'),
+                            (int) $this->chatSettings->get('conversation_idle_state_in_minutes')
+                        )
+                    )
+                    ->withAdditionalTransformation($checkboxStateToBooleanTrafo)
+                    ->withDisabled($oscAvailable);
+
+                $oscSubFormGroup[self::PROP_ENABLE_BROWSER_NOTIFICATIONS] = $enabledBrowserNotifications;
+
+                $groupValue = null;
+                if (ilUtil::yn2tf((string) $this->user->getPref('chat_osc_accept_msg'))) {
+                    $groupValue = [
+                        self::PROP_ENABLE_BROWSER_NOTIFICATIONS => ilUtil::yn2tf((string) $this->user->getPref('chat_osc_browser_notifications')),
+                    ];
+                }
+                $enabledOsc = $fieldFactory
+                    ->optionalGroup(
+                        $oscSubFormGroup,
+                        $this->lng->txt('chat_osc_accept_msg'),
+                        $this->lng->txt('chat_osc_accept_msg_info')
+                    )
+                    ->withAdditionalTransformation($checkboxStateToBooleanTrafo)
+                    ->withDisabled($oscAvailable)
+                    ->withValue($groupValue);
+            } else {
+                $enabledOsc = $fieldFactory
+                    ->checkbox(
+                        $this->lng->txt('chat_osc_accept_msg'),
+                        $this->lng->txt('chat_osc_accept_msg_info')
+                    )
+                    ->withAdditionalTransformation($checkboxStateToBooleanTrafo)
+                    ->withDisabled($oscAvailable)
+                    ->withValue(ilUtil::yn2tf((string) $this->user->getPref('chat_osc_accept_msg')));
+            }
+
+            $fields[self::PROP_ENABLE_OSC] = $enabledOsc;
+        }
+
+        if ($this->shouldShowChatTypingBroadcastOption()) {
+            $fields[self::PROP_ENABLE_BROADCAST_TYPING] = $fieldFactory
+                ->checkbox($this->lng->txt('chat_broadcast_typing'), $this->lng->txt('chat_broadcast_typing_info'))
+                ->withAdditionalTransformation($checkboxStateToBooleanTrafo)
+                ->withValue(ilUtil::yn2tf((string) $this->user->getPref('chat_broadcast_typing')));
+        }
+
+        if ($fields !== []) {
+            $formSections['chat_sec'] = $this->uiFactory->input()->field()->section(
+                $fields,
+                $this->lng->txt('chat_settings')
+            );
+        }
+    }
+
+    public function savePrivacySettings(): void
     {
         $request = $this->request;
         $form = $this->initPrivacySettingsForm();
@@ -239,31 +389,126 @@ class ilUserPrivacySettingsGUI
         $user = $this->user;
         $ctrl = $this->ctrl;
 
-        if ($request->getMethod() == "POST") {
+        if ($request->getMethod() === "POST") {
             $form = $form->withRequest($request);
-            $data = $form->getData();
-            if (is_array($data["sec"])) {
-                if ($this->isAwarnessSettingVisible() && $this->workWithUserSetting("hide_own_online_status")) {
-                    if ($data["sec"]["hide_own_online_status"]) {
-                        $user->setPref("hide_own_online_status", "y");
-                    } else {
-                        $user->setPref("hide_own_online_status", "n");
-                    }
+            $formData = $form->getData();
+
+            if ($this->isAwarnessSettingVisible() && $this->workWithUserSetting("hide_own_online_status")) {
+                $val = $formData["hide_own_online_status"] ?? 'x';
+                if ($val == "x") {
+                    $val = "";
                 }
-                if ($this->isContactSettingVisible() && $this->workWithUserSetting("bs_allow_to_contact_me")) {
-                    if ($data["sec"]["bs_allow_to_contact_me"]) {
-                        $user->setPref("bs_allow_to_contact_me", "y");
-                    } else {
-                        $user->setPref("bs_allow_to_contact_me", "n");
-                    }
-                }
-                $user->update();
-                $this->checklist_status->saveStepSucess(ilProfileChecklistStatus::STEP_VISIBILITY_OPTIONS);
-                ilUtil::sendSuccess($lng->txt("msg_obj_modified"), true);
-                $ctrl->redirect($this, "");
+                $user->setPref(
+                    "hide_own_online_status",
+                    $val
+                );
             }
+            if ($this->isContactSettingVisible() && $this->workWithUserSetting("bs_allow_to_contact_me")) {
+                if ($formData["bs_allow_to_contact_me"]) {
+                    $user->setPref("bs_allow_to_contact_me", "y");
+                } else {
+                    $user->setPref("bs_allow_to_contact_me", "n");
+                }
+            }
+
+            $user->update();
+
+            if ($this->shouldDisplayNotificationSection()) {
+                if ($this->shouldShowNotificationOptions()) {
+                    $oldPlaySoundValue = (int) $this->user->getPref('osd_play_sound');
+                    $playASound = (int) ($formData[self::PROP_ENABLE_SOUND] ?? 0);
+
+                    if ($oldPlaySoundValue !== $playASound) {
+                        $this->user->setPref('osd_play_sound', (string) $playASound);
+                    }
+                }
+            }
+
+            if ($this->shouldDisplayChatSection()) {
+                $preferencesUpdated = false;
+
+                if ($this->shouldShowOnScreenChatOptions()) {
+                    $oldEnableOscValue = ilUtil::yn2tf((string) $this->user->getPref('chat_osc_accept_msg'));
+                    $enableOsc = $formData[self::PROP_ENABLE_OSC] ?? null;
+                    if (!is_bool($enableOsc)) {
+                        $enableOsc = is_array($enableOsc);
+                    }
+
+                    if ($this->settings->get('usr_settings_disable_chat_osc_accept_msg', '0') !== '1') {
+                        $preferencesUpdated = true;
+                        if ($oldEnableOscValue !== $enableOsc) {
+                            $this->user->setPref('chat_osc_accept_msg', ilUtil::tf2yn($enableOsc));
+                            $preferencesUpdated = true;
+                        }
+                    }
+
+                    if ($enableOsc && $this->chatSettings->get('enable_browser_notifications', '0')) {
+                        $oldBrowserNotificationValue = ilUtil::yn2tf((string) $this->user->getPref('chat_osc_browser_notifications'));
+
+                        $sendBrowserNotifications = false;
+                        if (is_array($formData[self::PROP_ENABLE_OSC]) &&
+                            true === $formData[self::PROP_ENABLE_OSC][self::PROP_ENABLE_BROWSER_NOTIFICATIONS]) {
+                            $sendBrowserNotifications = true;
+                        }
+
+                        if ($oldBrowserNotificationValue !== $sendBrowserNotifications) {
+                            $this->user->setPref(
+                                'chat_osc_browser_notifications',
+                                ilUtil::tf2yn($sendBrowserNotifications)
+                            );
+                            $preferencesUpdated = true;
+                        }
+                    }
+                }
+
+                if ($this->shouldShowChatTypingBroadcastOption()) {
+                    $oldBroadcastTypingValue = ilUtil::yn2tf((string) $this->user->getPref('chat_broadcast_typing'));
+                    $broadcastTyping = (bool) ($formData[self::PROP_ENABLE_BROADCAST_TYPING] ?? false);
+
+                    if ($oldBroadcastTypingValue !== $broadcastTyping) {
+                        $this->user->setPref('chat_broadcast_typing', ilUtil::tf2yn($broadcastTyping));
+                        $preferencesUpdated = true;
+                    }
+                }
+
+                if ($preferencesUpdated) {
+                    $this->user->writePrefs();
+
+                    $this->event->raise(
+                        'Modules/Chatroom',
+                        'chatSettingsChanged',
+                        [
+                            'user' => $this->user
+                        ]
+                    );
+                }
+            }
+
+            $this->checklist_status->saveStepSucess(ilProfileChecklistStatus::STEP_VISIBILITY_OPTIONS);
+            $this->main_tpl->setOnScreenMessage('success', $lng->txt('msg_obj_modified'), true);
+            $ctrl->redirect($this, '');
         }
+
         $this->showPrivacySettings($form);
     }
 
+    protected function appendChatJsToTemplate(
+        ilGlobalTemplateInterface $pageTemplate
+    ): ilTemplate {
+        $tpl = new ilTemplate('tpl.personal_chat_settings_form.html', true, true, 'Modules/Chatroom');
+        if ($this->shouldShowOnScreenChatOptions() && $this->chatSettings->get('enable_browser_notifications', '0')) {
+            $pageTemplate->addJavaScript('./Services/Notifications/js/browser_notifications.js');
+
+            $tpl->setVariable('ALERT_IMAGE_SRC', ilUtil::getImagePath('icon_alert.svg'));
+            $tpl->setVariable('BROWSER_NOTIFICATION_TOGGLE_LABEL', $this->lng->txt('osc_enable_browser_notifications_label'));
+
+            $this->lng->toJSMap([
+                'osc_browser_noti_no_permission_error' => $this->lng->txt('osc_browser_noti_no_permission_error'),
+                'osc_browser_noti_no_support_error' => $this->lng->txt('osc_browser_noti_no_support_error'),
+                'osc_browser_noti_req_permission_error' => $this->lng->txt('osc_browser_noti_req_permission_error'),
+            ], $pageTemplate);
+        }
+
+        return $tpl;
+    }
 }

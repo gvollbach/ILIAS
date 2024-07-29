@@ -1,93 +1,81 @@
 <?php
-/* Copyright (c) 1998-2017 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-require_once 'Services/Context/interfaces/interface.ilContextTemplate.php';
+declare(strict_types=1);
 
 /**
- * Class ilContextSaml
- */
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 class ilContextSaml implements ilContextTemplate
 {
-	/**
-	 * @inheritdoc
-	 */
-	public static function supportsRedirects()
-	{
-		return true;
-	}
+    public static function supportsRedirects(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public static function hasUser()
-	{
-		return true;
-	}
+    public static function hasUser(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public static function usesHTTP()
-	{
-		return true;
-	}
+    public static function usesHTTP(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public static function hasHTML()
-	{
-		return true;
-	}
+    public static function hasHTML(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public static function usesTemplate()
-	{
-		return true;
-	}
+    public static function usesTemplate(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public static function initClient()
-	{
-		return true;
-	}
+    public static function initClient(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public static function doAuthentication()
-	{
-		return true;
-	}
+    public static function doAuthentication(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public static function supportsPersistentSessions()
-	{
-		return true;
-	}
+    public static function supportsPersistentSessions(): bool
+    {
+        return true;
+    }
 
-	/**
-	 * Supports push messages
-	 *
-	 * @return bool
-	 */
-	public static function supportsPushMessages()
-	{
-		return false;
-	}
+    public static function supportsPushMessages(): bool
+    {
+        return false;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	public static function isSessionMainContext()
-	{
-		return false;
-	}
+    public static function isSessionMainContext(): bool
+    {
+        return false;
+    }
 
+    public static function modifyHttpPath(string $httpPath): string
+    {
+        if (strpos($httpPath, '/Services/Saml/lib/') !== false && strpos($httpPath, '/metadata.php') === false) {
+            return substr($httpPath, 0, strpos($httpPath, '/Services/Saml/lib/'));
+        }
+
+        return $httpPath;
+    }
 }

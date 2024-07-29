@@ -1,11 +1,11 @@
 /* Modules/Wiki */
 
 a.ilWikiPageMissing:link, a.ilWikiPageMissing:visited {
-	color: red;
+	color: @il-danger-color;
 }
 
 a.ilWikiPageMissing:hover {
-	color: black;
+	color: @il-text-hover-color;
 }
 
 ul.ilWikiBlockList {
@@ -22,5 +22,14 @@ ul.ilWikiBlockListNoIndent {
 
 li.ilWikiBlockItem {
 	margin: 0;
-	padding: 0;
+	padding-top: @il-padding-large-vertical;
+	padding-bottom: @il-padding-large-vertical;
+	font-size: @il-font-size-small;
+}
+
+/* see mantis #0027530 */
+#block_wikiside_0 {
+	.panel-body {
+		overflow: visible;
+	}
 }

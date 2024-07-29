@@ -30,7 +30,8 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.poi.POITextExtractor;
 import org.apache.poi.extractor.ExtractorFactory;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
@@ -43,7 +44,7 @@ import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
  */
 public class ExtensionFileHandler {
 
-    protected static Logger logger = Logger.getLogger(ExtensionFileHandler.class);
+    protected static Logger logger = LogManager.getLogger(ExtensionFileHandler.class);
 
     
     public ExtensionFileHandler() {
@@ -56,7 +57,7 @@ public class ExtensionFileHandler {
      * @return
      * @throws FileHandlerException
      */
-    public String getContent(File file) throws FileHandlerException {
+    public String getContent(File file, String extension) throws FileHandlerException {
 
     	// Stop here if no read permission is given
         if(!file.canRead()) {
@@ -69,87 +70,89 @@ public class ExtensionFileHandler {
 		}
 		
        	logger.info("Current file is: " + file.getAbsolutePath());
-		
-       
-    	try {
-	        String fname = file.getName();
-	        int dotIndex = fname.lastIndexOf(".");
-	        if((dotIndex > 0) && (dotIndex < fname.length())) {
-	            String extension = fname.substring(dotIndex + 1, fname.length());
-				
-				
-				// Do not index xslx
-				if(extension.equalsIgnoreCase("xlsx")) {
-					logger.info("Ignoring xslx: " + file.getName());
-					return "";
-				}
-	            // Handled extensions are: html,pdf,txt
-	            if(extension.equalsIgnoreCase("pdf")) {
-	                logger.info("Using getPDFDocument() for " + file.getName());
-	                return getPDFDocument(file);
-	            }
-	            // HTML
-	            if(extension.equalsIgnoreCase("html") || extension.equalsIgnoreCase("htm")) {
-	                logger.info("Using getHTMLDocument() for " + file.getName());
-	                return getHTMLDocument(file);
-	            }
-	            if(extension.equalsIgnoreCase("txt") || extension.length() == 0) {
-	                logger.info("Using getTextDocument() for: " + file.getName() );
-	                return getTextDocument(file);
-	            }
-	            // Open office
-	            if(extension.equalsIgnoreCase("odt")) {
-	            	logger.info("Using getOpenOfficeDocument() for " + file.getName());
-	            	return getOpenOfficeDocument(file);
-	            }
-	            if(extension.equalsIgnoreCase("ott")) {
-	            	logger.info("Using getOpenOfficeDocument() for " + file.getName());
-	            	return getOpenOfficeDocument(file);
-	            }
-	            if(extension.equalsIgnoreCase("stw")) {
-	            	logger.info("Using getOpenOfficeDocument() for " + file.getName());
-	            	return getOpenOfficeDocument(file);
-	            }
-	            if(extension.equalsIgnoreCase("sxw")) {
-	            	logger.info("Using getOpenOfficeDocument() for " + file.getName());
-	            	return getOpenOfficeDocument(file);
-	            }
-	            if(extension.equalsIgnoreCase("odg")) {
-	            	logger.info("Using getOpenOfficeDocument() for " + file.getName());
-	            	return getOpenOfficeDocument(file);
-	            }
-	            if(extension.equalsIgnoreCase("odp")) {
-	            	logger.info("Using getOpenOfficeDocument() for " + file.getName());
-	            	return getOpenOfficeDocument(file);
-	            }
-	            if(extension.equalsIgnoreCase("sti")) {
-	            	logger.info("Using getOpenOfficeDocument() for " + file.getName());
-	            	return getOpenOfficeDocument(file);
-	            }
-	            if(extension.equalsIgnoreCase("sxd")) {
-	            	logger.info("Using getOpenOfficeDocument() for " + file.getName());
-	            	return getOpenOfficeDocument(file);
-	            }
-	            if(extension.equalsIgnoreCase("sxw")) {
-	            	logger.info("Using getOpenOfficeDocument() for " + file.getName());
-	            	return getOpenOfficeDocument(file);
-	            }
-	            // Flat XML OO documents
-	            if(extension.equalsIgnoreCase("fodt")) {
-	            	logger.info("Using getOpenOfficeDocument() for " + file.getName());
-	            	return getFlatOpenOfficeDocument(file);
-	            }
-	            if(extension.equalsIgnoreCase("fodp")) {
-	            	logger.info("Using getOpenOfficeDocument() for " + file.getName());
-	            	return getFlatOpenOfficeDocument(file);
-	            }
-	            
-	            // RTF
-	            if(extension.equalsIgnoreCase("rtf")) {
-	            	logger.info("Using getRTFDocument() for " + file.getName());
-	            	return getRTFDocument(file);
-	            }
-	        }
+		try {
+			String fname = file.getName();
+			int dotIndex = fname.lastIndexOf(".");
+			if ((extension.length() == 0)
+				&& (dotIndex > 0)
+				&& (dotIndex < fname.length())) {
+				extension = fname.substring(dotIndex + 1, fname.length());
+			}
+			if (extension.equalsIgnoreCase("")) {
+				logger.warn("no valid extension found for: " + file.getName());
+				return "";
+			}
+			// Do not index xslx
+			if (extension.equalsIgnoreCase("xlsx")) {
+				logger.info("Ignoring xslx: " + file.getName());
+				return "";
+			}
+			// Handled extensions are: html,pdf,txt
+			if (extension.equalsIgnoreCase("pdf")) {
+				logger.info("Using getPDFDocument() for " + file.getName());
+				return getPDFDocument(file);
+			}
+			// HTML
+			if (extension.equalsIgnoreCase("html") || extension.equalsIgnoreCase("htm")) {
+				logger.info("Using getHTMLDocument() for " + file.getName());
+				return getHTMLDocument(file);
+			}
+			if (extension.equalsIgnoreCase("txt") || extension.length() == 0) {
+				logger.info("Using getTextDocument() for: " + file.getName());
+				return getTextDocument(file);
+			}
+			// Open office
+			if (extension.equalsIgnoreCase("odt")) {
+				logger.info("Using getOpenOfficeDocument() for " + file.getName());
+				return getOpenOfficeDocument(file);
+			}
+			if (extension.equalsIgnoreCase("ott")) {
+				logger.info("Using getOpenOfficeDocument() for " + file.getName());
+				return getOpenOfficeDocument(file);
+			}
+			if (extension.equalsIgnoreCase("stw")) {
+				logger.info("Using getOpenOfficeDocument() for " + file.getName());
+				return getOpenOfficeDocument(file);
+			}
+			if (extension.equalsIgnoreCase("sxw")) {
+				logger.info("Using getOpenOfficeDocument() for " + file.getName());
+				return getOpenOfficeDocument(file);
+			}
+			if (extension.equalsIgnoreCase("odg")) {
+				logger.info("Using getOpenOfficeDocument() for " + file.getName());
+				return getOpenOfficeDocument(file);
+			}
+			if (extension.equalsIgnoreCase("odp")) {
+				logger.info("Using getOpenOfficeDocument() for " + file.getName());
+				return getOpenOfficeDocument(file);
+			}
+			if (extension.equalsIgnoreCase("sti")) {
+				logger.info("Using getOpenOfficeDocument() for " + file.getName());
+				return getOpenOfficeDocument(file);
+			}
+			if (extension.equalsIgnoreCase("sxd")) {
+				logger.info("Using getOpenOfficeDocument() for " + file.getName());
+				return getOpenOfficeDocument(file);
+			}
+			if (extension.equalsIgnoreCase("sxw")) {
+				logger.info("Using getOpenOfficeDocument() for " + file.getName());
+				return getOpenOfficeDocument(file);
+			}
+			// Flat XML OO documents
+			if (extension.equalsIgnoreCase("fodt")) {
+				logger.info("Using getOpenOfficeDocument() for " + file.getName());
+				return getFlatOpenOfficeDocument(file);
+			}
+			if (extension.equalsIgnoreCase("fodp")) {
+				logger.info("Using getOpenOfficeDocument() for " + file.getName());
+				return getFlatOpenOfficeDocument(file);
+			}
+
+			// RTF
+			if (extension.equalsIgnoreCase("rtf")) {
+				logger.info("Using getRTFDocument() for " + file.getName());
+				return getRTFDocument(file);
+			}
         }
     	catch (FileHandlerException e) {
         	logger.warn("Parsing failed with message: " + e);

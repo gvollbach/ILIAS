@@ -1,12 +1,27 @@
 <?php
 
+/**
+ * This file is part of ILIAS, a powerful learning management system
+ * published by ILIAS open source e-Learning e.V.
+ *
+ * ILIAS is licensed with the GPL-3.0,
+ * see https://www.gnu.org/licenses/gpl-3.0.en.html
+ * You should have received a copy of said license along with the
+ * source code, too.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ * https://www.ilias.de
+ * https://github.com/ILIAS-eLearning
+ *
+ *********************************************************************/
+
 use ILIAS\BackgroundTasks\Implementation\Tasks\AbstractJob;
 use ILIAS\BackgroundTasks\Implementation\Values\ScalarValues\StringValue;
 use ILIAS\BackgroundTasks\Observer;
 use ILIAS\BackgroundTasks\Types\SingleType;
+use ILIAS\BackgroundTasks\Types\Type;
 use ILIAS\BackgroundTasks\Value;
-
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 /**
  * Description of class class
@@ -16,15 +31,8 @@ use ILIAS\BackgroundTasks\Value;
  */
 class ilCopyFilesToTempDirectoryJob extends AbstractJob
 {
-
-    /**
-     * @var ilLogger
-     */
-    private $logger = null;
-    /**
-     * @var string
-     */
-    protected $target_directory;
+    private ?ilLogger $logger;
+    protected string $target_directory = '';
 
 
     /**
@@ -32,13 +40,15 @@ class ilCopyFilesToTempDirectoryJob extends AbstractJob
      */
     public function __construct()
     {
-        $this->logger = $GLOBALS['DIC']->logger()->cal();
+        global $DIC;
+        $this->logger = $DIC->logger()->cal();
     }
 
 
     /**
+     * @return \ILIAS\BackgroundTasks\Types\SingleType[]
      */
-    public function getInputTypes()
+    public function getInputTypes(): array
     {
         return
             [
@@ -48,16 +58,15 @@ class ilCopyFilesToTempDirectoryJob extends AbstractJob
 
 
     /**
-     * @return SingleType
      * @todo output should be file type
      */
-    public function getOutputType()
+    public function getOutputType(): Type
     {
         return new SingleType(StringValue::class);
     }
 
 
-    public function isStateless()
+    public function isStateless(): bool
     {
         return true;
     }
@@ -65,11 +74,9 @@ class ilCopyFilesToTempDirectoryJob extends AbstractJob
 
     /**
      * run the job
-     *
      * @param Value    $input
-     * @param Observer $observer
      */
-    public function run(array $input, Observer $observer)
+    public function run(array $input, Observer $observer): Value
     {
         $definition = $input[0];
 
@@ -77,7 +84,7 @@ class ilCopyFilesToTempDirectoryJob extends AbstractJob
 
         $this->target_directory = $definition->getTempDir();
 
-        // create temp directory 
+        // create temp directory
         $tmpdir = $this->createUniqueTempDirectory();
         $targetdir = $this->createTargetDirectory($tmpdir);
 
@@ -85,7 +92,7 @@ class ilCopyFilesToTempDirectoryJob extends AbstractJob
         //$this->copyFiles($targetdir, $input[0]);
         $this->copyFiles($targetdir, $definition);
 
-        // zip 
+        // zip
 
         // return zip file name
         $this->logger->debug('Returning new tempdirectory: ' . $targetdir);
@@ -102,20 +109,20 @@ class ilCopyFilesToTempDirectoryJob extends AbstractJob
      * @todo refactor to new file system access
      *       Create unique temp directory
      */
-    protected function createUniqueTempDirectory()
+    protected function createUniqueTempDirectory(): string
     {
-        $tmpdir = ilUtil::ilTempnam();
-        ilUtil::makeDirParents($tmpdir);
+        $tmpdir = ilFileUtils::ilTempnam();
+        ilFileUtils::makeDirParents($tmpdir);
         $this->logger->info('New temp directory: ' . $tmpdir);
 
         return $tmpdir;
     }
 
 
-    protected function createTargetDirectory($a_tmpdir)
+    protected function createTargetDirectory($a_tmpdir): string
     {
         $final_dir = $a_tmpdir . "/" . $this->target_directory;
-        ilUtil::makeDirParents($final_dir);
+        ilFileUtils::makeDirParents($final_dir);
         $this->logger->info('New final directory: ' . $final_dir);
 
         return $final_dir;
@@ -124,50 +131,56 @@ class ilCopyFilesToTempDirectoryJob extends AbstractJob
 
     /**
      * Copy files
-     *
-     * @param string           $tmpdir
-     * @param ilCopyDefinition $definition
      */
-    protected function copyFiles($tmpdir, ilCopyDefinition $definition)
+    protected function copyFiles(string $tmpdir, ilCopyDefinition $definition): void
     {
         foreach ($definition->getCopyDefinitions() as $copy_task) {
-            if (!file_exists($copy_task[ilCopyDefinition::COPY_SOURCE_DIR])) {
+            $source_dir_or_file = $copy_task[ilCopyDefinition::COPY_SOURCE_DIR];
+            $target_dir_or_file = $copy_task[ilCopyDefinition::COPY_TARGET_DIR];
+            $absolute_path_of_target_dir_or_file = $tmpdir . '/' . $target_dir_or_file;
+            $absolute_directory_of_target_dir_or_file = $tmpdir . '/' . dirname($target_dir_or_file);
+
+            $this->logger->debug('Creating directory: ' . $tmpdir . '/' . dirname($target_dir_or_file));
+
+            ilFileUtils::makeDirParents(
+                $absolute_directory_of_target_dir_or_file
+            );
+
+            if (!file_exists($source_dir_or_file)) {
                 // if the "file" to be copied is an empty folder the directory has to be created so it will be contained in the download zip
-                $is_empty_folder = preg_match_all("/\/$/", $copy_task[ilCopyDefinition::COPY_TARGET_DIR]);
-                if ($is_empty_folder) {
-                    mkdir($tmpdir . '/' . $copy_task[ilCopyDefinition::COPY_TARGET_DIR]);
-                    $this->logger->notice('Empty folder has been created: ' . $tmpdir . '/' . $copy_task[ilCopyDefinition::COPY_SOURCE_DIR]);
+                $is_empty_folder = preg_match_all("/\/$/", $target_dir_or_file);
+                if ($is_empty_folder && !file_exists($absolute_path_of_target_dir_or_file)) {
+                    mkdir($absolute_path_of_target_dir_or_file);
+                    $this->logger->notice('Empty folder has been created: ' . $tmpdir . '/' . $source_dir_or_file);
                 } else {
-                    $this->logger->notice('Cannot find file: ' . $copy_task[ilCopyDefinition::COPY_SOURCE_DIR]);
+                    $this->logger->notice('Cannot find file: ' . $source_dir_or_file);
                 }
                 continue;
             }
-            $this->logger->debug('Creating directory: ' . $tmpdir . '/' . dirname($copy_task[ilCopyDefinition::COPY_TARGET_DIR]));
-            ilUtil::makeDirParents(
-                $tmpdir . '/' . dirname($copy_task[ilCopyDefinition::COPY_TARGET_DIR])
-            );
 
             $this->logger->debug(
                 'Copying from: ' .
-                $copy_task[ilCopyDefinition::COPY_SOURCE_DIR] .
+                $source_dir_or_file .
                 ' to ' .
-                $tmpdir . '/' . $copy_task[ilCopyDefinition::COPY_TARGET_DIR]
+                $absolute_path_of_target_dir_or_file
             );
-
-            copy(
-                $copy_task[ilCopyDefinition::COPY_SOURCE_DIR],
-                $tmpdir . '/' . $copy_task[ilCopyDefinition::COPY_TARGET_DIR]
-            );
+            if (
+                !is_dir($source_dir_or_file) && is_file($source_dir_or_file)
+                && !is_dir($absolute_path_of_target_dir_or_file)
+            ) {
+                copy(
+                    $source_dir_or_file,
+                    $absolute_path_of_target_dir_or_file
+                );
+            }
         }
-
-        return;
     }
 
 
     /**
      * @inheritdoc
      */
-    public function getExpectedTimeOfTaskInSeconds()
+    public function getExpectedTimeOfTaskInSeconds(): int
     {
         return 30;
     }

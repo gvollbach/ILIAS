@@ -1,163 +1,131 @@
 <?php
-/* Copyright (c) 1998-2010 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once './Services/Authentication/classes/Provider/class.ilAuthProvider.php';
-include_once './Services/Authentication/interfaces/interface.ilAuthProviderInterface.php';
+declare(strict_types=1);
+
+/******************************************************************************
+ *
+ * This file is part of ILIAS, a powerful learning management system.
+ *
+ * ILIAS is licensed with the GPL-3.0, you should have received a copy
+ * of said license along with the source code.
+ *
+ * If this is not the case or you just want to try ILIAS, you'll find
+ * us at:
+ *      https://www.ilias.de
+ *      https://github.com/ILIAS-eLearning
+ *
+ *****************************************************************************/
 
 /**
  * CAS authentication provider
- *
  * @author Stefan Meyer <smeyer.ilias@gmx.de>
- *
  */
-class ilAuthProviderCAS extends ilAuthProvider implements ilAuthProviderInterface
+class ilAuthProviderCAS extends ilAuthProvider
 {
-	/**
-	 * @var ilCASSettings
-	 */
-	private $settings = null;
+    private ilCASSettings $settings;
 
-	/**
-	 * ilAuthProviderCAS constructor.
-	 * @param \ilAuthCredentials $credentials
-	 */
-	public function __construct(ilAuthCredentials $credentials)
-	{
-		global $DIC;
+    public function __construct(ilAuthCredentials $credentials)
+    {
+        parent::__construct($credentials);
+        $this->settings = ilCASSettings::getInstance();
+    }
 
-		parent::__construct($credentials);
-		include_once './Services/CAS/classes/class.ilCASSettings.php';
-		$this->settings = ilCASSettings::getInstance();
-	}
+    protected function getSettings(): ilCASSettings
+    {
+        return $this->settings;
+    }
 
-	/**
-	 * @return \ilCASSettings
-	 */
-	protected function getSettings()
-	{
-		return $this->settings;
-	}
+    public function doAuthentication(ilAuthStatus $status): bool
+    {
+        $this->getLogger()->debug('Starting cas authentication attempt... ');
 
-	/**
-	 * @inheritdoc
-	 */
-	public function doAuthentication(\ilAuthStatus $status)
-	{
-		include_once './Services/CAS/lib/CAS.php';
-		global $phpCAS;
+        try {
+            phpCAS::setDebug(false);
+            phpCAS::setVerbose(true);
+            phpCAS::client(
+                CAS_VERSION_2_0,
+                $this->getSettings()->getServer(),
+                $this->getSettings()->getPort(),
+                $this->getSettings()->getUri()
+            );
 
-		$this->getLogger()->debug('Starting cas authentication attempt... ');
+            phpCAS::setNoCasServerValidation();
+            phpCAS::forceAuthentication();
+        } catch (Exception $e) {
+            $this->getLogger()->error('Cas authentication failed with message: ' . $e->getMessage());
+            $this->handleAuthenticationFail($status, 'err_wrong_login');
+            return false;
+        }
 
-		try {
-			phpCAS::setDebug(false);
-			phpCAS::setVerbose(true);
-			phpCAS::client(
-				CAS_VERSION_2_0,
-				$this->getSettings()->getServer(),
-				(int) $this->getSettings()->getPort(),
-				$this->getSettings()->getUri()
-			);
+        if (phpCAS::getUser() === '') {
+            return $this->handleAuthenticationFail($status, 'err_wrong_login');
+        }
+        $this->getCredentials()->setUsername(phpCAS::getUser());
 
-			phpCAS::setNoCasServerValidation();
-			phpCAS::forceAuthentication();
-		}
-		catch(Exception $e) {
-			$this->getLogger()->error('Cas authentication failed with message: ' . $e->getMessage());
-			$this->handleAuthenticationFail($status, 'err_wrong_login');
-			return false;
-		}
+        // check and handle ldap data sources
+        if (ilLDAPServer::isDataSourceActive(ilAuthUtils::AUTH_CAS)) {
+            return $this->handleLDAPDataSource($status);
+        }
 
-		if(!strlen(phpCAS::getUser()))
-		{
-			return $this->handleAuthenticationFail($status, 'err_wrong_login');
-		}
-		$this->getCredentials()->setUsername(phpCAS::getUser());
+        // Check account available
+        $local_user = ilObjUser::_checkExternalAuthAccount("cas", $this->getCredentials()->getUsername());
+        if ($local_user !== '' && $local_user !== null) {
+            $this->getLogger()->debug('CAS authentication successful.');
+            $status->setStatus(ilAuthStatus::STATUS_AUTHENTICATED);
+            $status->setAuthenticatedUserId(ilObjUser::_lookupId($local_user));
+            return true;
+        }
 
-		// check and handle ldap data sources
-		include_once './Services/LDAP/classes/class.ilLDAPServer.php';
-		if(ilLDAPServer::isDataSourceActive(AUTH_CAS))
-		{
-			return $this->handleLDAPDataSource($status);
-		}
+        if (!$this->getSettings()->isUserCreationEnabled()) {
+            $this->getLogger()->debug('User creation disabled. No valid local account found');
+            $this->handleAuthenticationFail($status, 'err_auth_cas_no_ilias_user');
+            return false;
+        }
 
-		// Check account available
-		$local_user = ilObjUser::_checkExternalAuthAccount("cas", $this->getCredentials()->getUsername());
-		if(strlen($local_user))
-		{
-			$this->getLogger()->debug('CAS authentication successful.');
-			$status->setStatus(ilAuthStatus::STATUS_AUTHENTICATED);
-			$status->setAuthenticatedUserId(ilObjUser::_lookupId($local_user));
-			return true;
-		}
+        $importer = new ilCASAttributeToUser($this->getSettings());
+        $new_name = $importer->create($this->getCredentials()->getUsername());
 
-		if(!$this->getSettings()->isUserCreationEnabled())
-		{
-			$this->getLogger()->debug('User creation disabled. No valid local account found');
-			$this->handleAuthenticationFail($status, 'err_auth_cas_no_ilias_user');
-			return false;
-		}
+        if ($new_name === '') {
+            $this->getLogger()->debug('User creation failed.');
+            $this->handleAuthenticationFail($status, 'err_auth_cas_no_ilias_user');
+            return false;
+        }
 
+        $status->setStatus(ilAuthStatus::STATUS_AUTHENTICATED);
+        $status->setAuthenticatedUserId(ilObjUser::_lookupId($new_name));
+        return true;
+    }
 
-		include_once './Services/CAS/classes/class.ilCASAttributeToUser.php';
-		$importer = new ilCASAttributeToUser($this->getSettings());
-		$new_name = $importer->create($this->getCredentials()->getUsername());
+    protected function handleLDAPDataSource(ilAuthStatus $status): bool
+    {
+        $server = ilLDAPServer::getInstanceByServerId(
+            ilLDAPServer::getDataSource(ilAuthUtils::AUTH_CAS)
+        );
 
-		if(!strlen($new_name))
-		{
-			$this->getLogger()->debug('User creation failed.');
-			$this->handleAuthenticationFail($status, 'err_auth_cas_no_ilias_user');
-			return false;
-		}
+        $this->getLogger()->debug('Using ldap data source for user: ' . $this->getCredentials()->getUsername());
 
-		$status->setStatus(ilAuthStatus::STATUS_AUTHENTICATED);
-		$status->setAuthenticatedUserId(ilObjUser::_lookupId($new_name));
-		return true;
-	}
+        $sync = new ilLDAPUserSynchronisation('cas', $server->getServerId());
+        $sync->setExternalAccount($this->getCredentials()->getUsername());
+        $sync->setUserData(array());
+        $sync->forceCreation(true);
 
-	/**
-	 * Handle user data synchonization by ldap data source.
-	 * @param \ilAuthStatus $status
-	 */
-	protected function handleLDAPDataSource(\ilAuthStatus $status)
-	{
-		include_once './Services/LDAP/classes/class.ilLDAPServer.php';
-		$server = ilLDAPServer::getInstanceByServerId(
-			ilLDAPServer::getDataSource(AUTH_CAS)
-		);
-
-		$this->getLogger()->debug('Using ldap data source for user: ' . $this->getCredentials()->getUsername());
-
-		include_once './Services/LDAP/classes/class.ilLDAPUserSynchronisation.php';
-		$sync = new ilLDAPUserSynchronisation('cas', $server->getServerId());
-		$sync->setExternalAccount($this->getCredentials()->getUsername());
-		$sync->setUserData(array());
-		$sync->forceCreation(true);
-
-		try {
-			$internal_account = $sync->sync();
-		}
-		catch(UnexpectedValueException $e) {
-			$this->getLogger()->warning('Authentication failed with mesage: ' . $e->getMessage());
-			$this->handleAuthenticationFail($status, 'err_wrong_login');
-			return false;
-		}
-		catch(ilLDAPSynchronisationForbiddenException $e) {
-
-			// No syncronisation allowed => create Error
-			$this->getLogger()->warning('User creation disabled. No valid local account found');
-			$this->handleAuthenticationFail($status, 'err_auth_cas_no_ilias_user');
-			return false;
-		}
-		catch(ilLDAPAccountMigrationRequiredException $e) {
-
-			// No syncronisation allowed => create Error
-			$this->getLogger()->warning('User creation disabled. No valid local account found');
-			$this->handleAuthenticationFail($status, 'err_auth_cas_no_ilias_user');
-			return false;
-		}
-		$status->setStatus(ilAuthStatus::STATUS_AUTHENTICATED);
-		$status->setAuthenticatedUserId(ilObjUser::_lookupId($internal_account));
-		return true;
-	}
-
+        try {
+            $internal_account = $sync->sync();
+        } catch (UnexpectedValueException $e) {
+            $this->getLogger()->warning('Authentication failed with message: ' . $e->getMessage());
+            $this->handleAuthenticationFail($status, 'err_wrong_login');
+            return false;
+        } catch (ilLDAPSynchronisationFailedException $e) {
+            $this->handleAuthenticationFail($status, 'err_auth_ldap_failed');
+            return false;
+        } catch (ilLDAPSynchronisationForbiddenException|ilLDAPAccountMigrationRequiredException $e) {
+            // No syncronisation allowed => create Error
+            $this->getLogger()->warning('User creation disabled. No valid local account found');
+            $this->handleAuthenticationFail($status, 'err_auth_cas_no_ilias_user');
+            return false;
+        }
+        $status->setStatus(ilAuthStatus::STATUS_AUTHENTICATED);
+        $status->setAuthenticatedUserId(ilObjUser::_lookupId($internal_account));
+        return true;
+    }
 }
